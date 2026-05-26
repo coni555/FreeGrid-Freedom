@@ -42,3 +42,6 @@ fastlane/test_output
 # 临时文件
 *.swp
 *.swo
+
+# 私人接力笔记 (跨对话状态文档,只本地存在,不让 fork/contributor 看到)
+HANDOFF.md
