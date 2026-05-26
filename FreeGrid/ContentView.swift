@@ -621,79 +621,89 @@ struct AssetsView: View {
         }
     }
 
-    /// Hero: 大字显示当前资产
+    /// Hero: VaultCard 高亮卡片 + 大 thin 数字 (silverline)
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Total Assets")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(1.5)
+        VaultCard(emphasis: .high, padding: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "Total Assets")
 
-            Text("¥" + currentAsset.formatted(.number))
-                .font(.system(size: 44, weight: .light, design: .serif))
+                Text("¥" + currentAsset.formatted(.number))
+                    .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.ink)
+                    .padding(.top, Spacing.xs)
 
-            if let updated = assetsArr.first?.updatedAt {
-                Text("上次更新: \(updated, format: .relative(presentation: .named))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            } else {
-                Text("尚未设置")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                if let updated = assetsArr.first?.updatedAt {
+                    Text("上次更新 · \(updated, format: .relative(presentation: .named))")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                } else {
+                    Text("尚未设置 · 请在下方输入当前可变现资产")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color.paper2)
-        .cornerRadius(8)
     }
 
-    /// 编辑表单: 输入新值 → 更新按钮
+    /// 编辑表单: VaultCard + 文本框 + sky outline 按钮
     private var editForm: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("更新资产")
-                .font(.headline)
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "Update")
 
-            HStack {
-                Text("¥")
-                    .foregroundColor(.secondary)
-                TextField("0", text: $newAmount)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-            }
+                HStack(spacing: 6) {
+                    Text("¥")
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    TextField("0", text: $newAmount)
+                        .keyboardType(.decimalPad)
+                        .font(.system(.title3, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.hairline, lineWidth: 1)
+                        )
+                }
 
-            Button {
-                updateAsset()
-            } label: {
-                Label(showSavedHint ? "已保存" : "更新", systemImage: showSavedHint ? "checkmark.circle.fill" : "arrow.up.circle.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                VaultButton(
+                    title: showSavedHint ? "已保存" : "更新资产",
+                    icon: showSavedHint ? "checkmark" : "arrow.up",
+                    style: .primary
+                ) {
+                    updateAsset()
+                }
+                .disabled(!isValid)
+                .opacity(isValid || showSavedHint ? 1.0 : 0.4)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isValid)
         }
-        .padding()
-        .background(Color.paper2)
-        .cornerRadius(8)
     }
 
-    /// 说明卡片: 帮助用户理解"资产"的含义
+    /// 说明卡片: 帮助用户理解"资产"的含义 (silverline 极淡 mist 底)
     private var explainCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("什么算资产", systemImage: "info.circle")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.inkFaint)
+                Text("什么算资产")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Color.ink)
+            }
 
-            Text("可变现资产 = 存款 + 余额宝 + 货币基金等\"随时能用的钱\"。\n这是 Freedom Days 的基准:每次记账时会自动扣减(支出)/增加(收入),你也可以随时手动同步真实余额。")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Text("可变现资产 = 存款 + 余额宝 + 货币基金等\"随时能用的钱\"。这是 Freedom Days 的基准:每次记账时会自动扣减(支出)/增加(收入),你也可以随时手动同步真实余额。")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color.paper2.opacity(0.55))
-        .cornerRadius(8)
+        .padding(Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.skyFaint)
+        )
     }
 
     // ============================================================================
@@ -703,43 +713,37 @@ struct AssetsView: View {
     // 适用场景:从 web 版迁移历史数据 / 重置测试数据
 
     private var dataManagementCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("数据管理", systemImage: "externaldrive")
-                .font(.headline)
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(spacing: 6) {
+                    KickerLabel(text: "Data")
+                    Spacer()
+                    Image(systemName: "externaldrive")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.inkFaint)
+                }
 
-            // 导入按钮
-            Button {
-                showingFileImporter = true
-            } label: {
-                Label("从 JSON 导入", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            }
-            .buttonStyle(.bordered)
+                VaultButton(title: "从 JSON 导入",
+                            icon: "square.and.arrow.down",
+                            style: .secondary) {
+                    showingFileImporter = true
+                }
 
-            // 清空按钮(危险操作,红色 + 二次确认)
-            Button(role: .destructive) {
-                showingPurgeAlert = true
-            } label: {
-                Label("清空所有数据", systemImage: "trash")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            }
-            .buttonStyle(.bordered)
+                VaultButton(title: "清空所有数据",
+                            icon: "trash",
+                            style: .destructive) {
+                    showingPurgeAlert = true
+                }
 
-            // 操作结果反馈(成功/失败信息)
-            if let status = importStatus {
-                Text(status)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let status = importStatus {
+                    Text(status)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .padding(.top, Spacing.xs)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color.paper2)
-        .cornerRadius(8)
     }
 
     // ============================================================================
@@ -1087,17 +1091,17 @@ struct HistoryView: View {
 
     private var transactionList: some View {
         List {
-            // 顶部统计行: 共 X 笔 · 净 ¥X
             Section {
                 HStack {
                     Text("共 \(filteredTransactions.count) 笔")
-                        .foregroundColor(.secondary)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
                     Spacer()
                     Text("净 \(netDisplay)")
-                        .foregroundColor(.secondary)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.ink)
                         .monospacedDigit()
                 }
-                .font(.caption)
                 .listRowBackground(Color.paper)
             }
 
@@ -1105,15 +1109,16 @@ struct HistoryView: View {
                 ForEach(filteredTransactions) { tx in
                     transactionRow(tx)
                         .listRowBackground(Color.paper)
+                        .listRowSeparatorTint(Color.hairlineSoft)
                 }
                 .onDelete(perform: deleteTransactions)
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
+        .listStyle(.plain)
     }
 
-    /// 单行渲染:根据 enum 分发到 expense/income 两种样式
     @ViewBuilder
     private func transactionRow(_ tx: TxKind) -> some View {
         switch tx {
@@ -1124,84 +1129,87 @@ struct HistoryView: View {
         }
     }
 
-    /// 支出行:红色金额 + 分类标签 + 备注 + 日期
+    /// 支出行:朱砂金额 + 分类 + 备注 + 日期 (silverline rounded)
     private func expenseRow(_ e: Expense) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(e.category)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
                 if !e.note.isEmpty {
                     Text(e.note)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
                         .lineLimit(1)
                 }
                 Text(e.date, format: .dateTime.year().month().day())
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
             }
             Spacer()
             Text("−¥" + e.amount.formatted(.number.precision(.fractionLength(0...2))))
-                .font(.callout)
-                .fontWeight(.medium)
-                .foregroundColor(Color.vermillion)
-                .monospacedDigit()
+                .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
+                .foregroundStyle(Color.flame)
         }
+        .padding(.vertical, 4)
     }
 
-    /// 收入行:绿色金额 + 来源 + 被动标签(如果是) + 备注 + 日期
+    /// 收入行:深天空蓝金额 + 来源 + 被动标签 + 备注 + 日期
+    /// (silverline:跟"记收入"按钮同色统一)
     private func incomeRow(_ i: Income) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(i.source)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        .foregroundStyle(Color.ink)
                     if i.isPassive {
                         Text("被动")
-                            .font(.caption2)
+                            .font(.system(.caption2, design: .monospaced))
+                            .tracking(0.5)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.forestGreen.opacity(0.12))
-                            .foregroundColor(Color.forestGreen)
-                            .cornerRadius(3)
+                            .foregroundStyle(Color.mossGreen)
+                            .overlay(
+                                Capsule().stroke(Color.mossGreen.opacity(0.5), lineWidth: 1)
+                            )
                     }
                 }
                 if !i.note.isEmpty {
                     Text(i.note)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
                         .lineLimit(1)
                 }
                 Text(i.date, format: .dateTime.year().month().day())
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
             }
             Spacer()
             Text("+¥" + i.amount.formatted(.number.precision(.fractionLength(0...2))))
-                .font(.callout)
-                .fontWeight(.medium)
-                .foregroundColor(Color.forestGreen)
-                .monospacedDigit()
+                .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
+                .foregroundStyle(Color.skyDeep)
         }
+        .padding(.vertical, 4)
     }
 
-    /// 空状态:友好引导用户回 Dashboard 记账
+    /// 空状态:silverline 风简洁提示
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .font(.system(size: 40, weight: .ultraLight))
+                .foregroundStyle(Color.inkFaint)
             Text("还没有记录")
-                .font(.title3)
+                .font(.system(.title3, design: .rounded).weight(.thin))
+                .foregroundStyle(Color.ink)
             Text("回 Dashboard 添加第一笔支出或收入")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
                 .multilineTextAlignment(.center)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.paper)
     }
 
     // ============================================================================
@@ -1266,16 +1274,21 @@ struct CheckView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: Spacing.md) {
-                Text("§")
-                    .font(.system(size: 36, design: .monospaced))
-                    .foregroundStyle(Color.ink3)
+                // silverline outline 圆 + 内 sky 圆点(品牌一致 mark)
+                ZStack {
+                    Circle()
+                        .stroke(Color.inkFaint, lineWidth: 1)
+                        .frame(width: 56, height: 56)
+                    Image(systemName: "checklist")
+                        .font(.system(size: 22, weight: .light))
+                        .foregroundStyle(Color.inkFaint)
+                }
                 Text("Check")
-                    .font(.system(.title2, design: .serif))
+                    .font(.system(.title2, design: .rounded).weight(.thin))
                     .foregroundStyle(Color.ink)
-                Text("财富自由自检清单 — 即将上线")
-                    .font(.system(.subheadline, design: .serif))
-                    .italic()
-                    .foregroundStyle(Color.ink3)
+                Text("财富自由自检清单 · 即将上线")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1317,6 +1330,7 @@ struct AddExpenseSheet: View {
                 Section("金额 (元)") {
                     TextField("0.00", text: $amount)
                         .keyboardType(.decimalPad)
+                        .font(.system(.body, design: .rounded).monospacedDigit())
                 }
                 Section("分类") {
                     Picker("分类", selection: $category) {
@@ -1330,12 +1344,10 @@ struct AddExpenseSheet: View {
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
+                        .font(.system(.body, design: .rounded))
                 }
 
                 // ===== 戴维斯三杀实时预览 =====
-                // 设计动机: 这是 lead-wealth 的产品记忆点,把记账变成"决策辅助"。
-                // 用户输入金额的瞬间看到三杀传导:储蓄变少 → 日均上涨 → 自由天数缩水
-                // 只有金额有效(> 0)时显示,避免空预览占空间
                 if let amt = Double(amount), amt > 0 {
                     Section {
                         impactPreview(amount: amt)
@@ -1343,19 +1355,24 @@ struct AddExpenseSheet: View {
                         Text("戴维斯三杀预览")
                     } footer: {
                         Text("这笔消费对自由天数的传导效应。还没保存,只是看看。")
-                            .font(.caption2)
+                            .font(.system(.caption2, design: .rounded))
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
             .navigationTitle("添加支出")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                        .foregroundStyle(Color.inkMuted)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
                         .disabled(!isAmountValid)
+                        .foregroundStyle(isAmountValid ? Color.skyDeep : Color.inkFaint)
+                        .fontWeight(.medium)
                 }
             }
         }
@@ -1410,25 +1427,18 @@ struct AddExpenseSheet: View {
         .padding(.vertical, 4)
     }
 
-    /// 单行 KILL 显示:label + from → to + delta
-    /// 设计:label 灰色小字,数值黑色等宽,delta 红色(支出场景)
+    /// 单行 KILL: silverline 风 — kicker label / mono from → to / delta 朱砂
     private func killRow(label: String, from: String, to: String, delta: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
+        VStack(alignment: .leading, spacing: 4) {
+            KickerLabel(text: label)
             HStack {
                 Text("\(from) → \(to)")
-                    .font(.callout)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(Color.ink)
                 Spacer()
                 Text(delta)
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color.vermillion)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Color.flame)
             }
         }
     }
@@ -1503,27 +1513,27 @@ struct AddIncomeSheet: View {
                 Section("金额 (元)") {
                     TextField("0.00", text: $amount)
                         .keyboardType(.decimalPad)
+                        .font(.system(.body, design: .rounded).monospacedDigit())
                 }
                 Section("来源") {
                     TextField("工资 / 投资 / 副业 / ...", text: $source)
+                        .font(.system(.body, design: .rounded))
                 }
                 Section {
                     Toggle("这是被动收入", isOn: $isPassive)
+                        .tint(Color.sky)
                 } footer: {
-                    // 解释什么是被动收入,帮助用户做出正确选择
-                    Text("被动收入: 不需要持续工作就能稳定获得的收入(房租/股息/版税/利息)。\n勾选后会纳入「被动覆盖率」统计,这是财富自由的核心指标。")
-                        .font(.caption2)
+                    Text("被动收入: 不需要持续工作就能稳定获得的收入(房租/股息/版税/利息)。勾选后会纳入「被动覆盖率」统计,这是财富自由的核心指标。")
+                        .font(.system(.caption2, design: .rounded))
                 }
                 Section("日期") {
                     DatePicker("日期", selection: $date, displayedComponents: .date)
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
+                        .font(.system(.body, design: .rounded))
                 }
 
-                // ===== 自由增长预览 =====
-                // 设计动机: 和支出的"戴维斯三杀"对称,但语义是正向的——
-                // "这笔钱给你买回多少天自由"。绿色 + 加号,鼓励多记收入。
                 if let amt = Double(amount), amt > 0 {
                     Section {
                         gainPreview(amount: amt)
@@ -1531,19 +1541,24 @@ struct AddIncomeSheet: View {
                         Text("自由增长预览")
                     } footer: {
                         Text("这笔收入对自由天数的回血效应。")
-                            .font(.caption2)
+                            .font(.system(.caption2, design: .rounded))
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
             .navigationTitle("添加收入")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                        .foregroundStyle(Color.inkMuted)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
                         .disabled(!isValid)
+                        .foregroundStyle(isValid ? Color.skyDeep : Color.inkFaint)
+                        .fontWeight(.medium)
                 }
             }
         }
@@ -1595,24 +1610,19 @@ struct AddIncomeSheet: View {
         .padding(.vertical, 4)
     }
 
-    /// 单行 GAIN 显示:绿色正向变化(和 KILL 的红色对称)
+    /// 单行 GAIN: silverline 风 — kicker / mono from → to / delta skyDeep
+    /// 跟 KILL 朱砂对称,GAIN 用深天空蓝(收入主色)
     private func gainRow(label: String, from: String, to: String, delta: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
+        VStack(alignment: .leading, spacing: 4) {
+            KickerLabel(text: label)
             HStack {
                 Text("\(from) → \(to)")
-                    .font(.callout)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(Color.ink)
                 Spacer()
                 Text(delta)
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color.forestGreen)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Color.skyDeep)
             }
         }
     }
@@ -1692,23 +1702,26 @@ struct SimulateSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    bannerCard         // 顶部"不会真实记账"提示
-                    modePicker         // 支出/收入切换
-                    amountInput        // 金额输入
+                VStack(spacing: Spacing.lg) {
+                    bannerCard
+                    modePicker
+                    amountInput
                     if let amt = Double(amount), amt > 0 {
-                        previewCard(amount: amt)   // 实时影响预览
+                        previewCard(amount: amt)
                     } else {
-                        hintCard       // 提示用户输入金额
+                        hintCard
                     }
                 }
                 .padding()
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
             .navigationTitle("模拟决策")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("关闭") { dismiss() }
+                        .foregroundStyle(Color.inkMuted)
                 }
             }
         }
@@ -1718,27 +1731,33 @@ struct SimulateSheet: View {
     // MARK: - 子组件
     // ============================================================================
 
-    /// 顶部 banner:明确提示这是模拟模式
+    /// 顶部 banner: silverline 风 — 极淡 sky wash 底 + 深蓝字
     private var bannerCard: some View {
         HStack(spacing: 10) {
             Image(systemName: "wand.and.stars")
-                .foregroundColor(Color.vermillion)
+                .font(.system(size: 16, weight: .light))
+                .foregroundStyle(Color.skyDeep)
             VStack(alignment: .leading, spacing: 2) {
                 Text("模拟模式")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
                 Text("不会扣资产,不会写入账本,只是看看决策影响。")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
             }
             Spacer()
         }
-        .padding()
-        .background(Color.vermillion.opacity(0.08))
-        .cornerRadius(8)
+        .padding(Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.skyFaint)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.sky.opacity(0.3), lineWidth: 1)
+        )
     }
 
-    /// 模式切换:Segmented
     private var modePicker: some View {
         Picker("模拟类型", selection: $mode) {
             ForEach(Mode.allCases) { m in
@@ -1748,62 +1767,57 @@ struct SimulateSheet: View {
         .pickerStyle(.segmented)
     }
 
-    /// 金额输入(独立卡片样式,和 Sheet 整体一致)
+    /// 金额输入:VaultCard silverline 风
     private var amountInput: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(mode == .expense ? "假设花掉(元)" : "假设收入(元)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.8)
-            HStack {
-                Text("¥")
-                    .foregroundColor(.secondary)
-                TextField("0.00", text: $amount)
-                    .keyboardType(.decimalPad)
-                    .font(.title3)
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                KickerLabel(text: mode == .expense ? "假设花掉 (元)" : "假设收入 (元)")
+                HStack(spacing: 6) {
+                    Text("¥")
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    TextField("0.00", text: $amount)
+                        .keyboardType(.decimalPad)
+                        .font(.system(.title3, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                }
             }
         }
-        .padding()
-        .background(Color.paper2)
-        .cornerRadius(8)
     }
 
     /// 未输入金额时的占位提示
     private var hintCard: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Spacing.sm) {
             Image(systemName: "arrow.up")
-                .font(.title3)
-                .foregroundColor(.secondary)
-            Text("输入金额,实时看决策影响")
-                .font(.callout)
-                .foregroundColor(.secondary)
+                .font(.system(size: 18, weight: .light))
+                .foregroundStyle(Color.inkFaint)
+            Text("输入金额 · 实时看决策影响")
+                .font(.system(.callout, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
         }
-        .padding(.vertical, 24)
+        .padding(.vertical, Spacing.xl)
         .frame(maxWidth: .infinity)
     }
 
-    /// 影响预览卡片:根据 mode 显示 KILL 或 GAIN
+    /// 影响预览:VaultCard silverline
     private func previewCard(amount: Double) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(mode == .expense ? "戴维斯三杀预览" : "自由增长预览")
-                .font(.headline)
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: mode == .expense ? "戴维斯三杀预览" : "自由增长预览")
 
-            if mode == .expense {
-                expensePreview(amount: amount)
-            } else {
-                incomePreview(amount: amount)
+                if mode == .expense {
+                    expensePreview(amount: amount)
+                } else {
+                    incomePreview(amount: amount)
+                }
+
+                Text(mode == .expense
+                     ? "这笔消费对自由天数的传导效应。"
+                     : "这笔收入对自由天数的回血效应。")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
             }
-
-            Text(mode == .expense
-                 ? "这笔消费对自由天数的传导效应。"
-                 : "这笔收入对自由天数的回血效应。")
-                .font(.caption2)
-                .foregroundColor(.secondary)
         }
-        .padding()
-        .background(Color.paper2)
-        .cornerRadius(8)
     }
 
     // ============================================================================
@@ -1880,7 +1894,7 @@ struct SimulateSheet: View {
                       from: formatYuan(currentAssets),
                       to: formatYuan(newAssets),
                       delta: "+\(formatYuan(amount))",
-                      color: Color.forestGreen)
+                      color: Color.skyDeep)
 
             impactRow(label: "GAIN 2 自由天数",
                       from: FreedomMath.freedomDaysDisplay(currentFreedom),
@@ -1888,29 +1902,23 @@ struct SimulateSheet: View {
                       delta: currentFreedom.isInfinite
                           ? "—"
                           : "+\(String(format: "%.1f", freedomGain)) 天",
-                      color: Color.forestGreen)
+                      color: Color.skyDeep)
         }
     }
 
-    /// 通用影响行:label + from → to + delta(支持红/绿配色)
+    /// 通用影响行: silverline 风 — kicker + mono from → to + delta
     private func impactRow(label: String, from: String, to: String,
                            delta: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
+        VStack(alignment: .leading, spacing: 4) {
+            KickerLabel(text: label)
             HStack {
                 Text("\(from) → \(to)")
-                    .font(.callout)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(Color.ink)
                 Spacer()
                 Text(delta)
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundColor(color)
-                    .monospacedDigit()
+                    .font(.system(.callout, design: .monospaced).weight(.medium))
+                    .foregroundStyle(color)
             }
         }
     }
