@@ -50,20 +50,26 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// current 格放大 1.1 ↔ 1.6 + 双层呼吸 glow
-    /// 对应 web 版 cell-breathe keyframe:scale + 内层白光 + 外层蓝光同步呼吸
+    /// current 格呼吸:暗模式发光萤火虫,亮模式深色浮起
     @State private var breath: CGFloat = 0   // 0 = 起点, 1 = 峰值
+
+    /// 读取当前 colorScheme,适配两 mode 的不同视觉策略
+    @Environment(\.colorScheme) private var scheme
 
     private let cellSize: CGFloat = 9
     private let spacing: CGFloat = 2.5
 
     private var totalLit: Int { blueDays + yellowDays }
 
-    /// 当前 scale = lerp(1.1, 1.6, breath)
-    private var currentScale: CGFloat { 1.1 + 0.5 * breath }
-    /// 内层白光 radius = lerp(4, 7, breath)
+    /// 当前 scale: dark 放大到 1.6 (萤火虫绽放感)
+    /// light 放大到 1.35 (更克制,不至于太抢戏)
+    private var currentScale: CGFloat {
+        let peak: CGFloat = scheme == .dark ? 1.6 : 1.35
+        return 1.1 + (peak - 1.1) * breath
+    }
+    /// 内 glow radius
     private var innerGlow: CGFloat { 4 + 3 * breath }
-    /// 外层基色光 radius = lerp(9, 15, breath)
+    /// 外 glow radius
     private var outerGlow: CGFloat { 9 + 6 * breath }
 
     var body: some View {
@@ -85,26 +91,51 @@ struct LifeGrid: View {
         }
     }
 
-    /// 单个 cell:non-current 静态,current 双层 glow + scale 呼吸
+    /// 单个 cell:non-current 静态,current 用呼吸效果
+    /// dark mode = 萤火虫发光态 (浅色 + 白光 + 蓝光)
+    /// light mode = 加深浮起态 (深色 + 浅 base 色光晕,无白光)
     @ViewBuilder
     private func cell(isCurrent: Bool, isBlue: Bool) -> some View {
         let baseColor: Color = isBlue ? .assetBlue : .incomeGold
-        // current 浅色版 — 对应 web #d4eaff / #ffe9a0,模拟"发光态"
-        let litColor: Color = isBlue
-            ? Color(red: 0.83, green: 0.92, blue: 1.00)
-            : Color(red: 1.00, green: 0.91, blue: 0.65)
+        let isDark = scheme == .dark
+
+        // current 格颜色:
+        // dark = 浅色(萤火虫发光) / light = 深色(凸起强调)
+        let currentColor: Color = {
+            if isDark {
+                return isBlue
+                    ? Color(red: 0.83, green: 0.92, blue: 1.00)
+                    : Color(red: 1.00, green: 0.91, blue: 0.65)
+            } else {
+                return isBlue
+                    ? Color(red: 0.20, green: 0.50, blue: 0.78)    // 深天空蓝
+                    : Color(red: 0.30, green: 0.55, blue: 0.62)
+            }
+        }()
+
+        // 内 glow 颜色:
+        // dark = 白光 (萤火虫) / light = 深 base 色 (浮起阴影感)
+        let innerGlowColor: Color = isDark
+            ? Color.white
+            : (isBlue
+               ? Color(red: 0.15, green: 0.35, blue: 0.55)
+               : Color(red: 0.25, green: 0.45, blue: 0.50))
+
+        // 外 glow 颜色:两 mode 都用 baseColor 但 opacity 不同
+        let innerOpacity: Double = isDark
+            ? (0.5 + 0.3 * Double(breath))      // dark 白光强
+            : (0.25 + 0.15 * Double(breath))    // light 浅一档,避免太重
+        let outerOpacity: Double = isDark
+            ? (0.4 + 0.1 * Double(breath))
+            : (0.30 + 0.10 * Double(breath))
 
         if isCurrent {
             Rectangle()
-                .fill(litColor)
+                .fill(currentColor)
                 .frame(width: cellSize, height: cellSize)
                 .cornerRadius(1.5)
-                // 内层白光 (web: rgba(255,255,255,0.5-0.8))
-                .shadow(color: Color.white.opacity(0.5 + 0.3 * breath),
-                        radius: innerGlow)
-                // 外层基色光 (web: rgba(156,195,255,0.4-0.5))
-                .shadow(color: baseColor.opacity(0.4 + 0.1 * breath),
-                        radius: outerGlow)
+                .shadow(color: innerGlowColor.opacity(innerOpacity), radius: innerGlow)
+                .shadow(color: baseColor.opacity(outerOpacity), radius: outerGlow)
                 .scaleEffect(currentScale)
                 .zIndex(1)
         } else {
