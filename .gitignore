@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+
+# Xcode 用户级状态(不该共享)
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Xcode workspace 用户配置
+*.xcworkspace/xcuserdata/
+
+# Build 产物
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# CocoaPods (本项目暂未使用)
+Pods/
+
+# Carthage (本项目暂未使用)
+Carthage/Build/
+
+# fastlane (本项目暂未使用)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 临时文件
+*.swp
+*.swo
