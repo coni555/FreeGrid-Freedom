@@ -50,12 +50,11 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// 呼吸缩放:current 格在 1.0 ↔ 1.15 之间循环。
-    /// 比 v1 (1.2-1.4) 大幅收敛——纸面上不需要"光晕呼吸",
-    /// 只需要"轻微的活体感"暗示这是动态数据
-    @State private var breatheScale: CGFloat = 1.0
+    /// current 格呼吸 0.85 ↔ 1.2 缩放 + opacity 变化
+    /// v2 暗底:格子要"发光"才显眼,呼吸幅度回到产品记忆点应有的强度
+    @State private var breatheScale: CGFloat = 0.85
 
-    private let cellSize: CGFloat = 9
+    private let cellSize: CGFloat = 10
     private let spacing: CGFloat = 3
 
     private var totalLit: Int { blueDays + yellowDays }
@@ -67,27 +66,25 @@ struct LifeGrid: View {
             spacing: spacing
         ) {
             ForEach(0..<totalLit, id: \.self) { i in
-                let isCurrent = (i == totalLit - 1)   // 最后一格 = current
+                let isCurrent = (i == totalLit - 1)
                 let isBlue = i < blueDays
+                let cellColor: Color = isBlue ? .assetBlue : .incomeGold
 
-                // 语义色:assetBlue / incomeGold (去饱和,适配纸面)
-                // current 格用更浅一档(opacity 0.55)做"今天还没过完"的暗示
-                let semanticColor: Color = isBlue ? .assetBlue : .incomeGold
-
-                Rectangle()
-                    .fill(semanticColor.opacity(isCurrent ? 0.55 : 1.0))
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(cellColor)
                     .frame(width: cellSize, height: cellSize)
-                    // 1.5pt 圆角:格子有"块"感但不软,克制
-                    .cornerRadius(1.5)
-                    // 呼吸放大:仅 current 格
+                    // 每格自带 subtle glow,在暗底上才有"颗粒发光"的感觉
+                    .shadow(color: cellColor.opacity(0.45), radius: 2)
+                    // current 格强 glow + 呼吸
+                    .shadow(color: isCurrent ? cellColor.opacity(0.9) : .clear,
+                            radius: isCurrent ? 6 : 0)
                     .scaleEffect(isCurrent ? breatheScale : 1.0)
                     .zIndex(isCurrent ? 1 : 0)
             }
         }
         .onAppear {
-            // 呼吸动画 1.0 ↔ 1.15 循环,周期 2s,更慢更轻
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                breatheScale = 1.15
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                breatheScale = 1.2
             }
         }
     }
@@ -120,10 +117,10 @@ struct ContentView: View {
                     Label("Check", systemImage: "checklist")
                 }
         }
-        // tab 选中态用墨色而非系统蓝,与全站纸面色板一致
-        .tint(Color.ink)
-        // 锁 light mode:整套色板基于暖纸,暗色翻车
-        .preferredColorScheme(.light)
+        // tab 选中态吃 honey 主色,品牌一致
+        .tint(Color.honey)
+        // 锁 dark mode:v2 整套色板基于暗色暖底
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -151,33 +148,22 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 0) {
-                    masthead         // FreeGrid lockup + 日期
-                    Hairline().padding(.bottom, Spacing.lg)
-
-                    heroSection      // Freedom Days hero(大衬线数字)
-                    ChapterRule().padding(.vertical, Spacing.lg)
-
-                    trioSection      // 三联指标(纵向 hairline 分隔)
-                    ChapterRule().padding(.vertical, Spacing.lg)
-
+                VStack(spacing: Spacing.lg) {
+                    topBar           // 圆点 + FreeGrid + 副标
+                    heroSection      // Freedom Days 巨大数字 hero
+                    gridSection      // 1825 格,占整个 mid 区
+                    statsRow         // 3 个 stat 卡片横向
                     todaySection     // 今日 vs 日均
-                    ChapterRule().padding(.vertical, Spacing.lg)
-
-                    gridSection      // 1825 格生命网格(融入纸面)
-                    ChapterRule().padding(.vertical, Spacing.xl)
-
-                    actionRow        // 收支双按钮(hairline 胶囊)
-                    simulateRow      // 模拟决策(underline link)
-
-                    colophon         // 底部出版页式声明
+                    actionRow        // 支出 (flame) + 收入 (honey)
+                    simulateRow      // ghost button 模拟决策
                 }
                 .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, Spacing.md)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.xxl)
             }
             .scrollContentBackground(.hidden)
-            .background(Color.paper.ignoresSafeArea())   // 纸色铺到 safe area
-            .navigationBarHidden(true)   // 自己画 masthead,不用 nav bar
+            .background(Color.midnight.ignoresSafeArea())
+            .navigationBarHidden(true)
             .sheet(isPresented: $showingAddExpense) {
                 AddExpenseSheet()
             }
@@ -191,144 +177,134 @@ struct DashboardView: View {
     }
 
     // ============================================================================
-    // MARK: - Masthead / Colophon (纸媒头尾)
+    // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部品牌 lockup:FreeGrid (serif) + 副标 + 日期 mono
-    /// 模拟杂志报头(masthead),设定整页"出版物"基调
-    private var masthead: some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(spacing: 8) {
-                Text("FreeGrid")
-                    .font(.system(.title3, design: .serif).weight(.regular))
-                    .foregroundStyle(Color.ink)
-                Text("·")
-                    .foregroundStyle(Color.ink3)
-                Text("财富自由指路灯")
-                    .font(.system(.footnote, design: .serif))
-                    .italic()
-                    .foregroundStyle(Color.ink2)
-            }
+    /// 顶部 brand bar:蜜金圆点 + FreeGrid 名 + 副标
+    /// 设计动机:静谧但有"产品 lockup"清晰度,圆点像金库锁/灯
+    private var topBar: some View {
+        HStack(spacing: Spacing.sm) {
+            // 蜜金圆点:产品图标占位,也是"自由的灯"
+            Circle()
+                .fill(Color.honey)
+                .frame(width: 10, height: 10)
+                .shadow(color: Color.honey.opacity(0.6), radius: 6)
+
+            Text("FreeGrid")
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .foregroundStyle(Color.ink)
+
+            Text("财富自由指路灯")
+                .font(.system(.footnote, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+
             Spacer()
-            Text(todayDateEU)
-                .font(.monoKicker)
-                .tracking(1.2)
-                .foregroundStyle(Color.ink3)
         }
-        .padding(.vertical, Spacing.sm)
-    }
-
-    /// 底部出版页式声明(colophon)
-    /// 模拟书末版权页:克制,带"craft 自觉"信号
-    private var colophon: some View {
-        VStack(spacing: 4) {
-            Text("§ ALMANAC · ISSUE \(trackDays)")
-                .font(.monoKicker)
-                .tracking(1.5)
-                .foregroundStyle(Color.ink3)
-            Text("Set in New York & SF Mono. Built in the open.")
-                .font(.system(.caption2, design: .serif))
-                .italic()
-                .foregroundStyle(Color.ink3)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.xxl)
-        .padding(.bottom, Spacing.lg)
-    }
-
-    /// 欧式日期 DD.MM (头部 masthead 用)
-    private var todayDateEU: String {
-        let f = DateFormatter()
-        f.dateFormat = "dd.MM"
-        return f.string(from: .now)
+        .padding(.bottom, Spacing.xs)
     }
 
     // ============================================================================
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// Hero: § FREEDOM DAYS + 巨大衬线数字 + italic 单字强调副标 + colophon 式公式
-    /// 移除卡片背景,直接画在纸面上;数字升到 72pt
+    /// Hero: VaultCard 高亮卡片,巨大蜜金数字 + 副标 + 公式
+    /// 设计动机:这是 FreeGrid 的灵魂数字,给它最亮的卡片 + 96pt 占半屏 + honey 发光
     private var heroSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            SectionMark(text: "Freedom Days")
+        VaultCard(emphasis: .high, padding: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Freedom Days")
+                    Spacer()
+                    // 右上角小天数单位提示
+                    if !freedomDays.isInfinite {
+                        Text("DAYS")
+                            .font(.kicker)
+                            .tracking(2)
+                            .foregroundStyle(Color.honeyDim)
+                    }
+                }
 
-            // 主数字:72pt serif light,monospacedDigit 防字符宽度跳动
-            Text(freedomDaysDisplay)
-                .font(.heroNumber(72))
-                .foregroundStyle(Color.ink)
+                // 主数字:96pt rounded bold,honey 蜜金 + glow
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(freedomDaysDisplay)
+                        .font(.heroNumber(96))
+                        .foregroundStyle(Color.honey)
+                        .shadow(color: Color.honey.opacity(0.35), radius: 18, x: 0, y: 0)
+                    Spacer()
+                }
+                .padding(.vertical, Spacing.xs)
+
+                // 副标:工具 feel,不文学化
+                Text("你的自由还能撑这么多天")
+                    .font(.system(.callout, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+
+                // 公式:colophon 风格
+                HStack(spacing: 6) {
+                    Text("公式")
+                        .font(.kicker)
+                        .tracking(1.2)
+                        .foregroundStyle(Color.inkFaint)
+                    Text("(资产 + 净储蓄) ÷ 日均消费")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                }
                 .padding(.top, Spacing.xs)
-
-            // 副标:单字 italic + 朱砂强调"撑"——反 bold 直觉的贵气招式
-            emphasized("你的自由还能 ", "撑", " 多久", size: 17)
-
-            // 公式:colophon 风格灰小字
-            Text("(资产 + 净储蓄) ÷ 日均消费")
-                .font(.system(.caption2, design: .serif))
-                .italic()
-                .foregroundStyle(Color.ink3)
-                .padding(.top, Spacing.xs)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 三联指标:无背景,靠 1px 竖直 hairline 分栏
-    /// 每栏:§ 标签 / 中等衬线数字 / mono 单位
-    /// 设计动机:卡片填充改成"报刊三栏"——靠排版区分而非色块
-    private var trioSection: some View {
-        HStack(spacing: 0) {
-            trioCell(label: "Daily Burn",
+    /// 三联 stat 卡片:横向 3 个独立 VaultCard,各自有 padding 和描边
+    /// 设计动机:工具 App 需要清晰的"信息卡片"层级,这里 3 个并列 stat
+    private var statsRow: some View {
+        HStack(spacing: Spacing.md) {
+            statCard(label: "Daily",
                      value: String(format: "%.0f", dailyBurn),
                      unit: "元/天")
-            Rectangle().fill(Color.rule).frame(width: 1, height: 60)
-            trioCell(label: "Passive",
-                     value: String(format: "%.0f", passiveRatio * 100),
-                     unit: "% 被动覆盖")
-            Rectangle().fill(Color.rule).frame(width: 1, height: 60)
-            trioCell(label: "Track",
+            statCard(label: "Passive",
+                     value: String(format: "%.0f%%", passiveRatio * 100),
+                     unit: "被动覆盖")
+            statCard(label: "Track",
                      value: "\(trackDays)",
-                     unit: "天 持续")
+                     unit: "天追踪")
         }
     }
 
-    /// 三联中的单格
-    /// 数字与单位用 baseline 对齐,营造"36 元/天"的连读感
-    private func trioCell(label: String, value: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            SectionMark(text: label)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+    /// 单个 stat 卡片:kicker / 数字 / unit 三层
+    private func statCard(label: String, value: String, unit: String) -> some View {
+        VaultCard(padding: Spacing.md) {
+            VStack(alignment: .leading, spacing: 6) {
+                KickerLabel(text: label)
                 Text(value)
-                    .font(.mediumNumber(28))
+                    .font(.statNumber(24))
                     .foregroundStyle(Color.ink)
                 Text(unit)
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(Color.ink3)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Spacing.md)
     }
 
-    /// 今日 vs 日均:无背景,左 § 标签 / 右 mono 比值
-    /// 主文案改 serif,关键词朱砂强调
+    /// 今日 vs 日均:VaultCard,左 kicker / 右 mono 比值 / 主文案下方
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(alignment: .firstTextBaseline) {
-                SectionMark(text: "Today · vs average")
-                Spacer()
-                Text(String(format: "%.0f / %.0f · %.0f%%",
-                            todaySpending, dailyBurn, todayPercent * 100))
-                    .font(.system(.caption2, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(Color.ink3)
-            }
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Today · vs average")
+                    Spacer()
+                    Text(String(format: "%.0f / %.0f · %.0f%%",
+                                todaySpending, dailyBurn, todayPercent * 100))
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.inkFaint)
+                }
 
-            Text(todayVsAvgText)
-                .font(.system(.callout, design: .serif))
-                .foregroundStyle(Color.ink)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(todayVsAvgText)
+                    .font(.system(.callout, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 今日支出
@@ -365,55 +341,56 @@ struct DashboardView: View {
         }
     }
 
-    /// Freedom Grid:1825 格可视化,直接画在纸面(去深色卡片)
-    /// 蓝/金语义保留,但饱和度大幅降低靠近纸色,不刺眼
+    /// Freedom Grid:1825 格可视化,作为 hero 卡片之一,占大空间
+    /// 设计动机:这是 FreeGrid 的产品记忆点,在暗底上每格"发光"质感
     private var gridSection: some View {
         let state = FreedomMath.gridState(assets: totalAssets,
                                           netSavings: netSavings,
                                           dailyBurn: dailyBurn)
-        return VStack(alignment: .leading, spacing: Spacing.md) {
-            // 标题行:左 § / 右 mono 进度
-            HStack(alignment: .firstTextBaseline) {
-                SectionMark(text: "Freedom Grid")
-                Spacer()
-                Text(gridSummary(state: state))
-                    .font(.system(.caption2, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(Color.ink3)
-            }
+        return VaultCard(padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                // 标题行
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Freedom Grid")
+                    Spacer()
+                    Text(gridSummary(state: state))
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.inkFaint)
+                }
 
-            // 网格本身
-            if state.totalLit == 0 {
-                emptyGridHint
-            } else {
-                LifeGrid(blueDays: state.blueDays, yellowDays: state.yellowDays)
-                    .padding(.vertical, Spacing.sm)
-            }
+                // 网格本身
+                if state.totalLit == 0 {
+                    emptyGridHint
+                } else {
+                    LifeGrid(blueDays: state.blueDays, yellowDays: state.yellowDays)
+                        .padding(.vertical, Spacing.sm)
+                }
 
-            // 图例:hairline 短横线 + 标签(替代色块 dot,更"年鉴"气)
-            HStack(spacing: Spacing.lg) {
-                legendMark(color: .assetBlue, label: "资产")
-                legendMark(color: .incomeGold, label: "收入")
-                Spacer()
+                // 图例:小色点 + 标签,暗底上发光的 dot
+                HStack(spacing: Spacing.lg) {
+                    legendDot(color: .assetBlue, label: "资产")
+                    legendDot(color: .incomeGold, label: "收入")
+                    Spacer()
+                    Text("每格 = 1 天 · 5 年上限")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                }
+                .padding(.top, Spacing.xs)
             }
-            .padding(.top, Spacing.xs)
-
-            Text("每格 = 1 天自由  ·  5 年上限 1825 格")
-                .font(.system(.caption2, design: .serif))
-                .italic()
-                .foregroundStyle(Color.ink3)
         }
     }
 
-    /// 图例:8pt 短横线色块 + 标签(替代 v1 圆角方块)
-    private func legendMark(color: Color, label: String) -> some View {
-        HStack(spacing: 8) {
-            Rectangle()
+    /// 图例:发光小色块 + 标签
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle()
                 .fill(color)
-                .frame(width: 14, height: 2)
+                .frame(width: 8, height: 8)
+                .shadow(color: color.opacity(0.6), radius: 4)
             Text(label)
-                .font(.system(.caption2, design: .serif))
-                .foregroundStyle(Color.ink2)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
         }
     }
 
@@ -427,49 +404,48 @@ struct DashboardView: View {
         return "\(state.totalLit) 天 · 蓝 \(state.blueDays) / 金 \(state.yellowDays)"
     }
 
-    /// 空网格时的提示:纸面风,无 icon
+    /// 空网格时的提示:暗色 SF symbol + 文案
     private var emptyGridHint: some View {
         VStack(spacing: Spacing.sm) {
-            Text("§")
-                .font(.system(.title, design: .monospaced))
-                .foregroundStyle(Color.ink3)
-            Text("记录第一笔支出后,格子才能开始计算")
-                .font(.system(.caption, design: .serif))
-                .italic()
-                .foregroundStyle(Color.ink3)
+            Image(systemName: "square.grid.3x3.middleandbottom.filled")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.inkFaint)
+            Text("记录第一笔后,网格开始点亮")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xxl)
     }
 
-    /// 收支双按钮:hairline 描边胶囊(替代糖果色实心)
-    /// 支出用朱砂色调,收入用墨色,语义还在但克制得多
+    /// 收支双按钮:filled prominent
+    /// 支出 = destructive flame,收入 = primary honey(自由的颜色,鼓励多记)
     private var actionRow: some View {
         HStack(spacing: Spacing.md) {
-            PillButton(title: "记一笔支出",
-                       icon: "minus",
-                       tint: .vermillion) {
+            VaultButton(title: "记支出",
+                        icon: "minus",
+                        style: .destructive) {
                 showingAddExpense = true
             }
-            PillButton(title: "记一笔收入",
-                       icon: "plus",
-                       tint: .ink) {
+            VaultButton(title: "记收入",
+                        icon: "plus",
+                        style: .primary) {
                 showingAddIncome = true
             }
         }
     }
 
-    /// 模拟决策:underline link 风格,远比主操作克制
+    /// 模拟决策:ghost button,放在主按钮下方
     private var simulateRow: some View {
         HStack {
             Spacer()
-            UnderlineLink(title: "模拟一笔,看决策影响",
-                          icon: "wand.and.stars") {
+            GhostButton(title: "模拟一笔 · 看决策影响",
+                        icon: "wand.and.stars") {
                 showingSimulate = true
             }
             Spacer()
         }
-        .padding(.top, Spacing.lg)
+        .padding(.top, Spacing.xs)
     }
 
     // ============================================================================

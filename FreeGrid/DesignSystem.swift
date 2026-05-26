@@ -2,175 +2,202 @@
 //  DesignSystem.swift
 //  FreeGrid
 //
-//  纸面/年鉴风设计语言 token 与共用组件。
-//  参考: lixiaolai.com 全站(Newsreader + 朱砂 + § + hairline + OKLCH 双纸)。
-//  iOS 没有 OKLCH，用最接近的 sRGB 近似；OKLCH 的"叠纸"过渡用 .opacity 模拟。
+//  方向 v2: 静谧金库 / Calm Vault · Native iOS
+//  - 暗色暖底(深棕,带温度)代替纯黑/冷灰
+//  - 唯一主 accent = 蜜金 (honey gold),"自由的颜色"
+//  - 拥抱 iOS 26 Liquid Glass / ultraThinMaterial
+//  - SF Pro Rounded 大数字,product feel 而非 editorial feel
 //
 
 import SwiftUI
 
 // ============================================================================
-// MARK: - Color (纸/墨/朱砂 + 资产/收入语义色)
+// MARK: - Color (暗色暖底 + 蜜金主色 + 语义色)
 // ============================================================================
 
 extension Color {
 
-    // ===== Paper scale: 暖白纸，往下叠一档做嵌套背景 =====
-    /// 主底纸色：oklch(0.985 0.001 250) 的 sRGB 近似
-    static let paper    = Color(red: 0.984, green: 0.980, blue: 0.972)
-    /// 嵌套区域纸色：oklch(0.965 0.002 250) 的近似，仅在需要"浮起"时用
-    static let paper2   = Color(red: 0.957, green: 0.952, blue: 0.940)
+    // ===== 背景与表面 (暗色暖底,带 hue,不是死黑) =====
+    /// 主背景:深暖棕,接近 oklch(0.135 0.012 60)
+    static let midnight   = Color(red: 0.090, green: 0.075, blue: 0.062)
+    /// 卡片表面:比 midnight 亮一档,做"浮起"基底
+    static let surface    = Color(red: 0.140, green: 0.120, blue: 0.100)
+    /// 高层表面:更亮一档,active/important card
+    static let surfaceHi  = Color(red: 0.180, green: 0.155, blue: 0.128)
+    /// hairline:浅白半透,在暗底上做 subtle 描边
+    static let hairline   = Color(white: 1.0).opacity(0.08)
 
-    // ===== Rule: 1px hairline 分隔，纯排印的"高级感"基础 =====
-    /// 主分隔线
-    static let rule     = Color(red: 0.83, green: 0.82, blue: 0.80)
-    /// 更轻的分隔，用于 dashed inner rule
-    static let ruleSoft = Color(red: 0.91, green: 0.90, blue: 0.88)
+    // ===== 文字 (暖白系) =====
+    /// 主文字:暖白,绝不刺眼,带 hue 跟背景呼应
+    static let ink        = Color(red: 0.965, green: 0.945, blue: 0.910)
+    /// 次级:用于副标/说明
+    static let inkMuted   = Color(red: 0.965, green: 0.945, blue: 0.910).opacity(0.62)
+    /// 极弱:kicker / unit / caption
+    static let inkFaint   = Color(red: 0.965, green: 0.945, blue: 0.910).opacity(0.38)
 
-    // ===== Ink scale: 三档字色 =====
-    /// 主墨色，正文与大标题
-    static let ink      = Color(red: 0.16, green: 0.14, blue: 0.12)
-    /// 次级，副标 / 状态描述
-    static let ink2     = Color(red: 0.40, green: 0.38, blue: 0.34)
-    /// 灰阶，元信息 / kicker / unit
-    static let ink3     = Color(red: 0.58, green: 0.56, blue: 0.52)
+    // ===== Honey: 主 accent,"自由的颜色" =====
+    /// 蜜金:饱和暖黄,在暗底上发光感强。所有 hero/active/primary action 都吃这一色
+    static let honey      = Color(red: 0.990, green: 0.780, blue: 0.380)
+    /// honey 的 muted 版本,用于次级强调
+    static let honeyDim   = Color(red: 0.990, green: 0.780, blue: 0.380).opacity(0.55)
 
-    // ===== Vermillion: 朱砂，全站唯一强调色 =====
-    /// 命名"朱砂"，实际偏深红棕，避免 RGB 红色的廉价感
-    static let vermillion = Color(red: 0.62, green: 0.28, blue: 0.18)
+    // ===== 业务语义色 (饱和版,暗底友好) =====
+    /// 资产蓝:LifeGrid 蓝格,饱和+略偏 cyan,在暗底上跳得出
+    static let assetBlue  = Color(red: 0.45, green: 0.78, blue: 1.00)
+    /// 收入金:LifeGrid 金格——和 honey 主色统一,语义"收入即自由"
+    static let incomeGold = Color(red: 0.990, green: 0.780, blue: 0.380)
+    /// 支出朱砂:暖红,落日色,跟蜜金构成"日落"色温对
+    static let flame      = Color(red: 1.00, green: 0.48, blue: 0.30)
+    /// 收入绿:深森绿,只在需要明确"成功"语义时用(被动收入标签)
+    static let mossGreen  = Color(red: 0.50, green: 0.85, blue: 0.58)
 
-    /// 森林绿:用于收入/positive 语义，比 SwiftUI .green 暗一档以适配纸面
-    static let forestGreen = Color(red: 0.30, green: 0.46, blue: 0.32)
-
-    // ===== 业务语义色 =====
-    /// 资产蓝：哑光、接近油画蓝，不抢戏
-    static let assetBlue  = Color(red: 0.39, green: 0.52, blue: 0.69)
-    /// 收入金：哑光、接近黄铜
-    static let incomeGold = Color(red: 0.78, green: 0.62, blue: 0.32)
+    // ===== V1 alias (年鉴风 token,渐进迁移用) =====
+    // 这些是 v1 时期的命名,现在指向 v2 的暗色等价物
+    // 等所有 ContentView 改完后可移除
+    static let paper      = Color.midnight
+    static let paper2     = Color.surface
+    static let rule       = Color.hairline
+    static let ruleSoft   = Color.hairline
+    static let ink2       = Color.inkMuted
+    static let ink3       = Color.inkFaint
+    static let vermillion = Color.flame
+    static let forestGreen = Color.mossGreen
 }
 
 // ============================================================================
 // MARK: - 字体 helper
 // ============================================================================
-// SwiftUI 在 iOS 17+ 把 .system(design: .serif) 映射到 "New York"，
-// 气质接近 Newsreader（transitional serif），中文自动 fallback PingFang SC。
-// 不引第三方字体，省 bundle 体积。
+// SF Pro Rounded 是 iOS 系统字体,适合产品工具 + 数字 feel。
+// 中文自动 fallback PingFang SC,字重映射合理。
 
 extension Font {
-    /// Hero 数字：超大、轻、衬线。配合 monospacedDigit 防"84"两位字符宽度跳动
-    static func heroNumber(_ size: CGFloat = 72) -> Font {
-        .system(size: size, weight: .light, design: .serif).monospacedDigit()
+    /// Hero 自由天数:96pt rounded bold,占半屏
+    static func heroNumber(_ size: CGFloat = 96) -> Font {
+        .system(size: size, weight: .bold, design: .rounded).monospacedDigit()
     }
 
-    /// 中等衬线数字：三联指标 / Assets hero 等
-    static func mediumNumber(_ size: CGFloat = 30) -> Font {
-        .system(size: size, weight: .light, design: .serif).monospacedDigit()
+    /// 中等数字:Assets hero / 三联指标 用
+    static func bigNumber(_ size: CGFloat = 32) -> Font {
+        .system(size: size, weight: .semibold, design: .rounded).monospacedDigit()
     }
 
-    /// § / mono kicker：所有"机械感"小标签
-    static let monoKicker = Font.system(.caption2, design: .monospaced)
-
-    /// 衬线副标 italic（"continue where you left off" 那种）
-    static func serifItalic(_ size: CGFloat = 17) -> Font {
-        .custom("", size: size).italic()
-            .weight(.light)
+    /// 三联指标内部数字
+    static func statNumber(_ size: CGFloat = 24) -> Font {
+        .system(size: size, weight: .medium, design: .rounded).monospacedDigit()
     }
+
+    /// kicker / label:mono uppercase,tracking 1.5
+    static let kicker = Font.system(.caption, design: .monospaced).weight(.medium)
+
+    /// 副标 body
+    static let bodyRounded = Font.system(.body, design: .rounded)
+
+    // ===== V1 Font alias =====
+    static func mediumNumber(_ size: CGFloat = 28) -> Font { bigNumber(size) }
+    static let monoKicker = kicker
 }
 
 // ============================================================================
 // MARK: - 共用组件
 // ============================================================================
 
-/// § 段落符 + uppercase mono 标签
-/// 例: § FREEDOM DAYS
-///
-/// 设计要点：
-/// - § 用 mono，tracking 0；标签用 mono uppercase + tracking 0.12em
-/// - 颜色统一 ink3（灰阶），不抢主标题/数字的戏
-struct SectionMark: View {
+/// kicker 标签:uppercase mono,tracking 1.5,默认 inkFaint
+/// 替代旧版的 § + uppercase 组合,更"工具"feel
+struct KickerLabel: View {
     let text: String
-    var color: Color = .ink3
+    var color: Color = .inkFaint
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text("§")
-                .font(.monoKicker)
-            Text(text.uppercased())
-                .font(.monoKicker)
-                .tracking(2.0)
-        }
-        .foregroundStyle(color)
+        Text(text.uppercased())
+            .font(.kicker)
+            .tracking(1.5)
+            .foregroundStyle(color)
     }
 }
 
-/// hairline 横线（1px，rule 色）
-/// 在 SwiftUI 里 frame(height: 1) 在 @2x/@3x 屏幕会渲染成 0.5pt 的视觉宽度——这是要的效果
+/// hairline 横线(暗底上的 subtle 分隔)
 struct Hairline: View {
-    var color: Color = .rule
-
     var body: some View {
         Rectangle()
-            .fill(color)
+            .fill(Color.hairline)
             .frame(height: 1)
             .frame(maxWidth: .infinity)
     }
 }
 
-/// 章节分隔：横线 + 中间浮一个 § 符号
-/// 模拟 colophon-card 的 .co-rule：1px hairline + § 浮起遮住线
-/// 设计动机：比单纯 hairline 多一份"卷首/章节起点"的语义
-struct ChapterRule: View {
+/// 卡片容器:暗底上的浮层
+/// 设计动机: 使用 .ultraThinMaterial + 自定义底色 surface,模拟 iOS 26 Liquid Glass
+/// emphasis = .high 用 surfaceHi,适合 hero
+struct VaultCard<Content: View>: View {
+    enum Emphasis { case normal, high }
+    var emphasis: Emphasis = .normal
+    var padding: CGFloat = 20
+    @ViewBuilder var content: Content
+
     var body: some View {
-        ZStack {
-            Hairline()
-            Text("§")
-                .font(.monoKicker)
-                .foregroundStyle(Color.ink3)
-                .padding(.horizontal, 8)
-                .background(Color.paper)
-        }
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(emphasis == .high ? Color.surfaceHi : Color.surface)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.hairline, lineWidth: 1)
+                }
+            )
     }
 }
 
-/// hairline 描边胶囊按钮（btn-pill 风格）
-/// 设计动机：替代实心糖果色按钮，气质和正文 hairline 一致
-/// emphasis = .primary 时用实心 ink 底 + paper 字（submit 风格）
-struct PillButton: View {
-    enum Emphasis { case primary, secondary }
+/// 主操作按钮 (filled rounded, prominent)
+/// emphasis = .primary 用 honey 主色,.secondary 用 surfaceHi 描边
+struct VaultButton: View {
+    enum Style { case primary, secondary, destructive }
     let title: String
     var icon: String? = nil
-    var emphasis: Emphasis = .secondary
-    var tint: Color = .ink
+    var style: Style = .primary
     let action: () -> Void
+
+    private var bg: Color {
+        switch style {
+        case .primary: return .honey
+        case .secondary: return .surfaceHi
+        case .destructive: return .flame
+        }
+    }
+    private var fg: Color {
+        switch style {
+        case .primary: return Color(red: 0.18, green: 0.12, blue: 0.04)  // 暗棕字配蜜金底
+        case .secondary: return .ink
+        case .destructive: return Color(red: 0.20, green: 0.06, blue: 0.04)
+        }
+    }
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: 16, weight: .semibold))
                 }
                 Text(title)
-                    .font(.system(.subheadline, design: .serif))
-                    .tracking(0.5)
+                    .font(.system(.body, design: .rounded).weight(.semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .foregroundStyle(emphasis == .primary ? Color.paper : tint)
+            .padding(.vertical, 16)
+            .foregroundStyle(fg)
             .background(
-                ZStack {
-                    Capsule().fill(emphasis == .primary ? tint : Color.clear)
-                    Capsule().stroke(tint, lineWidth: 1)
-                }
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(bg)
             )
         }
         .buttonStyle(.plain)
     }
 }
 
-/// 文字 link 按钮（下划线 + ink3 → ink hover）
-/// 用于"模拟一笔"这种次级动作——比胶囊更克制
-struct UnderlineLink: View {
+/// Ghost button (次级动作,模拟决策用)
+/// 透明底 + hairline 描边 + ink 字
+struct GhostButton: View {
     let title: String
     var icon: String? = nil
     let action: () -> Void
@@ -180,39 +207,82 @@ struct UnderlineLink: View {
             HStack(spacing: 6) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.caption)
+                        .font(.system(size: 13, weight: .medium))
                 }
                 Text(title)
-                    .font(.system(.subheadline, design: .serif))
-                    .italic()
-                    .underline(true, color: Color.ink3)
-                Image(systemName: "arrow.right")
-                    .font(.caption2)
+                    .font(.system(.subheadline, design: .rounded))
             }
-            .foregroundStyle(Color.ink2)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .foregroundStyle(Color.inkMuted)
+            .background(
+                Capsule().stroke(Color.hairline, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
 }
 
-/// 单字 italic 强调的辅助构造器
-/// 用法：emphasized("你的自由还能 ", "撑", " 多久")
-/// "撑" 会用 italic + 朱砂 + light，反 bold 直觉的"贵气"招式
+// ============================================================================
+// MARK: - V1 组件 alias (年鉴风遗留,逐步替换)
+// ============================================================================
+
+/// V1 SectionMark → 现在 forward 到 KickerLabel (不再有 § 段落符)
+struct SectionMark: View {
+    let text: String
+    var color: Color = .inkFaint
+    var body: some View {
+        KickerLabel(text: text, color: color)
+    }
+}
+
+/// V1 ChapterRule → 简化为 hairline,不再有 § 浮起
+struct ChapterRule: View {
+    var body: some View { Hairline() }
+}
+
+/// V1 PillButton → forward 到 VaultButton
+struct PillButton: View {
+    enum Emphasis { case primary, secondary }
+    let title: String
+    var icon: String? = nil
+    var emphasis: Emphasis = .secondary
+    var tint: Color = .ink
+    let action: () -> Void
+
+    var body: some View {
+        let style: VaultButton.Style = (tint == .flame || tint == .vermillion) ? .destructive : .primary
+        VaultButton(title: title, icon: icon, style: style, action: action)
+    }
+}
+
+/// V1 UnderlineLink → forward 到 GhostButton
+struct UnderlineLink: View {
+    let title: String
+    var icon: String? = nil
+    let action: () -> Void
+
+    var body: some View {
+        GhostButton(title: title, icon: icon, action: action)
+    }
+}
+
+/// V1 emphasized() → 暗色版,关键词改用 honey 而非朱砂
 func emphasized(_ prefix: String, _ word: String, _ suffix: String,
                 size: CGFloat = 17) -> Text {
     Text(prefix)
-        .font(.system(size: size, design: .serif))
-        .foregroundColor(.ink2)
+        .font(.system(size: size, design: .rounded))
+        .foregroundColor(.inkMuted)
     + Text(word)
-        .font(.system(size: size, weight: .light, design: .serif).italic())
-        .foregroundColor(.vermillion)
+        .font(.system(size: size, weight: .semibold, design: .rounded))
+        .foregroundColor(.honey)
     + Text(suffix)
-        .font(.system(size: size, design: .serif))
-        .foregroundColor(.ink2)
+        .font(.system(size: size, design: .rounded))
+        .foregroundColor(.inkMuted)
 }
 
 // ============================================================================
-// MARK: - 间距 token（按需引用，不强制全用）
+// MARK: - 间距 token
 // ============================================================================
 
 enum Spacing {
@@ -222,4 +292,5 @@ enum Spacing {
     static let lg:  CGFloat = 16
     static let xl:  CGFloat = 24
     static let xxl: CGFloat = 32
+    static let xxxl: CGFloat = 48
 }
