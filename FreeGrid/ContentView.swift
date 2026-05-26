@@ -216,9 +216,9 @@ struct DashboardView: View {
                     heroSection      // Freedom Days 巨大数字 hero
                     gridSection      // 1825 格,占整个 mid 区
                     statsRow         // 3 个 stat 卡片横向
-                    todaySection     // 今日 vs 日均
-                    actionRow        // 支出 (flame) + 收入 (honey)
-                    simulateRow      // ghost button 模拟决策
+                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
+                    simulateRow      // 模拟决策
+                    todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
