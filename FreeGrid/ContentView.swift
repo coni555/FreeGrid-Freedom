@@ -92,6 +92,9 @@ struct LifeGrid: View {
 // ============================================================================
 
 struct ContentView: View {
+    /// 跨启动持久化主题选择
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+
     var body: some View {
         TabView {
             DashboardView()
@@ -116,8 +119,8 @@ struct ContentView: View {
         }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
-        // 锁 light mode:v3 silverline 是 light 色板
-        .preferredColorScheme(.light)
+        // 用户在 topBar 切换 dark/light,全 app 自动重绘
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
 }
 
@@ -141,6 +144,9 @@ struct DashboardView: View {
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
+
+    // ===== 主题切换 (与 ContentView 共享同一 key) =====
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -177,19 +183,34 @@ struct DashboardView: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部 brand bar:outline 圆 + sky 内圆点 + FreeGrid + VOL 标识
-    /// 参考 v3 silverline mockup 的 brand mark — "靶心 / 自由瞄准点"语义
+    /// 顶部 brand bar:靶心 mark(同时是 dark/light 切换按钮) + 品牌名 + VOL 标识
+    /// mark 内部:light mode = sky 实心点(太阳),dark mode = moon icon
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
-            // 靶心 mark:1px outline + sky 内实心
-            ZStack {
-                Circle()
-                    .stroke(Color.ink, lineWidth: 1)
-                    .frame(width: 18, height: 18)
-                Circle()
-                    .fill(Color.sky)
-                    .frame(width: 8, height: 8)
+            // 主题切换按钮:外圈 outline + 内 sun/moon
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isDarkMode.toggle()
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.ink, lineWidth: 1)
+                        .frame(width: 22, height: 22)
+                    if isDarkMode {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.sky)
+                    } else {
+                        Circle()
+                            .fill(Color.sky)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+                .contentShape(Rectangle())   // 扩大点击区
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
 
             Text("FreeGrid")
                 .font(.system(.title3, design: .rounded).weight(.medium))
@@ -201,7 +222,6 @@ struct DashboardView: View {
 
             Spacer()
 
-            // 右上 mono 标识(vol/week),mockup 报刊 specimen feel
             Text("VOL.001")
                 .font(.kicker)
                 .tracking(1.8)
@@ -214,37 +234,105 @@ struct DashboardView: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// Hero: Silverline 版 — paper 白底卡片 + 96pt ultraLight ink 数字
-    /// 不发光、不彩色,克制呈现"自由的灵魂数字"
+    /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
+    /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
     private var heroSection: some View {
-        VaultCard(emphasis: .high, padding: Spacing.xl) {
+        let history = FreedomMath.freedomDaysHistory(
+            expenses: expenses,
+            incomes: incomes,
+            currentAssets: totalAssets,
+            firstRecordDate: firstRecordDate
+        )
+        let delta = FreedomMath.deltaSummary(history: history)
+        let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
+
+        return VaultCard(emphasis: .high, padding: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                // 顶部 kicker + formula
+                // ─── 顶部: kicker + trend badge ───
                 HStack(alignment: .firstTextBaseline) {
                     KickerLabel(text: "Freedom Days")
                     Spacer()
-                    Text("(资产 + 净储蓄) ÷ 日均消费")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Color.inkGhost)
+                    if let d = delta {
+                        trendBadge(delta: d.delta, weeks: history.count - 1)
+                    } else {
+                        Text("(资产 + 净储蓄) ÷ 日均消费")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.inkGhost)
+                    }
                 }
 
-                // asymmetric: 左副标 + 右大数字
-                HStack(alignment: .bottom, spacing: Spacing.md) {
-                    // 副标:用 emphasized() 让"自由"italic + sky-deep
-                    emphasized("你的", "自由", "\n还能撑这么多天", size: 18)
-                        .lineLimit(2)
+                // ─── 中部: 数字 + 副标 asymmetric ───
+                HStack(alignment: .center, spacing: Spacing.md) {
+                    // 110pt ultraLight 大字
+                    Text(freedomDaysDisplay)
+                        .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .padding(.vertical, -8)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        emphasized("你的", "自由", "", size: 16)
+                        Text("还能撑这么多天")
+                            .font(.system(size: 16, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        if let d = deplete {
+                            Text("约 \(depleteDateString(d)) 见底")
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                                .padding(.top, 2)
+                        }
+                    }
 
                     Spacer()
-
-                    // 96pt ultraLight ink (不彩色,不发光)
-                    Text(freedomDaysDisplay)
-                        .font(.heroNumber(96))
-                        .foregroundStyle(Color.ink)
-                        .padding(.bottom, -8)
                 }
 
+                // ─── 底部: 趋势 caption + sparkline ───
+                if let d = delta, history.count >= 3 {
+                    Hairline().padding(.top, Spacing.xs)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(history.count - 1) 周以来的自由天数")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                        Spacer()
+                        Text("\(d.start) → \(d.end)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.ink)
+                    }
+                    Sparkline(values: history.map { $0.freedomDays })
+                        .frame(height: 36)
+                        .padding(.top, 2)
+                }
             }
         }
+    }
+
+    /// trend badge: ▲ +N d / Nw 或 ▼ -N d / Nw
+    /// 增加用 skyDeep,减少用 flame
+    private func trendBadge(delta: Int, weeks: Int) -> some View {
+        let isUp = delta >= 0
+        let color: Color = isUp ? .skyDeep : .flame
+        let symbol = isUp ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill"
+        let sign = isUp ? "+" : ""
+        return HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 8))
+            Text("\(sign)\(delta) d · \(weeks)w")
+                .font(.system(.caption2, design: .monospaced))
+                .tracking(0.3)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule().fill(color.opacity(0.10))
+        )
+    }
+
+    /// 格式化"约 X 月 X 日"
+    private func depleteDateString(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M 月 d 日"
+        return f.string(from: d)
     }
 
     /// 三联 stat 卡片:横向 3 个独立 VaultCard,各自有 padding 和描边

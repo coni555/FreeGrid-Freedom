@@ -289,6 +289,99 @@ enum FreedomMath {
         return GridState(blueDays: blueDays, yellowDays: yellowDays,
                          totalLit: totalLit, isOverflow: rawTotal > maxGridCells)
     }
+
+    // ============================================================================
+    // MARK: - 历史趋势 (sparkline + delta + 见底日期)
+    // ============================================================================
+    // 设计动机: hero card 里展示"过去 12 周自由天数走势"——一条 sparkline +
+    // delta badge (▲ +22d) + 见底日期。让用户看到自己是在"赎回自由"
+    // 还是"消耗自由",而不只看今天的数字。
+    //
+    // 数据反推:
+    // - 当前没有存 freedomDays 的历史 snapshot。
+    // - 反向计算: 取每周末日期,反推那时的 expenses / incomes / assets
+    //   (assets 用 current + 后续 net 变动反推, 假设 dataset 完整且 user
+    //    没手动调过 assets baseline——足够 sparkline 视觉趋势准确)
+    //
+    // 边界:
+    // - 如果 trackDays < 14 天,数据不够,返回空
+    // - 如果 trackDays 在 14~84 天之间,返回 trackDays/7 个点
+    // - 如果 ≥ 84 天 (12 周),返回 12 个点
+
+    /// 单个历史 snapshot
+    struct HistoryPoint {
+        let date: Date
+        let freedomDays: Double
+    }
+
+    /// 反推过去 N 周末日的 freedomDays
+    /// - weeks: 取多少个 weekly snapshot (默认 12)
+    /// - 返回时间升序(老的在前,新的在后),最后一个是今天
+    static func freedomDaysHistory(
+        expenses: [Expense],
+        incomes: [Income],
+        currentAssets: Double,
+        firstRecordDate: Date?,
+        weeks: Int = 12
+    ) -> [HistoryPoint] {
+        guard let firstDate = firstRecordDate else { return [] }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: .now)
+        let trackedDays = cal.dateComponents([.day], from: firstDate, to: today).day ?? 0
+        guard trackedDays >= 14 else { return [] }   // < 2 周数据,不画
+
+        // 决定要回看多少周
+        let availableWeeks = min(weeks, trackedDays / 7)
+        var snapshots: [HistoryPoint] = []
+
+        for i in (0...availableWeeks).reversed() {
+            guard let weekEnd = cal.date(byAdding: .day, value: -7 * i, to: today) else { continue }
+            if weekEnd < firstDate { continue }
+
+            let trackDays_i = max(1, cal.dateComponents([.day], from: firstDate, to: weekEnd).day ?? 1)
+
+            let expUntil = expenses.filter { $0.date <= weekEnd }.reduce(0) { $0 + $1.amount }
+            let incUntil = incomes.filter { $0.date <= weekEnd }.reduce(0) { $0 + $1.amount }
+            let netSavings_i = incUntil - expUntil
+            let dailyBurn_i = expUntil / Double(trackDays_i)
+
+            // 反推那时的 assets:
+            // assets_i = currentAssets + (expensesAfter_i - incomesAfter_i)
+            // 因为 expensesAfter 都从 assets 扣了 → assets_i 当时更多
+            let expAfter = expenses.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
+            let incAfter = incomes.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
+            let assets_i = currentAssets + expAfter - incAfter
+
+            let days_i: Double
+            if dailyBurn_i > 0 {
+                days_i = max(0, assets_i) / dailyBurn_i + max(0, netSavings_i) / dailyBurn_i
+            } else {
+                days_i = 0
+            }
+
+            snapshots.append(HistoryPoint(date: weekEnd, freedomDays: days_i))
+        }
+
+        return snapshots
+    }
+
+    /// 给定 history,算 12-week-ago vs 当前的 delta
+    /// 返回 (起点天数, 终点天数, delta 天数)
+    static func deltaSummary(history: [HistoryPoint]) -> (start: Int, end: Int, delta: Int)? {
+        guard let first = history.first, let last = history.last,
+              history.count >= 2 else { return nil }
+        let s = Int(first.freedomDays.rounded())
+        let e = Int(last.freedomDays.rounded())
+        return (s, e, e - s)
+    }
+
+    /// 当前自由耗尽的预计日期 (今天 + freedomDays 天)
+    /// 返回 nil 表示 ∞ 或没数据
+    static func depleteDate(freedomDays: Double) -> Date? {
+        guard !freedomDays.isInfinite, freedomDays > 0, freedomDays < 1825 * 5 else { return nil }
+        let days = Int(freedomDays.rounded())
+        return Calendar.current.date(byAdding: .day, value: days, to: .now)
+    }
 }
 
 

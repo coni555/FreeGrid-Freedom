@@ -12,70 +12,146 @@
 //
 
 import SwiftUI
+import UIKit
 
 // ============================================================================
-// MARK: - Color (冷白银 + 天空蓝 accent)
+// MARK: - Dynamic color helper
+// ============================================================================
+// SwiftUI Color 没有原生 light/dark 双值 init,用 UIColor.dynamicProvider 桥接。
+// 切换 .preferredColorScheme(.light/.dark) 时所有 dynamic color 自动 resolve。
+
+extension Color {
+    /// 创建一个根据 colorScheme 自动切换的 Color
+    static func dyn(light: Color, dark: Color) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(dark)
+                : UIColor(light)
+        })
+    }
+
+    /// 直接用 RGB 三元组创建 dynamic (避免嵌套 Color)
+    static func dyn(
+        lightRGB: (Double, Double, Double),
+        darkRGB: (Double, Double, Double)
+    ) -> Color {
+        Color(uiColor: UIColor { traits in
+            let isDark = traits.userInterfaceStyle == .dark
+            let (r, g, b) = isDark ? darkRGB : lightRGB
+            return UIColor(red: r, green: g, blue: b, alpha: 1)
+        })
+    }
+}
+
+// ============================================================================
+// MARK: - Color tokens (light silverline / dark vault dual mode)
 // ============================================================================
 
 extension Color {
 
-    // ===== Paper scale (冷白系,带极微蓝灰 hue) =====
-    /// 主底:冷白纸色 oklch(0.985 0.002 230)
-    static let paper      = Color(red: 0.984, green: 0.984, blue: 0.987)
-    /// 雾银:卡片底/嵌套区 oklch(0.965 0.003 230)
-    static let mist       = Color(red: 0.957, green: 0.957, blue: 0.963)
-    /// 雾银深一档:用于嵌套深一层
-    static let mist2      = Color(red: 0.935, green: 0.935, blue: 0.943)
-    /// hairline:1px 主分隔
-    static let hairline   = Color(red: 0.870, green: 0.870, blue: 0.882)
-    /// 更轻的 hairline,虚线用
-    static let hairlineSoft = Color(red: 0.920, green: 0.920, blue: 0.928)
+    // ===== Surface (light: 冷白系 / dark: 深暖棕系) =====
+    /// 主底
+    static let paper = Color.dyn(
+        lightRGB: (0.984, 0.984, 0.987),  // 冷白纸
+        darkRGB:  (0.090, 0.080, 0.072)   // 深暖棕,带温度
+    )
+    /// 卡片底
+    static let mist = Color.dyn(
+        lightRGB: (0.957, 0.957, 0.963),  // 雾银
+        darkRGB:  (0.140, 0.122, 0.108)   // 暗色卡片
+    )
+    /// 嵌套深一档
+    static let mist2 = Color.dyn(
+        lightRGB: (0.935, 0.935, 0.943),
+        darkRGB:  (0.180, 0.155, 0.135)   // 高亮卡片
+    )
+    /// hairline 主分隔
+    static let hairline = Color.dyn(
+        lightRGB: (0.870, 0.870, 0.882),
+        darkRGB:  (0.260, 0.235, 0.215)   // 暗底上 8% 白等价
+    )
+    /// hairline 次级
+    static let hairlineSoft = Color.dyn(
+        lightRGB: (0.920, 0.920, 0.928),
+        darkRGB:  (0.200, 0.180, 0.165)
+    )
 
-    // ===== Ink scale (冷灰墨) =====
-    /// 主墨:接近黑但带冷调
-    static let ink        = Color(red: 0.145, green: 0.140, blue: 0.155)
-    /// 次级:副标 / 说明
-    static let inkMuted   = Color(red: 0.40, green: 0.395, blue: 0.42)
-    /// 灰阶:kicker / unit / caption
-    static let inkFaint   = Color(red: 0.58, green: 0.575, blue: 0.595)
-    /// 极弱:几乎隐形,装饰用
-    static let inkGhost   = Color(red: 0.74, green: 0.735, blue: 0.755)
+    // ===== Ink scale (light: 冷灰墨 / dark: 暖白系) =====
+    /// 主文字
+    static let ink = Color.dyn(
+        lightRGB: (0.145, 0.140, 0.155),
+        darkRGB:  (0.965, 0.945, 0.910)   // 暖白
+    )
+    /// 次级文字
+    static let inkMuted = Color.dyn(
+        lightRGB: (0.40, 0.395, 0.42),
+        darkRGB:  (0.72, 0.70, 0.66)
+    )
+    /// 灰阶 (kicker/unit/caption)
+    static let inkFaint = Color.dyn(
+        lightRGB: (0.58, 0.575, 0.595),
+        darkRGB:  (0.50, 0.48, 0.45)
+    )
+    /// 极弱
+    static let inkGhost = Color.dyn(
+        lightRGB: (0.74, 0.735, 0.755),
+        darkRGB:  (0.36, 0.34, 0.31)
+    )
 
-    // ===== Sky: 天空蓝,唯一 accent =====
-    /// 主天空蓝:清亮、低饱和、清新 oklch(0.72 0.14 230)
-    /// 用于 LifeGrid 活动格、品牌圆点、Tab 选中态
-    static let sky        = Color(red: 0.45, green: 0.72, blue: 0.92)
-    /// 深天空蓝:用于 italic accent、bar marker、文字强调
-    static let skyDeep    = Color(red: 0.28, green: 0.52, blue: 0.78)
-    /// 浅天空蓝:hover/secondary,wash
-    static let skySoft    = Color(red: 0.78, green: 0.88, blue: 0.96)
-    /// 极淡:背景 tint
-    static let skyFaint   = Color(red: 0.93, green: 0.96, blue: 0.99)
+    // ===== Sky: 主 accent (light/dark 都偏亮以 stand out) =====
+    /// 主天空蓝
+    static let sky = Color.dyn(
+        lightRGB: (0.45, 0.72, 0.92),
+        darkRGB:  (0.52, 0.78, 0.97)   // 暗底上稍亮一档
+    )
+    /// 深天空蓝 (强调字 / bar marker / italic accent)
+    static let skyDeep = Color.dyn(
+        lightRGB: (0.28, 0.52, 0.78),
+        darkRGB:  (0.65, 0.85, 1.00)   // 暗底上反而要更亮才显眼
+    )
+    /// 浅 sky soft
+    static let skySoft = Color.dyn(
+        lightRGB: (0.78, 0.88, 0.96),
+        darkRGB:  (0.28, 0.40, 0.55)
+    )
+    /// 极淡 sky wash (banner 底)
+    static let skyFaint = Color.dyn(
+        lightRGB: (0.93, 0.96, 0.99),
+        darkRGB:  (0.12, 0.18, 0.26)
+    )
 
     // ===== 业务语义色 =====
-    /// LifeGrid 资产蓝 = 主天空蓝(语义合并)
-    static let assetBlue  = Color(red: 0.45, green: 0.72, blue: 0.92)
-    /// LifeGrid 收入金 → light silverline 里改用 light teal 配 cool 调
-    /// 浅青绿 oklch(0.78 0.07 195)
-    static let incomeGold = Color(red: 0.62, green: 0.82, blue: 0.84)
-    /// 支出朱砂:仅 destructive 语义,light 版本 coral
-    static let flame      = Color(red: 0.82, green: 0.40, blue: 0.32)
-    /// 收入森绿:被动收入标签
-    static let mossGreen  = Color(red: 0.36, green: 0.62, blue: 0.42)
+    /// LifeGrid 资产蓝 = 主天空蓝
+    static let assetBlue = Color.dyn(
+        lightRGB: (0.45, 0.72, 0.92),
+        darkRGB:  (0.52, 0.78, 0.97)
+    )
+    /// LifeGrid 收入色:浅青绿 (跟 sky cool 系一致)
+    static let incomeGold = Color.dyn(
+        lightRGB: (0.62, 0.82, 0.84),
+        darkRGB:  (0.55, 0.85, 0.82)
+    )
+    /// 支出朱砂
+    static let flame = Color.dyn(
+        lightRGB: (0.82, 0.40, 0.32),
+        darkRGB:  (0.95, 0.55, 0.42)
+    )
+    /// 收入森绿 (被动标签)
+    static let mossGreen = Color.dyn(
+        lightRGB: (0.36, 0.62, 0.42),
+        darkRGB:  (0.55, 0.82, 0.62)
+    )
 
-    // ===== V2 alias (dark mode 时期 token,light 版本下重新指向) =====
-    // 保留旧 token 名,值已翻转为 light silverline 等价物
-    static let midnight   = Color.paper       // v2 暗背景 → v3 浅纸
-    static let surface    = Color.mist        // v2 暗卡片 → v3 雾银
-    static let surfaceHi  = Color.paper       // v2 高亮卡片 → v3 纯白(比 mist 亮)
-    static let honey      = Color.ink         // v2 蜜金主 accent → v3 hero 数字用 ink 主墨(不彩色)
-    static let honeyDim   = Color.inkMuted    // v2 蜜金 dim → v3 次级
-    static let ink2       = Color.inkMuted    // v1 alias
-    static let ink3       = Color.inkFaint    // v1 alias
-    static let vermillion = Color.flame       // v1 alias
-    static let forestGreen = Color.mossGreen  // v1 alias
-
-    // hairline 旧名 (v1)
+    // ===== V1/V2 alias =====
+    static let midnight   = Color.paper
+    static let surface    = Color.mist
+    static let surfaceHi  = Color.paper
+    static let honey      = Color.ink
+    static let honeyDim   = Color.inkMuted
+    static let ink2       = Color.inkMuted
+    static let ink3       = Color.inkFaint
+    static let vermillion = Color.flame
+    static let forestGreen = Color.mossGreen
     static let rule       = Color.hairline
     static let ruleSoft   = Color.hairlineSoft
     static let paper2     = Color.mist
@@ -322,4 +398,67 @@ enum Spacing {
     static let xl:  CGFloat = 24
     static let xxl: CGFloat = 32
     static let xxxl: CGFloat = 48
+}
+
+// ============================================================================
+// MARK: - Sparkline (折线图组件)
+// ============================================================================
+// 设计动机:hero card 底部展示过去 12 周自由天数走势。
+// silverline 风:1pt skyDeep stroke,无填充,无 axes,无 grid。
+// 最后一个 point 放一个小圆点强调"现在"。
+
+struct Sparkline: View {
+    /// y 值数组,index 0 = 最老,index n-1 = 最新
+    let values: [Double]
+    /// 画线颜色
+    var stroke: Color = .skyDeep
+    /// 终点圆点颜色
+    var endDot: Color = .skyDeep
+    /// 线宽
+    var lineWidth: CGFloat = 1.2
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let pts = points(in: CGSize(width: w, height: h))
+
+            ZStack {
+                // 折线
+                if pts.count >= 2 {
+                    Path { path in
+                        path.move(to: pts[0])
+                        for p in pts.dropFirst() {
+                            path.addLine(to: p)
+                        }
+                    }
+                    .stroke(stroke, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                }
+                // 终点小圆
+                if let last = pts.last {
+                    Circle()
+                        .fill(endDot)
+                        .frame(width: 5, height: 5)
+                        .position(x: last.x, y: last.y)
+                }
+            }
+        }
+    }
+
+    /// 把 values 映射到 view 坐标点
+    private func points(in size: CGSize) -> [CGPoint] {
+        guard !values.isEmpty else { return [] }
+        let minV = values.min() ?? 0
+        let maxV = values.max() ?? 1
+        let range = max(maxV - minV, 1)   // 避免除零
+        let stepX = values.count > 1 ? size.width / CGFloat(values.count - 1) : 0
+        let pad: CGFloat = 4              // 上下留 4pt 让线不贴边
+
+        return values.enumerated().map { (i, v) in
+            let x = CGFloat(i) * stepX
+            let normalized = (v - minV) / range    // 0...1
+            let y = size.height - pad - CGFloat(normalized) * (size.height - 2 * pad)
+            return CGPoint(x: x, y: y)
+        }
+    }
 }
