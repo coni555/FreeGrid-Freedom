@@ -49,53 +49,53 @@ extension Color {
 
 extension Color {
 
-    // ===== Surface (light: 冷白系 / dark: 深暖棕系) =====
+    // ===== Surface (light: 冷白银 / dark: 冷蓝紫黑 — 天文台气质) =====
     /// 主底
     static let paper = Color.dyn(
         lightRGB: (0.984, 0.984, 0.987),  // 冷白纸
-        darkRGB:  (0.090, 0.080, 0.072)   // 深暖棕,带温度
+        darkRGB:  (0.040, 0.045, 0.075)   // 深蓝紫黑 (oklch 0.08 0.015 250)
     )
     /// 卡片底
     static let mist = Color.dyn(
         lightRGB: (0.957, 0.957, 0.963),  // 雾银
-        darkRGB:  (0.140, 0.122, 0.108)   // 暗色卡片
+        darkRGB:  (0.078, 0.085, 0.130)   // 蓝紫卡片 (oklch 0.13 0.018 250)
     )
     /// 嵌套深一档
     static let mist2 = Color.dyn(
         lightRGB: (0.935, 0.935, 0.943),
-        darkRGB:  (0.180, 0.155, 0.135)   // 高亮卡片
+        darkRGB:  (0.110, 0.120, 0.175)   // 高亮蓝紫
     )
     /// hairline 主分隔
     static let hairline = Color.dyn(
         lightRGB: (0.870, 0.870, 0.882),
-        darkRGB:  (0.260, 0.235, 0.215)   // 暗底上 8% 白等价
+        darkRGB:  (0.215, 0.222, 0.280)   // 蓝紫灰 hairline
     )
     /// hairline 次级
     static let hairlineSoft = Color.dyn(
         lightRGB: (0.920, 0.920, 0.928),
-        darkRGB:  (0.200, 0.180, 0.165)
+        darkRGB:  (0.150, 0.158, 0.215)
     )
 
-    // ===== Ink scale (light: 冷灰墨 / dark: 暖白系) =====
+    // ===== Ink scale (light: 冷灰墨 / dark: 蓝白系) =====
     /// 主文字
     static let ink = Color.dyn(
         lightRGB: (0.145, 0.140, 0.155),
-        darkRGB:  (0.965, 0.945, 0.910)   // 暖白
+        darkRGB:  (0.940, 0.945, 0.960)   // 蓝白,带极微蓝调
     )
     /// 次级文字
     static let inkMuted = Color.dyn(
         lightRGB: (0.40, 0.395, 0.42),
-        darkRGB:  (0.72, 0.70, 0.66)
+        darkRGB:  (0.660, 0.680, 0.730)
     )
     /// 灰阶 (kicker/unit/caption)
     static let inkFaint = Color.dyn(
         lightRGB: (0.58, 0.575, 0.595),
-        darkRGB:  (0.50, 0.48, 0.45)
+        darkRGB:  (0.480, 0.495, 0.555)
     )
     /// 极弱
     static let inkGhost = Color.dyn(
         lightRGB: (0.74, 0.735, 0.755),
-        darkRGB:  (0.36, 0.34, 0.31)
+        darkRGB:  (0.310, 0.325, 0.380)
     )
 
     // ===== Sky: 主 accent (light/dark 都偏亮以 stand out) =====

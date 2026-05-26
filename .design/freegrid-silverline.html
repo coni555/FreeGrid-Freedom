@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FreeGrid · Silverline (v3 light mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;200;300;400;500;600&family=JetBrains+Mono:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  /* ========================================================================
+   * Design Tokens — FreeGrid Silverline v3
+   * 线条极简 · 白银柔和 · Swiss-tech precision
+   * ======================================================================== */
+  :root {
+    /* ---- Surface (cool whites with blue-gray hue) ---- */
+    --paper:        oklch(0.985 0.002 230);   /* 主底,极冷白 */
+    --paper-soft:   oklch(0.975 0.003 230);   /* phone bg */
+    --mist:         oklch(0.965 0.003 230);   /* 卡片/区域底,雾银 */
+    --mist-2:       oklch(0.940 0.004 230);   /* 深一档,active state */
+    --frame:        oklch(0.88  0.006 240);   /* iphone frame ring */
+
+    /* ---- Ink (cool grays with hint of blue-violet) ---- */
+    --ink:          oklch(0.18 0.008 250);    /* 主墨 */
+    --ink-2:        oklch(0.42 0.006 250);    /* 次级 */
+    --ink-3:        oklch(0.62 0.005 245);    /* 灰阶 */
+    --ink-4:        oklch(0.78 0.004 245);    /* 极弱 */
+    --ink-5:        oklch(0.88 0.003 245);    /* 几乎隐形 */
+
+    /* ---- Rules (hairlines) ---- */
+    --rule:         oklch(0.90 0.005 245);    /* 主分隔 */
+    --rule-faint:   oklch(0.945 0.004 245);   /* 次级分隔 */
+
+    /* ---- Accent: 天空蓝 (Sky) — 唯一彩色 ---- */
+    --sky:        oklch(0.72 0.14 230);    /* 主 accent · 天空蓝 */
+    --sky-deep:   oklch(0.55 0.16 235);    /* 强调用,active state */
+    --sky-soft:   oklch(0.85 0.07 225);    /* hover/secondary */
+    --sky-faint:  oklch(0.95 0.025 225);   /* 背景 wash */
+
+    /* 兼容旧变量名 (specimen 区还在引用) */
+    --steel:        var(--sky-deep);
+    --steel-soft:   var(--sky-soft);
+    --steel-faint:  var(--sky-faint);
+
+    /* ---- Type ---- */
+    --sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --serif: 'Instrument Serif', ui-serif, Georgia, serif;
+
+    /* ---- Spacing scale (Bauhaus 4-base grid) ---- */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+    --sp-12: 48px;
+    --sp-16: 64px;
+
+    /* ---- Type scale ---- */
+    --fs-micro: 9.5px;
+    --fs-xs:    11px;
+    --fs-sm:    12px;
+    --fs-base:  14px;
+    --fs-md:    16px;
+    --fs-lg:    18px;
+    --fs-xl:    22px;
+    --fs-2xl:   28px;
+    --fs-3xl:   42px;
+    --fs-display: 124px;
+
+    /* ---- Tracking ---- */
+    --tr-mono:    0.14em;
+    --tr-mono-tight: 0.06em;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--paper-soft);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--fs-base);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    min-height: 100vh;
+    padding: var(--sp-16) var(--sp-6);
+    background-image:
+      radial-gradient(circle at 20% 0%, oklch(0.97 0.015 240) 0%, transparent 50%),
+      radial-gradient(circle at 80% 100%, oklch(0.98 0.008 220) 0%, transparent 60%);
+  }
+
+  /* =====================================================================
+   * Page chrome — designer's reference layout
+   * ===================================================================== */
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--sp-16);
+  }
+
+  .masthead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .masthead .title {
+    font-family: var(--sans);
+    font-size: 32px;
+    font-weight: 200;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+  }
+  .masthead .title em {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--steel);
+  }
+  .masthead .ref {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: right;
+  }
+  .masthead .ref b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* =====================================================================
+   * iPhone 17 Pro phone frame
+   * ===================================================================== */
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: var(--sp-12);
+    align-items: start;
+  }
+
+  .phone-shell {
+    width: 393px;
+    margin: 0 auto;
+    position: relative;
+    border-radius: 56px;
+    padding: 12px;
+    background: linear-gradient(160deg,
+      oklch(0.93 0.006 240) 0%,
+      oklch(0.88 0.008 240) 50%,
+      oklch(0.92 0.006 240) 100%);
+    box-shadow:
+      0 0 0 1px oklch(0.82 0.008 240),
+      inset 0 1px 1px oklch(1 0 0 / 0.6),
+      0 30px 60px -20px oklch(0.5 0.02 240 / 0.25),
+      0 60px 120px -40px oklch(0.5 0.02 240 / 0.15);
+  }
+
+  .phone-shell::before {
+    /* dynamic island */
+    content: "";
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 36px;
+    background: oklch(0.08 0 0);
+    border-radius: 100px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%;
+    height: 852px;
+    border-radius: 44px;
+    background: var(--paper);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .status-bar {
+    height: 54px;
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: 1fr 124px 1fr;
+    align-items: center;
+    padding: 0 var(--sp-6);
+    padding-top: 14px;
+  }
+  .status-bar .time {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .status-bar .right {
+    text-align: right;
+    font-size: 14px;
+    color: var(--ink);
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    align-items: center;
+  }
+  .status-bar svg { display: block; }
+
+  /* =====================================================================
+   * Dashboard content
+   * ===================================================================== */
+  .dashboard {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--sp-6);
+    padding-bottom: var(--sp-6);
+  }
+
+  /* ---- Brand strip ---- */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) 0 var(--sp-5);
+    border-bottom: 1px solid var(--rule);
+  }
+  .brand .mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--ink);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand .mark::after {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--steel);
+  }
+  .brand .name {
+    font-family: var(--sans);
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .brand .sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-left: auto;
+  }
+
+  /* ---- Hero: Freedom Days ---- */
+  .hero {
+    padding: var(--sp-8) 0 var(--sp-6);
+    border-bottom: 1px solid var(--rule);
+  }
+  .hero .kicker {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--sp-6);
+  }
+  .hero .kicker .formula {
+    color: var(--ink-4);
+    font-size: 10px;
+  }
+
+  .hero-number {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-3);
+    line-height: 0.85;
+  }
+  .hero-number .n {
+    font-family: var(--sans);
+    font-size: var(--fs-display);
+    font-weight: 100;
+    letter-spacing: -0.06em;
+    color: var(--ink);
+    font-feature-settings: "tnum", "lnum", "ss01";
+  }
+  .hero-number .unit {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--ink-3);
+    padding-bottom: 16px;
+    letter-spacing: -0.005em;
+  }
+  .hero-number .unit em {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--steel);
+    margin-right: 2px;
+  }
+
+  .hero .copy {
+    font-family: var(--sans);
+    font-size: var(--fs-md);
+    font-weight: 300;
+    color: var(--ink-2);
+    line-height: 1.45;
+    letter-spacing: -0.005em;
+    margin-top: var(--sp-3);
+  }
+  .hero .copy b {
+    color: var(--ink);
+    font-weight: 400;
+  }
+
+  /* ---- Freedom Grid: 1825 cells, our showpiece ---- */
+  .grid-section {
+    padding: var(--sp-6) 0 var(--sp-5);
+    border-bottom: 1px solid var(--rule);
+  }
+  .grid-section .kicker {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--sp-4);
+  }
+  .grid-section .kicker .progress {
+    color: var(--ink);
+    font-weight: 500;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .grid-section .kicker .progress .total {
+    color: var(--ink-4);
+    font-weight: 400;
+  }
+
+  .grid-wrap {
+    display: grid;
+    grid-template-columns: repeat(43, 1fr);
+    gap: 2px;
+    padding: var(--sp-2) 0;
+  }
+  .grid-wrap .cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 1px;
+  }
+  .grid-wrap .cell.empty {
+    background: var(--mist);
+  }
+  .grid-wrap .cell.lit {
+    background: var(--sky);
+  }
+  .grid-wrap .cell.current {
+    background: var(--sky);
+    box-shadow: 0 0 0 2px oklch(0.72 0.14 230 / 0.22);
+    animation: cell-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes cell-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.85); opacity: 0.6; }
+  }
+
+  .grid-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    margin-top: var(--sp-4);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: var(--tr-mono-tight);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .grid-legend .item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .grid-legend .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 1px;
+  }
+  .grid-legend .swatch.lit { background: var(--sky); }
+  .grid-legend .swatch.empty { background: var(--mist-2); }
+  .grid-legend .note {
+    margin-left: auto;
+    color: var(--ink-4);
+  }
+
+  /* ---- Stats: menu-price hairline list ---- */
+  .stats {
+    padding: var(--sp-5) 0 var(--sp-3);
+    border-bottom: 1px solid var(--rule);
+  }
+  .stat-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0;
+    font-family: var(--sans);
+  }
+  .stat-row + .stat-row {
+    border-top: 1px dashed var(--rule-faint);
+  }
+  .stat-row .label {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .stat-row .leader {
+    border-bottom: 1px dotted var(--ink-5);
+    transform: translateY(-4px);
+  }
+  .stat-row .value {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-row .value .n {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 200;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .stat-row .value .u {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: var(--tr-mono-tight);
+  }
+
+  /* ---- Today vs average: bar ---- */
+  .today {
+    padding: var(--sp-5) 0 var(--sp-6);
+    border-bottom: 1px solid var(--rule);
+  }
+  .today .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--sp-3);
+  }
+  .today .head .label {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .today .head .ratio {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: var(--tr-mono-tight);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .today .head .ratio .faint { color: var(--ink-4); }
+  .bar {
+    height: 2px;
+    background: var(--mist-2);
+    position: relative;
+    margin: var(--sp-3) 0;
+  }
+  .bar .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7%;
+    background: var(--steel);
+  }
+  .bar .marker-avg {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    left: 100%;
+    width: 1px;
+    background: var(--ink-3);
+    transform: translateX(-1px);
+  }
+  .bar .marker-avg::after {
+    content: "AVG";
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .today .copy {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--ink-2);
+    margin-top: var(--sp-2);
+  }
+  .today .copy b {
+    color: var(--ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Actions ---- */
+  .actions {
+    padding: var(--sp-6) 0 var(--sp-2);
+    display: flex;
+    gap: var(--sp-3);
+  }
+  .btn {
+    flex: 1;
+    height: 50px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    border-radius: 100px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    letter-spacing: -0.005em;
+  }
+  .btn .sign {
+    font-family: var(--mono);
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--ink-3);
+  }
+  .btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn:hover .sign { color: var(--paper); }
+
+  .btn.primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn.primary .sign { color: oklch(0.85 0.05 240); }
+
+  .simulate {
+    text-align: center;
+    padding: var(--sp-4) 0 var(--sp-2);
+  }
+  .simulate a {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--ink-3);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--rule);
+    transition: color 180ms;
+  }
+  .simulate a:hover { color: var(--steel); border-bottom-color: var(--steel); }
+  .simulate a .arrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-4);
+  }
+
+  /* ---- Tab bar (no SF symbol, mono labels) ---- */
+  .tab-bar {
+    height: 76px;
+    border-top: 1px solid var(--rule);
+    background: oklch(0.985 0.002 230 / 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 10px var(--sp-3) 18px;
+    flex-shrink: 0;
+  }
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    position: relative;
+    padding-top: 8px;
+  }
+  .tab .glyph {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tab.active { color: var(--ink); }
+  .tab.active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--steel);
+  }
+  .tab svg { stroke: currentColor; }
+
+  /* =====================================================================
+   * Right column — design tokens / annotations
+   * ===================================================================== */
+  .specimen {
+    padding: var(--sp-4) 0;
+  }
+  .specimen h2 {
+    font-family: var(--sans);
+    font-weight: 200;
+    font-size: 26px;
+    letter-spacing: -0.015em;
+    margin-bottom: var(--sp-6);
+    color: var(--ink);
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+  }
+  .specimen h2 .num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: var(--tr-mono);
+    color: var(--ink-3);
+    text-transform: uppercase;
+  }
+  .specimen h2 em {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--steel);
+  }
+
+  .spec-section {
+    padding: var(--sp-5) 0;
+    border-top: 1px solid var(--rule);
+  }
+  .spec-section .head {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--sp-4);
+    display: flex;
+    justify-content: space-between;
+  }
+  .spec-section .head .idx {
+    color: var(--ink-4);
+  }
+
+  /* color swatches */
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+  }
+  .sw {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: var(--sp-3);
+    padding: var(--sp-2) 0;
+    align-items: center;
+    border-bottom: 1px dotted var(--rule-faint);
+  }
+  .sw .chip {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+  }
+  .sw .info {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .sw .info .name {
+    color: var(--ink);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 9.5px;
+  }
+  .sw .info .val {
+    color: var(--ink-3);
+    font-size: 9.5px;
+  }
+  .sw .info .rgb {
+    color: var(--ink-4);
+    font-size: 9px;
+  }
+
+  /* type specimen */
+  .type-list { display: grid; gap: var(--sp-3); }
+  .type-line {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: baseline;
+    gap: var(--sp-4);
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px dotted var(--rule-faint);
+  }
+  .type-line .meta {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    line-height: 1.4;
+  }
+  .type-line .meta b { color: var(--ink); font-weight: 500; }
+  .type-line .sample { color: var(--ink); font-feature-settings: "tnum"; }
+
+  /* spacing specimen */
+  .sp-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    margin-bottom: var(--sp-3);
+  }
+  .sp-cell {
+    aspect-ratio: 1;
+    background: var(--mist);
+    border: 1px solid var(--rule-faint);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-2);
+  }
+  .sp-cell b {
+    font-family: var(--sans);
+    font-weight: 200;
+    font-size: 18px;
+    color: var(--ink);
+  }
+  .sp-cell .px {
+    font-size: 8.5px;
+    color: var(--ink-4);
+    letter-spacing: 0.05em;
+  }
+
+  /* notes */
+  .notes {
+    padding: var(--sp-5) 0;
+    border-top: 1px solid var(--rule);
+  }
+  .notes h3 {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--sp-3);
+  }
+  .notes ol {
+    padding-left: 0;
+    list-style: none;
+    counter-reset: notes;
+  }
+  .notes li {
+    counter-increment: notes;
+    padding: var(--sp-3) 0;
+    border-bottom: 1px dotted var(--rule-faint);
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: var(--sp-3);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    font-weight: 300;
+  }
+  .notes li::before {
+    content: counter(notes, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--steel);
+    letter-spacing: 0.04em;
+  }
+  .notes li b { color: var(--ink); font-weight: 500; }
+  .notes li code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--mist);
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: var(--ink);
+  }
+
+  /* stagger reveal */
+  .dashboard > * {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: reveal 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .dashboard > *:nth-child(1) { animation-delay: 50ms; }
+  .dashboard > *:nth-child(2) { animation-delay: 180ms; }
+  .dashboard > *:nth-child(3) { animation-delay: 310ms; }
+  .dashboard > *:nth-child(4) { animation-delay: 440ms; }
+  .dashboard > *:nth-child(5) { animation-delay: 570ms; }
+  .dashboard > *:nth-child(6) { animation-delay: 700ms; }
+  .dashboard > *:nth-child(7) { animation-delay: 830ms; }
+  @keyframes reveal {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* footer */
+  .colophon {
+    text-align: center;
+    padding: var(--sp-12) var(--sp-6) var(--sp-4);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  .colophon em {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--steel);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+  }
+
+  /* responsive */
+  @media (max-width: 1100px) {
+    .stage { grid-template-columns: 1fr; }
+    .phone-shell { margin: 0 auto; }
+  }
+
+  /* ========================================================================
+   * V4 layout — asymmetric hero + full-bleed grid + horizontal stats
+   * 用户反馈: v3 vertical list 排版不满意,重做
+   * ======================================================================== */
+
+  /* ---- Hero asymmetric (text 左 + 大数字右) ---- */
+  .hero-a {
+    padding: var(--sp-6) 0 var(--sp-5);
+    border-bottom: 1px solid var(--rule);
+  }
+  .hero-a .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--sp-5);
+  }
+  .hero-a .top .kicker {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hero-a .top .formula {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-4);
+  }
+  .hero-a .body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: var(--sp-3);
+  }
+  .hero-a .copy {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 200;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    line-height: 1.18;
+    padding-bottom: 14px;
+  }
+  .hero-a .copy em {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--sky-deep);
+    font-weight: 400;
+    margin: 0 1px;
+  }
+  .hero-a .num {
+    font-family: var(--sans);
+    font-size: 132px;
+    font-weight: 100;
+    letter-spacing: -0.07em;
+    line-height: 0.82;
+    color: var(--ink);
+    font-feature-settings: "tnum", "lnum", "ss01";
+    margin-right: -4px;
+  }
+  .hero-a .meta {
+    margin-top: var(--sp-4);
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: var(--tr-mono-tight);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hero-a .meta .progress {
+    color: var(--ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Grid full-bleed (突破 phone padding,触及左右边) ---- */
+  .grid-bleed {
+    margin: 0 calc(-1 * var(--sp-6));
+    padding: var(--sp-5) var(--sp-6) var(--sp-4);
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--paper) 0%, oklch(0.978 0.003 230) 100%);
+  }
+  .grid-bleed .band {
+    display: grid;
+    grid-template-columns: repeat(43, 1fr);
+    gap: 2px;
+  }
+  .grid-bleed .band .cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 1px;
+  }
+  .grid-bleed .band .cell.empty { background: var(--mist-2); }
+  .grid-bleed .band .cell.lit { background: var(--sky); }
+  .grid-bleed .band .cell.current {
+    background: var(--sky);
+    box-shadow: 0 0 0 1.5px oklch(0.72 0.14 230 / 0.25);
+    animation: cell-pulse 2.4s ease-in-out infinite;
+  }
+  .grid-bleed .foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    margin-top: var(--sp-4);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: var(--tr-mono-tight);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .grid-bleed .foot .item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .grid-bleed .foot .swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 1px;
+  }
+  .grid-bleed .foot .swatch.sky { background: var(--sky); }
+  .grid-bleed .foot .swatch.mist { background: var(--mist-2); }
+  .grid-bleed .foot .far {
+    margin-left: auto;
+    color: var(--ink-4);
+  }
+  .grid-bleed .foot .num {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ---- Stats 3-col horizontal ---- */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: var(--sp-6) 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .stats-row .col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding-left: var(--sp-3);
+    position: relative;
+  }
+  .stats-row .col:first-child { padding-left: 0; }
+  .stats-row .col + .col::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background: var(--rule-faint);
+  }
+  .stats-row .col .nw {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stats-row .col .n {
+    font-family: var(--sans);
+    font-size: 36px;
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stats-row .col .u {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: var(--tr-mono-tight);
+  }
+  .stats-row .col .rule-s {
+    width: 24px;
+    height: 1px;
+    background: var(--ink-4);
+    margin: 4px 0 2px;
+  }
+  .stats-row .col .k {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .stats-row .col .sub {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--ink-4);
+  }
+
+  /* ---- Today single-line bar (左¥5 ─■─ 右¥72) ---- */
+  .today-line {
+    padding: var(--sp-5) 0 var(--sp-5);
+    border-bottom: 1px solid var(--rule);
+  }
+  .today-line .row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--sp-4);
+    align-items: center;
+  }
+  .today-line .end {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 50px;
+  }
+  .today-line .end.r { align-items: flex-end; }
+  .today-line .end .n {
+    font-family: var(--sans);
+    font-size: 24px;
+    font-weight: 200;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .today-line .end.r .n { color: var(--ink-2); }
+  .today-line .end .k {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: var(--tr-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .today-line .barx {
+    height: 2px;
+    background: var(--mist-2);
+    position: relative;
+    margin: 0 4px;
+  }
+  .today-line .barx .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7%;
+    background: var(--sky);
+  }
+  .today-line .barx .marker {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    left: 7%;
+    width: 1.5px;
+    background: var(--sky-deep);
+    transform: translateX(-0.75px);
+  }
+  .today-line .delta {
+    margin-top: var(--sp-3);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--ink-2);
+    text-align: center;
+    letter-spacing: -0.005em;
+  }
+  .today-line .delta b {
+    color: var(--sky-deep);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <!-- ============================================================
+       Masthead: design exploration head
+       ============================================================ -->
+  <header class="masthead">
+    <h1 class="title">
+      FreeGrid <em>Silverline</em>
+      <span style="font-family: var(--mono); font-size: 11px; letter-spacing: var(--tr-mono); text-transform: uppercase; color: var(--ink-3); padding-left: var(--sp-4); border-left: 1px solid var(--rule);">v3 · light · swiss-tech minimal</span>
+    </h1>
+    <div class="ref">
+      <b>Mockup</b> · 393×852pt iPhone 17 Pro · 26.05.2026
+    </div>
+  </header>
+
+  <!-- ============================================================
+       Stage: phone mockup + design tokens specimen
+       ============================================================ -->
+  <section class="stage">
+
+    <!-- Phone mockup -->
+    <div class="phone-shell">
+      <div class="phone-screen">
+
+        <!-- iOS status bar -->
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span></span>
+          <span class="right">
+            <!-- signal -->
+            <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="0.5"/><rect x="5" y="5" width="3" height="6" rx="0.5"/><rect x="10" y="2" width="3" height="9" rx="0.5"/><rect x="15" y="0" width="3" height="11" rx="0.5"/></svg>
+            <!-- wifi -->
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 3.5 A 10 10 0 0 1 15 3.5" stroke-linecap="round"/><path d="M3.5 6 A 6 6 0 0 1 12.5 6" stroke-linecap="round"/><circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/></svg>
+            <!-- battery -->
+            <svg width="26" height="11" viewBox="0 0 26 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="22" height="10" rx="2.5"/><rect x="2" y="2" width="19" height="7" rx="1" fill="currentColor"/><rect x="23.5" y="3.5" width="2" height="4" rx="0.5" fill="currentColor"/></svg>
+          </span>
+        </div>
+
+        <!-- Dashboard content -->
+        <div class="dashboard">
+
+          <!-- Brand strip -->
+          <div class="brand">
+            <span class="mark" aria-hidden="true"></span>
+            <span class="name">FreeGrid</span>
+            <span class="sub">VOL. <b style="color: var(--ink);">001</b> · WEEK 75</span>
+          </div>
+
+          <!-- V4 · Hero asymmetric: 副标左 + 大数字右 -->
+          <section class="hero-a">
+            <div class="top">
+              <span class="kicker">Freedom Days</span>
+              <span class="formula">(资产 + 净储蓄) ÷ 日均消费</span>
+            </div>
+            <div class="body">
+              <div class="copy">
+                你的<em>自由</em>还能撑<br/>这么多天
+              </div>
+              <div class="num">84</div>
+            </div>
+            <div class="meta">
+              <span>days · 5 yr cap</span>
+              <span class="progress">084 / 1825</span>
+            </div>
+          </section>
+
+          <!-- V4 · Grid full-bleed: 突破 phone padding 触及左右两端 -->
+          <section class="grid-bleed">
+            <div class="band" id="grid"></div>
+            <div class="foot">
+              <span class="item">
+                <span class="swatch sky"></span>
+                <span>已点亮 <span class="num">084</span></span>
+              </span>
+              <span class="item">
+                <span class="swatch mist"></span>
+                <span>未来 <span class="num">1,741</span></span>
+              </span>
+              <span class="far">1825 = 5 年</span>
+            </div>
+          </section>
+
+          <!-- V4 · Stats 3-col horizontal -->
+          <section class="stats-row">
+            <div class="col">
+              <div class="nw"><span class="n">72</span><span class="u">元</span></div>
+              <div class="rule-s"></div>
+              <div class="k">Daily Burn</div>
+              <div class="sub">日均消费</div>
+            </div>
+            <div class="col">
+              <div class="nw"><span class="n">0</span><span class="u">%</span></div>
+              <div class="rule-s"></div>
+              <div class="k">Passive</div>
+              <div class="sub">被动覆盖</div>
+            </div>
+            <div class="col">
+              <div class="nw"><span class="n">626</span><span class="u">天</span></div>
+              <div class="rule-s"></div>
+              <div class="k">Track</div>
+              <div class="sub">持续追踪</div>
+            </div>
+          </section>
+
+          <!-- V4 · Today single-line bar (今¥5 ─■─ 均¥72) -->
+          <section class="today-line">
+            <div class="row">
+              <div class="end">
+                <div class="n">¥5</div>
+                <div class="k">Today</div>
+              </div>
+              <div class="barx">
+                <div class="fill"></div>
+                <div class="marker"></div>
+              </div>
+              <div class="end r">
+                <div class="n">¥72</div>
+                <div class="k">avg</div>
+              </div>
+            </div>
+            <div class="delta">低于日均 <b>93%</b> · 节省 <b>¥67</b></div>
+          </section>
+
+          <!-- Actions -->
+          <div class="actions">
+            <button class="btn"><span class="sign">−</span>记支出</button>
+            <button class="btn primary"><span class="sign">+</span>记收入</button>
+          </div>
+          <div class="simulate">
+            <a href="#">模拟一笔决策 <span class="arrow">→</span></a>
+          </div>
+
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <div class="tab active">
+            <span class="glyph">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="2.5" fill="currentColor" stroke="none"/></svg>
+            </span>
+            Dashboard
+          </div>
+          <div class="tab">
+            <span class="glyph">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="5.5" width="15" height="9" rx="0.5"/><line x1="2.5" y1="9" x2="17.5" y2="9"/></svg>
+            </span>
+            Assets
+          </div>
+          <div class="tab">
+            <span class="glyph">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><path d="M10 5.5 V 10 L 13 12" stroke-linecap="round"/></svg>
+            </span>
+            History
+          </div>
+          <div class="tab">
+            <span class="glyph">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="14" x2="16" y2="14"/></svg>
+            </span>
+            Check
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================
+         Design tokens specimen
+         ============================================================ -->
+    <aside class="specimen">
+
+      <h2><span class="num">§ 01</span> Design <em>tokens</em></h2>
+
+      <!-- Color -->
+      <div class="spec-section">
+        <div class="head"><span>Color · OKLCH</span><span class="idx">01/04</span></div>
+        <div class="swatches">
+          <div class="sw"><span class="chip" style="background: oklch(0.985 0.002 230);"></span>
+            <div class="info"><div class="name">paper</div><div class="val">oklch(0.985 0.002 230)</div><div class="rgb">主底 · 冷白</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.965 0.003 230);"></span>
+            <div class="info"><div class="name">mist</div><div class="val">oklch(0.965 0.003 230)</div><div class="rgb">区域底 · 雾银</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.940 0.004 230);"></span>
+            <div class="info"><div class="name">mist-2</div><div class="val">oklch(0.940 0.004 230)</div><div class="rgb">深一档</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.18 0.008 250);"></span>
+            <div class="info"><div class="name">ink</div><div class="val">oklch(0.18 0.008 250)</div><div class="rgb">主墨</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.42 0.006 250);"></span>
+            <div class="info"><div class="name">ink-2</div><div class="val">oklch(0.42 0.006 250)</div><div class="rgb">次级</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.62 0.005 245);"></span>
+            <div class="info"><div class="name">ink-3</div><div class="val">oklch(0.62 0.005 245)</div><div class="rgb">灰阶</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.90 0.005 245);"></span>
+            <div class="info"><div class="name">rule</div><div class="val">oklch(0.90 0.005 245)</div><div class="rgb">hairline 分隔</div></div>
+          </div>
+          <div class="sw"><span class="chip" style="background: oklch(0.55 0.10 240);"></span>
+            <div class="info"><div class="name">steel</div><div class="val">oklch(0.55 0.10 240)</div><div class="rgb">唯一 accent · 钢蓝</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type -->
+      <div class="spec-section">
+        <div class="head"><span>Type</span><span class="idx">02/04</span></div>
+        <div class="type-list">
+          <div class="type-line">
+            <div class="meta"><b>Display</b><br/>Geist 100<br/>124 / 0.85</div>
+            <div class="sample" style="font-size: 56px; font-weight: 100; letter-spacing: -0.06em; line-height: 0.9;">84</div>
+          </div>
+          <div class="type-line">
+            <div class="meta"><b>Title</b><br/>Geist 200<br/>32 / -0.02em</div>
+            <div class="sample" style="font-size: 28px; font-weight: 200; letter-spacing: -0.015em;">FreeGrid</div>
+          </div>
+          <div class="type-line">
+            <div class="meta"><b>Body</b><br/>Geist 300<br/>16 / 1.45</div>
+            <div class="sample" style="font-size: 15px; font-weight: 300; color: var(--ink-2);">你的自由还能撑 84 天</div>
+          </div>
+          <div class="type-line">
+            <div class="meta"><b>Kicker</b><br/>JetBrains 400<br/>11 / 0.14em uppercase</div>
+            <div class="sample" style="font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);">Freedom Days</div>
+          </div>
+          <div class="type-line">
+            <div class="meta"><b>Numeric</b><br/>JetBrains 400 tnum<br/>14 / tabular</div>
+            <div class="sample" style="font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums;">005 / 072 · 7%</div>
+          </div>
+          <div class="type-line">
+            <div class="meta"><b>Accent</b><br/>Instrument Serif italic<br/>only single words</div>
+            <div class="sample" style="font-family: var(--serif); font-style: italic; font-size: 24px; color: var(--steel); font-weight: 400;">silverline</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spacing -->
+      <div class="spec-section">
+        <div class="head"><span>Spacing · 4-base</span><span class="idx">03/04</span></div>
+        <div class="sp-grid">
+          <div class="sp-cell"><b>1</b><span class="px">4 PX</span></div>
+          <div class="sp-cell"><b>2</b><span class="px">8 PX</span></div>
+          <div class="sp-cell"><b>3</b><span class="px">12 PX</span></div>
+          <div class="sp-cell"><b>4</b><span class="px">16 PX</span></div>
+          <div class="sp-cell"><b>5</b><span class="px">20 PX</span></div>
+          <div class="sp-cell"><b>6</b><span class="px">24 PX</span></div>
+          <div class="sp-cell"><b>8</b><span class="px">32 PX</span></div>
+          <div class="sp-cell"><b>12</b><span class="px">48 PX</span></div>
+        </div>
+      </div>
+
+      <!-- Notes for SwiftUI translation -->
+      <div class="notes">
+        <h3><span>§ 02 · Notes for SwiftUI translation</span></h3>
+        <ol>
+          <li><b>Numbers must use tabular figures.</b> SwiftUI 等价: <code>.monospacedDigit()</code> 或 <code>.font(.system(.body, design: .monospaced))</code>。所有 stat / today 数字必须等宽防跳动。</li>
+          <li><b>Hero 数字 weight 100 thin.</b> iOS 上 SF Pro Display 最细是 ultralight (100)。用 <code>.system(size: 124, weight: .ultraLight)</code>。Letter spacing -0.06em ≈ <code>.tracking(-7)</code>。</li>
+          <li><b>Freedom Grid 必须画完整 1825 cells.</b> 这是核心 reframe: 用户看到的是"还有多少未来未点亮"而不只是"我攒了多少"。用 LazyVGrid + 1825 ForEach。已点亮 fill steel, 未点亮 fill mist。</li>
+          <li><b>当前格(第 85 格)呼吸动画.</b> scale 1.0 ↔ 0.85 + opacity 1.0 ↔ 0.6,周期 2.4s。比 v2 暗色版温和得多。</li>
+          <li><b>无阴影,纯描边按钮.</b> primary 按钮是 filled <code>ink</code> 底 + <code>paper</code> 字; secondary 是 stroke 1pt <code>ink</code> + transparent 底。绝不用 shadow / blur。</li>
+          <li><b>Kicker 标签全用 mono + uppercase + tracking 0.14em.</b> JetBrains Mono → iOS 没有对应字体, 用 <code>.system(.caption, design: .monospaced)</code> 加 <code>.tracking(1.5)</code>。</li>
+          <li><b>仅一个 italic serif accent</b>: 品牌词 "Silverline" 用 Instrument Serif italic + steel 色。SwiftUI 等价: <code>.font(.system(.title3, design: .serif).italic())</code> + <code>.foregroundStyle(.steel)</code>。一个屏幕最多出现 1-2 次,不滥用。</li>
+          <li><b>Tab bar 用 mono labels + outlined SF symbol.</b> 不要 filled, 不要 SF systemBlue tint。Active 用上方一个 6pt steel dot 标识,不是字体变粗。</li>
+          <li><b>背景纯色无渐变.</b> 主背景 paper, phone safe area 也是 paper。不要 ultraThinMaterial / glass(那是 v2 暗色金库的招式,会和银白冲突)。</li>
+          <li><b>所有 corner radius 1-2pt.</b> grid cells radius 1pt, buttons 100pt (full pill)。除按钮外几乎不用圆角——线条极简的关键。</li>
+        </ol>
+      </div>
+
+    </aside>
+  </section>
+
+  <div class="colophon">
+    <em>Silverline</em> &nbsp;·&nbsp; reference mockup for SwiftUI · FreeGrid v3 · <span style="font-family: var(--mono);">light mode</span>
+  </div>
+
+</main>
+
+<script>
+  /* Generate 1825 freedom grid cells.
+   * First 84 lit (asset blue), 85th = current breathing,
+   * remaining 1740 = mist (unfilled "future days"). */
+  (function () {
+    const wrap = document.getElementById('grid');
+    if (!wrap) return;
+    const total = 1825;
+    const lit = 84;
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < total; i++) {
+      const div = document.createElement('div');
+      if (i < lit) div.className = 'cell lit';
+      else if (i === lit) div.className = 'cell current';
+      else div.className = 'cell empty';
+      frag.appendChild(div);
+    }
+    wrap.appendChild(frag);
+  })();
+</script>
+
+</body>
+</html>
