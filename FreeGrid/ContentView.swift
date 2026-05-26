@@ -243,28 +243,8 @@ struct DashboardView: View {
                         .padding(.bottom, -8)
                 }
 
-                // meta row: kicker 左 + 进度 mono 右
-                HStack {
-                    Text("DAYS · 5 YR CAP")
-                        .font(.kicker)
-                        .tracking(1.8)
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer()
-                    Text(progressText)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Color.ink)
-                }
-                .padding(.top, Spacing.xs)
             }
         }
-    }
-
-    /// hero meta 的进度文案: "084 / 1825"
-    private var progressText: String {
-        if freedomDays.isInfinite { return "—— / 1825" }
-        let n = Int(freedomDays)
-        let display = min(n, 1825)
-        return String(format: "%03d / 1825", display)
     }
 
     /// 三联 stat 卡片:横向 3 个独立 VaultCard,各自有 padding 和描边
@@ -444,7 +424,7 @@ struct DashboardView: View {
                     legendDot(color: .assetBlue, label: "资产")
                     legendDot(color: .incomeGold, label: "收入")
                     Spacer()
-                    Text("每格 = 1 天 · 5 年上限")
+                    Text("每格 = 1 天自由")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }
@@ -466,13 +446,10 @@ struct DashboardView: View {
         }
     }
 
-    /// 网格右上角的总计文案: silverline 风格 mono ratio "084 / 1825"
+    /// 网格右上角文案:只显示已点亮天数,无 5 年上限框架
     private func gridSummary(state: FreedomMath.GridState) -> String {
-        if state.totalLit == 0 { return "—— / 1825" }
-        if state.isOverflow {
-            return "1825 / 1825 · 已达 5 年上限"
-        }
-        return String(format: "%03d / 1825", state.totalLit)
+        if state.totalLit == 0 { return "等待数据" }
+        return "\(state.totalLit) 天"
     }
 
     /// 空网格时的提示:暗色 SF symbol + 文案
