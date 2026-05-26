@@ -2,97 +2,115 @@
 //  DesignSystem.swift
 //  FreeGrid
 //
-//  方向 v2: 静谧金库 / Calm Vault · Native iOS
-//  - 暗色暖底(深棕,带温度)代替纯黑/冷灰
-//  - 唯一主 accent = 蜜金 (honey gold),"自由的颜色"
-//  - 拥抱 iOS 26 Liquid Glass / ultraThinMaterial
-//  - SF Pro Rounded 大数字,product feel 而非 editorial feel
+//  方向 v3: Silverline · Swiss-tech Light Minimal
+//  - 冷白底 + 雾银低饱和(蓝灰 hue)
+//  - 唯一 accent = 天空蓝 (sky blue)
+//  - hairline 描边 + 大量留白替代色块填充
+//  - SF Pro Rounded thin 大数字,克制不发光
+//
+//  与 v2 暗色金库的对应:colors 翻转(dark→light), 但 layout 结构(VaultCard 堆叠)保留
 //
 
 import SwiftUI
 
 // ============================================================================
-// MARK: - Color (暗色暖底 + 蜜金主色 + 语义色)
+// MARK: - Color (冷白银 + 天空蓝 accent)
 // ============================================================================
 
 extension Color {
 
-    // ===== 背景与表面 (暗色暖底,带 hue,不是死黑) =====
-    /// 主背景:深暖棕,接近 oklch(0.135 0.012 60)
-    static let midnight   = Color(red: 0.090, green: 0.075, blue: 0.062)
-    /// 卡片表面:比 midnight 亮一档,做"浮起"基底
-    static let surface    = Color(red: 0.140, green: 0.120, blue: 0.100)
-    /// 高层表面:更亮一档,active/important card
-    static let surfaceHi  = Color(red: 0.180, green: 0.155, blue: 0.128)
-    /// hairline:浅白半透,在暗底上做 subtle 描边
-    static let hairline   = Color(white: 1.0).opacity(0.08)
+    // ===== Paper scale (冷白系,带极微蓝灰 hue) =====
+    /// 主底:冷白纸色 oklch(0.985 0.002 230)
+    static let paper      = Color(red: 0.984, green: 0.984, blue: 0.987)
+    /// 雾银:卡片底/嵌套区 oklch(0.965 0.003 230)
+    static let mist       = Color(red: 0.957, green: 0.957, blue: 0.963)
+    /// 雾银深一档:用于嵌套深一层
+    static let mist2      = Color(red: 0.935, green: 0.935, blue: 0.943)
+    /// hairline:1px 主分隔
+    static let hairline   = Color(red: 0.870, green: 0.870, blue: 0.882)
+    /// 更轻的 hairline,虚线用
+    static let hairlineSoft = Color(red: 0.920, green: 0.920, blue: 0.928)
 
-    // ===== 文字 (暖白系) =====
-    /// 主文字:暖白,绝不刺眼,带 hue 跟背景呼应
-    static let ink        = Color(red: 0.965, green: 0.945, blue: 0.910)
-    /// 次级:用于副标/说明
-    static let inkMuted   = Color(red: 0.965, green: 0.945, blue: 0.910).opacity(0.62)
-    /// 极弱:kicker / unit / caption
-    static let inkFaint   = Color(red: 0.965, green: 0.945, blue: 0.910).opacity(0.38)
+    // ===== Ink scale (冷灰墨) =====
+    /// 主墨:接近黑但带冷调
+    static let ink        = Color(red: 0.145, green: 0.140, blue: 0.155)
+    /// 次级:副标 / 说明
+    static let inkMuted   = Color(red: 0.40, green: 0.395, blue: 0.42)
+    /// 灰阶:kicker / unit / caption
+    static let inkFaint   = Color(red: 0.58, green: 0.575, blue: 0.595)
+    /// 极弱:几乎隐形,装饰用
+    static let inkGhost   = Color(red: 0.74, green: 0.735, blue: 0.755)
 
-    // ===== Honey: 主 accent,"自由的颜色" =====
-    /// 蜜金:饱和暖黄,在暗底上发光感强。所有 hero/active/primary action 都吃这一色
-    static let honey      = Color(red: 0.990, green: 0.780, blue: 0.380)
-    /// honey 的 muted 版本,用于次级强调
-    static let honeyDim   = Color(red: 0.990, green: 0.780, blue: 0.380).opacity(0.55)
+    // ===== Sky: 天空蓝,唯一 accent =====
+    /// 主天空蓝:清亮、低饱和、清新 oklch(0.72 0.14 230)
+    /// 用于 LifeGrid 活动格、品牌圆点、Tab 选中态
+    static let sky        = Color(red: 0.45, green: 0.72, blue: 0.92)
+    /// 深天空蓝:用于 italic accent、bar marker、文字强调
+    static let skyDeep    = Color(red: 0.28, green: 0.52, blue: 0.78)
+    /// 浅天空蓝:hover/secondary,wash
+    static let skySoft    = Color(red: 0.78, green: 0.88, blue: 0.96)
+    /// 极淡:背景 tint
+    static let skyFaint   = Color(red: 0.93, green: 0.96, blue: 0.99)
 
-    // ===== 业务语义色 (饱和版,暗底友好) =====
-    /// 资产蓝:LifeGrid 蓝格,饱和+略偏 cyan,在暗底上跳得出
-    static let assetBlue  = Color(red: 0.45, green: 0.78, blue: 1.00)
-    /// 收入金:LifeGrid 金格——和 honey 主色统一,语义"收入即自由"
-    static let incomeGold = Color(red: 0.990, green: 0.780, blue: 0.380)
-    /// 支出朱砂:暖红,落日色,跟蜜金构成"日落"色温对
-    static let flame      = Color(red: 1.00, green: 0.48, blue: 0.30)
-    /// 收入绿:深森绿,只在需要明确"成功"语义时用(被动收入标签)
-    static let mossGreen  = Color(red: 0.50, green: 0.85, blue: 0.58)
+    // ===== 业务语义色 =====
+    /// LifeGrid 资产蓝 = 主天空蓝(语义合并)
+    static let assetBlue  = Color(red: 0.45, green: 0.72, blue: 0.92)
+    /// LifeGrid 收入金 → light silverline 里改用 light teal 配 cool 调
+    /// 浅青绿 oklch(0.78 0.07 195)
+    static let incomeGold = Color(red: 0.62, green: 0.82, blue: 0.84)
+    /// 支出朱砂:仅 destructive 语义,light 版本 coral
+    static let flame      = Color(red: 0.82, green: 0.40, blue: 0.32)
+    /// 收入森绿:被动收入标签
+    static let mossGreen  = Color(red: 0.36, green: 0.62, blue: 0.42)
 
-    // ===== V1 alias (年鉴风 token,渐进迁移用) =====
-    // 这些是 v1 时期的命名,现在指向 v2 的暗色等价物
-    // 等所有 ContentView 改完后可移除
-    static let paper      = Color.midnight
-    static let paper2     = Color.surface
+    // ===== V2 alias (dark mode 时期 token,light 版本下重新指向) =====
+    // 保留旧 token 名,值已翻转为 light silverline 等价物
+    static let midnight   = Color.paper       // v2 暗背景 → v3 浅纸
+    static let surface    = Color.mist        // v2 暗卡片 → v3 雾银
+    static let surfaceHi  = Color.paper       // v2 高亮卡片 → v3 纯白(比 mist 亮)
+    static let honey      = Color.ink         // v2 蜜金主 accent → v3 hero 数字用 ink 主墨(不彩色)
+    static let honeyDim   = Color.inkMuted    // v2 蜜金 dim → v3 次级
+    static let ink2       = Color.inkMuted    // v1 alias
+    static let ink3       = Color.inkFaint    // v1 alias
+    static let vermillion = Color.flame       // v1 alias
+    static let forestGreen = Color.mossGreen  // v1 alias
+
+    // hairline 旧名 (v1)
     static let rule       = Color.hairline
-    static let ruleSoft   = Color.hairline
-    static let ink2       = Color.inkMuted
-    static let ink3       = Color.inkFaint
-    static let vermillion = Color.flame
-    static let forestGreen = Color.mossGreen
+    static let ruleSoft   = Color.hairlineSoft
+    static let paper2     = Color.mist
 }
 
 // ============================================================================
 // MARK: - 字体 helper
 // ============================================================================
-// SF Pro Rounded 是 iOS 系统字体,适合产品工具 + 数字 feel。
-// 中文自动 fallback PingFang SC,字重映射合理。
+// 用 SF Pro Rounded thin 取代 v3 mockup 的 Geist——iOS 没有 Geist,
+// SF Pro 是 system font,weight 100 ultraLight 视觉接近 Geist 100。
+// 中文自动 fallback PingFang SC,thin 字重映射合理。
 
 extension Font {
-    /// Hero 自由天数:96pt rounded bold,占半屏
+    /// Hero 自由天数:96pt rounded ultraLight,跟 mockup Geist 100 视觉等价
     static func heroNumber(_ size: CGFloat = 96) -> Font {
-        .system(size: size, weight: .bold, design: .rounded).monospacedDigit()
+        .system(size: size, weight: .ultraLight, design: .rounded).monospacedDigit()
     }
 
-    /// 中等数字:Assets hero / 三联指标 用
+    /// 中等数字:stats 用,32pt thin
     static func bigNumber(_ size: CGFloat = 32) -> Font {
-        .system(size: size, weight: .semibold, design: .rounded).monospacedDigit()
+        .system(size: size, weight: .thin, design: .rounded).monospacedDigit()
     }
 
     /// 三联指标内部数字
-    static func statNumber(_ size: CGFloat = 24) -> Font {
-        .system(size: size, weight: .medium, design: .rounded).monospacedDigit()
+    static func statNumber(_ size: CGFloat = 28) -> Font {
+        .system(size: size, weight: .thin, design: .rounded).monospacedDigit()
     }
 
-    /// kicker / label:mono uppercase,tracking 1.5
-    static let kicker = Font.system(.caption, design: .monospaced).weight(.medium)
+    /// kicker / label:mono uppercase tracking
+    static let kicker = Font.system(.caption2, design: .monospaced).weight(.regular)
 
-    /// 副标 body
+    /// 副标 body rounded
     static let bodyRounded = Font.system(.body, design: .rounded)
 
-    // ===== V1 Font alias =====
+    // ===== V1/V2 alias =====
     static func mediumNumber(_ size: CGFloat = 28) -> Font { bigNumber(size) }
     static let monoKicker = kicker
 }
@@ -101,8 +119,7 @@ extension Font {
 // MARK: - 共用组件
 // ============================================================================
 
-/// kicker 标签:uppercase mono,tracking 1.5,默认 inkFaint
-/// 替代旧版的 § + uppercase 组合,更"工具"feel
+/// kicker 标签:uppercase mono tracking,默认 inkFaint
 struct KickerLabel: View {
     let text: String
     var color: Color = .inkFaint
@@ -110,24 +127,25 @@ struct KickerLabel: View {
     var body: some View {
         Text(text.uppercased())
             .font(.kicker)
-            .tracking(1.5)
+            .tracking(1.8)
             .foregroundStyle(color)
     }
 }
 
-/// hairline 横线(暗底上的 subtle 分隔)
+/// hairline 横线
 struct Hairline: View {
+    var color: Color = .hairline
     var body: some View {
         Rectangle()
-            .fill(Color.hairline)
+            .fill(color)
             .frame(height: 1)
             .frame(maxWidth: .infinity)
     }
 }
 
-/// 卡片容器:暗底上的浮层
-/// 设计动机: 使用 .ultraThinMaterial + 自定义底色 surface,模拟 iOS 26 Liquid Glass
-/// emphasis = .high 用 surfaceHi,适合 hero
+/// 卡片容器:Silverline 风
+/// emphasis = .high 用 paper 纯白(更亮一档);.normal 用 mist 雾银
+/// 设计动机:hairline 描边为主,无阴影,极简
 struct VaultCard<Content: View>: View {
     enum Emphasis { case normal, high }
     var emphasis: Emphasis = .normal
@@ -139,18 +157,20 @@ struct VaultCard<Content: View>: View {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(emphasis == .high ? Color.surfaceHi : Color.surface)
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.hairline, lineWidth: 1)
-                }
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(emphasis == .high ? Color.paper : Color.mist)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.hairline, lineWidth: 1)
             )
     }
 }
 
-/// 主操作按钮 (filled rounded, prominent)
-/// emphasis = .primary 用 honey 主色,.secondary 用 surfaceHi 描边
+/// 主操作按钮 — hairline 描边 pill 风
+/// .primary = 实心 ink 底 paper 字
+/// .secondary = 透明 + ink 描边
+/// .destructive = 透明 + flame 描边 + flame 字
 struct VaultButton: View {
     enum Style { case primary, secondary, destructive }
     let title: String
@@ -160,16 +180,22 @@ struct VaultButton: View {
 
     private var bg: Color {
         switch style {
-        case .primary: return .honey
-        case .secondary: return .surfaceHi
-        case .destructive: return .flame
+        case .primary: return .ink
+        case .secondary, .destructive: return .clear
         }
     }
     private var fg: Color {
         switch style {
-        case .primary: return Color(red: 0.18, green: 0.12, blue: 0.04)  // 暗棕字配蜜金底
+        case .primary: return .paper
         case .secondary: return .ink
-        case .destructive: return Color(red: 0.20, green: 0.06, blue: 0.04)
+        case .destructive: return .flame
+        }
+    }
+    private var stroke: Color {
+        switch style {
+        case .primary: return .ink
+        case .secondary: return .ink
+        case .destructive: return .flame
         }
     }
 
@@ -178,25 +204,26 @@ struct VaultButton: View {
             HStack(spacing: 8) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14, weight: .regular))
                 }
                 Text(title)
-                    .font(.system(.body, design: .rounded).weight(.semibold))
+                    .font(.system(.body, design: .rounded).weight(.regular))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
             .foregroundStyle(fg)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(bg)
+                Capsule().fill(bg)
+            )
+            .overlay(
+                Capsule().stroke(stroke, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
     }
 }
 
-/// Ghost button (次级动作,模拟决策用)
-/// 透明底 + hairline 描边 + ink 字
+/// Ghost 按钮:underline 文字 link 风
 struct GhostButton: View {
     let title: String
     var icon: String? = nil
@@ -207,16 +234,22 @@ struct GhostButton: View {
             HStack(spacing: 6) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .regular))
                 }
                 Text(title)
                     .font(.system(.subheadline, design: .rounded))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11))
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .foregroundStyle(Color.inkMuted)
-            .background(
-                Capsule().stroke(Color.hairline, lineWidth: 1)
+            .padding(.vertical, 8)
+            .foregroundStyle(Color.inkFaint)
+            .overlay(
+                Rectangle()
+                    .fill(Color.hairlineSoft)
+                    .frame(height: 1)
+                    .frame(maxWidth: .infinity, alignment: .bottom),
+                alignment: .bottom
             )
         }
         .buttonStyle(.plain)
@@ -224,10 +257,9 @@ struct GhostButton: View {
 }
 
 // ============================================================================
-// MARK: - V1 组件 alias (年鉴风遗留,逐步替换)
+// MARK: - V1 组件 alias (年鉴风 + 暗色金库时期遗留)
 // ============================================================================
 
-/// V1 SectionMark → 现在 forward 到 KickerLabel (不再有 § 段落符)
 struct SectionMark: View {
     let text: String
     var color: Color = .inkFaint
@@ -236,12 +268,10 @@ struct SectionMark: View {
     }
 }
 
-/// V1 ChapterRule → 简化为 hairline,不再有 § 浮起
 struct ChapterRule: View {
     var body: some View { Hairline() }
 }
 
-/// V1 PillButton → forward 到 VaultButton
 struct PillButton: View {
     enum Emphasis { case primary, secondary }
     let title: String
@@ -256,7 +286,6 @@ struct PillButton: View {
     }
 }
 
-/// V1 UnderlineLink → forward 到 GhostButton
 struct UnderlineLink: View {
     let title: String
     var icon: String? = nil
@@ -267,17 +296,19 @@ struct UnderlineLink: View {
     }
 }
 
-/// V1 emphasized() → 暗色版,关键词改用 honey 而非朱砂
+/// emphasized():单字 italic 强调
+/// light silverline 版本:用 sky-deep 深天空蓝代替 honey/vermillion
+/// 配合 .italic 用类衬线感强调(SF 没 italic serif,但 .italic() + tracking 微调可以)
 func emphasized(_ prefix: String, _ word: String, _ suffix: String,
                 size: CGFloat = 17) -> Text {
     Text(prefix)
-        .font(.system(size: size, design: .rounded))
+        .font(.system(size: size, weight: .regular, design: .rounded))
         .foregroundColor(.inkMuted)
     + Text(word)
-        .font(.system(size: size, weight: .semibold, design: .rounded))
-        .foregroundColor(.honey)
+        .font(.system(size: size, weight: .regular, design: .serif).italic())
+        .foregroundColor(.skyDeep)
     + Text(suffix)
-        .font(.system(size: size, design: .rounded))
+        .font(.system(size: size, weight: .regular, design: .rounded))
         .foregroundColor(.inkMuted)
 }
 

@@ -50,12 +50,14 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// current 格呼吸 0.85 ↔ 1.2 缩放 + opacity 变化
-    /// v2 暗底:格子要"发光"才显眼,呼吸幅度回到产品记忆点应有的强度
-    @State private var breatheScale: CGFloat = 0.85
+    /// current 格呼吸 0.85 ↔ 1.0 (silverline 版本更克制,不缩放放大)
+    @State private var breatheScale: CGFloat = 1.0
 
-    private let cellSize: CGFloat = 10
-    private let spacing: CGFloat = 3
+    private let cellSize: CGFloat = 5
+    private let spacing: CGFloat = 1.5
+    /// 画完整 1825 格(5 年自由上限)——silverline 版本的产品 reframe:
+    /// 用户看到的不是"我攒了 84"而是"还有 1741 格等我点亮"
+    private let totalCap = 1825
 
     private var totalLit: Int { blueDays + yellowDays }
 
@@ -65,26 +67,26 @@ struct LifeGrid: View {
                                spacing: spacing)],
             spacing: spacing
         ) {
-            ForEach(0..<totalLit, id: \.self) { i in
+            ForEach(0..<totalCap, id: \.self) { i in
+                let isLit = i < totalLit
                 let isCurrent = (i == totalLit - 1)
                 let isBlue = i < blueDays
-                let cellColor: Color = isBlue ? .assetBlue : .incomeGold
+                let litColor: Color = isBlue ? .assetBlue : .incomeGold
 
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(cellColor)
+                // light silverline:lit 用语义色,empty 用 mist2(雾银未来格)
+                // 移除 glow shadow — 浅底上 glow 会显脏
+                Rectangle()
+                    .fill(isLit ? litColor : Color.mist2)
                     .frame(width: cellSize, height: cellSize)
-                    // 每格自带 subtle glow,在暗底上才有"颗粒发光"的感觉
-                    .shadow(color: cellColor.opacity(0.45), radius: 2)
-                    // current 格强 glow + 呼吸
-                    .shadow(color: isCurrent ? cellColor.opacity(0.9) : .clear,
-                            radius: isCurrent ? 6 : 0)
+                    .cornerRadius(0.5)
                     .scaleEffect(isCurrent ? breatheScale : 1.0)
                     .zIndex(isCurrent ? 1 : 0)
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                breatheScale = 1.2
+            // 呼吸 1.0 ↔ 0.85 周期 2.4s,克制
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                breatheScale = 0.85
             }
         }
     }
@@ -117,10 +119,10 @@ struct ContentView: View {
                     Label("Check", systemImage: "checklist")
                 }
         }
-        // tab 选中态吃 honey 主色,品牌一致
-        .tint(Color.honey)
-        // 锁 dark mode:v2 整套色板基于暗色暖底
-        .preferredColorScheme(.dark)
+        // tab 选中态吃 sky 主色,品牌一致
+        .tint(Color.sky)
+        // 锁 light mode:v3 silverline 是 light 色板
+        .preferredColorScheme(.light)
     }
 }
 
@@ -180,18 +182,22 @@ struct DashboardView: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部 brand bar:蜜金圆点 + FreeGrid 名 + 副标
-    /// 设计动机:静谧但有"产品 lockup"清晰度,圆点像金库锁/灯
+    /// 顶部 brand bar:outline 圆 + sky 内圆点 + FreeGrid + VOL 标识
+    /// 参考 v3 silverline mockup 的 brand mark — "靶心 / 自由瞄准点"语义
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
-            // 蜜金圆点:产品图标占位,也是"自由的灯"
-            Circle()
-                .fill(Color.honey)
-                .frame(width: 10, height: 10)
-                .shadow(color: Color.honey.opacity(0.6), radius: 6)
+            // 靶心 mark:1px outline + sky 内实心
+            ZStack {
+                Circle()
+                    .stroke(Color.ink, lineWidth: 1)
+                    .frame(width: 18, height: 18)
+                Circle()
+                    .fill(Color.sky)
+                    .frame(width: 8, height: 8)
+            }
 
             Text("FreeGrid")
-                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .font(.system(.title3, design: .rounded).weight(.medium))
                 .foregroundStyle(Color.ink)
 
             Text("财富自由指路灯")
@@ -199,6 +205,12 @@ struct DashboardView: View {
                 .foregroundStyle(Color.inkFaint)
 
             Spacer()
+
+            // 右上 mono 标识(vol/week),mockup 报刊 specimen feel
+            Text("VOL.001")
+                .font(.kicker)
+                .tracking(1.8)
+                .foregroundStyle(Color.inkFaint)
         }
         .padding(.bottom, Spacing.xs)
     }
@@ -207,51 +219,57 @@ struct DashboardView: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// Hero: VaultCard 高亮卡片,巨大蜜金数字 + 副标 + 公式
-    /// 设计动机:这是 FreeGrid 的灵魂数字,给它最亮的卡片 + 96pt 占半屏 + honey 发光
+    /// Hero: Silverline 版 — paper 白底卡片 + 96pt ultraLight ink 数字
+    /// 不发光、不彩色,克制呈现"自由的灵魂数字"
     private var heroSection: some View {
         VaultCard(emphasis: .high, padding: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.md) {
+                // 顶部 kicker + formula
                 HStack(alignment: .firstTextBaseline) {
                     KickerLabel(text: "Freedom Days")
                     Spacer()
-                    // 右上角小天数单位提示
-                    if !freedomDays.isInfinite {
-                        Text("DAYS")
-                            .font(.kicker)
-                            .tracking(2)
-                            .foregroundStyle(Color.honeyDim)
-                    }
+                    Text("(资产 + 净储蓄) ÷ 日均消费")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.inkGhost)
                 }
 
-                // 主数字:96pt rounded bold,honey 蜜金 + glow
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // asymmetric: 左副标 + 右大数字
+                HStack(alignment: .bottom, spacing: Spacing.md) {
+                    // 副标:用 emphasized() 让"自由"italic + sky-deep
+                    emphasized("你的", "自由", "\n还能撑这么多天", size: 18)
+                        .lineLimit(2)
+
+                    Spacer()
+
+                    // 96pt ultraLight ink (不彩色,不发光)
                     Text(freedomDaysDisplay)
                         .font(.heroNumber(96))
-                        .foregroundStyle(Color.honey)
-                        .shadow(color: Color.honey.opacity(0.35), radius: 18, x: 0, y: 0)
-                    Spacer()
+                        .foregroundStyle(Color.ink)
+                        .padding(.bottom, -8)
                 }
-                .padding(.vertical, Spacing.xs)
 
-                // 副标:工具 feel,不文学化
-                Text("你的自由还能撑这么多天")
-                    .font(.system(.callout, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-
-                // 公式:colophon 风格
-                HStack(spacing: 6) {
-                    Text("公式")
+                // meta row: kicker 左 + 进度 mono 右
+                HStack {
+                    Text("DAYS · 5 YR CAP")
                         .font(.kicker)
-                        .tracking(1.2)
+                        .tracking(1.8)
                         .foregroundStyle(Color.inkFaint)
-                    Text("(资产 + 净储蓄) ÷ 日均消费")
+                    Spacer()
+                    Text(progressText)
                         .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Color.inkFaint)
+                        .foregroundStyle(Color.ink)
                 }
                 .padding(.top, Spacing.xs)
             }
         }
+    }
+
+    /// hero meta 的进度文案: "084 / 1825"
+    private var progressText: String {
+        if freedomDays.isInfinite { return "—— / 1825" }
+        let n = Int(freedomDays)
+        let display = min(n, 1825)
+        return String(format: "%03d / 1825", display)
     }
 
     /// 三联 stat 卡片:横向 3 个独立 VaultCard,各自有 padding 和描边
@@ -270,14 +288,22 @@ struct DashboardView: View {
         }
     }
 
-    /// 单个 stat 卡片:kicker / 数字 / unit 三层
+    /// 单个 stat 卡片:数字 / hairline / kicker / sub label 四层(silverline)
     private func statCard(label: String, value: String, unit: String) -> some View {
         VaultCard(padding: Spacing.md) {
             VStack(alignment: .leading, spacing: 6) {
-                KickerLabel(text: label)
+                // 大 thin 数字(silverline 风格)
                 Text(value)
-                    .font(.statNumber(24))
+                    .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.ink)
+                // 短 hairline 短横线
+                Rectangle()
+                    .fill(Color.inkGhost)
+                    .frame(width: 22, height: 1)
+                    .padding(.vertical, 2)
+                // kicker
+                KickerLabel(text: label)
+                // sub unit
                 Text(unit)
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
@@ -285,25 +311,76 @@ struct DashboardView: View {
         }
     }
 
-    /// 今日 vs 日均:VaultCard,左 kicker / 右 mono 比值 / 主文案下方
+    /// Today: Silverline 版 — 单行 bar 设计
+    /// 左 ¥5 (today) — bar with marker — 右 ¥72 (avg)
+    /// 下方 delta caption 居中
     private var todaySection: some View {
-        VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "Today · vs average")
-                    Spacer()
-                    Text(String(format: "%.0f / %.0f · %.0f%%",
-                                todaySpending, dailyBurn, todayPercent * 100))
-                        .font(.system(.caption2, design: .monospaced))
-                        .tracking(0.5)
-                        .foregroundStyle(Color.inkFaint)
+        VaultCard(padding: Spacing.lg) {
+            VStack(spacing: Spacing.md) {
+                HStack(alignment: .center, spacing: Spacing.md) {
+                    // 左:今日金额
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("¥\(Int(todaySpending))")
+                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.ink)
+                        KickerLabel(text: "Today")
+                    }
+                    .frame(minWidth: 52, alignment: .leading)
+
+                    // 中:bar with sky fill + marker
+                    GeometryReader { geo in
+                        let pct = max(0.04, min(todayPercent, 1.0))
+                        ZStack(alignment: .leading) {
+                            // mist 底 bar
+                            Rectangle()
+                                .fill(Color.mist2)
+                                .frame(height: 2)
+                            // sky fill
+                            Rectangle()
+                                .fill(Color.sky)
+                                .frame(width: geo.size.width * CGFloat(pct), height: 2)
+                            // sky-deep marker (短竖线在 fill 末端)
+                            Rectangle()
+                                .fill(Color.skyDeep)
+                                .frame(width: 1.5, height: 10)
+                                .offset(x: geo.size.width * CGFloat(pct) - 0.75)
+                        }
+                    }
+                    .frame(height: 10)
+
+                    // 右:日均金额
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("¥\(Int(dailyBurn))")
+                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkMuted)
+                        KickerLabel(text: "avg")
+                    }
+                    .frame(minWidth: 52, alignment: .trailing)
                 }
 
-                Text(todayVsAvgText)
-                    .font(.system(.callout, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                // delta caption (居中)
+                if dailyBurn > 0 {
+                    Text(todayDeltaText)
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                }
             }
+        }
+    }
+
+    /// today bar 下方的 delta 文案
+    private var todayDeltaText: String {
+        if dailyBurn == 0 { return "等待日均数据" }
+        if todaySpending == 0 {
+            return "今日尚未消费"
+        }
+        let diffPct = Int(abs((1 - todayPercent) * 100))
+        let savings = Int(dailyBurn - todaySpending)
+        if todaySpending > dailyBurn {
+            let over = Int(todaySpending - dailyBurn)
+            return "高于日均 \(diffPct)% · 多花 ¥\(over)"
+        } else {
+            return "低于日均 \(diffPct)% · 节省 ¥\(savings)"
         }
     }
 
@@ -381,27 +458,26 @@ struct DashboardView: View {
         }
     }
 
-    /// 图例:发光小色块 + 标签
+    /// 图例:silverline 版小方块 + 标签(无 glow)
     private func legendDot(color: Color, label: String) -> some View {
         HStack(spacing: 6) {
-            Circle()
+            Rectangle()
                 .fill(color)
                 .frame(width: 8, height: 8)
-                .shadow(color: color.opacity(0.6), radius: 4)
+                .cornerRadius(1)
             Text(label)
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
         }
     }
 
-    /// 网格右上角的总计文案: "X 天 · 资产 Y / 收入 Z"
-    /// 溢出 1825 时显示"已达上限"
+    /// 网格右上角的总计文案: silverline 风格 mono ratio "084 / 1825"
     private func gridSummary(state: FreedomMath.GridState) -> String {
-        if state.totalLit == 0 { return "等待支出数据" }
+        if state.totalLit == 0 { return "—— / 1825" }
         if state.isOverflow {
-            return "\(state.totalLit) 天 · 已达 5 年上限"
+            return "1825 / 1825 · 已达 5 年上限"
         }
-        return "\(state.totalLit) 天 · 蓝 \(state.blueDays) / 金 \(state.yellowDays)"
+        return String(format: "%03d / 1825", state.totalLit)
     }
 
     /// 空网格时的提示:暗色 SF symbol + 文案
