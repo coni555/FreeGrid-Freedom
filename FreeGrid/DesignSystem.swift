@@ -180,20 +180,20 @@ struct VaultButton: View {
 
     private var bg: Color {
         switch style {
-        case .primary: return .ink
+        case .primary: return .sky       // 主操作用天空蓝 — 自由的颜色
         case .secondary, .destructive: return .clear
         }
     }
     private var fg: Color {
         switch style {
-        case .primary: return .paper
+        case .primary: return .ink       // sky 是浅蓝,用 ink 深字 contrast 足
         case .secondary: return .ink
         case .destructive: return .flame
         }
     }
     private var stroke: Color {
         switch style {
-        case .primary: return .ink
+        case .primary: return .sky
         case .secondary: return .ink
         case .destructive: return .flame
         }

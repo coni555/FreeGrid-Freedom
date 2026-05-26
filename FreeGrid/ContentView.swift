@@ -252,7 +252,7 @@ struct DashboardView: View {
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
             statCard(label: "Daily",
-                     value: String(format: "%.0f", dailyBurn),
+                     value: String(format: "%.1f", dailyBurn),
                      unit: "元/天")
             statCard(label: "Passive",
                      value: String(format: "%.0f%%", passiveRatio * 100),
@@ -295,12 +295,12 @@ struct DashboardView: View {
                 HStack(alignment: .center, spacing: Spacing.md) {
                     // 左:今日金额
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("¥\(Int(todaySpending))")
+                        Text(String(format: "¥%.1f", todaySpending))
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.ink)
                         KickerLabel(text: "Today")
                     }
-                    .frame(minWidth: 52, alignment: .leading)
+                    .frame(minWidth: 60, alignment: .leading)
 
                     // 中:bar with sky fill + marker
                     GeometryReader { geo in
@@ -325,12 +325,12 @@ struct DashboardView: View {
 
                     // 右:日均金额
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("¥\(Int(dailyBurn))")
+                        Text(String(format: "¥%.1f", dailyBurn))
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkMuted)
                         KickerLabel(text: "avg")
                     }
-                    .frame(minWidth: 52, alignment: .trailing)
+                    .frame(minWidth: 60, alignment: .trailing)
                 }
 
                 // delta caption (居中)
@@ -350,12 +350,12 @@ struct DashboardView: View {
             return "今日尚未消费"
         }
         let diffPct = Int(abs((1 - todayPercent) * 100))
-        let savings = Int(dailyBurn - todaySpending)
         if todaySpending > dailyBurn {
-            let over = Int(todaySpending - dailyBurn)
-            return "高于日均 \(diffPct)% · 多花 ¥\(over)"
+            let over = todaySpending - dailyBurn
+            return "高于日均 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
         } else {
-            return "低于日均 \(diffPct)% · 节省 ¥\(savings)"
+            let savings = dailyBurn - todaySpending
+            return "低于日均 \(diffPct)% · 节省 ¥\(String(format: "%.1f", savings))"
         }
     }
 
