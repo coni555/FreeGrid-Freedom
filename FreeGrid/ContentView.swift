@@ -50,12 +50,13 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// 呼吸动画状态: 1.2 ↔ 1.4 之间循环,模拟"小灯泡发光呼吸"
-    /// 比 web 版幅度更克制,避免光污染
-    @State private var breatheScale: CGFloat = 1.2
+    /// 呼吸缩放:current 格在 1.0 ↔ 1.15 之间循环。
+    /// 比 v1 (1.2-1.4) 大幅收敛——纸面上不需要"光晕呼吸",
+    /// 只需要"轻微的活体感"暗示这是动态数据
+    @State private var breatheScale: CGFloat = 1.0
 
-    private let cellSize: CGFloat = 8
-    private let spacing: CGFloat = 2
+    private let cellSize: CGFloat = 9
+    private let spacing: CGFloat = 3
 
     private var totalLit: Int { blueDays + yellowDays }
 
@@ -69,27 +70,24 @@ struct LifeGrid: View {
                 let isCurrent = (i == totalLit - 1)   // 最后一格 = current
                 let isBlue = i < blueDays
 
-                // 基础色 vs 当前态(中间值,不要太浅)
-                let baseColor = isBlue ? Color(hex: "9cc3ff") : Color(hex: "ffd166")
-                let currentColor = isBlue ? Color(hex: "b8d5f0") : Color(hex: "ffdc88")
-                let glowColor = isBlue ? Color(hex: "9cc3ff") : Color(hex: "ffd166")
+                // 语义色:assetBlue / incomeGold (去饱和,适配纸面)
+                // current 格用更浅一档(opacity 0.55)做"今天还没过完"的暗示
+                let semanticColor: Color = isBlue ? .assetBlue : .incomeGold
 
                 Rectangle()
-                    .fill(isCurrent ? currentColor : baseColor)
+                    .fill(semanticColor.opacity(isCurrent ? 0.55 : 1.0))
                     .frame(width: cellSize, height: cellSize)
+                    // 1.5pt 圆角:格子有"块"感但不软,克制
                     .cornerRadius(1.5)
-                    // 单层光晕:同色,半径小,克制不刺眼
-                    .shadow(color: isCurrent ? glowColor.opacity(0.5) : .clear,
-                            radius: isCurrent ? 3 : 0)
-                    // 呼吸放大:current 格子在 1.2-1.4 之间微微动
+                    // 呼吸放大:仅 current 格
                     .scaleEffect(isCurrent ? breatheScale : 1.0)
                     .zIndex(isCurrent ? 1 : 0)
             }
         }
         .onAppear {
-            // 呼吸动画: 1.2 ↔ 1.4 循环,周期 1.6s
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                breatheScale = 1.4
+            // 呼吸动画 1.0 ↔ 1.15 循环,周期 2s,更慢更轻
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                breatheScale = 1.15
             }
         }
     }
@@ -122,6 +120,10 @@ struct ContentView: View {
                     Label("Check", systemImage: "checklist")
                 }
         }
+        // tab 选中态用墨色而非系统蓝,与全站纸面色板一致
+        .tint(Color.ink)
+        // 锁 light mode:整套色板基于暖纸,暗色翻车
+        .preferredColorScheme(.light)
     }
 }
 
@@ -149,17 +151,33 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    heroCard          // Freedom Days 大数字
-                    statCardsRow      // 三联卡
-                    todayCard         // 今日 vs 日均对比
-                    gridCard          // 1825 格生命网格(产品记忆点)
-                    actionRow         // [添加支出] [添加收入] 双按钮
-                    simulateButton    // [模拟一笔] 决策辅助
+                VStack(spacing: 0) {
+                    masthead         // FreeGrid lockup + 日期
+                    Hairline().padding(.bottom, Spacing.lg)
+
+                    heroSection      // Freedom Days hero(大衬线数字)
+                    ChapterRule().padding(.vertical, Spacing.lg)
+
+                    trioSection      // 三联指标(纵向 hairline 分隔)
+                    ChapterRule().padding(.vertical, Spacing.lg)
+
+                    todaySection     // 今日 vs 日均
+                    ChapterRule().padding(.vertical, Spacing.lg)
+
+                    gridSection      // 1825 格生命网格(融入纸面)
+                    ChapterRule().padding(.vertical, Spacing.xl)
+
+                    actionRow        // 收支双按钮(hairline 胶囊)
+                    simulateRow      // 模拟决策(underline link)
+
+                    colophon         // 底部出版页式声明
                 }
-                .padding()
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
             }
-            .navigationTitle("FreeGrid")
+            .scrollContentBackground(.hidden)
+            .background(Color.paper.ignoresSafeArea())   // 纸色铺到 safe area
+            .navigationBarHidden(true)   // 自己画 masthead,不用 nav bar
             .sheet(isPresented: $showingAddExpense) {
                 AddExpenseSheet()
             }
@@ -173,101 +191,144 @@ struct DashboardView: View {
     }
 
     // ============================================================================
+    // MARK: - Masthead / Colophon (纸媒头尾)
+    // ============================================================================
+
+    /// 顶部品牌 lockup:FreeGrid (serif) + 副标 + 日期 mono
+    /// 模拟杂志报头(masthead),设定整页"出版物"基调
+    private var masthead: some View {
+        HStack(alignment: .firstTextBaseline) {
+            HStack(spacing: 8) {
+                Text("FreeGrid")
+                    .font(.system(.title3, design: .serif).weight(.regular))
+                    .foregroundStyle(Color.ink)
+                Text("·")
+                    .foregroundStyle(Color.ink3)
+                Text("财富自由指路灯")
+                    .font(.system(.footnote, design: .serif))
+                    .italic()
+                    .foregroundStyle(Color.ink2)
+            }
+            Spacer()
+            Text(todayDateEU)
+                .font(.monoKicker)
+                .tracking(1.2)
+                .foregroundStyle(Color.ink3)
+        }
+        .padding(.vertical, Spacing.sm)
+    }
+
+    /// 底部出版页式声明(colophon)
+    /// 模拟书末版权页:克制,带"craft 自觉"信号
+    private var colophon: some View {
+        VStack(spacing: 4) {
+            Text("§ ALMANAC · ISSUE \(trackDays)")
+                .font(.monoKicker)
+                .tracking(1.5)
+                .foregroundStyle(Color.ink3)
+            Text("Set in New York & SF Mono. Built in the open.")
+                .font(.system(.caption2, design: .serif))
+                .italic()
+                .foregroundStyle(Color.ink3)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.xxl)
+        .padding(.bottom, Spacing.lg)
+    }
+
+    /// 欧式日期 DD.MM (头部 masthead 用)
+    private var todayDateEU: String {
+        let f = DateFormatter()
+        f.dateFormat = "dd.MM"
+        return f.string(from: .now)
+    }
+
+    // ============================================================================
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// Hero 卡片: 大字显示 Freedom Days,配公式说明
-    /// 设计动机: 这是 lead-wealth 的灵魂指标,放最顶 + 用最大字号
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Freedom Days")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(1.5)
+    /// Hero: § FREEDOM DAYS + 巨大衬线数字 + italic 单字强调副标 + colophon 式公式
+    /// 移除卡片背景,直接画在纸面上;数字升到 72pt
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionMark(text: "Freedom Days")
 
-            // Serif 字体匹配 lead-wealth web 版的 editorial 气质
+            // 主数字:72pt serif light,monospacedDigit 防字符宽度跳动
             Text(freedomDaysDisplay)
-                .font(.system(size: 56, weight: .light, design: .serif))
+                .font(.heroNumber(72))
+                .foregroundStyle(Color.ink)
+                .padding(.top, Spacing.xs)
 
-            Text("你的自由还能撑多久")
-                .font(.callout)
-                .foregroundColor(.secondary)
+            // 副标:单字 italic + 朱砂强调"撑"——反 bold 直觉的贵气招式
+            emphasized("你的自由还能 ", "撑", " 多久", size: 17)
 
+            // 公式:colophon 风格灰小字
             Text("(资产 + 净储蓄) ÷ 日均消费")
-                .font(.caption2)
-                .foregroundColor(.secondary)
+                .font(.system(.caption2, design: .serif))
+                .italic()
+                .foregroundStyle(Color.ink3)
+                .padding(.top, Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(8)
     }
 
-    /// 三联卡: 横向并列 3 个指标
-    private var statCardsRow: some View {
-        HStack(spacing: 12) {
-            statCard(title: "Daily Burn",
+    /// 三联指标:无背景,靠 1px 竖直 hairline 分栏
+    /// 每栏:§ 标签 / 中等衬线数字 / mono 单位
+    /// 设计动机:卡片填充改成"报刊三栏"——靠排版区分而非色块
+    private var trioSection: some View {
+        HStack(spacing: 0) {
+            trioCell(label: "Daily Burn",
                      value: String(format: "%.0f", dailyBurn),
                      unit: "元/天")
-            statCard(title: "Passive Ratio",
-                     value: String(format: "%.0f%%", passiveRatio * 100),
-                     unit: "被动覆盖")
-            statCard(title: "Track Days",
+            Rectangle().fill(Color.rule).frame(width: 1, height: 60)
+            trioCell(label: "Passive",
+                     value: String(format: "%.0f", passiveRatio * 100),
+                     unit: "% 被动覆盖")
+            Rectangle().fill(Color.rule).frame(width: 1, height: 60)
+            trioCell(label: "Track",
                      value: "\(trackDays)",
-                     unit: "持续追踪")
+                     unit: "天 持续")
         }
     }
 
-    /// 通用 stat 卡片样式
-    private func statCard(title: String, value: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(1)
-            Text(value)
-                .font(.title2)
-                .fontWeight(.medium)
-            Text(unit)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+    /// 三联中的单格
+    /// 数字与单位用 baseline 对齐,营造"36 元/天"的连读感
+    private func trioCell(label: String, value: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            SectionMark(text: label)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.mediumNumber(28))
+                    .foregroundStyle(Color.ink)
+                Text(unit)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.ink3)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(6)
+        .padding(.horizontal, Spacing.md)
     }
 
-    /// 今日 vs 日均卡片:让用户即时感知今天花得多还是少
-    /// 对应 lead-wealth web 版的 "Today vs Average"
-    private var todayCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    /// 今日 vs 日均:无背景,左 § 标签 / 右 mono 比值
+    /// 主文案改 serif,关键词朱砂强调
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Today vs Average")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(1.5)
+                SectionMark(text: "Today · vs average")
                 Spacer()
-                // 右上角小字: "今日 X / 日均 Y (P%)"
-                Text(String(format: "%.0f / %.0f (%.0f%%)",
+                Text(String(format: "%.0f / %.0f · %.0f%%",
                             todaySpending, dailyBurn, todayPercent * 100))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .monospacedDigit()
+                    .font(.system(.caption2, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(Color.ink3)
             }
 
-            // 主要文案:今日已花 + 对比文案
             Text(todayVsAvgText)
-                .font(.callout)
+                .font(.system(.callout, design: .serif))
+                .foregroundStyle(Color.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(8)
     }
 
     /// 今日支出
@@ -304,64 +365,55 @@ struct DashboardView: View {
         }
     }
 
-    /// 生命网格卡片:1825 格可视化
-    /// 设计动机: lead-wealth 的产品记忆点 — 把数字翻译成空间感
-    /// 资产蓝 + 收入金 + 图例 + 文案
-    /// 视觉: 深色背景让蓝色"发光",对应 web 版的设计语言
-    private var gridCard: some View {
+    /// Freedom Grid:1825 格可视化,直接画在纸面(去深色卡片)
+    /// 蓝/金语义保留,但饱和度大幅降低靠近纸色,不刺眼
+    private var gridSection: some View {
         let state = FreedomMath.gridState(assets: totalAssets,
                                           netSavings: netSavings,
                                           dailyBurn: dailyBurn)
-        return VStack(alignment: .leading, spacing: 12) {
-            // 标题行: 左标题 + 右总计
+        return VStack(alignment: .leading, spacing: Spacing.md) {
+            // 标题行:左 § / 右 mono 进度
             HStack(alignment: .firstTextBaseline) {
-                Text("Freedom Grid")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
-                    .textCase(.uppercase)
-                    .tracking(1.5)
+                SectionMark(text: "Freedom Grid")
                 Spacer()
                 Text(gridSummary(state: state))
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.5))
-                    .monospacedDigit()
+                    .font(.system(.caption2, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(Color.ink3)
             }
 
-            // 网格本身。没数据时显示提示文案
+            // 网格本身
             if state.totalLit == 0 {
                 emptyGridHint
             } else {
                 LifeGrid(blueDays: state.blueDays, yellowDays: state.yellowDays)
+                    .padding(.vertical, Spacing.sm)
             }
 
-            // 图例: 蓝资产 + 金收入
-            HStack(spacing: 16) {
-                legendDot(color: Color(hex: "9cc3ff"), label: "资产")
-                legendDot(color: Color(hex: "ffd166"), label: "收入")
+            // 图例:hairline 短横线 + 标签(替代色块 dot,更"年鉴"气)
+            HStack(spacing: Spacing.lg) {
+                legendMark(color: .assetBlue, label: "资产")
+                legendMark(color: .incomeGold, label: "收入")
                 Spacer()
             }
-            .padding(.top, 4)
+            .padding(.top, Spacing.xs)
 
-            Text("每格 = 1 天自由 · 5 年上限 = 1825 格")
-                .font(.caption2)
-                .foregroundColor(.white.opacity(0.35))
+            Text("每格 = 1 天自由  ·  5 年上限 1825 格")
+                .font(.system(.caption2, design: .serif))
+                .italic()
+                .foregroundStyle(Color.ink3)
         }
-        .padding()
-        .background(Color(hex: "0e0e1c"))   // 深色底,模仿 web 版
-        .cornerRadius(8)
     }
 
-    /// 图例点: 一个色块 + 标签
-    /// 在深色 gridCard 背景上使用,所以文字用白色透明
-    private func legendDot(color: Color, label: String) -> some View {
-        HStack(spacing: 6) {
+    /// 图例:8pt 短横线色块 + 标签(替代 v1 圆角方块)
+    private func legendMark(color: Color, label: String) -> some View {
+        HStack(spacing: 8) {
             Rectangle()
                 .fill(color)
-                .frame(width: 10, height: 10)
-                .cornerRadius(1.5)
+                .frame(width: 14, height: 2)
             Text(label)
-                .font(.caption2)
-                .foregroundColor(.white.opacity(0.7))
+                .font(.system(.caption2, design: .serif))
+                .foregroundStyle(Color.ink2)
         }
     }
 
@@ -375,64 +427,49 @@ struct DashboardView: View {
         return "\(state.totalLit) 天 · 蓝 \(state.blueDays) / 金 \(state.yellowDays)"
     }
 
-    /// 空网格时的友好提示
+    /// 空网格时的提示:纸面风,无 icon
     private var emptyGridHint: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "square.grid.3x3")
-                .font(.title2)
-                .foregroundColor(.secondary)
-            Text("记录第一笔支出后\n格子才能开始计算")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+        VStack(spacing: Spacing.sm) {
+            Text("§")
+                .font(.system(.title, design: .monospaced))
+                .foregroundStyle(Color.ink3)
+            Text("记录第一笔支出后,格子才能开始计算")
+                .font(.system(.caption, design: .serif))
+                .italic()
+                .foregroundStyle(Color.ink3)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        .padding(.vertical, Spacing.xxl)
     }
 
-    /// 收支双按钮:左红支出 / 右绿收入
-    /// 设计动机: 对称的视觉,符合"记账即认知,认知即决策"的产品哲学
+    /// 收支双按钮:hairline 描边胶囊(替代糖果色实心)
+    /// 支出用朱砂色调,收入用墨色,语义还在但克制得多
     private var actionRow: some View {
-        HStack(spacing: 12) {
-            Button {
+        HStack(spacing: Spacing.md) {
+            PillButton(title: "记一笔支出",
+                       icon: "minus",
+                       tint: .vermillion) {
                 showingAddExpense = true
-            } label: {
-                Label("添加支出", systemImage: "minus.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
-
-            Button {
+            PillButton(title: "记一笔收入",
+                       icon: "plus",
+                       tint: .ink) {
                 showingAddIncome = true
-            } label: {
-                Label("添加收入", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
             }
-            .tint(.green)
-            .buttonStyle(.borderedProminent)
         }
-        .padding(.top, 8)
     }
 
-    /// 模拟按钮:决策辅助专用入口,视觉次于主操作
-    /// 设计动机: "要不要买"在决策前先预演,不污染真实账本。
-    /// 用 .bordered 而不是 .borderedProminent,视觉强度低于支出/收入。
-    private var simulateButton: some View {
-        Button {
-            showingSimulate = true
-        } label: {
-            Label("模拟一笔(决策预演)", systemImage: "wand.and.stars")
-                .font(.subheadline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+    /// 模拟决策:underline link 风格,远比主操作克制
+    private var simulateRow: some View {
+        HStack {
+            Spacer()
+            UnderlineLink(title: "模拟一笔,看决策影响",
+                          icon: "wand.and.stars") {
+                showingSimulate = true
+            }
+            Spacer()
         }
-        .tint(.purple)
-        .buttonStyle(.bordered)
+        .padding(.top, Spacing.lg)
     }
 
     // ============================================================================
@@ -539,6 +576,8 @@ struct AssetsView: View {
                 }
                 .padding()
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
             .navigationTitle("Assets")
             // ===== 文件选择器(系统弹出) =====
             .fileImporter(
@@ -582,7 +621,7 @@ struct AssetsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.paper2)
         .cornerRadius(8)
     }
 
@@ -611,7 +650,7 @@ struct AssetsView: View {
             .disabled(!isValid)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.paper2)
         .cornerRadius(8)
     }
 
@@ -629,7 +668,7 @@ struct AssetsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(Color.paper2.opacity(0.55))
         .cornerRadius(8)
     }
 
@@ -675,7 +714,7 @@ struct AssetsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.paper2)
         .cornerRadius(8)
     }
 
@@ -1013,6 +1052,7 @@ struct HistoryView: View {
                     transactionList
                 }
             }
+            .background(Color.paper)
             .navigationTitle("History")
         }
     }
@@ -1034,15 +1074,19 @@ struct HistoryView: View {
                         .monospacedDigit()
                 }
                 .font(.caption)
+                .listRowBackground(Color.paper)
             }
 
             Section {
                 ForEach(filteredTransactions) { tx in
                     transactionRow(tx)
+                        .listRowBackground(Color.paper)
                 }
                 .onDelete(perform: deleteTransactions)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
     }
 
     /// 单行渲染:根据 enum 分发到 expense/income 两种样式
@@ -1077,7 +1121,7 @@ struct HistoryView: View {
             Text("−¥" + e.amount.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.callout)
                 .fontWeight(.medium)
-                .foregroundColor(.red)
+                .foregroundColor(Color.vermillion)
                 .monospacedDigit()
         }
     }
@@ -1095,8 +1139,8 @@ struct HistoryView: View {
                             .font(.caption2)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.15))
-                            .foregroundColor(.green)
+                            .background(Color.forestGreen.opacity(0.12))
+                            .foregroundColor(Color.forestGreen)
                             .cornerRadius(3)
                     }
                 }
@@ -1114,7 +1158,7 @@ struct HistoryView: View {
             Text("+¥" + i.amount.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.callout)
                 .fontWeight(.medium)
-                .foregroundColor(.green)
+                .foregroundColor(Color.forestGreen)
                 .monospacedDigit()
         }
     }
@@ -1197,19 +1241,22 @@ struct HistoryView: View {
 struct CheckView: View {
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                Image(systemName: "checklist")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary)
+            VStack(spacing: Spacing.md) {
+                Text("§")
+                    .font(.system(size: 36, design: .monospaced))
+                    .foregroundStyle(Color.ink3)
                 Text("Check")
-                    .font(.title2)
-                Text("财富自由自检清单\n即将上线")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.system(.title2, design: .serif))
+                    .foregroundStyle(Color.ink)
+                Text("财富自由自检清单 — 即将上线")
+                    .font(.system(.subheadline, design: .serif))
+                    .italic()
+                    .foregroundStyle(Color.ink3)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
+            .background(Color.paper)
             .navigationTitle("Check")
         }
     }
@@ -1356,7 +1403,7 @@ struct AddExpenseSheet: View {
                 Text(delta)
                     .font(.callout)
                     .fontWeight(.medium)
-                    .foregroundColor(.red)
+                    .foregroundColor(Color.vermillion)
                     .monospacedDigit()
             }
         }
@@ -1540,7 +1587,7 @@ struct AddIncomeSheet: View {
                 Text(delta)
                     .font(.callout)
                     .fontWeight(.medium)
-                    .foregroundColor(.green)
+                    .foregroundColor(Color.forestGreen)
                     .monospacedDigit()
             }
         }
@@ -1651,7 +1698,7 @@ struct SimulateSheet: View {
     private var bannerCard: some View {
         HStack(spacing: 10) {
             Image(systemName: "wand.and.stars")
-                .foregroundColor(.purple)
+                .foregroundColor(Color.vermillion)
             VStack(alignment: .leading, spacing: 2) {
                 Text("模拟模式")
                     .font(.subheadline)
@@ -1663,7 +1710,7 @@ struct SimulateSheet: View {
             Spacer()
         }
         .padding()
-        .background(Color.purple.opacity(0.1))
+        .background(Color.vermillion.opacity(0.08))
         .cornerRadius(8)
     }
 
@@ -1694,7 +1741,7 @@ struct SimulateSheet: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.paper2)
         .cornerRadius(8)
     }
 
@@ -1731,7 +1778,7 @@ struct SimulateSheet: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.paper2)
         .cornerRadius(8)
     }
 
@@ -1766,19 +1813,19 @@ struct SimulateSheet: View {
                       from: formatYuan(currentAssets),
                       to: formatYuan(newAssets),
                       delta: "−\(formatYuan(amount))",
-                      color: .red)
+                      color: Color.vermillion)
 
             impactRow(label: "KILL 2 日均",
                       from: formatYuan(currentAvg, precision: 1),
                       to: formatYuan(newAvg, precision: 2),
                       delta: "+\(formatYuan(newAvg - currentAvg, precision: 2))",
-                      color: .red)
+                      color: Color.vermillion)
 
             impactRow(label: "KILL 3 自由天数",
                       from: FreedomMath.freedomDaysDisplay(currentFreedom),
                       to: FreedomMath.freedomDaysDisplay(newFreedom),
                       delta: currentFreedom.isInfinite ? "—" : "−\(String(format: "%.1f", freedomLoss)) 天",
-                      color: .red)
+                      color: Color.vermillion)
         }
     }
 
@@ -1809,7 +1856,7 @@ struct SimulateSheet: View {
                       from: formatYuan(currentAssets),
                       to: formatYuan(newAssets),
                       delta: "+\(formatYuan(amount))",
-                      color: .green)
+                      color: Color.forestGreen)
 
             impactRow(label: "GAIN 2 自由天数",
                       from: FreedomMath.freedomDaysDisplay(currentFreedom),
@@ -1817,7 +1864,7 @@ struct SimulateSheet: View {
                       delta: currentFreedom.isInfinite
                           ? "—"
                           : "+\(String(format: "%.1f", freedomGain)) 天",
-                      color: .green)
+                      color: Color.forestGreen)
         }
     }
 
