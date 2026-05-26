@@ -50,13 +50,21 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// current 格呼吸 0.85 ↔ 1.0 (silverline 版本更克制)
-    @State private var breatheScale: CGFloat = 1.0
+    /// current 格放大 1.1 ↔ 1.6 + 双层呼吸 glow
+    /// 对应 web 版 cell-breathe keyframe:scale + 内层白光 + 外层蓝光同步呼吸
+    @State private var breath: CGFloat = 0   // 0 = 起点, 1 = 峰值
 
     private let cellSize: CGFloat = 9
     private let spacing: CGFloat = 2.5
 
     private var totalLit: Int { blueDays + yellowDays }
+
+    /// 当前 scale = lerp(1.1, 1.6, breath)
+    private var currentScale: CGFloat { 1.1 + 0.5 * breath }
+    /// 内层白光 radius = lerp(4, 7, breath)
+    private var innerGlow: CGFloat { 4 + 3 * breath }
+    /// 外层基色光 radius = lerp(9, 15, breath)
+    private var outerGlow: CGFloat { 9 + 6 * breath }
 
     var body: some View {
         LazyVGrid(
@@ -67,22 +75,43 @@ struct LifeGrid: View {
             ForEach(0..<totalLit, id: \.self) { i in
                 let isCurrent = (i == totalLit - 1)
                 let isBlue = i < blueDays
-                let cellColor: Color = isBlue ? .assetBlue : .incomeGold
-
-                // 只画已点亮的格子(回归原版行为)
-                // silverline 风:无 glow shadow,天空蓝在白底上自然显眼
-                Rectangle()
-                    .fill(cellColor)
-                    .frame(width: cellSize, height: cellSize)
-                    .cornerRadius(1)
-                    .scaleEffect(isCurrent ? breatheScale : 1.0)
-                    .zIndex(isCurrent ? 1 : 0)
+                cell(isCurrent: isCurrent, isBlue: isBlue)
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                breatheScale = 0.85
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                breath = 1
             }
+        }
+    }
+
+    /// 单个 cell:non-current 静态,current 双层 glow + scale 呼吸
+    @ViewBuilder
+    private func cell(isCurrent: Bool, isBlue: Bool) -> some View {
+        let baseColor: Color = isBlue ? .assetBlue : .incomeGold
+        // current 浅色版 — 对应 web #d4eaff / #ffe9a0,模拟"发光态"
+        let litColor: Color = isBlue
+            ? Color(red: 0.83, green: 0.92, blue: 1.00)
+            : Color(red: 1.00, green: 0.91, blue: 0.65)
+
+        if isCurrent {
+            Rectangle()
+                .fill(litColor)
+                .frame(width: cellSize, height: cellSize)
+                .cornerRadius(1.5)
+                // 内层白光 (web: rgba(255,255,255,0.5-0.8))
+                .shadow(color: Color.white.opacity(0.5 + 0.3 * breath),
+                        radius: innerGlow)
+                // 外层基色光 (web: rgba(156,195,255,0.4-0.5))
+                .shadow(color: baseColor.opacity(0.4 + 0.1 * breath),
+                        radius: outerGlow)
+                .scaleEffect(currentScale)
+                .zIndex(1)
+        } else {
+            Rectangle()
+                .fill(baseColor)
+                .frame(width: cellSize, height: cellSize)
+                .cornerRadius(1)
         }
     }
 }
