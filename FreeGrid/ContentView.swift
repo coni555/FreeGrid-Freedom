@@ -50,14 +50,11 @@ struct LifeGrid: View {
     let blueDays: Int       // 资产蓝格
     let yellowDays: Int     // 收入金格
 
-    /// current 格呼吸 0.85 ↔ 1.0 (silverline 版本更克制,不缩放放大)
+    /// current 格呼吸 0.85 ↔ 1.0 (silverline 版本更克制)
     @State private var breatheScale: CGFloat = 1.0
 
-    private let cellSize: CGFloat = 5
-    private let spacing: CGFloat = 1.5
-    /// 画完整 1825 格(5 年自由上限)——silverline 版本的产品 reframe:
-    /// 用户看到的不是"我攒了 84"而是"还有 1741 格等我点亮"
-    private let totalCap = 1825
+    private let cellSize: CGFloat = 9
+    private let spacing: CGFloat = 2.5
 
     private var totalLit: Int { blueDays + yellowDays }
 
@@ -67,24 +64,22 @@ struct LifeGrid: View {
                                spacing: spacing)],
             spacing: spacing
         ) {
-            ForEach(0..<totalCap, id: \.self) { i in
-                let isLit = i < totalLit
+            ForEach(0..<totalLit, id: \.self) { i in
                 let isCurrent = (i == totalLit - 1)
                 let isBlue = i < blueDays
-                let litColor: Color = isBlue ? .assetBlue : .incomeGold
+                let cellColor: Color = isBlue ? .assetBlue : .incomeGold
 
-                // light silverline:lit 用语义色,empty 用 mist2(雾银未来格)
-                // 移除 glow shadow — 浅底上 glow 会显脏
+                // 只画已点亮的格子(回归原版行为)
+                // silverline 风:无 glow shadow,天空蓝在白底上自然显眼
                 Rectangle()
-                    .fill(isLit ? litColor : Color.mist2)
+                    .fill(cellColor)
                     .frame(width: cellSize, height: cellSize)
-                    .cornerRadius(0.5)
+                    .cornerRadius(1)
                     .scaleEffect(isCurrent ? breatheScale : 1.0)
                     .zIndex(isCurrent ? 1 : 0)
             }
         }
         .onAppear {
-            // 呼吸 1.0 ↔ 0.85 周期 2.4s,克制
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
                 breatheScale = 0.85
             }
