@@ -158,31 +158,42 @@ final class PassiveSource {
 }
 
 // ============================================================================
-// MARK: - UserAssets (用户资产 - 单例)
+// MARK: - UserAssets (用户净值 - 单例)
 // ============================================================================
-// 对应 lead-wealth web 版 assets 对象
-// 设计动机: assets.total 是戴维斯三杀 KILL 1 的基准,必须用户手动维护的"真实储蓄"
-// 不是从 expenses/incomes 推算的——外部充值/转账系统不知道,只有用户自己知道
+// 净值 = 资产(锁定/投资) + 现金(可花)
+// 收入默认进现金,用户可在 AssetsView 手动调拨到资产
+// 支出从现金扣
 //
 // 注: SwiftData 没有"单例 @Model"的官方支持,我们约定 UserAssets 全表只有 1 行
-// 第一次启动或保存时如果不存在就 insert,后续永远更新这一行
 
 @Model
 final class UserAssets {
-    /// 当前可变现资产总额(元)。存款 + 余额宝 + 货币基金等"随时能用的钱"
+    // legacy — 保留给 CloudKit 轻量迁移,新逻辑不读写
     var total: Double = 0
 
-    /// 上次更新时间。展示 "上次更新: 5 分钟前" 用
-    var updatedAt: Date = Date.now
+    /// 锁定资产(投资/定期):蓝色格子
+    var lockedAssets: Double = 0
 
-    /// 首次记账日期。用来算 trackDays = 今天 - firstRecordDate
-    /// 如果用户从来没记过账,这个字段是 nil,dailyBurn 计算时返回 0
+    /// 可花现金:金色格子
+    var cash: Double = 0
+
+    /// 净值 = 资产 + 现金 (计算属性)
+    var netWorth: Double { lockedAssets + cash }
+
+    var updatedAt: Date = Date.now
     var firstRecordDate: Date?
 
     init(total: Double = 0, firstRecordDate: Date? = nil) {
         self.total = total
         self.updatedAt = .now
         self.firstRecordDate = firstRecordDate
+    }
+
+    /// 首次启动升级: total → cash 一次性迁移
+    func migrateIfNeeded() {
+        if lockedAssets == 0 && cash == 0 && total > 0 {
+            cash = total
+        }
     }
 }
 
@@ -226,15 +237,10 @@ enum FreedomMath {
 
     // ===== 核心: 自由天数 =====
 
-    /// 自由天数 = (资产 + max(净储蓄, 0)) ÷ 日均消费
-    /// 设计动机: 净储蓄为负不算(透支不能让你更自由),取 max(0, _)。
-    /// 没记账时返回 ∞ (没有消费数据,自由是无限的)。
-    /// 对应 web 版的 getFreedomDays()
-    static func freedomDays(assets: Double, netSavings: Double, dailyBurn: Double) -> Double {
+    /// 自由天数 = 净值 / 日均消费
+    static func freedomDays(netWorth: Double, dailyBurn: Double) -> Double {
         guard dailyBurn > 0 else { return .infinity }
-        let assetDays = max(0, assets) / dailyBurn   // 负资产不算,防止 Freedom Days 负数
-        let incomeDays = max(0, netSavings) / dailyBurn
-        return assetDays + incomeDays
+        return max(0, netWorth) / dailyBurn
     }
 
     /// 自由天数格式化:三档无后缀(单位由 hero KickerLabel 承载)
@@ -304,43 +310,30 @@ enum FreedomMath {
         }
     }
 
-    /// 网格状态:档位 + 应绘格数 + 资产/收入分配(双色阶段使用)
     struct GridState {
-        /// 当前档位
         let unit: GridUnit
-        /// 该绘制多少格(按 unit 颗粒度)
         let count: Int
-        /// 资产对应的"天"数 (raw, 双色阶段使用)
+        /// 蓝色格子数(锁定资产)
         let blueDays: Int
-        /// 收入对应的"天"数 (raw, 双色阶段使用)
+        /// 金色格子数(现金)
         let yellowDays: Int
-        /// 是否超过年档上限(99 年)
         let isOverflow: Bool
     }
 
-    /// 根据当前财务状态,计算 grid 档位 + 应绘格数
-    static func gridState(assets: Double, netSavings: Double, dailyBurn: Double) -> GridState {
-        // 没记账时:零格(归入 day 档,展示 emptyGridHint)
+    /// 根据当前财务状态,计算 grid 档位 + 应绘格数 + 双色分配
+    static func gridState(lockedAssets: Double, cash: Double, dailyBurn: Double) -> GridState {
         guard dailyBurn > 0 else {
             return GridState(unit: .day, count: 0, blueDays: 0, yellowDays: 0, isOverflow: false)
         }
 
-        // 资产 / 净储蓄能撑的天数。负数(透支)= 0
-        let assetRaw = max(0, assets / dailyBurn)
-        let incomeRaw = max(0, netSavings / dailyBurn)
-        let totalDays = assetRaw + incomeRaw
+        let netWorth = max(0, lockedAssets) + max(0, cash)
+        let totalDays = netWorth / dailyBurn
 
-        // ∞ 兜底:dailyBurn 上面已经 guard,但 assets 极大时浮点除可能溢出
         guard totalDays.isFinite else {
             return GridState(unit: .year, count: 99, blueDays: 99 * 365,
                              yellowDays: 0, isOverflow: true)
         }
 
-        // 资产/收入按天颗粒度分配(future 双色用)
-        let assetDays = Int(assetRaw)
-        let incomeDays = Int(incomeRaw)
-
-        // 决定档位 + 格数
         let unit: GridUnit
         let count: Int
         let isOverflow: Bool
@@ -351,19 +344,28 @@ enum FreedomMath {
             isOverflow = false
         } else if totalDays < 3650 {
             unit = .month
-            // 30.44 ≈ 平均月长 (365.25 / 12),让月数 = 12 时正好对应 1 年
             count = min(Int(totalDays / 30.44), GridUnit.month.maxCells)
             isOverflow = false
         } else {
             unit = .year
-            // 365.25 ≈ 平均年长,处理闰年
             let years = Int(totalDays / 365.25)
             count = min(years, GridUnit.year.maxCells)
             isOverflow = years > GridUnit.year.maxCells
         }
 
+        // 双色分配: 蓝(资产)在前, 金(现金)在后
+        let blueCells: Int
+        let goldCells: Int
+        if netWorth > 0 {
+            blueCells = Int((Double(count) * max(0, lockedAssets) / netWorth).rounded())
+            goldCells = count - blueCells
+        } else {
+            blueCells = 0
+            goldCells = 0
+        }
+
         return GridState(unit: unit, count: count,
-                         blueDays: assetDays, yellowDays: incomeDays,
+                         blueDays: blueCells, yellowDays: goldCells,
                          isOverflow: isOverflow)
     }
 
@@ -392,12 +394,11 @@ enum FreedomMath {
     }
 
     /// 反推过去 N 周末日的 freedomDays
-    /// - weeks: 取多少个 weekly snapshot (默认 12)
-    /// - 返回时间升序(老的在前,新的在后),最后一个是今天
+    /// currentNetWorth = lockedAssets + cash
     static func freedomDaysHistory(
         expenses: [Expense],
         incomes: [Income],
-        currentAssets: Double,
+        currentNetWorth: Double,
         firstRecordDate: Date?,
         weeks: Int = 12
     ) -> [HistoryPoint] {
@@ -405,9 +406,8 @@ enum FreedomMath {
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)
         let trackedDays = cal.dateComponents([.day], from: firstDate, to: today).day ?? 0
-        guard trackedDays >= 14 else { return [] }   // < 2 周数据,不画
+        guard trackedDays >= 14 else { return [] }
 
-        // 决定要回看多少周
         let availableWeeks = min(weeks, trackedDays / 7)
         var snapshots: [HistoryPoint] = []
 
@@ -418,20 +418,16 @@ enum FreedomMath {
             let trackDays_i = max(1, cal.dateComponents([.day], from: firstDate, to: weekEnd).day ?? 1)
 
             let expUntil = expenses.filter { $0.date <= weekEnd }.reduce(0) { $0 + $1.amount }
-            let incUntil = incomes.filter { $0.date <= weekEnd }.reduce(0) { $0 + $1.amount }
-            let netSavings_i = incUntil - expUntil
             let dailyBurn_i = expUntil / Double(trackDays_i)
 
-            // 反推那时的 assets:
-            // assets_i = currentAssets + (expensesAfter_i - incomesAfter_i)
-            // 因为 expensesAfter 都从 assets 扣了 → assets_i 当时更多
+            // 反推那时的净值 = 当前净值 + 之后支出 - 之后收入
             let expAfter = expenses.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
             let incAfter = incomes.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
-            let assets_i = currentAssets + expAfter - incAfter
+            let netWorth_i = currentNetWorth + expAfter - incAfter
 
             let days_i: Double
             if dailyBurn_i > 0 {
-                days_i = max(0, assets_i) / dailyBurn_i + max(0, netSavings_i) / dailyBurn_i
+                days_i = max(0, netWorth_i) / dailyBurn_i
             } else {
                 days_i = 0
             }

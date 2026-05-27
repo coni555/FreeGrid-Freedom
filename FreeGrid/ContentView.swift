@@ -51,23 +51,18 @@ extension Color {
 
 struct LifeGrid: View {
     let unit: FreedomMath.GridUnit
-    let count: Int           // 应绘制的格数
+    let count: Int
+    let blueCells: Int
+    let goldCells: Int
 
-    /// current 格呼吸:暗模式发光萤火虫,亮模式深色浮起
-    @State private var breath: CGFloat = 0   // 0 = 起点, 1 = 峰值
-
-    /// 读取当前 colorScheme,适配两 mode 的不同视觉策略
+    @State private var breath: CGFloat = 0
     @Environment(\.colorScheme) private var scheme
 
-    /// 当前 scale: dark 放大到 1.6 (萤火虫绽放感)
-    /// light 放大到 1.35 (更克制,不至于太抢戏)
     private var currentScale: CGFloat {
         let peak: CGFloat = scheme == .dark ? 1.6 : 1.35
         return 1.1 + (peak - 1.1) * breath
     }
-    /// 内 glow radius
     private var innerGlow: CGFloat { 4 + 3 * breath }
-    /// 外 glow radius
     private var outerGlow: CGFloat { 9 + 6 * breath }
 
     var body: some View {
@@ -78,7 +73,8 @@ struct LifeGrid: View {
         ) {
             ForEach(0..<count, id: \.self) { i in
                 let isCurrent = (i == count - 1)
-                cell(isCurrent: isCurrent)
+                let isBlue = i >= blueCells
+                cell(isCurrent: isCurrent, isBlue: isBlue)
             }
         }
         .onAppear {
@@ -88,30 +84,28 @@ struct LifeGrid: View {
         }
     }
 
-    /// 单个 cell:non-current 静态,current 用呼吸效果
-    /// dark mode = 萤火虫发光态 (浅色 + 白光 + 蓝光)
-    /// light mode = 加深浮起态 (深色 + 浅 base 色光晕,无白光)
     @ViewBuilder
-    private func cell(isCurrent: Bool) -> some View {
-        let baseColor: Color = .assetBlue
+    private func cell(isCurrent: Bool, isBlue: Bool) -> some View {
+        let baseColor: Color = isBlue ? .assetBlue : .incomeGold
         let isDark = scheme == .dark
 
-        // current 格颜色:
-        // dark = 浅色(萤火虫发光) / light = 深色(凸起强调)
         let currentColor: Color = isDark
-            ? Color(red: 0.83, green: 0.92, blue: 1.00)
-            : Color(red: 0.20, green: 0.50, blue: 0.78)    // 深天空蓝
+            ? (isBlue
+                ? Color(red: 0.83, green: 0.92, blue: 1.00)
+                : Color(red: 1.00, green: 0.92, blue: 0.65))
+            : (isBlue
+                ? Color(red: 0.20, green: 0.50, blue: 0.78)
+                : Color(red: 0.72, green: 0.58, blue: 0.20))
 
-        // 内 glow 颜色:
-        // dark = 白光 (萤火虫) / light = 深 base 色 (浮起阴影感)
         let innerGlowColor: Color = isDark
             ? Color.white
-            : Color(red: 0.15, green: 0.35, blue: 0.55)
+            : (isBlue
+                ? Color(red: 0.15, green: 0.35, blue: 0.55)
+                : Color(red: 0.55, green: 0.45, blue: 0.15))
 
-        // glow opacity 随呼吸缩放
         let innerOpacity: Double = isDark
-            ? (0.5 + 0.3 * Double(breath))      // dark 白光强
-            : (0.25 + 0.15 * Double(breath))    // light 浅一档,避免太重
+            ? (0.5 + 0.3 * Double(breath))
+            : (0.25 + 0.15 * Double(breath))
         let outerOpacity: Double = isDark
             ? (0.4 + 0.1 * Double(breath))
             : (0.30 + 0.10 * Double(breath))
@@ -120,7 +114,7 @@ struct LifeGrid: View {
             Rectangle()
                 .fill(currentColor)
                 .frame(width: unit.cellSize, height: unit.cellSize)
-                .cornerRadius(unit.cellSize * 0.17)   // 跟随 cellSize 等比例圆角
+                .cornerRadius(unit.cellSize * 0.17)
                 .shadow(color: innerGlowColor.opacity(innerOpacity), radius: innerGlow)
                 .shadow(color: baseColor.opacity(outerOpacity), radius: outerGlow)
                 .scaleEffect(currentScale)
@@ -129,7 +123,7 @@ struct LifeGrid: View {
             Rectangle()
                 .fill(baseColor)
                 .frame(width: unit.cellSize, height: unit.cellSize)
-                .cornerRadius(unit.cellSize * 0.11)   // 静态格更小圆角
+                .cornerRadius(unit.cellSize * 0.11)
         }
     }
 }
@@ -307,7 +301,7 @@ struct DashboardView: View {
         let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
-            currentAssets: totalAssets,
+            currentNetWorth: netWorth,
             firstRecordDate: firstRecordDate
         )
         let delta = FreedomMath.deltaSummary(history: history)
@@ -597,12 +591,11 @@ struct DashboardView: View {
     /// Freedom Grid:1825 格可视化,作为 hero 卡片之一,占大空间
     /// 设计动机:这是 FreeGrid 的产品记忆点,在暗底上每格"发光"质感
     private var gridSection: some View {
-        let state = FreedomMath.gridState(assets: totalAssets,
-                                          netSavings: netSavings,
+        let state = FreedomMath.gridState(lockedAssets: lockedAssets,
+                                          cash: cashAmount,
                                           dailyBurn: dailyBurn)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                // 标题行
                 HStack(alignment: .firstTextBaseline) {
                     KickerLabel(text: "Freedom Grid")
                     Spacer()
@@ -612,17 +605,17 @@ struct DashboardView: View {
                         .foregroundStyle(Color.inkFaint)
                 }
 
-                // 网格本身
                 if state.count == 0 {
                     emptyGridHint
                 } else {
-                    LifeGrid(unit: state.unit, count: state.count)
+                    LifeGrid(unit: state.unit, count: state.count,
+                             blueCells: state.blueDays, goldCells: state.yellowDays)
                         .padding(.vertical, Spacing.sm)
                 }
 
-                // 图例:单色 dot(双色阶段再恢复 incomeGold) + 单位 caption
                 HStack(spacing: Spacing.lg) {
-                    legendDot(color: .assetBlue, label: "自由")
+                    legendDot(color: .incomeGold, label: "资产")
+                    legendDot(color: .assetBlue, label: "现金")
                     Spacer()
                     Text("每格 = 1 \(state.unit.label)自由")
                         .font(.system(.caption2, design: .rounded))
@@ -704,12 +697,26 @@ struct DashboardView: View {
     // lead-wealth web 版 app.html 的业务函数 1:1 Swift 复刻
     // 用 computed property,SwiftUI 自动追踪依赖,@Query 数据变化时自动重算
 
-    private var totalAssets: Double {
-        assetsArr.first?.total ?? 0
+    private var userAssetsSingleton: UserAssets? {
+        let a = assetsArr.first
+        a?.migrateIfNeeded()
+        return a
+    }
+
+    private var lockedAssets: Double {
+        userAssetsSingleton?.lockedAssets ?? 0
+    }
+
+    private var cashAmount: Double {
+        userAssetsSingleton?.cash ?? 0
+    }
+
+    private var netWorth: Double {
+        lockedAssets + cashAmount
     }
 
     private var firstRecordDate: Date? {
-        assetsArr.first?.firstRecordDate
+        userAssetsSingleton?.firstRecordDate
     }
 
     private var totalExpenses: Double {
@@ -720,44 +727,28 @@ struct DashboardView: View {
         incomes.reduce(0) { $0 + $1.amount }
     }
 
-    /// 净储蓄 = 总收入 - 总支出 (可能为负 = 透支)
-    private var netSavings: Double {
-        totalIncome - totalExpenses
-    }
-
-    /// 记录天数: 从首次记账到今天,最小 1
     private var trackDays: Int {
         guard let firstDate = firstRecordDate else { return 1 }
         let days = Calendar.current.dateComponents([.day], from: firstDate, to: .now).day ?? 0
         return max(1, days + 1)
     }
 
-    /// 日均消费 = 总支出 ÷ 记录天数
     private var dailyBurn: Double {
         guard trackDays > 0 else { return 0 }
         return totalExpenses / Double(trackDays)
     }
 
-    /// 日均被动收入 = Σ(月被动收入 ÷ 30)
     private var dailyPassive: Double {
         passiveSources.reduce(0) { $0 + $1.monthlyAmount / 30 }
     }
 
-    /// 被动覆盖率 = 日均被动收入 ÷ 日均消费 (≥1 即财务自由)
     private var passiveRatio: Double {
         guard dailyBurn > 0 else { return 0 }
         return dailyPassive / dailyBurn
     }
 
-    /// 自由天数 = (资产 + max(净储蓄, 0)) ÷ 日均消费
-    /// 设计动机: 把"还能不上班多久"量化为具体天数
-    /// 净储蓄为负不算(透支不能让你更自由)
-    /// 没记账时返回 ∞ (没有消费数据,自由是无限的)
     private var freedomDays: Double {
-        guard dailyBurn > 0 else { return .infinity }
-        let assetDays = totalAssets / dailyBurn
-        let incomeDays = max(0, netSavings) / dailyBurn
-        return assetDays + incomeDays
+        FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn)
     }
 
     /// 三档无后缀 hero 数字: 日整数 / 月整数 / 年1位小数 / ∞
@@ -793,36 +784,42 @@ struct DashboardView: View {
 // 交互: 顶部 Hero 显示当前资产 + 上次更新时间;下方 Form 编辑新值。
 
 struct AssetsView: View {
+    // --- 净值 = 资产(锁定) + 现金(可花) ---
 
     @Query private var assetsArr: [UserAssets]
     @Environment(\.modelContext) private var modelContext
 
-    /// 输入框状态。用 String 而不是 Double 因为 TextField 编辑过程中可能短暂为空
     @State private var newAmount: String = ""
-
-    /// 跟踪是否已经显示过提交后的反馈,避免每次切 Tab 都闪
     @State private var showSavedHint = false
+    @State private var transferAmount: String = ""
+    @State private var transferDirection: TransferDirection = .cashToAssets
+
+    enum TransferDirection: String, CaseIterable {
+        case cashToAssets = "现金 → 资产"
+        case assetsToCash = "资产 → 现金"
+    }
 
     // ===== 数据管理状态 =====
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
-    @State private var importStatus: String? = nil   // 用于显示导入结果反馈
+    @State private var importStatus: String? = nil
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
                     heroCard
+                    bucketCards
                     editForm
+                    transferCard
                     explainCard
-                    dataManagementCard   // 数据管理:导入 / 清空
+                    dataManagementCard
                 }
                 .padding()
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Assets")
-            // ===== 文件选择器(系统弹出) =====
             .fileImporter(
                 isPresented: $showingFileImporter,
                 allowedContentTypes: [.json],
@@ -830,7 +827,6 @@ struct AssetsView: View {
             ) { result in
                 handleImport(result)
             }
-            // ===== 清空确认 Alert =====
             .alert("清空所有数据?", isPresented: $showingPurgeAlert) {
                 Button("取消", role: .cancel) {}
                 Button("清空", role: .destructive) { purgeData() }
@@ -840,13 +836,13 @@ struct AssetsView: View {
         }
     }
 
-    /// Hero: VaultCard 高亮卡片 + 大 thin 数字 (silverline)
+    // MARK: - Hero: 净值总览
     private var heroCard: some View {
         VaultCard(emphasis: .high, padding: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Total Assets")
+                KickerLabel(text: "Net Worth · 净值")
 
-                Text("¥" + currentAsset.formatted(.number))
+                Text("¥" + currentNetWorth.formatted(.number))
                     .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.ink)
                     .padding(.top, Spacing.xs)
@@ -856,7 +852,7 @@ struct AssetsView: View {
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 } else {
-                    Text("尚未设置 · 请在下方输入当前可变现资产")
+                    Text("尚未设置 · 请在下方输入净值")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }
@@ -864,11 +860,45 @@ struct AssetsView: View {
         }
     }
 
-    /// 编辑表单: VaultCard + 文本框 + sky outline 按钮
+    // MARK: - 双桶: 资产 + 现金
+    private var bucketCards: some View {
+        HStack(spacing: 12) {
+            bucketCard(
+                kicker: "资产",
+                amount: assetsArr.first?.lockedAssets ?? 0,
+                color: .incomeGold,
+                icon: "lock.fill"
+            )
+            bucketCard(
+                kicker: "现金",
+                amount: assetsArr.first?.cash ?? 0,
+                color: .assetBlue,
+                icon: "banknote"
+            )
+        }
+    }
+
+    private func bucketCard(kicker: String, amount: Double, color: Color, icon: String) -> some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                        .foregroundStyle(color)
+                    KickerLabel(text: kicker)
+                }
+                Text("¥" + amount.formatted(.number))
+                    .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.ink)
+            }
+        }
+    }
+
+    // MARK: - 编辑净值
     private var editForm: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Update")
+                KickerLabel(text: "设置净值")
 
                 HStack(spacing: 6) {
                     Text("¥")
@@ -886,12 +916,16 @@ struct AssetsView: View {
                         )
                 }
 
+                Text("全部存入现金,后续可通过「调拨」移入资产")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+
                 VaultButton(
-                    title: showSavedHint ? "已保存" : "更新资产",
+                    title: showSavedHint ? "已保存" : "更新净值",
                     icon: showSavedHint ? "checkmark" : "arrow.up",
                     style: .primary
                 ) {
-                    updateAsset()
+                    updateNetWorth()
                 }
                 .disabled(!isValid)
                 .opacity(isValid || showSavedHint ? 1.0 : 0.4)
@@ -899,19 +933,56 @@ struct AssetsView: View {
         }
     }
 
-    /// 说明卡片: 帮助用户理解"资产"的含义 (silverline 极淡 mist 底)
+    // MARK: - 调拨
+    private var transferCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "调拨")
+
+                Picker("方向", selection: $transferDirection) {
+                    ForEach(TransferDirection.allCases, id: \.self) { d in
+                        Text(d.rawValue).tag(d)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                HStack(spacing: 6) {
+                    Text("¥")
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    TextField("0", text: $transferAmount)
+                        .keyboardType(.decimalPad)
+                        .font(.system(.title3, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.hairline, lineWidth: 1)
+                        )
+                }
+
+                VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
+                    doTransfer()
+                }
+                .disabled(Double(transferAmount) == nil || (Double(transferAmount) ?? 0) <= 0)
+                .opacity((Double(transferAmount) ?? 0) > 0 ? 1.0 : 0.4)
+            }
+        }
+    }
+
     private var explainCard: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.inkFaint)
-                Text("什么算资产")
+                Text("净值 · 资产 · 现金")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.ink)
             }
 
-            Text("可变现资产 = 存款 + 余额宝 + 货币基金等\"随时能用的钱\"。这是 Freedom Days 的基准:每次记账时会自动扣减(支出)/增加(收入),你也可以随时手动同步真实余额。")
+            Text("净值 = 资产 + 现金。资产是锁定的钱(投资/定期),用蓝格子表示;现金是可花的钱,用金格子表示。收入默认进现金,支出从现金扣。你可以用「调拨」在两个桶之间移动资金。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -924,12 +995,6 @@ struct AssetsView: View {
                 .fill(Color.skyFaint)
         )
     }
-
-    // ============================================================================
-    // MARK: - 数据管理卡片
-    // ============================================================================
-    // 导入 lead-wealth web 版的 JSON 备份 + 清空所有数据
-    // 适用场景:从 web 版迁移历史数据 / 重置测试数据
 
     private var dataManagementCard: some View {
         VaultCard {
@@ -965,12 +1030,7 @@ struct AssetsView: View {
         }
     }
 
-    // ============================================================================
-    // MARK: - 数据管理:业务方法
-    // ============================================================================
-
-    /// 处理文件选择器返回的结果
-    /// iOS 文件 picker 返回的 URL 是 security-scoped,必须 startAccess/stopAccess
+    // MARK: - 数据管理
     private func handleImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
@@ -978,7 +1038,6 @@ struct AssetsView: View {
                 importStatus = "未选择文件"
                 return
             }
-            // 沙盒文件访问授权
             guard url.startAccessingSecurityScopedResource() else {
                 importStatus = "无法访问该文件"
                 return
@@ -991,7 +1050,7 @@ struct AssetsView: View {
                 importStatus = """
                 ✓ 导入成功
                 支出 \(result.expensesAdded) 笔 · 收入 \(result.incomesAdded) 笔 · 被动源 \(result.passiveSourcesAdded) 个
-                资产 ¥\(Int(result.assetsTotal))
+                净值 ¥\(Int(result.assetsTotal))
                 """
             } catch {
                 importStatus = "✗ 导入失败: \(error.localizedDescription)"
@@ -1001,34 +1060,28 @@ struct AssetsView: View {
         }
     }
 
-    /// 清空所有数据
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            // 清空后重置输入框
             newAmount = ""
+            transferAmount = ""
             importStatus = "✓ 已清空所有数据"
         } catch {
             importStatus = "✗ 清空失败: \(error.localizedDescription)"
         }
     }
 
-    // ===== 业务方法 =====
-
-    /// 当前资产(单例的 total,没有就是 0)
-    private var currentAsset: Double {
-        assetsArr.first?.total ?? 0
+    // MARK: - 业务方法
+    private var currentNetWorth: Double {
+        (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
     }
 
-    /// 输入是否有效:必须是非负数字
     private var isValid: Bool {
         guard let v = Double(newAmount), v >= 0 else { return false }
         return true
     }
 
-    /// 更新资产: 修改单例的 total + updatedAt
-    /// 第一次没有单例时会创建一个
-    private func updateAsset() {
+    private func updateNetWorth() {
         guard let value = Double(newAmount) else { return }
 
         let assets: UserAssets
@@ -1038,26 +1091,36 @@ struct AssetsView: View {
             assets = UserAssets(total: 0)
             modelContext.insert(assets)
         }
-        assets.total = value
+        assets.cash = value
         assets.updatedAt = .now
 
-        // 如果用户还没记账,把今天定为首次记账日
-        // 这样 trackDays 至少有意义,Freedom Days 不会一直 ∞
         if assets.firstRecordDate == nil {
             assets.firstRecordDate = .now
         }
 
-        // 清空输入,显示已保存反馈
         newAmount = ""
-        withAnimation {
-            showSavedHint = true
-        }
-        // 2 秒后恢复按钮文字
+        withAnimation { showSavedHint = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                showSavedHint = false
-            }
+            withAnimation { showSavedHint = false }
         }
+    }
+
+    private func doTransfer() {
+        guard let amt = Double(transferAmount), amt > 0,
+              let assets = assetsArr.first else { return }
+
+        switch transferDirection {
+        case .cashToAssets:
+            let actual = min(amt, assets.cash)
+            assets.cash -= actual
+            assets.lockedAssets += actual
+        case .assetsToCash:
+            let actual = min(amt, assets.lockedAssets)
+            assets.lockedAssets -= actual
+            assets.cash += actual
+        }
+        assets.updatedAt = .now
+        transferAmount = ""
     }
 }
 
@@ -1207,7 +1270,7 @@ enum DataIO {
             userAssets = UserAssets(total: 0)
             context.insert(userAssets)
         }
-        userAssets.total = assetsTotal
+        userAssets.cash = assetsTotal
         userAssets.updatedAt = updatedAt
         userAssets.firstRecordDate = firstDate
 
@@ -1471,12 +1534,10 @@ struct HistoryView: View {
         for tx in toDelete {
             switch tx {
             case .expense(let e):
-                // 删支出 = 资产加回去
-                assets?.total += e.amount
+                assets?.cash += e.amount
                 modelContext.delete(e)
             case .income(let i):
-                // 删收入 = 资产减回去
-                assets?.total -= i.amount
+                assets?.cash -= i.amount
                 modelContext.delete(i)
             }
         }
@@ -1601,36 +1662,25 @@ struct AddExpenseSheet: View {
     // MARK: - 戴维斯三杀预览渲染
     // ============================================================================
 
-    /// 预览组件: 3 行 KILL 显示 from → to + delta
     private func impactPreview(amount: Double) -> some View {
-        // ===== 当前快照 =====
-        let currentAssets = assetsArr.first?.total ?? 0
+        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
 
         let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
-        let totalInc = incomes.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
-        let currentNetSavings = totalInc - currentTotalExp
-        let currentFreedom = FreedomMath.freedomDays(assets: currentAssets,
-                                                     netSavings: currentNetSavings,
-                                                     dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
 
-        // ===== 如果加这一笔 =====
-        let newAssets = currentAssets - amount
+        let newNW = currentNW - amount
         let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
-        let newNetSavings = currentNetSavings - amount  // 支出减少净储蓄
-        let newFreedom = FreedomMath.freedomDays(assets: newAssets,
-                                                 netSavings: newNetSavings,
-                                                 dailyBurn: newAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg)
 
-        // ===== 计算 delta =====
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
-            killRow(label: "KILL 1 储蓄",
-                    from: formatYuan(currentAssets),
-                    to: formatYuan(newAssets),
+            killRow(label: "KILL 1 净值",
+                    from: formatYuan(currentNW),
+                    to: formatYuan(newNW),
                     delta: "−\(formatYuan(amount))")
 
             killRow(label: "KILL 2 日均",
@@ -1692,7 +1742,7 @@ struct AddExpenseSheet: View {
             assets = UserAssets(total: 0)
             modelContext.insert(assets)
         }
-        assets.total -= amt
+        assets.cash -= amt
         assets.updatedAt = .now
 
         if assets.firstRecordDate == nil || date < assets.firstRecordDate! {
@@ -1706,9 +1756,6 @@ struct AddExpenseSheet: View {
 // ============================================================================
 // MARK: - AddIncomeSheet (添加收入的模态弹窗)
 // ============================================================================
-// 和 AddExpenseSheet 对称,但保存时:
-// - 资产 += 金额 (而不是扣)
-// - 多一个"是否被动收入"开关(决定是否纳入 Passive Ratio)
 
 struct AddIncomeSheet: View {
 
@@ -1787,36 +1834,25 @@ struct AddIncomeSheet: View {
     // MARK: - 自由增长预览
     // ============================================================================
 
-    /// 预览组件: 2 行 GAIN 显示(收入只影响资产和自由天数,不影响日均消费)
     private func gainPreview(amount: Double) -> some View {
-        // ===== 当前快照 =====
-        let currentAssets = assetsArr.first?.total ?? 0
+        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
 
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
-        let currentTotalInc = incomes.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentNetSavings = currentTotalInc - totalExp
-        let currentFreedom = FreedomMath.freedomDays(assets: currentAssets,
-                                                     netSavings: currentNetSavings,
-                                                     dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
 
-        // ===== 如果加这一笔收入 =====
-        let newAssets = currentAssets + amount
-        let newNetSavings = currentNetSavings + amount
-        let newFreedom = FreedomMath.freedomDays(assets: newAssets,
-                                                 netSavings: newNetSavings,
-                                                 dailyBurn: currentAvg)  // 日均不变
+        let newNW = currentNW + amount
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg)
 
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
-            ? 0
-            : (newFreedom - currentFreedom)
+            ? 0 : (newFreedom - currentFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
-            gainRow(label: "GAIN 1 储蓄",
-                    from: formatYuan(currentAssets),
-                    to: formatYuan(newAssets),
+            gainRow(label: "GAIN 1 净值",
+                    from: formatYuan(currentNW),
+                    to: formatYuan(newNW),
                     delta: "+\(formatYuan(amount))")
 
             gainRow(label: "GAIN 2 自由天数",
@@ -1877,7 +1913,7 @@ struct AddIncomeSheet: View {
             assets = UserAssets(total: 0)
             modelContext.insert(assets)
         }
-        assets.total += amt   // 收入: 加资产(和支出的 -= 对称)
+        assets.cash += amt
         assets.updatedAt = .now
 
         if assets.firstRecordDate == nil || date < assets.firstRecordDate! {
@@ -2044,31 +2080,24 @@ struct SimulateSheet: View {
     // ============================================================================
 
     private func expensePreview(amount: Double) -> some View {
-        let currentAssets = assetsArr.first?.total ?? 0
+        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
 
         let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
-        let totalInc = incomes.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
-        let currentNetSavings = totalInc - currentTotalExp
-        let currentFreedom = FreedomMath.freedomDays(assets: currentAssets,
-                                                     netSavings: currentNetSavings,
-                                                     dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
 
-        let newAssets = currentAssets - amount
+        let newNW = currentNW - amount
         let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
-        let newNetSavings = currentNetSavings - amount
-        let newFreedom = FreedomMath.freedomDays(assets: newAssets,
-                                                 netSavings: newNetSavings,
-                                                 dailyBurn: newAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg)
 
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
-            impactRow(label: "KILL 1 储蓄",
-                      from: formatYuan(currentAssets),
-                      to: formatYuan(newAssets),
+            impactRow(label: "KILL 1 净值",
+                      from: formatYuan(currentNW),
+                      to: formatYuan(newNW),
                       delta: "−\(formatYuan(amount))",
                       color: Color.vermillion)
 
@@ -2087,31 +2116,24 @@ struct SimulateSheet: View {
     }
 
     private func incomePreview(amount: Double) -> some View {
-        let currentAssets = assetsArr.first?.total ?? 0
+        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
 
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
-        let currentTotalInc = incomes.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentNetSavings = currentTotalInc - totalExp
-        let currentFreedom = FreedomMath.freedomDays(assets: currentAssets,
-                                                     netSavings: currentNetSavings,
-                                                     dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
 
-        let newAssets = currentAssets + amount
-        let newNetSavings = currentNetSavings + amount
-        let newFreedom = FreedomMath.freedomDays(assets: newAssets,
-                                                 netSavings: newNetSavings,
-                                                 dailyBurn: currentAvg)
+        let newNW = currentNW + amount
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg)
 
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
             ? 0 : (newFreedom - currentFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
-            impactRow(label: "GAIN 1 储蓄",
-                      from: formatYuan(currentAssets),
-                      to: formatYuan(newAssets),
+            impactRow(label: "GAIN 1 净值",
+                      from: formatYuan(currentNW),
+                      to: formatYuan(newNW),
                       delta: "+\(formatYuan(amount))",
                       color: Color.skyDeep)
 
