@@ -237,57 +237,134 @@ enum FreedomMath {
         return assetDays + incomeDays
     }
 
-    /// 自由天数格式化:∞ 或具体整数
+    /// 自由天数格式化:三档无后缀(单位由 hero KickerLabel 承载)
+    /// < 365 天    → 天数整数 "127"
+    /// 365-3649 天 → 月数整数 "16" (= days / 30.44)
+    /// ≥ 3650 天   → 年数 1 位小数 "38.1" (= days / 365.25)
+    /// ∞ / NaN     → "∞"
     static func freedomDaysDisplay(_ value: Double) -> String {
-        if value.isInfinite { return "∞" }
-        return String(format: "%.0f", value)
+        if value.isInfinite || value.isNaN { return "∞" }
+        if value < 365 {
+            return String(format: "%.0f", value)
+        }
+        if value < 3650 {
+            return String(format: "%.0f", value / 30.44)
+        }
+        return String(format: "%.1f", value / 365.25)
     }
 
     // ============================================================================
-    // MARK: - 1825 格生命网格
+    // MARK: - 生命网格(自适应单位:日/月/年)
     // ============================================================================
     // 设计动机: 把"自由天数"这个抽象数字,可视化为格子。
-    // 5 年 = 1825 天 = 1825 格(产品上限),每格 1 天自由。
-    // 蓝格 = 资产能撑的天数;金格 = 净储蓄能撑的天数(在蓝格之后).
-    // 对应 lead-wealth web 版的 getGridState() + renderFreedomGrid()
+    // 颗粒度随自由度自适应升级——
+    //   < 1 年 (< 365 天):   日格 (每格 1 天, 最多 365)
+    //   1-10 年 (365-3649): 月格 (每格 1 月, 最多 120 = 10 年)
+    //   ≥ 10 年 (≥ 3650):   年格 (每格 1 年, 最多 99)
+    // 跟 hero 数字单位切换同步,UI 在数字 + grid 两层一起做维度提升。
 
-    /// 1825 格的上限(5 年 × 365 天)
-    static let maxGridCells = 1825
+    /// Grid 颗粒度档位
+    enum GridUnit {
+        case day, month, year
 
-    /// 网格状态:多少蓝格、多少金格、是否溢出 1825
+        /// 每格视觉尺寸 (pt)
+        var cellSize: CGFloat {
+            switch self {
+            case .day: return 9
+            case .month: return 12
+            case .year: return 16
+            }
+        }
+
+        /// 格子间距 (pt) — 跟随 cellSize 比例
+        var spacing: CGFloat {
+            switch self {
+            case .day: return 2.5
+            case .month: return 3
+            case .year: return 3.5
+            }
+        }
+
+        /// 单档上限(超过即升档,或在年档 cap 99)
+        var maxCells: Int {
+            switch self {
+            case .day: return 365
+            case .month: return 120     // 10 年
+            case .year: return 99
+            }
+        }
+
+        /// 中文单位标签
+        var label: String {
+            switch self {
+            case .day: return "天"
+            case .month: return "月"
+            case .year: return "年"
+            }
+        }
+    }
+
+    /// 网格状态:档位 + 应绘格数 + 资产/收入分配(双色阶段使用)
     struct GridState {
-        /// 蓝格数:资产能撑天数
+        /// 当前档位
+        let unit: GridUnit
+        /// 该绘制多少格(按 unit 颗粒度)
+        let count: Int
+        /// 资产对应的"天"数 (raw, 双色阶段使用)
         let blueDays: Int
-        /// 金格数:净储蓄能撑天数(在蓝格之后绘制)
+        /// 收入对应的"天"数 (raw, 双色阶段使用)
         let yellowDays: Int
-        /// 总点亮格数 = blueDays + yellowDays,封顶 1825
-        let totalLit: Int
-        /// 是否超出 5 年上限(用于提示"已超 1825,不再增加")
+        /// 是否超过年档上限(99 年)
         let isOverflow: Bool
     }
 
-    /// 根据当前财务状态,计算应该亮多少格
-    /// 对应 web 版的 getGridState()
+    /// 根据当前财务状态,计算 grid 档位 + 应绘格数
     static func gridState(assets: Double, netSavings: Double, dailyBurn: Double) -> GridState {
-        // 没记账时:零格
+        // 没记账时:零格(归入 day 档,展示 emptyGridHint)
         guard dailyBurn > 0 else {
-            return GridState(blueDays: 0, yellowDays: 0, totalLit: 0, isOverflow: false)
+            return GridState(unit: .day, count: 0, blueDays: 0, yellowDays: 0, isOverflow: false)
         }
 
-        // 资产能撑的天数。资产为负数 = 0 格(透支不算自由)
-        let rawAsset = max(0, assets / dailyBurn)
-        let assetDays = rawAsset.isInfinite ? maxGridCells : Int(rawAsset)
+        // 资产 / 净储蓄能撑的天数。负数(透支)= 0
+        let assetRaw = max(0, assets / dailyBurn)
+        let incomeRaw = max(0, netSavings / dailyBurn)
+        let totalDays = assetRaw + incomeRaw
 
-        // 净储蓄能撑的天数。负数(透支)= 0 格
-        let incomeDays = max(0, Int(netSavings / dailyBurn))
+        // ∞ 兜底:dailyBurn 上面已经 guard,但 assets 极大时浮点除可能溢出
+        guard totalDays.isFinite else {
+            return GridState(unit: .year, count: 99, blueDays: 99 * 365,
+                             yellowDays: 0, isOverflow: true)
+        }
 
-        let rawTotal = assetDays + incomeDays
-        let totalLit = min(rawTotal, maxGridCells)
-        let blueDays = min(assetDays, totalLit)
-        let yellowDays = totalLit - blueDays
+        // 资产/收入按天颗粒度分配(future 双色用)
+        let assetDays = Int(assetRaw)
+        let incomeDays = Int(incomeRaw)
 
-        return GridState(blueDays: blueDays, yellowDays: yellowDays,
-                         totalLit: totalLit, isOverflow: rawTotal > maxGridCells)
+        // 决定档位 + 格数
+        let unit: GridUnit
+        let count: Int
+        let isOverflow: Bool
+
+        if totalDays < 365 {
+            unit = .day
+            count = Int(totalDays)
+            isOverflow = false
+        } else if totalDays < 3650 {
+            unit = .month
+            // 30.44 ≈ 平均月长 (365.25 / 12),让月数 = 12 时正好对应 1 年
+            count = min(Int(totalDays / 30.44), GridUnit.month.maxCells)
+            isOverflow = false
+        } else {
+            unit = .year
+            // 365.25 ≈ 平均年长,处理闰年
+            let years = Int(totalDays / 365.25)
+            count = min(years, GridUnit.year.maxCells)
+            isOverflow = years > GridUnit.year.maxCells
+        }
+
+        return GridState(unit: unit, count: count,
+                         blueDays: assetDays, yellowDays: incomeDays,
+                         isOverflow: isOverflow)
     }
 
     // ============================================================================

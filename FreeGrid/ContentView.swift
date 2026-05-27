@@ -38,28 +38,26 @@ extension Color {
 }
 
 // ============================================================================
-// MARK: - LifeGrid (1825 格生命网格 View)
+// MARK: - LifeGrid (自适应单位的生命网格 View)
 // ============================================================================
 // 设计动机: 把"自由天数"这个数字可视化为格子。
-// 不渲染 1825 个未亮格子(避免挫败感),只显示已点亮(资产蓝 + 收入金)。
+// 颗粒度随自由度自适应升级(参考 FreedomMath.GridUnit):
+//   日格 9pt / 月格 12pt / 年格 16pt
 // 网格随屏幕宽度自适应列数,行数随内容增长。
+// 颜色暂用单色 assetBlue(双色阶段再恢复资产/收入区分)。
+// 最后一格呼吸高亮(萤火虫/浮起)永远保留——产品记忆点。
 //
-// 性能: LazyVGrid 懒加载,即使 1825 格也不卡。
+// 性能: LazyVGrid 懒加载,即使 365 格日档也不卡。
 
 struct LifeGrid: View {
-    let blueDays: Int       // 资产蓝格
-    let yellowDays: Int     // 收入金格
+    let unit: FreedomMath.GridUnit
+    let count: Int           // 应绘制的格数
 
     /// current 格呼吸:暗模式发光萤火虫,亮模式深色浮起
     @State private var breath: CGFloat = 0   // 0 = 起点, 1 = 峰值
 
     /// 读取当前 colorScheme,适配两 mode 的不同视觉策略
     @Environment(\.colorScheme) private var scheme
-
-    private let cellSize: CGFloat = 9
-    private let spacing: CGFloat = 2.5
-
-    private var totalLit: Int { blueDays + yellowDays }
 
     /// 当前 scale: dark 放大到 1.6 (萤火虫绽放感)
     /// light 放大到 1.35 (更克制,不至于太抢戏)
@@ -74,14 +72,13 @@ struct LifeGrid: View {
 
     var body: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: cellSize, maximum: cellSize),
-                               spacing: spacing)],
-            spacing: spacing
+            columns: [GridItem(.adaptive(minimum: unit.cellSize, maximum: unit.cellSize),
+                               spacing: unit.spacing)],
+            spacing: unit.spacing
         ) {
-            ForEach(0..<totalLit, id: \.self) { i in
-                let isCurrent = (i == totalLit - 1)
-                let isBlue = i < blueDays
-                cell(isCurrent: isCurrent, isBlue: isBlue)
+            ForEach(0..<count, id: \.self) { i in
+                let isCurrent = (i == count - 1)
+                cell(isCurrent: isCurrent)
             }
         }
         .onAppear {
@@ -95,33 +92,23 @@ struct LifeGrid: View {
     /// dark mode = 萤火虫发光态 (浅色 + 白光 + 蓝光)
     /// light mode = 加深浮起态 (深色 + 浅 base 色光晕,无白光)
     @ViewBuilder
-    private func cell(isCurrent: Bool, isBlue: Bool) -> some View {
-        let baseColor: Color = isBlue ? .assetBlue : .incomeGold
+    private func cell(isCurrent: Bool) -> some View {
+        let baseColor: Color = .assetBlue
         let isDark = scheme == .dark
 
         // current 格颜色:
         // dark = 浅色(萤火虫发光) / light = 深色(凸起强调)
-        let currentColor: Color = {
-            if isDark {
-                return isBlue
-                    ? Color(red: 0.83, green: 0.92, blue: 1.00)
-                    : Color(red: 1.00, green: 0.91, blue: 0.65)
-            } else {
-                return isBlue
-                    ? Color(red: 0.20, green: 0.50, blue: 0.78)    // 深天空蓝
-                    : Color(red: 0.30, green: 0.55, blue: 0.62)
-            }
-        }()
+        let currentColor: Color = isDark
+            ? Color(red: 0.83, green: 0.92, blue: 1.00)
+            : Color(red: 0.20, green: 0.50, blue: 0.78)    // 深天空蓝
 
         // 内 glow 颜色:
         // dark = 白光 (萤火虫) / light = 深 base 色 (浮起阴影感)
         let innerGlowColor: Color = isDark
             ? Color.white
-            : (isBlue
-               ? Color(red: 0.15, green: 0.35, blue: 0.55)
-               : Color(red: 0.25, green: 0.45, blue: 0.50))
+            : Color(red: 0.15, green: 0.35, blue: 0.55)
 
-        // 外 glow 颜色:两 mode 都用 baseColor 但 opacity 不同
+        // glow opacity 随呼吸缩放
         let innerOpacity: Double = isDark
             ? (0.5 + 0.3 * Double(breath))      // dark 白光强
             : (0.25 + 0.15 * Double(breath))    // light 浅一档,避免太重
@@ -132,8 +119,8 @@ struct LifeGrid: View {
         if isCurrent {
             Rectangle()
                 .fill(currentColor)
-                .frame(width: cellSize, height: cellSize)
-                .cornerRadius(1.5)
+                .frame(width: unit.cellSize, height: unit.cellSize)
+                .cornerRadius(unit.cellSize * 0.17)   // 跟随 cellSize 等比例圆角
                 .shadow(color: innerGlowColor.opacity(innerOpacity), radius: innerGlow)
                 .shadow(color: baseColor.opacity(outerOpacity), radius: outerGlow)
                 .scaleEffect(currentScale)
@@ -141,8 +128,8 @@ struct LifeGrid: View {
         } else {
             Rectangle()
                 .fill(baseColor)
-                .frame(width: cellSize, height: cellSize)
-                .cornerRadius(1)
+                .frame(width: unit.cellSize, height: unit.cellSize)
+                .cornerRadius(unit.cellSize * 0.11)   // 静态格更小圆角
         }
     }
 }
@@ -309,8 +296,9 @@ struct DashboardView: View {
         return VaultCard(emphasis: .high, padding: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 // ─── 顶部: kicker + trend badge ───
+                // kicker 跟随档位切换 (Days/Months/Years),hero 数字裸数字,单位由 kicker + 副标双重承载
                 HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "Freedom Days")
+                    KickerLabel(text: heroKickerText)
                     Spacer()
                     if let d = delta {
                         trendBadge(delta: d.delta, weeks: history.count - 1)
@@ -321,28 +309,36 @@ struct DashboardView: View {
                     }
                 }
 
-                // ─── 中部: 数字 + 副标 asymmetric ───
-                HStack(alignment: .center, spacing: Spacing.md) {
-                    // 110pt ultraLight 大字
-                    Text(freedomDaysDisplay)
-                        .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.ink)
-                        .padding(.vertical, -8)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        emphasized("你的", "自由", "", size: 16)
-                        Text("还能撑这么多天")
-                            .font(.system(size: 16, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
+                // ─── 中部: 副标 leading + 数字 trailing (mockup hero-a 布局) ───
+                // baseline 底部对齐:副标多行的最后一行底部 = 数字底部
+                // 副标拆 2 行(18pt): card 内副标可用宽 ~121pt,22pt 7 字会强行 break
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
+                    // 副标 leading, 2 行 + 见底 caption
+                    VStack(alignment: .leading, spacing: 2) {
+                        emphasized("你的", "自由", "", size: 18)
+                        Text("还能撑这么多\(heroSubUnit)")
+                            .font(.system(size: 18, weight: .light, design: .rounded))
+                            .foregroundStyle(Color.ink)
                         if let d = deplete {
                             Text("约 \(depleteDateString(d)) 见底")
                                 .font(.system(.caption2, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
-                                .padding(.top, 2)
+                                .padding(.top, 4)
                         }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
 
                     Spacer()
+
+                    // 大数字 trailing
+                    // lineLimit(1) + minimumScaleFactor: 5+ 位数自动缩字号,不换行
+                    Text(freedomDaysDisplay)
+                        .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.35)
+                        .padding(.vertical, -8)
+                        .layoutPriority(0)
                 }
 
                 // ─── 底部: 趋势 caption + sparkline ───
@@ -560,19 +556,18 @@ struct DashboardView: View {
                 }
 
                 // 网格本身
-                if state.totalLit == 0 {
+                if state.count == 0 {
                     emptyGridHint
                 } else {
-                    LifeGrid(blueDays: state.blueDays, yellowDays: state.yellowDays)
+                    LifeGrid(unit: state.unit, count: state.count)
                         .padding(.vertical, Spacing.sm)
                 }
 
-                // 图例:小色点 + 标签,暗底上发光的 dot
+                // 图例:单色 dot(双色阶段再恢复 incomeGold) + 单位 caption
                 HStack(spacing: Spacing.lg) {
-                    legendDot(color: .assetBlue, label: "资产")
-                    legendDot(color: .incomeGold, label: "收入")
+                    legendDot(color: .assetBlue, label: "自由")
                     Spacer()
-                    Text("每格 = 1 天自由")
+                    Text("每格 = 1 \(state.unit.label)自由")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }
@@ -594,10 +589,12 @@ struct DashboardView: View {
         }
     }
 
-    /// 网格右上角文案:只显示已点亮天数,无 5 年上限框架
+    /// 网格右上角文案:按档位显示当前格数 + 单位
+    /// 日档 "127 天" / 月档 "16 月" / 年档 "34 年" / 溢出 "99+ 年"
     private func gridSummary(state: FreedomMath.GridState) -> String {
-        if state.totalLit == 0 { return "等待数据" }
-        return "\(state.totalLit) 天"
+        if state.count == 0 { return "等待数据" }
+        if state.isOverflow { return "\(state.count)+ \(state.unit.label)" }
+        return "\(state.count) \(state.unit.label)"
     }
 
     /// 空网格时的提示:暗色 SF symbol + 文案
@@ -706,9 +703,26 @@ struct DashboardView: View {
         return assetDays + incomeDays
     }
 
+    /// 三档无后缀 hero 数字: 日整数 / 月整数 / 年1位小数 / ∞
     private var freedomDaysDisplay: String {
-        if freedomDays.isInfinite { return "∞" }
-        return String(format: "%.0f", freedomDays)
+        FreedomMath.freedomDaysDisplay(freedomDays)
+    }
+
+    /// hero 副标单位:跟数字档位同步
+    private var heroSubUnit: String {
+        if freedomDays.isInfinite { return "久" }
+        if freedomDays < 365 { return "天" }
+        if freedomDays < 3650 { return "月" }
+        return "年"
+    }
+
+    /// hero kicker 文案:跟数字档位同步
+    /// FREEDOM DAYS / FREEDOM MONTHS / FREEDOM YEARS / FREEDOM
+    private var heroKickerText: String {
+        if freedomDays.isInfinite { return "Freedom" }
+        if freedomDays < 365 { return "Freedom Days" }
+        if freedomDays < 3650 { return "Freedom Months" }
+        return "Freedom Years"
     }
 }
 
