@@ -1091,6 +1091,7 @@ struct AssetsView: View {
             assets = UserAssets(total: 0)
             modelContext.insert(assets)
         }
+        assets.lockedAssets = 0
         assets.cash = value
         assets.updatedAt = .now
 
