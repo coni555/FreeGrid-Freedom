@@ -126,10 +126,10 @@ extension Color {
         lightRGB: (0.45, 0.72, 0.92),
         darkRGB:  (0.52, 0.78, 0.97)
     )
-    /// LifeGrid 收入色:浅青绿 (跟 sky cool 系一致)
+    /// LifeGrid 现金色:暖金
     static let incomeGold = Color.dyn(
-        lightRGB: (0.62, 0.82, 0.84),
-        darkRGB:  (0.55, 0.85, 0.82)
+        lightRGB: (0.85, 0.72, 0.38),
+        darkRGB:  (0.92, 0.80, 0.45)
     )
     /// 支出朱砂
     static let flame = Color.dyn(
