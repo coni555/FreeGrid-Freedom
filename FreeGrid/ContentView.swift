@@ -195,6 +195,9 @@ struct DashboardView: View {
     // ===== 主题切换 (与 ContentView 共享同一 key) =====
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
+    /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
+    @AppStorage("heroLayout") private var heroLayout: String = "leading"
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -269,10 +272,27 @@ struct DashboardView: View {
 
             Spacer()
 
-            Text("VOL.001")
-                .font(.kicker)
-                .tracking(1.8)
-                .foregroundStyle(Color.inkFaint)
+            // Hero 布局切换 toggle (leading 副标左数字右 ↔ vertical 居中堆叠)
+            // 放在右侧 utility 区,跟左侧 dark mode toggle 形成两端 cluster
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    heroLayout = (heroLayout == "leading") ? "vertical" : "leading"
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.ink, lineWidth: 1)
+                        .frame(width: 22, height: 22)
+                    Image(systemName: heroLayout == "vertical"
+                          ? "rectangle.split.1x2"
+                          : "rectangle.split.2x1")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.sky)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(heroLayout == "vertical" ? "切换左右布局" : "切换居中堆叠布局")
         }
         .padding(.bottom, Spacing.xs)
     }
@@ -309,37 +329,8 @@ struct DashboardView: View {
                     }
                 }
 
-                // ─── 中部: 副标 leading + 数字 trailing (mockup hero-a 布局) ───
-                // baseline 底部对齐:副标多行的最后一行底部 = 数字底部
-                // 副标拆 2 行(18pt): card 内副标可用宽 ~121pt,22pt 7 字会强行 break
-                HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
-                    // 副标 leading, 2 行 + 见底 caption
-                    VStack(alignment: .leading, spacing: 2) {
-                        emphasized("你的", "自由", "", size: 18)
-                        Text("还能撑这么多\(heroSubUnit)")
-                            .font(.system(size: 18, weight: .light, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        if let d = deplete {
-                            Text("约 \(depleteDateString(d)) 见底")
-                                .font(.system(.caption2, design: .rounded))
-                                .foregroundStyle(Color.inkFaint)
-                                .padding(.top, 4)
-                        }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer()
-
-                    // 大数字 trailing
-                    // lineLimit(1) + minimumScaleFactor: 5+ 位数自动缩字号,不换行
-                    Text(freedomDaysDisplay)
-                        .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.35)
-                        .padding(.vertical, -8)
-                        .layoutPriority(0)
-                }
+                // ─── 中部: 根据 heroLayout 偏好切换 ───
+                heroBody(deplete: deplete)
 
                 // ─── 底部: 趋势 caption + sparkline ───
                 if let d = delta, history.count >= 3 {
@@ -359,6 +350,72 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    /// Hero 中部 body: 按 heroLayout 偏好切换 2 个 variant
+    /// - "leading": 副标 leading + 数字 trailing,baseline 对齐 (mockup hero-a 原意图)
+    /// - "vertical": 数字独占一行居中 + 副标居中下方 (仪表盘 hero 风)
+    @ViewBuilder
+    private func heroBody(deplete: Date?) -> some View {
+        if heroLayout == "vertical" {
+            heroBodyVertical(deplete: deplete)
+        } else {
+            heroBodyLeading(deplete: deplete)
+        }
+    }
+
+    /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
+    /// 副标 18pt 拆 2 行 (card 内副标可用宽 ~121pt, 22pt 7 字会强行 break)
+    @ViewBuilder
+    private func heroBodyLeading(deplete: Date?) -> some View {
+        HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: 2) {
+                emphasized("你的", "自由", "", size: 18)
+                Text("还能撑这么多\(heroSubUnit)")
+                    .font(.system(size: 18, weight: .light, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                if let d = deplete {
+                    Text("约 \(depleteDateString(d)) 见底")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.top, 4)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            Text(freedomDaysDisplay)
+                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.35)
+                .padding(.vertical, -8)
+                .layoutPriority(0)
+        }
+    }
+
+    /// Variant B: 数字独占居中 + 副标单行居中下方 + 见底 caption
+    @ViewBuilder
+    private func heroBodyVertical(deplete: Date?) -> some View {
+        VStack(alignment: .center, spacing: Spacing.sm) {
+            Text(freedomDaysDisplay)
+                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.35)
+                .padding(.vertical, -8)
+
+            emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
+
+            if let d = deplete {
+                Text("约 \(depleteDateString(d)) 见底")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     /// trend badge: ▲ +N d / Nw 或 ▼ -N d / Nw
