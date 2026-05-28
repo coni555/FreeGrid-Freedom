@@ -1860,6 +1860,9 @@ struct HistoryView: View {
     /// 切到 .all / .income 时自动清空。
     @State private var selectedCategory: String? = nil
 
+    /// 撤销 confirm: 点行右侧 × 时 set, alert 触发, 取消/确认后清空
+    @State private var pendingDelete: TxKind? = nil
+
     enum FilterKind: String, CaseIterable, Identifiable {
         case all = "全部"
         case expense = "支出"
@@ -1870,13 +1873,6 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // ===== 撤销最近一笔(只在有记录时显示) =====
-                if let recent = mostRecentTx {
-                    undoRecentButton(recent)
-                        .padding(.horizontal)
-                        .padding(.top, Spacing.sm)
-                }
-
                 // ===== 顶部 segmented 筛选器 =====
                 Picker("筛选", selection: $filter) {
                     ForEach(FilterKind.allCases) { f in
@@ -1885,7 +1881,7 @@ struct HistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
-                .padding(.top, Spacing.sm)
+                .padding(.top)
                 .padding(.bottom, Spacing.sm)
                 .onChange(of: filter) { _, newValue in
                     // 切出支出 tab 时清掉分类二级筛选
@@ -1906,6 +1902,19 @@ struct HistoryView: View {
             }
             .background(Color.paper)
             .navigationTitle("History")
+            .alert(
+                "撤销这笔记录?",
+                isPresented: Binding(
+                    get: { pendingDelete != nil },
+                    set: { if !$0 { pendingDelete = nil } }
+                ),
+                presenting: pendingDelete
+            ) { tx in
+                Button("撤销", role: .destructive) { confirmDelete(tx) }
+                Button("取消", role: .cancel) { pendingDelete = nil }
+            } message: { tx in
+                Text(deleteMessage(tx))
+            }
         }
     }
 
@@ -1973,61 +1982,6 @@ struct HistoryView: View {
     }
 
     // ============================================================================
-    // MARK: - 撤销最近一笔
-    // ============================================================================
-    // 设计动机: 即使 toast 那 5 秒错过了, 这里仍能 1 步撤销最新一笔, 不必滑动找。
-    // 按 createdAt 取最新 — 区别于"按填写日期排序", createdAt 是真正"刚才操作的"。
-
-    private var mostRecentTx: TxKind? {
-        let exp = expenses.map { (TxKind.expense($0), $0.createdAt) }
-        let inc = incomes.map { (TxKind.income($0), $0.createdAt) }
-        return (exp + inc).sorted { $0.1 > $1.1 }.first?.0
-    }
-
-    private func undoRecentButton(_ tx: TxKind) -> some View {
-        Button(action: { undoMostRecent(tx) }) {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 11, weight: .medium))
-                Text("撤销最近一笔: \(recentLabel(tx))")
-                    .font(.system(.subheadline, design: .rounded))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(Color.skyDeep)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(
-                Capsule(style: .continuous)
-                    .stroke(Color.skyDeep.opacity(0.5), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func recentLabel(_ tx: TxKind) -> String {
-        switch tx {
-        case .expense(let e):
-            return "\(e.category) ¥\(e.amount.formatted(.number.precision(.fractionLength(0...0))))"
-        case .income(let i):
-            return "\(i.source) +¥\(i.amount.formatted(.number.precision(.fractionLength(0...0))))"
-        }
-    }
-
-    private func undoMostRecent(_ tx: TxKind) {
-        let assets = assetsArr.first
-        switch tx {
-        case .expense(let e):
-            assets?.cash += e.amount
-            modelContext.delete(e)
-        case .income(let i):
-            assets?.cash -= i.amount
-            modelContext.delete(i)
-        }
-        assets?.updatedAt = .now
-    }
-
-    // ============================================================================
     // MARK: - 列表渲染
     // ============================================================================
 
@@ -2053,7 +2007,6 @@ struct HistoryView: View {
                         .listRowBackground(Color.paper)
                         .listRowSeparatorTint(Color.hairlineSoft)
                 }
-                .onDelete(perform: deleteTransactions)
             }
         }
         .scrollContentBackground(.hidden)
@@ -2071,9 +2024,9 @@ struct HistoryView: View {
         }
     }
 
-    /// 支出行:朱砂金额 + 分类 + 备注 + 日期 (silverline rounded)
+    /// 支出行:朱砂金额 + 分类 + 备注 + 日期 (silverline rounded), 右侧 × 触发撤销 alert
     private func expenseRow(_ e: Expense) -> some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(e.category)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
@@ -2092,6 +2045,7 @@ struct HistoryView: View {
             Text("−¥" + e.amount.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
                 .foregroundStyle(Color.flame)
+            deleteButton(for: .expense(e))
         }
         .padding(.vertical, 4)
     }
@@ -2099,7 +2053,7 @@ struct HistoryView: View {
     /// 收入行:深天空蓝金额 + 来源 + 被动标签 + 备注 + 日期
     /// (silverline:跟"记收入"按钮同色统一)
     private func incomeRow(_ i: Income) -> some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(i.source)
@@ -2131,8 +2085,26 @@ struct HistoryView: View {
             Text("+¥" + i.amount.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
                 .foregroundStyle(Color.skyDeep)
+            deleteButton(for: .income(i))
         }
         .padding(.vertical, 4)
+    }
+
+    /// 行右侧 × 撤销按钮: silverline outline 圆, 点击 set pendingDelete 触发 alert
+    private func deleteButton(for tx: TxKind) -> some View {
+        Button {
+            pendingDelete = tx
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(Color.inkFaint)
+                .frame(width: 22, height: 22)
+                .background(
+                    Circle().stroke(Color.hairlineSoft, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("撤销这笔")
     }
 
     /// 空状态:silverline 风简洁提示
@@ -2185,25 +2157,53 @@ struct HistoryView: View {
         return "\(sign)¥" + abs(total).formatted(.number.precision(.fractionLength(0...2)))
     }
 
-    /// 删除交易:同步还原资产
-    /// 设计动机: 记错的一笔删掉后,资产要变回去,不然数据就脏了
-    private func deleteTransactions(offsets: IndexSet) {
-        let toDelete = offsets.map { filteredTransactions[$0] }
+    // ============================================================================
+    // MARK: - 撤销 confirm 消息 + 执行
+    // ============================================================================
+    // 设计跟 lead-wealth deleteTx() 对齐: alert 文案显式列出"哪一天 / 类别 / 金额 /
+    // 资产会反向 +/− XXX 元", 用户明确知道这次操作会改什么再确认。
 
-        // 确保有 UserAssets 实例(理论上必有,因为记账过)
+    private func deleteMessage(_ tx: TxKind) -> String {
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+
+        switch tx {
+        case .expense(let e):
+            let dateStr = df.string(from: e.date)
+            let amt = e.amount.formatted(.number.precision(.fractionLength(0...2)))
+            let noteStr = e.note.isEmpty ? "" : " · \(e.note)"
+            return """
+            \(dateStr) · \(e.category)\(noteStr)
+            −¥\(amt)
+
+            现金会反向恢复 ¥\(amt)
+            """
+        case .income(let i):
+            let dateStr = df.string(from: i.date)
+            let amt = i.amount.formatted(.number.precision(.fractionLength(0...2)))
+            let noteStr = i.note.isEmpty ? "" : " · \(i.note)"
+            return """
+            \(dateStr) · \(i.source)\(noteStr)
+            +¥\(amt)
+
+            现金会反向减少 ¥\(amt)
+            """
+        }
+    }
+
+    /// 确认撤销: 反向调整 cash + 删除记录 (跟 web 版 deleteTx 同 path)
+    private func confirmDelete(_ tx: TxKind) {
         let assets = assetsArr.first
-
-        for tx in toDelete {
-            switch tx {
-            case .expense(let e):
-                assets?.cash += e.amount
-                modelContext.delete(e)
-            case .income(let i):
-                assets?.cash -= i.amount
-                modelContext.delete(i)
-            }
+        switch tx {
+        case .expense(let e):
+            assets?.cash += e.amount
+            modelContext.delete(e)
+        case .income(let i):
+            assets?.cash -= i.amount
+            modelContext.delete(i)
         }
         assets?.updatedAt = .now
+        pendingDelete = nil
     }
 }
 
