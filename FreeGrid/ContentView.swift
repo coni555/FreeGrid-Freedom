@@ -55,37 +55,41 @@ struct LifeGrid: View {
     let blueCells: Int
     let goldCells: Int
 
-    @State private var breath: CGFloat = 0
     @Environment(\.colorScheme) private var scheme
 
-    private var currentScale: CGFloat {
-        let peak: CGFloat = scheme == .dark ? 1.6 : 1.35
-        return 1.1 + (peak - 1.1) * breath
+    /// 呼吸周期 (秒) — 2s 一来一回, 跟之前 .easeInOut(duration: 2.0) 行为一致
+    private static let breathPeriod: TimeInterval = 2.0
+
+    /// 从墙钟相位反算 breath ∈ [0, 1], 余弦形, 自然缓入缓出。
+    /// 原 @State + onAppear + withAnimation(...).repeatForever() 在 iOS 17/18+
+    /// 有 view-lifecycle 边界冻结的 regression, 改用 TimelineView(.animation)
+    /// 函数式驱动 — 视图可见时刷帧, 不可见时系统自动暂停, 不存 @State, 不掉。
+    private func breath(at date: Date) -> CGFloat {
+        let t = date.timeIntervalSinceReferenceDate
+        let phase = t.truncatingRemainder(dividingBy: Self.breathPeriod) / Self.breathPeriod
+        // 0 → 1 → 0 余弦曲线 (半周期内从 0 上到 1, 下半周期再下到 0)
+        return CGFloat(0.5 - 0.5 * cos(phase * 2 * .pi))
     }
-    private var innerGlow: CGFloat { 4 + 3 * breath }
-    private var outerGlow: CGFloat { 9 + 6 * breath }
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: unit.cellSize, maximum: unit.cellSize),
-                               spacing: unit.spacing)],
-            spacing: unit.spacing
-        ) {
-            ForEach(0..<count, id: \.self) { i in
-                let isCurrent = (i == count - 1)
-                let isBlue = i >= blueCells
-                cell(isCurrent: isCurrent, isBlue: isBlue)
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                breath = 1
+        TimelineView(.animation) { context in
+            let b = breath(at: context.date)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: unit.cellSize, maximum: unit.cellSize),
+                                   spacing: unit.spacing)],
+                spacing: unit.spacing
+            ) {
+                ForEach(0..<count, id: \.self) { i in
+                    let isCurrent = (i == count - 1)
+                    let isBlue = i >= blueCells
+                    cell(isCurrent: isCurrent, isBlue: isBlue, breath: b)
+                }
             }
         }
     }
 
     @ViewBuilder
-    private func cell(isCurrent: Bool, isBlue: Bool) -> some View {
+    private func cell(isCurrent: Bool, isBlue: Bool, breath: CGFloat) -> some View {
         let baseColor: Color = isBlue ? .assetBlue : .incomeGold
         let isDark = scheme == .dark
 
@@ -109,6 +113,11 @@ struct LifeGrid: View {
         let outerOpacity: Double = isDark
             ? (0.4 + 0.1 * Double(breath))
             : (0.30 + 0.10 * Double(breath))
+
+        let peak: CGFloat = isDark ? 1.6 : 1.35
+        let currentScale: CGFloat = 1.1 + (peak - 1.1) * breath
+        let innerGlow: CGFloat = 4 + 3 * breath
+        let outerGlow: CGFloat = 9 + 6 * breath
 
         if isCurrent {
             Rectangle()
