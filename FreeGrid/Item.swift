@@ -237,10 +237,17 @@ enum FreedomMath {
 
     // ===== 核心: 自由天数 =====
 
-    /// 自由天数 = 净值 / 日均消费
-    static func freedomDays(netWorth: Double, dailyBurn: Double) -> Double {
-        guard dailyBurn > 0 else { return .infinity }
-        return max(0, netWorth) / dailyBurn
+    /// 自由天数 = 净值 / 净每日消耗
+    /// 净每日消耗 = max(0, 日均消费 − 日均被动收入)
+    ///
+    /// 设计动机: 被动收入是"不工作也有的钱", 它的本质就是让你不必动用净值。
+    /// 当被动覆盖率 ≥ 100%, 净值不被消耗 → 自由天数 = ∞ (永远自由)。
+    /// 把被动收入排除在自由天数之外, 等于让"被动覆盖率"沦为装饰指标, 跟核心数字脱钩。
+    /// dailyPassive 默认 0, 旧 callsite 无需改动即可保持原静态消耗行为(但应尽快传入)。
+    static func freedomDays(netWorth: Double, dailyBurn: Double, dailyPassive: Double = 0) -> Double {
+        let netBurn = max(0, dailyBurn - dailyPassive)
+        guard netBurn > 0 else { return .infinity }
+        return max(0, netWorth) / netBurn
     }
 
     /// 自由天数格式化:三档无后缀(单位由 hero KickerLabel 承载)
@@ -352,13 +359,22 @@ enum FreedomMath {
     }
 
     /// 根据当前财务状态,计算 grid 档位 + 应绘格数 + 双色分配
-    static func gridState(lockedAssets: Double, cash: Double, dailyBurn: Double) -> GridState {
+    /// dailyPassive: 日均被动收入。被动覆盖率 ≥ 100% 时净每日消耗为 0, grid 上限化(年档 99 满格)
+    static func gridState(lockedAssets: Double, cash: Double, dailyBurn: Double, dailyPassive: Double = 0) -> GridState {
         guard dailyBurn > 0 else {
             return GridState(unit: .day, count: 0, blueDays: 0, yellowDays: 0, isOverflow: false)
         }
 
         let netWorth = max(0, lockedAssets) + max(0, cash)
-        let totalDays = netWorth / dailyBurn
+        let netBurn = max(0, dailyBurn - dailyPassive)
+
+        // 被动完全覆盖 (净每日消耗 = 0) → 年档满格 (永远自由)
+        guard netBurn > 0 else {
+            return GridState(unit: .year, count: 99, blueDays: 99 * 365,
+                             yellowDays: 0, isOverflow: true)
+        }
+
+        let totalDays = netWorth / netBurn
 
         guard totalDays.isFinite else {
             return GridState(unit: .year, count: 99, blueDays: 99 * 365,
@@ -426,11 +442,15 @@ enum FreedomMath {
 
     /// 反推过去 N 周末日的 freedomDays
     /// currentNetWorth = lockedAssets + cash
+    /// dailyPassive: 当前被动收入日均。历史快照都用当前值近似 — PassiveSource 没存历史
+    /// 时间戳, 简化模型 "假设当时也有这些被动"。被动覆盖时 sparkline 都会显示 0 或满,
+    /// 反而把"净值是否在涨"暴露得更直观。
     static func freedomDaysHistory(
         expenses: [Expense],
         incomes: [Income],
         currentNetWorth: Double,
         firstRecordDate: Date?,
+        dailyPassive: Double = 0,
         weeks: Int = 12
     ) -> [HistoryPoint] {
         guard let firstDate = firstRecordDate else { return [] }
@@ -456,9 +476,13 @@ enum FreedomMath {
             let incAfter = incomes.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
             let netWorth_i = currentNetWorth + expAfter - incAfter
 
+            let netBurn_i = max(0, dailyBurn_i - dailyPassive)
             let days_i: Double
-            if dailyBurn_i > 0 {
-                days_i = max(0, netWorth_i) / dailyBurn_i
+            if netBurn_i > 0 {
+                days_i = max(0, netWorth_i) / netBurn_i
+            } else if dailyBurn_i > 0 {
+                // 被动覆盖, 显示 cap 数字让 sparkline 不爆掉(用 1825 = 5 年作 upper bound)
+                days_i = 1825
             } else {
                 days_i = 0
             }

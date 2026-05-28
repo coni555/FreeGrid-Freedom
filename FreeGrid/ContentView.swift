@@ -484,7 +484,8 @@ struct DashboardView: View {
             expenses: expenses,
             incomes: incomes,
             currentNetWorth: netWorth,
-            firstRecordDate: firstRecordDate
+            firstRecordDate: firstRecordDate,
+            dailyPassive: dailyPassive
         )
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
@@ -563,15 +564,24 @@ struct DashboardView: View {
     private func heroBodyLeading(deplete: Date?) -> some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
-                emphasized("你的", "自由", "", size: 18)
-                Text("还能撑这么多\(heroSubUnit)")
-                    .font(.system(size: 18, weight: .light, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                if let d = deplete {
-                    Text("约 \(depleteDateString(d)) 见底")
+                if freedomDays.isInfinite {
+                    // 被动覆盖, 副标:你已 [永远] 自由 + caption 提示
+                    emphasized("你已", "永远", "自由", size: 18)
+                    Text("被动收入已覆盖日常消费")
                         .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
+                        .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
+                } else {
+                    emphasized("你的", "自由", "", size: 18)
+                    Text("还能撑这么多\(heroSubUnit)")
+                        .font(.system(size: 18, weight: .light, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                    if let d = deplete {
+                        Text("约 \(depleteDateString(d)) 见底")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                            .padding(.top, 4)
+                    }
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -580,7 +590,7 @@ struct DashboardView: View {
 
             Text(freedomDaysDisplay)
                 .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(Color.ink)
+                .foregroundStyle(freedomDays.isInfinite ? Color.mossGreen : Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.35)
                 .padding(.vertical, -8)
@@ -594,18 +604,25 @@ struct DashboardView: View {
         VStack(alignment: .center, spacing: Spacing.sm) {
             Text(freedomDaysDisplay)
                 .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(Color.ink)
+                .foregroundStyle(freedomDays.isInfinite ? Color.mossGreen : Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.35)
                 .padding(.vertical, -8)
 
-            emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
-
-            if let d = deplete {
-                Text("约 \(depleteDateString(d)) 见底")
+            if freedomDays.isInfinite {
+                emphasized("你已", "永远", "自由", size: 18)
+                Text("被动收入已覆盖日常消费")
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
+                    .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)
+            } else {
+                emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
+                if let d = deplete {
+                    Text("约 \(depleteDateString(d)) 见底")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.top, 2)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -792,7 +809,8 @@ struct DashboardView: View {
     private var gridSection: some View {
         let state = FreedomMath.gridState(lockedAssets: lockedAssets,
                                           cash: cashAmount,
-                                          dailyBurn: dailyBurn)
+                                          dailyBurn: dailyBurn,
+                                          dailyPassive: dailyPassive)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -947,7 +965,7 @@ struct DashboardView: View {
     }
 
     private var freedomDays: Double {
-        FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn)
+        FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn, dailyPassive: dailyPassive)
     }
 
     /// 三档无后缀 hero 数字: 日整数 / 月整数 / 年1位小数 / ∞
@@ -2524,9 +2542,10 @@ struct CheckView: View {
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
         let netWorth = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-        let freedom = FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
         let passiveRatio = FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
+        // 自由天数含被动 — 跟 Dashboard hero 一致
+        let freedom = FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn, dailyPassive: dailyPassive)
 
         return [
             ChecklistItem(title: "记录天数超过 30 天", done: days >= 30),
@@ -2671,6 +2690,7 @@ struct AddExpenseSheet: View {
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
     @Query private var assetsArr: [UserAssets]
+    @Query private var passiveSources: [PassiveSource]
 
     @State private var amount: String = ""
     @State private var category: String = "早餐"
@@ -2744,14 +2764,15 @@ struct AddExpenseSheet: View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let newNW = currentNW - amount
         let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg, dailyPassive: dailyPassive)
 
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
@@ -2849,6 +2870,7 @@ struct AddIncomeSheet: View {
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
     @Query private var assetsArr: [UserAssets]
+    @Query private var passiveSources: [PassiveSource]
 
     @State private var amount: String = ""
     @State private var source: String = ""
@@ -2913,13 +2935,14 @@ struct AddIncomeSheet: View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let newNW = currentNW + amount
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
             ? 0 : (newFreedom - currentFreedom)
@@ -3019,6 +3042,7 @@ struct SimulateSheet: View {
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
     @Query private var assetsArr: [UserAssets]
+    @Query private var passiveSources: [PassiveSource]
 
     // ===== 模拟状态 =====
     @State private var amount: String = ""
@@ -3159,14 +3183,15 @@ struct SimulateSheet: View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let newNW = currentNW - amount
         let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg, dailyPassive: dailyPassive)
 
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
@@ -3196,13 +3221,14 @@ struct SimulateSheet: View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg)
+        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let newNW = currentNW + amount
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg)
+        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
             ? 0 : (newFreedom - currentFreedom)
