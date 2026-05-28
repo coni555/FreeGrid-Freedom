@@ -567,7 +567,7 @@ struct DashboardView: View {
                 if freedomDays.isInfinite {
                     // 被动覆盖, 副标:你已 [财富] 自由 + caption 提示
                     emphasized("你已", "财富", "自由", size: 18)
-                    Text("被动收入已覆盖日常消费")
+                    Text("按当前日均消费, 被动已覆盖")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
@@ -611,7 +611,7 @@ struct DashboardView: View {
 
             if freedomDays.isInfinite {
                 emphasized("你已", "财富", "自由", size: 18)
-                Text("被动收入已覆盖日常消费")
+                Text("按当前日均消费, 被动已覆盖")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)
