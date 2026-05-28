@@ -272,6 +272,16 @@ struct DashboardView: View {
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
 
+    // ===== 撤销 Toast(刚刚记的一笔有 5 秒撤销窗口) =====
+    /// 待撤销交易 ID, nil = 不显示 toast
+    @State private var pendingUndoID: UUID? = nil
+    /// toast 文案(含金额),已计算好
+    @State private var pendingUndoLabel: String = ""
+    /// 撤销的是支出还是收入(决定还原 cash 是 + 还是 −)
+    @State private var pendingUndoIsExpense: Bool = true
+    /// 5 秒倒计时 task,新 toast 进来时 cancel 旧的
+    @State private var pendingUndoTimer: Task<Void, Never>? = nil
+
     // ===== 主题切换 (与 ContentView 共享同一 key) =====
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
@@ -305,15 +315,101 @@ struct DashboardView: View {
                 .ignoresSafeArea()
             )
             .navigationBarHidden(true)
+            .safeAreaInset(edge: .top) {
+                if pendingUndoID != nil {
+                    undoToast
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
             .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet()
+                AddExpenseSheet(onSaved: { exp in
+                    showUndoToast(id: exp.id, amount: exp.amount, isExpense: true)
+                })
             }
             .sheet(isPresented: $showingAddIncome) {
-                AddIncomeSheet()
+                AddIncomeSheet(onSaved: { inc in
+                    showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
+                })
             }
             .sheet(isPresented: $showingSimulate) {
                 SimulateSheet()
             }
+        }
+    }
+
+    // ============================================================================
+    // MARK: - 撤销 Toast UI + 逻辑
+    // ============================================================================
+
+    /// Toast bar: 1 个 dot + 文案 + 撤销链接, silverline mist 底
+    private var undoToast: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(pendingUndoIsExpense ? Color.flame : Color.skyDeep)
+                .frame(width: 6, height: 6)
+            Text(pendingUndoLabel)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+            Spacer()
+            Button("撤销", action: undoLastTx)
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.skyDeep)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, 10)
+        .background(
+            Capsule(style: .continuous).fill(Color.mist)
+        )
+        .overlay(
+            Capsule(style: .continuous).stroke(Color.hairlineSoft, lineWidth: 1)
+        )
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, 6)
+    }
+
+    /// 启动 5 秒倒计时 toast(取消上一次 timer)
+    private func showUndoToast(id: UUID, amount: Double, isExpense: Bool) {
+        pendingUndoTimer?.cancel()
+
+        let sign = isExpense ? "支出" : "收入"
+        let formatted = amount.formatted(.number.precision(.fractionLength(0...0)))
+        withAnimation(.spring(duration: 0.3)) {
+            pendingUndoID = id
+            pendingUndoLabel = "已记\(sign) ¥\(formatted)"
+            pendingUndoIsExpense = isExpense
+        }
+
+        pendingUndoTimer = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) {
+                pendingUndoID = nil
+            }
+        }
+    }
+
+    /// 撤销:按 ID 找到记录,删掉并还原 cash
+    private func undoLastTx() {
+        guard let id = pendingUndoID else { return }
+        let assets = assetsArr.first
+
+        if pendingUndoIsExpense {
+            if let exp = expenses.first(where: { $0.id == id }) {
+                assets?.cash += exp.amount
+                modelContext.delete(exp)
+            }
+        } else {
+            if let inc = incomes.first(where: { $0.id == id }) {
+                assets?.cash -= inc.amount
+                modelContext.delete(inc)
+            }
+        }
+        assets?.updatedAt = .now
+
+        pendingUndoTimer?.cancel()
+        withAnimation(.easeOut(duration: 0.25)) {
+            pendingUndoID = nil
         }
     }
 
@@ -1774,6 +1870,13 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // ===== 撤销最近一笔(只在有记录时显示) =====
+                if let recent = mostRecentTx {
+                    undoRecentButton(recent)
+                        .padding(.horizontal)
+                        .padding(.top, Spacing.sm)
+                }
+
                 // ===== 顶部 segmented 筛选器 =====
                 Picker("筛选", selection: $filter) {
                     ForEach(FilterKind.allCases) { f in
@@ -1782,7 +1885,7 @@ struct HistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
-                .padding(.top)
+                .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.sm)
                 .onChange(of: filter) { _, newValue in
                     // 切出支出 tab 时清掉分类二级筛选
@@ -1867,6 +1970,61 @@ struct HistoryView: View {
         return grouped
             .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
             .sorted { $0.total > $1.total }
+    }
+
+    // ============================================================================
+    // MARK: - 撤销最近一笔
+    // ============================================================================
+    // 设计动机: 即使 toast 那 5 秒错过了, 这里仍能 1 步撤销最新一笔, 不必滑动找。
+    // 按 createdAt 取最新 — 区别于"按填写日期排序", createdAt 是真正"刚才操作的"。
+
+    private var mostRecentTx: TxKind? {
+        let exp = expenses.map { (TxKind.expense($0), $0.createdAt) }
+        let inc = incomes.map { (TxKind.income($0), $0.createdAt) }
+        return (exp + inc).sorted { $0.1 > $1.1 }.first?.0
+    }
+
+    private func undoRecentButton(_ tx: TxKind) -> some View {
+        Button(action: { undoMostRecent(tx) }) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.system(size: 11, weight: .medium))
+                Text("撤销最近一笔: \(recentLabel(tx))")
+                    .font(.system(.subheadline, design: .rounded))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.skyDeep)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(
+                Capsule(style: .continuous)
+                    .stroke(Color.skyDeep.opacity(0.5), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func recentLabel(_ tx: TxKind) -> String {
+        switch tx {
+        case .expense(let e):
+            return "\(e.category) ¥\(e.amount.formatted(.number.precision(.fractionLength(0...0))))"
+        case .income(let i):
+            return "\(i.source) +¥\(i.amount.formatted(.number.precision(.fractionLength(0...0))))"
+        }
+    }
+
+    private func undoMostRecent(_ tx: TxKind) {
+        let assets = assetsArr.first
+        switch tx {
+        case .expense(let e):
+            assets?.cash += e.amount
+            modelContext.delete(e)
+        case .income(let i):
+            assets?.cash -= i.amount
+            modelContext.delete(i)
+        }
+        assets?.updatedAt = .now
     }
 
     // ============================================================================
@@ -2094,6 +2252,9 @@ struct AddExpenseSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    /// 保存成功回调 — DashboardView 用它显示 5 秒撤销 toast
+    var onSaved: ((Expense) -> Void)? = nil
+
     // 预览需要读所有现有数据,实时算"如果加这一笔,自由天数变化"
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -2259,6 +2420,7 @@ struct AddExpenseSheet: View {
             assets.firstRecordDate = date
         }
 
+        onSaved?(expense)
         dismiss()
     }
 }
@@ -2271,6 +2433,9 @@ struct AddIncomeSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+
+    /// 保存成功回调 — DashboardView 用它显示 5 秒撤销 toast
+    var onSaved: ((Income) -> Void)? = nil
 
     // 预览需要读所有现有数据,实时算"如果加这一笔,自由天数增长多少"
     @Query private var expenses: [Expense]
@@ -2433,6 +2598,7 @@ struct AddIncomeSheet: View {
             assets.firstRecordDate = date
         }
 
+        onSaved?(income)
         dismiss()
     }
 }
