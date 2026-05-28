@@ -565,8 +565,8 @@ struct DashboardView: View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
                 if freedomDays.isInfinite {
-                    // 被动覆盖, 副标:你已 [永远] 自由 + caption 提示
-                    emphasized("你已", "永远", "自由", size: 18)
+                    // 被动覆盖, 副标:你已 [财富] 自由 + caption 提示
+                    emphasized("你已", "财富", "自由", size: 18)
                     Text("被动收入已覆盖日常消费")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
@@ -610,7 +610,7 @@ struct DashboardView: View {
                 .padding(.vertical, -8)
 
             if freedomDays.isInfinite {
-                emphasized("你已", "永远", "自由", size: 18)
+                emphasized("你已", "财富", "自由", size: 18)
                 Text("被动收入已覆盖日常消费")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.mossGreen)
