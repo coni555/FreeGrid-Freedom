@@ -305,15 +305,7 @@ struct DashboardView: View {
                 .padding(.bottom, Spacing.xxl)
             }
             .scrollContentBackground(.hidden)
-            .background(
-                ZStack {
-                    Color.midnight
-                    if isDarkMode {
-                        MeteorLayer()
-                    }
-                }
-                .ignoresSafeArea()
-            )
+            .background(Color.midnight.ignoresSafeArea())
             .navigationBarHidden(true)
             .safeAreaInset(edge: .top) {
                 if pendingUndoID != nil {
@@ -497,43 +489,60 @@ struct DashboardView: View {
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
 
-        return VaultCard(emphasis: .high, padding: Spacing.xl) {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                // ─── 顶部: kicker + trend badge ───
-                // kicker 跟随档位切换 (Days/Months/Years),hero 数字裸数字,单位由 kicker + 副标双重承载
-                HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: heroKickerText)
-                    Spacer()
-                    if let d = delta {
-                        trendBadge(delta: d.delta, weeks: history.count - 1)
-                    } else {
-                        Text("(资产 + 净储蓄) ÷ 日均消费")
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(Color.inkGhost)
-                    }
-                }
-
-                // ─── 中部: 根据 heroLayout 偏好切换 ───
-                heroBody(deplete: deplete)
-
-                // ─── 底部: 趋势 caption + sparkline ───
-                if let d = delta, history.count >= 3 {
-                    Hairline().padding(.top, Spacing.xs)
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("\(history.count - 1) 周以来的自由天数")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkFaint)
-                        Spacer()
-                        Text("\(d.start) → \(d.end)")
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(Color.ink)
-                    }
-                    Sparkline(values: history.map { $0.freedomDays })
-                        .frame(height: 36)
-                        .padding(.top, 2)
+        // 内联 VaultCard 写法 — 为了在 paper 底之上、content 之下叠暗色流星层。
+        // 普通 VaultCard 的 background fill 是 opaque, 没法在外面再叠装饰层。
+        return VStack(alignment: .leading, spacing: Spacing.md) {
+            // ─── 顶部: kicker + trend badge ───
+            // kicker 跟随档位切换 (Days/Months/Years),hero 数字裸数字,单位由 kicker + 副标双重承载
+            HStack(alignment: .firstTextBaseline) {
+                KickerLabel(text: heroKickerText)
+                Spacer()
+                if let d = delta {
+                    trendBadge(delta: d.delta, weeks: history.count - 1)
+                } else {
+                    Text("(资产 + 净储蓄) ÷ 日均消费")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.inkGhost)
                 }
             }
+
+            // ─── 中部: 根据 heroLayout 偏好切换 ───
+            heroBody(deplete: deplete)
+
+            // ─── 底部: 趋势 caption + sparkline ───
+            if let d = delta, history.count >= 3 {
+                Hairline().padding(.top, Spacing.xs)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(history.count - 1) 周以来的自由天数")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    Spacer()
+                    Text("\(d.start) → \(d.end)")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.ink)
+                }
+                Sparkline(values: history.map { $0.freedomDays })
+                    .frame(height: 36)
+                    .padding(.top, 2)
+            }
         }
+        .padding(Spacing.xl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.paper)
+                if isDarkMode {
+                    MeteorLayer()
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .allowsHitTesting(false)
+                }
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.hairline, lineWidth: 1)
+        )
     }
 
     /// Hero 中部 body: 按 heroLayout 偏好切换 2 个 variant
