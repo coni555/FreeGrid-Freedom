@@ -2208,36 +2208,156 @@ struct HistoryView: View {
 }
 
 // ============================================================================
-// MARK: - CheckView (自检清单 Tab - 占位)
+// MARK: - CheckView (财富自由自检清单)
 // ============================================================================
-// 下一轮实现: 9 项财富自由自检清单
+// 8 项自检源自 lead-wealth web 版 SELF_CHECKS, 全部从现有 SwiftData @Query +
+// FreedomMath helper 反推, 不引入新状态。每项即时计算, 数据变化自动重算。
 
 struct CheckView: View {
+
+    @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
+    @Query private var passiveSources: [PassiveSource]
+    @Query private var assetsArr: [UserAssets]
+
+    private struct ChecklistItem {
+        let title: String
+        let done: Bool
+    }
+
+    /// 8 项自检 — 顺序、阈值跟 web 版完全对齐
+    private var items: [ChecklistItem] {
+        let firstDate = assetsArr.first?.firstRecordDate
+        let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let totalExp = expenses.reduce(0) { $0 + $1.amount }
+        let dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
+        let netWorth = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
+        let freedom = FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn)
+        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
+        let passiveRatio = FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
+
+        return [
+            ChecklistItem(title: "记录天数超过 30 天", done: days >= 30),
+            ChecklistItem(title: "了解自己的日均消费", done: days >= 7 && dailyBurn > 0),
+            ChecklistItem(title: "记录了可变现资产", done: netWorth > 0),
+            ChecklistItem(title: "自由天数超过 180 天", done: freedom >= 180),
+            ChecklistItem(title: "自由天数超过 365 天", done: freedom >= 365),
+            ChecklistItem(title: "有被动收入来源", done: !passiveSources.isEmpty),
+            ChecklistItem(title: "被动覆盖率超过 50%", done: passiveRatio >= 0.5),
+            ChecklistItem(title: "被动收入覆盖日常消费 (≥100%)", done: passiveRatio >= 1.0),
+        ]
+    }
+
+    private var completedCount: Int { items.filter(\.done).count }
+    private var progress: Double { Double(completedCount) / Double(items.count) }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: Spacing.md) {
-                // silverline outline 圆 + 内 sky 圆点(品牌一致 mark)
-                ZStack {
-                    Circle()
-                        .stroke(Color.inkFaint, lineWidth: 1)
-                        .frame(width: 56, height: 56)
-                    Image(systemName: "checklist")
-                        .font(.system(size: 22, weight: .light))
-                        .foregroundStyle(Color.inkFaint)
+            ScrollView {
+                VStack(spacing: Spacing.lg) {
+                    heroCard
+                    checklistCard
+                    footnote
                 }
-                Text("Check")
-                    .font(.system(.title2, design: .rounded).weight(.thin))
-                    .foregroundStyle(Color.ink)
-                Text("财富自由自检清单 · 即将上线")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-                    .multilineTextAlignment(.center)
+                .padding()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding()
+            .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Check")
         }
+    }
+
+    // MARK: - Hero 进度卡
+
+    private var heroCard: some View {
+        VaultCard(emphasis: .high, padding: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "Freedom Checklist")
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(completedCount)")
+                        .font(.system(size: 56, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                    Text("/ \(items.count)")
+                        .font(.system(size: 22, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.inkFaint)
+                    Spacer()
+                    Text("\(Int((progress * 100).rounded()))%")
+                        .font(.system(.callout, design: .monospaced).monospacedDigit())
+                        .foregroundStyle(Color.skyDeep)
+                }
+
+                // 进度长条 silverline 风
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.mist)
+                        Capsule()
+                            .fill(Color.skyDeep)
+                            .frame(width: max(2, geo.size.width * progress))
+                    }
+                }
+                .frame(height: 4)
+
+                Text("达成项越多,离财富自由越近")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+            }
+        }
+    }
+
+    // MARK: - 8 项列表卡
+
+    private var checklistCard: some View {
+        VaultCard(padding: 0) {
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                    checklistRow(idx: idx, item: item)
+                        .padding(.horizontal, Spacing.lg)
+                    if idx < items.count - 1 {
+                        Hairline().padding(.leading, Spacing.lg + 30)
+                    }
+                }
+            }
+            .padding(.vertical, Spacing.xs)
+        }
+    }
+
+    private func checklistRow(idx: Int, item: ChecklistItem) -> some View {
+        HStack(spacing: 12) {
+            // 状态点: 达成 = sky 实心 + 勾, 未达成 = outline
+            ZStack {
+                Circle()
+                    .stroke(item.done ? Color.skyDeep : Color.inkFaint.opacity(0.6), lineWidth: 1.2)
+                    .frame(width: 18, height: 18)
+                if item.done {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.skyDeep)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(idx + 1). \(item.title)")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(item.done ? Color.ink : Color.inkMuted)
+                    .strikethrough(item.done, color: Color.inkFaint)
+                Text(item.done ? "已达成" : "未达成")
+                    .font(.system(.caption2, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(item.done ? Color.skyDeep : Color.inkFaint)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var footnote: some View {
+        Text("自检规则源自 lead-wealth · 数据从记录自动反推, 不需手动勾选")
+            .font(.system(.caption2, design: .rounded))
+            .foregroundStyle(Color.inkFaint)
+            .multilineTextAlignment(.center)
+            .padding(.top, Spacing.xs)
     }
 }
 
