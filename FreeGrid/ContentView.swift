@@ -787,19 +787,19 @@ struct DashboardView: View {
 // MARK: - AssetsView (资产管理 Tab)
 // ============================================================================
 // 设计动机: 资产是 Freedom Days 的基准。
-// 用户必须主动设"我有多少钱",否则 App 永远不知道你的真实储蓄(只能从交易推算)。
-// 这个 Tab 是"会计基准"的设定面板。
-//
-// 交互: 顶部 Hero 显示当前资产 + 上次更新时间;下方 Form 编辑新值。
+// 双桶: 资产(锁定/投资,金色) + 现金(可花,蓝色)。
+// 净值 = 两桶之和(计算属性,无独立输入入口)。
+// 用户点击桶卡片分别录入/修正,「调拨」用于桶间资金流转。
+// 收入默认进现金,支出从现金扣。
 
 struct AssetsView: View {
-    // --- 净值 = 资产(锁定) + 现金(可花) ---
-
     @Query private var assetsArr: [UserAssets]
     @Environment(\.modelContext) private var modelContext
 
-    @State private var newAmount: String = ""
-    @State private var showSavedHint = false
+    // --- 双桶编辑 (sheet 模式) ---
+    @State private var editingBucket: EditBucketSheet.Bucket? = nil
+
+    // --- 调拨 ---
     @State private var transferAmount: String = ""
     @State private var transferDirection: TransferDirection = .cashToAssets
 
@@ -808,10 +808,12 @@ struct AssetsView: View {
         case assetsToCash = "资产 → 现金"
     }
 
-    // ===== 数据管理状态 =====
+    // --- 数据管理 ---
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
     @State private var importStatus: String? = nil
+    @State private var pendingImport: DataIO.ImportPreview? = nil
+    @State private var showingImportConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -819,7 +821,7 @@ struct AssetsView: View {
                 VStack(spacing: 16) {
                     heroCard
                     bucketCards
-                    editForm
+                    if showEmptyHint { emptyHintCard }
                     transferCard
                     explainCard
                     dataManagementCard
@@ -842,6 +844,29 @@ struct AssetsView: View {
             } message: {
                 Text("将删除所有支出、收入、被动收入源、设备记录和资产数据。此操作不可撤销。")
             }
+            .confirmationDialog(
+                "导入策略",
+                isPresented: $showingImportConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("替换当前净值") { commitImport(strategy: .replace) }
+                Button("加到现金桶") { commitImport(strategy: .addToCash) }
+                Button("只导入交易,不动净值") { commitImport(strategy: .skipAssets) }
+                Button("取消", role: .cancel) { pendingImport = nil }
+            } message: {
+                if let p = pendingImport {
+                    Text(importPreviewMessage(p))
+                }
+            }
+            .sheet(item: $editingBucket) { bucket in
+                EditBucketSheet(
+                    bucket: bucket,
+                    currentAmount: amountFor(bucket: bucket),
+                    onSave: { newAmount in
+                        applyBucketEdit(bucket: bucket, newAmount: newAmount)
+                    }
+                )
+            }
         }
     }
 
@@ -856,12 +881,12 @@ struct AssetsView: View {
                     .foregroundStyle(Color.ink)
                     .padding(.top, Spacing.xs)
 
-                if let updated = assetsArr.first?.updatedAt {
+                if let updated = assetsArr.first?.updatedAt, currentNetWorth > 0 {
                     Text("上次更新 · \(updated, format: .relative(presentation: .named))")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 } else {
-                    Text("尚未设置 · 请在下方输入净值")
+                    Text("点击下方桶卡片录入金额")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }
@@ -869,25 +894,27 @@ struct AssetsView: View {
         }
     }
 
-    // MARK: - 双桶: 资产 + 现金
+    // MARK: - 双桶: 资产 + 现金 (点击弹 sheet 编辑)
     private var bucketCards: some View {
         HStack(spacing: 12) {
             bucketCard(
+                bucket: .assets,
                 kicker: "资产",
-                amount: assetsArr.first?.lockedAssets ?? 0,
+                amount: lockedAssetsAmount,
                 color: .incomeGold,
                 icon: "lock.fill"
             )
             bucketCard(
+                bucket: .cash,
                 kicker: "现金",
-                amount: assetsArr.first?.cash ?? 0,
+                amount: cashAmount,
                 color: .assetBlue,
                 icon: "banknote"
             )
         }
     }
 
-    private func bucketCard(kicker: String, amount: Double, color: Color, icon: String) -> some View {
+    private func bucketCard(bucket: EditBucketSheet.Bucket, kicker: String, amount: Double, color: Color, icon: String) -> some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: 4) {
@@ -895,51 +922,45 @@ struct AssetsView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(color)
                     KickerLabel(text: kicker)
+                    Spacer()
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.inkFaint)
                 }
                 Text("¥" + amount.formatted(.number))
                     .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingBucket = bucket
         }
     }
 
-    // MARK: - 编辑净值
-    private var editForm: some View {
-        VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "设置净值")
+    // MARK: - 空态提示
+    private var showEmptyHint: Bool {
+        currentNetWorth == 0
+    }
 
-                HStack(spacing: 6) {
-                    Text("¥")
-                        .font(.system(.title3, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                    TextField("0", text: $newAmount)
-                        .keyboardType(.decimalPad)
-                        .font(.system(.title3, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.ink)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(Color.hairline, lineWidth: 1)
-                        )
-                }
-
-                Text("全部存入现金,后续可通过「调拨」移入资产")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-
-                VaultButton(
-                    title: showSavedHint ? "已保存" : "更新净值",
-                    icon: showSavedHint ? "checkmark" : "arrow.up",
-                    style: .primary
-                ) {
-                    updateNetWorth()
-                }
-                .disabled(!isValid)
-                .opacity(isValid || showSavedHint ? 1.0 : 0.4)
-            }
+    private var emptyHintCard: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "hand.tap")
+                .font(.system(size: 13))
+                .foregroundStyle(Color.skyDeep)
+            Text("点击上方桶卡片录入金额, 净值会自动相加")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+            Spacer()
         }
+        .padding(Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.skyFaint)
+        )
     }
 
     // MARK: - 调拨
@@ -991,7 +1012,7 @@ struct AssetsView: View {
                     .foregroundStyle(Color.ink)
             }
 
-            Text("净值 = 资产 + 现金。资产是锁定的钱(投资/定期),用蓝格子表示;现金是可花的钱,用金格子表示。收入默认进现金,支出从现金扣。你可以用「调拨」在两个桶之间移动资金。")
+            Text("净值 = 资产 + 现金, 是自动相加的结果, 不能直接修改。资产 (金色) 是锁定的钱, 比如定期/股票/基金; 现金 (蓝色) 是可花的钱。收入默认进现金, 支出从现金扣。资产和现金之间用「调拨」移动。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1039,7 +1060,7 @@ struct AssetsView: View {
         }
     }
 
-    // MARK: - 数据管理
+    // MARK: - 数据导入 (两步: preview → confirm → commit)
     private func handleImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
@@ -1055,24 +1076,62 @@ struct AssetsView: View {
 
             do {
                 let data = try Data(contentsOf: url)
-                let result = try DataIO.importJSON(data: data, context: modelContext)
-                importStatus = """
-                ✓ 导入成功
-                支出 \(result.expensesAdded) 笔 · 收入 \(result.incomesAdded) 笔 · 被动源 \(result.passiveSourcesAdded) 个
-                净值 ¥\(Int(result.assetsTotal))
-                """
+                let preview = try DataIO.previewJSON(data: data, context: modelContext)
+                pendingImport = preview
+                importStatus = nil
+                showingImportConfirm = true
             } catch {
-                importStatus = "✗ 导入失败: \(error.localizedDescription)"
+                importStatus = "✗ 解析失败: \(error.localizedDescription)"
             }
         case .failure(let error):
             importStatus = "✗ 文件读取失败: \(error.localizedDescription)"
         }
     }
 
+    private func commitImport(strategy: DataIO.AssetsImportStrategy) {
+        guard let preview = pendingImport else { return }
+        do {
+            let result = try DataIO.commitImport(preview: preview, strategy: strategy, context: modelContext)
+            var lines: [String] = ["✓ 导入完成"]
+            lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
+            lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
+            if result.passiveSourcesAdded > 0 {
+                lines.append("被动源 +\(result.passiveSourcesAdded)")
+            }
+            switch strategy {
+            case .replace:
+                lines.append("净值已替换为 ¥\(Int(preview.jsonAssetsTotal))")
+            case .addToCash:
+                lines.append("现金 +¥\(Int(preview.jsonAssetsTotal))")
+            case .skipAssets:
+                lines.append("净值未变动")
+            }
+            importStatus = lines.joined(separator: "\n")
+        } catch {
+            importStatus = "✗ 写入失败: \(error.localizedDescription)"
+        }
+        pendingImport = nil
+    }
+
+    private func importPreviewMessage(_ p: DataIO.ImportPreview) -> String {
+        let newExp = p.expensesNew.count
+        let newInc = p.incomesNew.count
+        let newPass = p.passiveSourcesNew.count
+        var lines: [String] = []
+        lines.append("新增 \(newExp) 笔支出 · \(newInc) 笔收入 · \(newPass) 个被动源")
+        if p.expensesSkipped > 0 || p.incomesSkipped > 0 {
+            lines.append("跳过重复: \(p.expensesSkipped) 支出 / \(p.incomesSkipped) 收入")
+        }
+        lines.append("")
+        lines.append("JSON 净值: ¥\(Int(p.jsonAssetsTotal))")
+        lines.append("当前: 资产 ¥\(Int(p.currentLockedAssets)) / 现金 ¥\(Int(p.currentCash))")
+        return lines.joined(separator: "\n")
+    }
+
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            newAmount = ""
+            editingBucket = nil
             transferAmount = ""
             importStatus = "✓ 已清空所有数据"
         } catch {
@@ -1080,41 +1139,24 @@ struct AssetsView: View {
         }
     }
 
-    // MARK: - 业务方法
-    private var currentNetWorth: Double {
-        (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-    }
-
-    private var isValid: Bool {
-        guard let v = Double(newAmount), v >= 0 else { return false }
-        return true
-    }
-
-    private func updateNetWorth() {
-        guard let value = Double(newAmount) else { return }
-
-        let assets: UserAssets
-        if let existing = assetsArr.first {
-            assets = existing
-        } else {
-            assets = UserAssets(total: 0)
-            modelContext.insert(assets)
+    // MARK: - 桶编辑 (sheet 回调)
+    private func amountFor(bucket: EditBucketSheet.Bucket) -> Double {
+        switch bucket {
+        case .assets: return lockedAssetsAmount
+        case .cash:   return cashAmount
         }
-        assets.lockedAssets = 0
-        assets.cash = value
+    }
+
+    private func applyBucketEdit(bucket: EditBucketSheet.Bucket, newAmount: Double) {
+        let assets = ensureUserAssets()
+        switch bucket {
+        case .assets: assets.lockedAssets = newAmount
+        case .cash:   assets.cash = newAmount
+        }
         assets.updatedAt = .now
-
-        if assets.firstRecordDate == nil {
-            assets.firstRecordDate = .now
-        }
-
-        newAmount = ""
-        withAnimation { showSavedHint = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation { showSavedHint = false }
-        }
     }
 
+    // MARK: - 调拨实现
     private func doTransfer() {
         guard let amt = Double(transferAmount), amt > 0,
               let assets = assetsArr.first else { return }
@@ -1131,6 +1173,164 @@ struct AssetsView: View {
         }
         assets.updatedAt = .now
         transferAmount = ""
+    }
+
+    // MARK: - 读写助手
+    private var cashAmount: Double {
+        assetsArr.first?.cash ?? 0
+    }
+
+    private var lockedAssetsAmount: Double {
+        assetsArr.first?.lockedAssets ?? 0
+    }
+
+    private var currentNetWorth: Double {
+        cashAmount + lockedAssetsAmount
+    }
+
+    private func ensureUserAssets() -> UserAssets {
+        if let existing = assetsArr.first { return existing }
+        let new = UserAssets(total: 0)
+        new.firstRecordDate = .now
+        modelContext.insert(new)
+        return new
+    }
+}
+
+// ============================================================================
+// MARK: - EditBucketSheet (双桶金额编辑)
+// ============================================================================
+// 设计动机: AssetsView 双桶 (资产/现金) 的金额需要独立录入/修正。
+// 历史上试过 inline 编辑 (TextField 嵌在并列卡片里), 视觉不明 + layout 抖动,
+// 改成底部 sheet — 跟 AddIncomeSheet / AddExpenseSheet 一致风格, 编辑态彻底
+// 跟主界面分离, 大数字输入 + 当前值参考 + silverline 卡片底, 心智成本低。
+//
+// 用法: AssetsView 持有 @State editingBucket: Bucket?, 点桶卡片 = set Bucket,
+// .sheet(item:) 触发本 view, onSave 回调把新值写回 UserAssets。
+
+struct EditBucketSheet: View {
+
+    enum Bucket: String, Identifiable {
+        case assets, cash
+        var id: String { rawValue }
+        var label: String { self == .assets ? "资产" : "现金" }
+        var hint: String {
+            self == .assets
+                ? "锁定的钱 — 定期 / 股票 / 基金 / 不动产等"
+                : "可花的钱 — 活期 / 钱包余额 / 微信支付宝"
+        }
+        var color: Color { self == .assets ? .incomeGold : .assetBlue }
+        var icon: String { self == .assets ? "lock.fill" : "banknote" }
+    }
+
+    let bucket: Bucket
+    let currentAmount: Double
+    let onSave: (Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var amount: String = ""
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    // ===== 当前金额参考 =====
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        HStack(spacing: 4) {
+                            Image(systemName: bucket.icon)
+                                .font(.system(size: 11))
+                                .foregroundStyle(bucket.color)
+                            KickerLabel(text: "当前 \(bucket.label)")
+                        }
+                        Text("¥" + currentAmount.formatted(.number))
+                            .font(.system(size: 28, weight: .light, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkMuted)
+                    }
+
+                    // ===== 新金额输入 =====
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        KickerLabel(text: "新金额")
+
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("¥")
+                                .font(.system(size: 32, weight: .ultraLight, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                            TextField("0", text: $amount)
+                                .keyboardType(.decimalPad)
+                                .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
+                                .foregroundStyle(Color.ink)
+                                .focused($fieldFocused)
+                                .submitLabel(.done)
+                                .onSubmit { save() }
+                        }
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.skyDeep.opacity(0.45), lineWidth: 1)
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.skyFaint.opacity(0.4))
+                        )
+
+                        // delta 预览: 写新金额后实时显示净值变化
+                        if let new = Double(amount), new != currentAmount {
+                            HStack(spacing: 4) {
+                                Image(systemName: new > currentAmount ? "arrow.up" : "arrow.down")
+                                    .font(.system(size: 10))
+                                Text("\(new > currentAmount ? "+" : "")\((new - currentAmount).formatted(.number)) 元")
+                                    .font(.system(.caption, design: .rounded).monospacedDigit())
+                            }
+                            .foregroundStyle(new > currentAmount ? Color.skyDeep : Color.inkMuted)
+                            .padding(.top, 2)
+                        }
+                    }
+
+                    // ===== 说明 =====
+                    Text(bucket.hint)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(Spacing.lg)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
+            .navigationTitle("编辑\(bucket.label)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                        .foregroundStyle(Color.inkMuted)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { save() }
+                        .disabled(!isValid)
+                        .foregroundStyle(isValid ? Color.skyDeep : Color.inkFaint)
+                        .fontWeight(.medium)
+                }
+            }
+            .onAppear {
+                // 不预填 — 用户看到"当前 ¥X"作为参考再录入新值, 心智更清晰。
+                // 自动聚焦让键盘立即弹出, 减少点击次数。
+                fieldFocused = true
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var isValid: Bool {
+        guard let v = Double(amount), v >= 0 else { return false }
+        return true
+    }
+
+    private func save() {
+        guard let v = Double(amount), v >= 0 else { return }
+        onSave(v)
+        dismiss()
     }
 }
 
@@ -1207,7 +1407,7 @@ struct LumenDataJSON: Codable {
 
 enum DataIO {
 
-    /// 导入结果统计,UI 用来展示反馈
+    /// 导入结果统计, UI 用来展示反馈
     struct ImportResult {
         let expensesAdded: Int
         let incomesAdded: Int
@@ -1216,24 +1416,117 @@ enum DataIO {
         let firstRecordDate: Date?
     }
 
-    /// 解析 JSON 数据并导入到 SwiftData
-    /// 注意:此函数不清空已有数据,只追加。调用前如需清空,先调 purgeAll()
-    static func importJSON(data: Data, context: ModelContext) throws -> ImportResult {
+    /// 导入预览: previewJSON 算出来交给 UI, UI 弹确认对话框, 用户选 strategy 后调 commitImport
+    struct ImportPreview {
+        let expensesNew: [LumenDataJSON.ExpenseJSON]
+        let expensesSkipped: Int
+        let incomesNew: [LumenDataJSON.IncomeJSON]
+        let incomesSkipped: Int
+        let passiveSourcesNew: [LumenDataJSON.PassiveSourceJSON]
+        let jsonAssetsTotal: Double
+        let jsonAssetsUpdatedAt: Date?
+        let jsonFirstRecordDate: Date?
+        let currentCash: Double
+        let currentLockedAssets: Double
+    }
+
+    /// 导入时如何对待 UserAssets (现金/资产桶):
+    /// - replace: 用 JSON.total 整体替换, lockedAssets 清零, cash = JSON.total
+    /// - addToCash: cash += JSON.total, lockedAssets 不动
+    /// - skipAssets: 完全不动两桶, 只导入交易记录
+    enum AssetsImportStrategy {
+        case replace
+        case addToCash
+        case skipAssets
+    }
+
+    /// 第一步: 解析 JSON, 用 (date|amount|category-or-source|note) 做去重, 但不写入 context。
+    static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-
         let dump = try decoder.decode(LumenDataJSON.self, from: data)
 
-        // ===== 1. 导入 expenses =====
-        var expCount = 0
+        // ===== 现有数据的去重 key =====
+        let existingExp = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
+        let existingExpKeys = Set(existingExp.map {
+            expenseKey(amount: $0.amount, date: $0.date, category: $0.category, note: $0.note)
+        })
+
+        let existingInc = (try? context.fetch(FetchDescriptor<Income>())) ?? []
+        let existingIncKeys = Set(existingInc.map {
+            incomeKey(amount: $0.amount, date: $0.date, source: $0.source, note: $0.note)
+        })
+
+        let existingPass = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
+        let existingPassKeys = Set(existingPass.map { passiveKey(name: $0.name, monthlyAmount: $0.monthlyAmount) })
+
+        // ===== 过滤 expenses =====
+        var expensesNew: [LumenDataJSON.ExpenseJSON] = []
+        var expSkipped = 0
         for e in dump.expenses ?? [] {
+            let d = parseDate(e.date) ?? .now
+            let k = expenseKey(amount: e.amount, date: d, category: e.category, note: e.note ?? "")
+            if existingExpKeys.contains(k) {
+                expSkipped += 1
+            } else {
+                expensesNew.append(e)
+            }
+        }
+
+        // ===== 过滤 incomes =====
+        var incomesNew: [LumenDataJSON.IncomeJSON] = []
+        var incSkipped = 0
+        for i in dump.incomes ?? [] {
+            let d = parseDate(i.date) ?? .now
+            let k = incomeKey(amount: i.amount, date: d, source: i.source, note: i.note ?? "")
+            if existingIncKeys.contains(k) {
+                incSkipped += 1
+            } else {
+                incomesNew.append(i)
+            }
+        }
+
+        // ===== 过滤 passive sources =====
+        var passNew: [LumenDataJSON.PassiveSourceJSON] = []
+        for p in dump.passiveSources ?? [] {
+            let k = passiveKey(name: p.name, monthlyAmount: p.monthlyAmount)
+            if !existingPassKeys.contains(k) {
+                passNew.append(p)
+            }
+        }
+
+        let existingAssets = try? context.fetch(FetchDescriptor<UserAssets>()).first
+
+        return ImportPreview(
+            expensesNew: expensesNew,
+            expensesSkipped: expSkipped,
+            incomesNew: incomesNew,
+            incomesSkipped: incSkipped,
+            passiveSourcesNew: passNew,
+            jsonAssetsTotal: dump.assets?.total ?? 0,
+            jsonAssetsUpdatedAt: dump.assets?.updatedAt.flatMap { parseISO($0) },
+            jsonFirstRecordDate: dump.firstRecordDate.flatMap { parseDate($0) },
+            currentCash: existingAssets?.cash ?? 0,
+            currentLockedAssets: existingAssets?.lockedAssets ?? 0
+        )
+    }
+
+    /// 第二步: 接受 preview + 用户选的 strategy, 写入 context。
+    /// expenses / incomes / passive 只插入 preview 里筛剩的 new 行 (跳过重复)。
+    static func commitImport(
+        preview: ImportPreview,
+        strategy: AssetsImportStrategy,
+        context: ModelContext
+    ) throws -> ImportResult {
+        // ===== expenses =====
+        var expCount = 0
+        for e in preview.expensesNew {
             let exp = Expense(
                 amount: e.amount,
                 category: e.category,
                 note: e.note ?? "",
                 date: parseDate(e.date) ?? .now
             )
-            // 覆盖 createdAt 用原始时间戳(默认 init 用 .now)
             if let createdAt = e.createdAt, let d = parseISO(createdAt) {
                 exp.createdAt = d
             }
@@ -1241,9 +1534,9 @@ enum DataIO {
             expCount += 1
         }
 
-        // ===== 2. 导入 incomes =====
+        // ===== incomes =====
         var incCount = 0
-        for i in dump.incomes ?? [] {
+        for i in preview.incomesNew {
             let inc = Income(
                 amount: i.amount,
                 source: i.source,
@@ -1258,20 +1551,14 @@ enum DataIO {
             incCount += 1
         }
 
-        // ===== 3. 导入 passive sources =====
+        // ===== passive sources =====
         var passCount = 0
-        for p in dump.passiveSources ?? [] {
-            let src = PassiveSource(name: p.name, monthlyAmount: p.monthlyAmount)
-            context.insert(src)
+        for p in preview.passiveSourcesNew {
+            context.insert(PassiveSource(name: p.name, monthlyAmount: p.monthlyAmount))
             passCount += 1
         }
 
-        // ===== 4. 设置 UserAssets 单例 =====
-        // 如果已存在就 update,否则 insert
-        let firstDate = dump.firstRecordDate.flatMap { parseDate($0) }
-        let assetsTotal = dump.assets?.total ?? 0
-        let updatedAt = dump.assets?.updatedAt.flatMap { parseISO($0) } ?? .now
-
+        // ===== UserAssets 按 strategy 处理 =====
         let existing = try? context.fetch(FetchDescriptor<UserAssets>()).first
         let userAssets: UserAssets
         if let existing = existing {
@@ -1280,27 +1567,68 @@ enum DataIO {
             userAssets = UserAssets(total: 0)
             context.insert(userAssets)
         }
-        userAssets.cash = assetsTotal
-        userAssets.updatedAt = updatedAt
-        userAssets.firstRecordDate = firstDate
+
+        switch strategy {
+        case .replace:
+            // 净值整体替换 → firstRecordDate 也一并换成 JSON 的(不保留本地 baseline,
+            // 否则会出现"净值是 JSON 的, 起算日是本地的"这种半新半旧状态)
+            userAssets.lockedAssets = 0
+            userAssets.cash = preview.jsonAssetsTotal
+            userAssets.updatedAt = preview.jsonAssetsUpdatedAt ?? .now
+            if let jsonDate = preview.jsonFirstRecordDate {
+                userAssets.firstRecordDate = jsonDate
+            }
+        case .addToCash, .skipAssets:
+            // 合并/跳过模式: 起算日取 (本地, JSON) 较早者, 本地为空时用 JSON
+            if let jsonDate = preview.jsonFirstRecordDate {
+                if let cur = userAssets.firstRecordDate {
+                    userAssets.firstRecordDate = min(cur, jsonDate)
+                } else {
+                    userAssets.firstRecordDate = jsonDate
+                }
+            }
+            if strategy == .addToCash {
+                userAssets.cash += preview.jsonAssetsTotal
+                userAssets.updatedAt = .now
+            }
+            // .skipAssets: 不动 cash / lockedAssets / updatedAt
+        }
 
         return ImportResult(
             expensesAdded: expCount,
             incomesAdded: incCount,
             passiveSourcesAdded: passCount,
-            assetsTotal: assetsTotal,
-            firstRecordDate: firstDate
+            assetsTotal: preview.jsonAssetsTotal,
+            firstRecordDate: preview.jsonFirstRecordDate
         )
     }
 
     /// 清空所有数据(包括 UserAssets 单例)
-    /// SwiftData 提供了批量删除 API: context.delete(model:)
     static func purgeAll(context: ModelContext) throws {
         try context.delete(model: Expense.self)
         try context.delete(model: Income.self)
         try context.delete(model: Device.self)
         try context.delete(model: PassiveSource.self)
         try context.delete(model: UserAssets.self)
+    }
+
+    // ===== 内部: 去重 key =====
+    // 设计动机: web 版导出的 JSON 没有稳定 UUID, 反复导入同一文件会重复扣账。
+    // 用 (date 精确到当地日, amount, category/source, note) 组合做幂等 key。
+    // 同一天同金额同分类同备注的两笔, 视为重复 — 这在真实场景下误判率可接受。
+
+    private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> String {
+        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
+        return "\(day)|\(amount)|\(category)|\(note)"
+    }
+
+    private static func incomeKey(amount: Double, date: Date, source: String, note: String) -> String {
+        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
+        return "\(day)|\(amount)|\(source)|\(note)"
+    }
+
+    private static func passiveKey(name: String, monthlyAmount: Double) -> String {
+        return "\(name)|\(monthlyAmount)"
     }
 
     // ===== 内部:日期解析工具 =====
