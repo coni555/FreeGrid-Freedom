@@ -259,6 +259,37 @@ enum FreedomMath {
         return String(format: "%.1f", value / 365.25)
     }
 
+    /// 自由天数档位枚举 — sheet 里 from/to/delta 需要强制对齐到同一档位时用
+    enum FreedomUnit { case day, month, year }
+
+    /// 按 value 自身大小决定档位(三档规则跟 freedomDaysDisplay 一致)
+    static func freedomDaysUnit(_ value: Double) -> FreedomUnit {
+        if value.isInfinite || value.isNaN { return .day }
+        if value < 365 { return .day }
+        if value < 3650 { return .month }
+        return .year
+    }
+
+    /// 按指定档位格式化(给 sheet 里 to/delta 用,把它们对齐到 from 的档位)
+    /// delta 用 abs 值,符号由调用方加
+    static func freedomDaysFormatted(_ value: Double, unit: FreedomUnit) -> String {
+        if value.isInfinite || value.isNaN { return "∞" }
+        switch unit {
+        case .day:   return String(format: "%.0f", value)
+        case .month: return String(format: "%.0f", value / 30.44)
+        case .year:  return String(format: "%.1f", value / 365.25)
+        }
+    }
+
+    /// 档位的中文单位标签
+    static func freedomUnitLabel(_ unit: FreedomUnit) -> String {
+        switch unit {
+        case .day: return "天"
+        case .month: return "月"
+        case .year: return "年"
+        }
+    }
+
     // ============================================================================
     // MARK: - 生命网格(自适应单位:日/月/年)
     // ============================================================================

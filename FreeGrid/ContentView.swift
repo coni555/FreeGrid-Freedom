@@ -2015,6 +2015,9 @@ struct AddExpenseSheet: View {
 
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
+        // KILL 3 单位对齐: from/to/delta 三个数字强制同档,易读 (避免 "42.7 → 10.2 / −11878 天" 混搭)
+        let freedomUnit = FreedomMath.freedomDaysUnit(currentFreedom)
+
         return VStack(alignment: .leading, spacing: 10) {
             killRow(label: "KILL 1 净值",
                     from: formatYuan(currentNW),
@@ -2027,9 +2030,11 @@ struct AddExpenseSheet: View {
                     delta: "+\(formatYuan(newAvg - currentAvg, precision: 2))")
 
             killRow(label: "KILL 3 自由天数",
-                    from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                    to: FreedomMath.freedomDaysDisplay(newFreedom),
-                    delta: currentFreedom.isInfinite ? "—" : "−\(String(format: "%.0f", freedomLoss)) 天")
+                    from: FreedomMath.freedomDaysFormatted(currentFreedom, unit: freedomUnit),
+                    to: FreedomMath.freedomDaysFormatted(newFreedom, unit: freedomUnit),
+                    delta: currentFreedom.isInfinite
+                        ? "—"
+                        : "−\(FreedomMath.freedomDaysFormatted(freedomLoss, unit: freedomUnit)) \(FreedomMath.freedomUnitLabel(freedomUnit))")
         }
         .padding(.vertical, 4)
     }
@@ -2187,6 +2192,9 @@ struct AddIncomeSheet: View {
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
             ? 0 : (newFreedom - currentFreedom)
 
+        // GAIN 2 单位对齐到 from(currentFreedom)的档位
+        let freedomUnit = FreedomMath.freedomDaysUnit(currentFreedom)
+
         return VStack(alignment: .leading, spacing: 10) {
             gainRow(label: "GAIN 1 净值",
                     from: formatYuan(currentNW),
@@ -2194,11 +2202,11 @@ struct AddIncomeSheet: View {
                     delta: "+\(formatYuan(amount))")
 
             gainRow(label: "GAIN 2 自由天数",
-                    from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                    to: FreedomMath.freedomDaysDisplay(newFreedom),
+                    from: FreedomMath.freedomDaysFormatted(currentFreedom, unit: freedomUnit),
+                    to: FreedomMath.freedomDaysFormatted(newFreedom, unit: freedomUnit),
                     delta: currentFreedom.isInfinite
                         ? "—"
-                        : "+\(String(format: "%.0f", freedomGain)) 天")
+                        : "+\(FreedomMath.freedomDaysFormatted(freedomGain, unit: freedomUnit)) \(FreedomMath.freedomUnitLabel(freedomUnit))")
         }
         .padding(.vertical, 4)
     }
@@ -2432,6 +2440,9 @@ struct SimulateSheet: View {
 
         let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
 
+        // KILL 3 单位对齐到 from(currentFreedom)的档位
+        let freedomUnit = FreedomMath.freedomDaysUnit(currentFreedom)
+
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "KILL 1 净值",
                       from: formatYuan(currentNW),
@@ -2446,9 +2457,11 @@ struct SimulateSheet: View {
                       color: Color.vermillion)
 
             impactRow(label: "KILL 3 自由天数",
-                      from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                      to: FreedomMath.freedomDaysDisplay(newFreedom),
-                      delta: currentFreedom.isInfinite ? "—" : "−\(String(format: "%.1f", freedomLoss)) 天",
+                      from: FreedomMath.freedomDaysFormatted(currentFreedom, unit: freedomUnit),
+                      to: FreedomMath.freedomDaysFormatted(newFreedom, unit: freedomUnit),
+                      delta: currentFreedom.isInfinite
+                          ? "—"
+                          : "−\(FreedomMath.freedomDaysFormatted(freedomLoss, unit: freedomUnit)) \(FreedomMath.freedomUnitLabel(freedomUnit))",
                       color: Color.vermillion)
         }
     }
@@ -2468,6 +2481,9 @@ struct SimulateSheet: View {
         let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
             ? 0 : (newFreedom - currentFreedom)
 
+        // GAIN 2 单位对齐到 from(currentFreedom)的档位
+        let freedomUnit = FreedomMath.freedomDaysUnit(currentFreedom)
+
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "GAIN 1 净值",
                       from: formatYuan(currentNW),
@@ -2476,11 +2492,11 @@ struct SimulateSheet: View {
                       color: Color.skyDeep)
 
             impactRow(label: "GAIN 2 自由天数",
-                      from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                      to: FreedomMath.freedomDaysDisplay(newFreedom),
+                      from: FreedomMath.freedomDaysFormatted(currentFreedom, unit: freedomUnit),
+                      to: FreedomMath.freedomDaysFormatted(newFreedom, unit: freedomUnit),
                       delta: currentFreedom.isInfinite
                           ? "—"
-                          : "+\(String(format: "%.1f", freedomGain)) 天",
+                          : "+\(FreedomMath.freedomDaysFormatted(freedomGain, unit: freedomUnit)) \(FreedomMath.freedomUnitLabel(freedomUnit))",
                       color: Color.skyDeep)
         }
     }
