@@ -984,6 +984,8 @@ struct DashboardView: View {
 
 struct AssetsView: View {
     @Query private var assetsArr: [UserAssets]
+    @Query private var expenses: [Expense]              // 算 dailyBurn 用
+    @Query private var passiveSources: [PassiveSource]  // 被动收入源
     @Environment(\.modelContext) private var modelContext
 
     // --- 双桶编辑 (sheet 模式) ---
@@ -997,6 +999,11 @@ struct AssetsView: View {
         case cashToAssets = "现金 → 资产"
         case assetsToCash = "资产 → 现金"
     }
+
+    // --- 被动收入 ---
+    @State private var showingAddPassive: Bool = false
+    @State private var editingPassiveSource: PassiveSource? = nil
+    @State private var pendingDeletePassive: PassiveSource? = nil
 
     // --- 数据管理 ---
     @State private var showingFileImporter = false
@@ -1012,6 +1019,7 @@ struct AssetsView: View {
                     heroCard
                     bucketCards
                     if showEmptyHint { emptyHintCard }
+                    passiveCard
                     transferCard
                     explainCard
                     dataManagementCard
@@ -1057,7 +1065,55 @@ struct AssetsView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingAddPassive) {
+                PassiveSourceSheet(existing: nil) { name, monthly in
+                    let new = PassiveSource(name: name, monthlyAmount: monthly)
+                    modelContext.insert(new)
+                }
+            }
+            .sheet(item: $editingPassiveSource) { source in
+                PassiveSourceSheet(existing: source) { name, monthly in
+                    source.name = name
+                    source.monthlyAmount = monthly
+                }
+            }
+            .alert(
+                "删除这个被动收入源?",
+                isPresented: Binding(
+                    get: { pendingDeletePassive != nil },
+                    set: { if !$0 { pendingDeletePassive = nil } }
+                ),
+                presenting: pendingDeletePassive
+            ) { src in
+                Button("删除", role: .destructive) {
+                    modelContext.delete(src)
+                    pendingDeletePassive = nil
+                }
+                Button("取消", role: .cancel) { pendingDeletePassive = nil }
+            } message: { src in
+                Text("\(src.name) · 月入 ¥\(Int(src.monthlyAmount))\n删除后被动覆盖率会下降。")
+            }
         }
+    }
+
+    // MARK: - 被动收入 computed
+    private var dailyBurnAssetsView: Double {
+        let firstDate = assetsArr.first?.firstRecordDate
+        let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let total = expenses.reduce(0) { $0 + $1.amount }
+        return FreedomMath.dailyBurn(totalExpenses: total, trackDays: days)
+    }
+
+    private var totalMonthlyPassive: Double {
+        passiveSources.reduce(0) { $0 + $1.monthlyAmount }
+    }
+
+    private var dailyPassiveAssetsView: Double {
+        FreedomMath.dailyPassive(sources: passiveSources)
+    }
+
+    private var passiveRatioAssetsView: Double {
+        FreedomMath.passiveRatio(dailyPassive: dailyPassiveAssetsView, dailyBurn: dailyBurnAssetsView)
     }
 
     // MARK: - Hero: 净值总览
@@ -1151,6 +1207,119 @@ struct AssetsView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.skyFaint)
         )
+    }
+
+    // MARK: - 被动收入卡片
+    // 顶部 kicker + "+" / 大数字覆盖率 / 月入·日均 subtitle / 已有源列表(每行 × 删除, 点行编辑)
+    private var passiveCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Passive · 被动收入")
+                    Spacer()
+                    Button {
+                        showingAddPassive = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.skyDeep)
+                            .frame(width: 24, height: 24)
+                            .background(Circle().stroke(Color.skyDeep.opacity(0.5), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("添加被动收入源")
+                }
+
+                // 大数字: 覆盖率
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(Int((passiveRatioAssetsView * 100).rounded()))")
+                        .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(passiveRatioAssetsView >= 1 ? Color.mossGreen : Color.ink)
+                    Text("%")
+                        .font(.system(size: 20, weight: .ultraLight, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                    Spacer()
+                    Text(passiveRatioAssetsView >= 1 ? "已覆盖日常消费" : "覆盖日常消费")
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(passiveRatioAssetsView >= 1 ? Color.mossGreen : Color.inkFaint)
+                }
+
+                // subtitle: 月入 + 日均
+                if !passiveSources.isEmpty {
+                    HStack(spacing: 8) {
+                        Text("月入 ¥\(Int(totalMonthlyPassive))")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        Text("·")
+                            .foregroundStyle(Color.inkFaint)
+                        Text("日均 ¥\(String(format: "%.1f", dailyPassiveAssetsView))")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        if dailyBurnAssetsView > 0 {
+                            Text("·")
+                                .foregroundStyle(Color.inkFaint)
+                            Text("日均消费 ¥\(String(format: "%.1f", dailyBurnAssetsView))")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                    }
+                } else {
+                    Text("还没有被动收入源, 点击右上 + 添加")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                }
+
+                // 源列表
+                if !passiveSources.isEmpty {
+                    Hairline()
+                    ForEach(passiveSources) { source in
+                        passiveSourceRow(source)
+                        if source.id != passiveSources.last?.id {
+                            Hairline().padding(.leading, 4)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func passiveSourceRow(_ s: PassiveSource) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                editingPassiveSource = s
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.mossGreen)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.name)
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.ink)
+                        Text("¥\(Int(s.monthlyAmount))/月 · ¥\(String(format: "%.1f", s.monthlyAmount / 30))/天")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                pendingDeletePassive = s
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().stroke(Color.hairlineSoft, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("删除这个被动源")
+        }
+        .padding(.vertical, 6)
     }
 
     // MARK: - 调拨
@@ -1520,6 +1689,132 @@ struct EditBucketSheet: View {
     private func save() {
         guard let v = Double(amount), v >= 0 else { return }
         onSave(v)
+        dismiss()
+    }
+}
+
+// ============================================================================
+// MARK: - PassiveSourceSheet (被动收入源 新增 / 编辑)
+// ============================================================================
+// 跟 EditBucketSheet 同 silverline 风。existing == nil 是"新增"语义,
+// existing != nil 是"编辑"语义, 复用同一个 view 减少代码重复。
+// onSave 接 (name, monthlyAmount), 父 view 决定 insert 还是 mutate。
+
+struct PassiveSourceSheet: View {
+
+    let existing: PassiveSource?
+    let onSave: (String, Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String = ""
+    @State private var monthly: String = ""
+    @FocusState private var nameFocused: Bool
+
+    private var isEditing: Bool { existing != nil }
+    private var title: String { isEditing ? "编辑被动源" : "添加被动源" }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    // 名字
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        KickerLabel(text: "名称")
+                        TextField("房租 / 股息 / 利息 / 副业 ...", text: $name)
+                            .font(.system(.title3, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                            .focused($nameFocused)
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(Color.skyDeep.opacity(0.45), lineWidth: 1)
+                            )
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.skyFaint.opacity(0.4))
+                            )
+                    }
+
+                    // 月入
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        KickerLabel(text: "月入 (元 / 月)")
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("¥")
+                                .font(.system(size: 28, weight: .ultraLight, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                            TextField("0", text: $monthly)
+                                .keyboardType(.decimalPad)
+                                .font(.system(size: 36, weight: .ultraLight, design: .rounded).monospacedDigit())
+                                .foregroundStyle(Color.ink)
+                        }
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.mossGreen.opacity(0.45), lineWidth: 1)
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.mossGreen.opacity(0.08))
+                        )
+
+                        // 日均预览
+                        if let m = Double(monthly), m > 0 {
+                            Text("≈ ¥\(String(format: "%.1f", m / 30)) / 天")
+                                .font(.system(.caption, design: .rounded).monospacedDigit())
+                                .foregroundStyle(Color.mossGreen)
+                                .padding(.top, 2)
+                        }
+                    }
+
+                    // 说明
+                    Text("被动收入: 不需要持续工作就能稳定获得的收入。每月固定金额, 按 ÷ 30 转日均, 用来计算「被动覆盖率」。")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(Spacing.lg)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                        .foregroundStyle(Color.inkMuted)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { save() }
+                        .disabled(!isValid)
+                        .foregroundStyle(isValid ? Color.skyDeep : Color.inkFaint)
+                        .fontWeight(.medium)
+                }
+            }
+            .onAppear {
+                if let e = existing {
+                    name = e.name
+                    monthly = String(format: "%g", e.monthlyAmount)
+                }
+                nameFocused = !isEditing  // 新增聚焦名字, 编辑不自动弹键盘
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var isValid: Bool {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty else { return false }
+        guard let m = Double(monthly), m > 0 else { return false }
+        return true
+    }
+
+    private func save() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, let m = Double(monthly), m > 0 else { return }
+        onSave(n, m)
         dismiss()
     }
 }
@@ -2064,22 +2359,10 @@ struct HistoryView: View {
     private func incomeRow(_ i: Income) -> some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(i.source)
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        .foregroundStyle(Color.ink)
-                    if i.isPassive {
-                        Text("被动")
-                            .font(.system(.caption2, design: .monospaced))
-                            .tracking(0.5)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .foregroundStyle(Color.mossGreen)
-                            .overlay(
-                                Capsule().stroke(Color.mossGreen.opacity(0.5), lineWidth: 1)
-                            )
-                    }
-                }
+                // 注: 旧的"被动"绿色标签已移除 — 被动收入概念整体迁到 Assets · PassiveSource
+                Text(i.source)
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
                 if !i.note.isEmpty {
                     Text(i.note)
                         .font(.system(.caption, design: .rounded))
@@ -2569,7 +2852,6 @@ struct AddIncomeSheet: View {
 
     @State private var amount: String = ""
     @State private var source: String = ""
-    @State private var isPassive: Bool = false
     @State private var note: String = ""
     @State private var date: Date = .now
 
@@ -2584,13 +2866,6 @@ struct AddIncomeSheet: View {
                 Section("来源") {
                     TextField("工资 / 投资 / 副业 / ...", text: $source)
                         .font(.system(.body, design: .rounded))
-                }
-                Section {
-                    Toggle("这是被动收入", isOn: $isPassive)
-                        .tint(Color.sky)
-                } footer: {
-                    Text("被动收入: 不需要持续工作就能稳定获得的收入(房租/股息/版税/利息)。勾选后会纳入「被动覆盖率」统计,这是财富自由的核心指标。")
-                        .font(.system(.caption2, design: .rounded))
                 }
                 Section("日期") {
                     DatePicker("日期", selection: $date, displayedComponents: .date)
@@ -2701,7 +2976,8 @@ struct AddIncomeSheet: View {
     private func save() {
         guard let amt = Double(amount), amt > 0 else { return }
 
-        let income = Income(amount: amt, source: source, isPassive: isPassive,
+        // isPassive 字段保留(JSON 兼容)但新建一律 false — 被动收入改由 PassiveSource 模型承载
+        let income = Income(amount: amt, source: source, isPassive: false,
                             note: note, date: date)
         modelContext.insert(income)
 

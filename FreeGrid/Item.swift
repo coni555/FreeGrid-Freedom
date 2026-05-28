@@ -139,7 +139,7 @@ final class Device {
 // 例: 房租收入 / 股息 / 版税 / 利息 / 副业稳定流水
 
 @Model
-final class PassiveSource {
+final class PassiveSource: Identifiable {
     var id: UUID = UUID()
 
     var name: String = ""
