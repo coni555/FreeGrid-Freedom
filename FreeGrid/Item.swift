@@ -28,7 +28,7 @@ final class Expense {
     /// 金额(元),正数
     var amount: Double = 0
 
-    /// 分类:早餐/午餐/晚餐/购物/交通/娱乐/成长投资/医疗/人情/日用/其他
+    /// 分类:早餐/午餐/晚餐/购物/交通/娱乐/成长投资/医疗/其他
     /// 注:用 String 而不是 enum,方便未来用户自定义分类
     var category: String = ""
 

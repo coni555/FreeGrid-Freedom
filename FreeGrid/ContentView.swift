@@ -1760,6 +1760,10 @@ struct HistoryView: View {
     /// 筛选状态: "all" / "expense" / "income"
     @State private var filter: FilterKind = .all
 
+    /// 分类二级筛选: nil 表示全部分类。仅在 filter == .expense 时有意义,
+    /// 切到 .all / .income 时自动清空。
+    @State private var selectedCategory: String? = nil
+
     enum FilterKind: String, CaseIterable, Identifiable {
         case all = "全部"
         case expense = "支出"
@@ -1777,7 +1781,19 @@ struct HistoryView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .padding()
+                .padding(.horizontal)
+                .padding(.top)
+                .padding(.bottom, Spacing.sm)
+                .onChange(of: filter) { _, newValue in
+                    // 切出支出 tab 时清掉分类二级筛选
+                    if newValue != .expense { selectedCategory = nil }
+                }
+
+                // ===== 分类汇总条 (仅支出 tab) =====
+                if filter == .expense && !expenseCategoryTotals.isEmpty {
+                    categoryChipRow
+                        .padding(.bottom, Spacing.sm)
+                }
 
                 if filteredTransactions.isEmpty {
                     emptyState
@@ -1788,6 +1804,69 @@ struct HistoryView: View {
             .background(Color.paper)
             .navigationTitle("History")
         }
+    }
+
+    // ============================================================================
+    // MARK: - 分类汇总条
+    // ============================================================================
+
+    /// 横滑 chip 列表: 首"全部"chip + 各分类 chip, 每 chip 显示分类名 + 总额
+    private var categoryChipRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                categoryChip(
+                    label: "全部",
+                    amount: expenseCategoryTotals.reduce(0) { $0 + $1.total },
+                    selected: selectedCategory == nil
+                ) {
+                    selectedCategory = nil
+                }
+                ForEach(expenseCategoryTotals, id: \.category) { item in
+                    categoryChip(
+                        label: item.category,
+                        amount: item.total,
+                        selected: selectedCategory == item.category
+                    ) {
+                        // 二次点击同一 chip = 取消选中
+                        selectedCategory = (selectedCategory == item.category) ? nil : item.category
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private func categoryChip(label: String, amount: Double, selected: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(.caption2, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(selected ? Color.paper : Color.inkMuted)
+                Text("¥" + amount.formatted(.number.precision(.fractionLength(0...0))))
+                    .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
+                    .foregroundStyle(selected ? Color.paper : Color.ink)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(selected ? Color.ink : Color.mist)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.hairlineSoft, lineWidth: selected ? 0 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 各支出分类总额,降序排列
+    private var expenseCategoryTotals: [(category: String, total: Double)] {
+        let grouped = Dictionary(grouping: expenses, by: { $0.category })
+        return grouped
+            .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
+            .sorted { $0.total > $1.total }
     }
 
     // ============================================================================
@@ -1925,7 +2004,9 @@ struct HistoryView: View {
     private var filteredTransactions: [TxKind] {
         var all: [TxKind] = []
         if filter == .all || filter == .expense {
-            all.append(contentsOf: expenses.map { .expense($0) })
+            // selectedCategory != nil 时仅取该分类的支出(只可能在 filter == .expense 时发生)
+            let exps = selectedCategory.map { cat in expenses.filter { $0.category == cat } } ?? expenses
+            all.append(contentsOf: exps.map { .expense($0) })
         }
         if filter == .all || filter == .income {
             all.append(contentsOf: incomes.map { .income($0) })
@@ -2023,9 +2104,10 @@ struct AddExpenseSheet: View {
     @State private var note: String = ""
     @State private var date: Date = .now
 
-    /// 分类清单,和 lead-wealth web 版 CATEGORIES 完全一致
+    /// 分类清单。"人情"/"日用" 用户反馈日常用不到,2026-05 移除。
+    /// 旧记录里的"人情"/"日用"仍能在 History 正常显示,只是 Picker 选不到了。
     private let categories = ["早餐", "午餐", "晚餐", "购物", "交通", "娱乐",
-                              "成长投资", "医疗", "人情", "日用", "其他"]
+                              "成长投资", "医疗", "其他"]
 
     var body: some View {
         NavigationStack {
