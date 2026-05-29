@@ -438,13 +438,14 @@ struct DashboardView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
 
-            Text("FreeGrid")
-                .font(.system(.title3, design: .rounded).weight(.medium))
-                .foregroundStyle(Color.ink)
-
-            Text("财富自由指路灯")
-                .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(Color.inkFaint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("FreeGrid")
+                    .font(.system(.title3, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
+                Text("通往财富自由之路")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+            }
 
             Spacer()
 
