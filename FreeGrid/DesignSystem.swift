@@ -51,13 +51,16 @@ extension Color {
 
     // ===== Surface (light: 冷白银 / dark: 冷蓝紫黑 — 天文台气质) =====
     /// 主底
+    /// light: 旧版背景近白(0.984)、卡片反而更灰(mist 0.957)→ 卡片像凹陷、层次弱。
+    ///        反转为「柔和冷灰背景 + 纯白浮起卡片」(高级分组列表观感), 不靠阴影提供深度。
+    ///        高强调卡(VaultCard .high)改走 surfaceHi 也保持纯白, 故 paper 现在纯粹是屏幕主底。
     static let paper = Color.dyn(
-        lightRGB: (0.984, 0.984, 0.987),  // 冷白纸
+        lightRGB: (0.951, 0.953, 0.961),  // 冷银灰主底
         darkRGB:  (0.040, 0.045, 0.075)   // 深蓝紫黑 (oklch 0.08 0.015 250)
     )
     /// 卡片底
     static let mist = Color.dyn(
-        lightRGB: (0.957, 0.957, 0.963),  // 雾银
+        lightRGB: (0.998, 0.999, 1.000),  // 纯白浮起卡片(在冷灰底上 pop)
         darkRGB:  (0.078, 0.085, 0.130)   // 蓝紫卡片 (oklch 0.13 0.018 250)
     )
     /// 嵌套深一档
@@ -127,8 +130,10 @@ extension Color {
         darkRGB:  (0.52, 0.78, 0.97)
     )
     /// LifeGrid 现金色:暖金
+    /// light: 旧 (0.85,0.72,0.38) 是欠饱和 mustard, 在冷白底上发脏发弱、跟 sky 蓝不对等。
+    ///        提到更饱和、略偏橙的琥珀金 —— gold 在白底需要饱和度才显贵, 不靠暗度。
     static let incomeGold = Color.dyn(
-        lightRGB: (0.85, 0.72, 0.38),
+        lightRGB: (0.90, 0.65, 0.22),
         darkRGB:  (0.92, 0.80, 0.45)
     )
     /// 支出朱砂
@@ -142,10 +147,16 @@ extension Color {
         darkRGB:  (0.55, 0.82, 0.62)
     )
 
+    /// 高强调卡填充(VaultCard .high)。light: 纯白(跟普通卡一致, 避免反转后高强调卡变灰);
+    /// dark: 维持原 paper 暗值, 暗色高强调卡观感不变。
+    static let surfaceHi = Color.dyn(
+        lightRGB: (0.998, 0.999, 1.000),
+        darkRGB:  (0.040, 0.045, 0.075)
+    )
+
     // ===== V1/V2 alias =====
     static let midnight   = Color.paper
     static let surface    = Color.mist
-    static let surfaceHi  = Color.paper
     static let honey      = Color.ink
     static let honeyDim   = Color.inkMuted
     static let ink2       = Color.inkMuted
@@ -234,7 +245,7 @@ struct VaultCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(emphasis == .high ? Color.paper : Color.mist)
+                    .fill(emphasis == .high ? Color.surfaceHi : Color.mist)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
