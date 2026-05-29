@@ -3024,6 +3024,152 @@ struct AddIncomeSheet: View {
 }
 
 // ============================================================================
+// MARK: - SimDemoGrid (模拟决策的格子推演动画)
+// ============================================================================
+// 设计动机:lead-wealth web 版核心体感——"这笔花出去,自由的格子要熄灭几格"。
+// 把抽象的"−16 天"翻译成肉眼可见的格子级联熄灭(支出)/ 点亮(收入)。
+//
+// 移植自 lead-wealth `animateGridTransition()`(Canvas 版),做了三处简化:
+//   1. 砍掉镜头推近(camera zoom)—— 小 sheet 上会眩晕,且非核心体感
+//   2. 辉光用 SwiftUI .shadow 替代 Canvas radialGradient
+//   3. 不照搬定长 1825 日格,沿用 App 自适应档(日/月/年),锁定"当前态"的档位
+//
+// 动画驱动:跟 LifeGrid 呼吸同套路——TimelineView(.animation) + 纯函数(elapsed),
+// 不用 withAnimation(...).repeatForever()(iOS 17+ 有 view-lifecycle 冻结 regression)。
+// 单一渲染路径 gridFrame(elapsed:):idle 喂 -1(停在旧态),done 喂大值(停在新态),
+// playing 喂真实 elapsed —— 三态共用一套逐格分类逻辑。
+
+/// 演示三态:静止(旧态)/ 播放中 / 落定(新态)
+enum SimDemoPhase: Equatable {
+    case idle
+    case playing(Date)
+    case done
+}
+
+/// 计时:级联窗口 span(所有格子起跑时刻铺开的区间)+ 单格 envelope 时长 cellDur。
+/// span 随 delta 增大而拉长并 cap,避免大 delta 拖沓。
+/// 方向区分:点亮(收入)刻意放慢 —— 增格是"赚回自由"的奖励时刻,逐格慢点更有满足感;
+/// 熄灭(支出)保持利落。grid 渲染和 sheet 落定计时器共用这一份,保证 totalDur 一致。
+func simDemoTiming(delta: Int, ignite: Bool) -> (span: Double, cellDur: Double, total: Double) {
+    if ignite {
+        let cellDur = 0.72
+        let span = min(3.0, max(0.5, 0.18 * Double(delta)))
+        return (span, cellDur, span + cellDur)
+    } else {
+        let cellDur = 0.55
+        let span = min(1.6, max(0.25, 0.10 * Double(delta)))
+        return (span, cellDur, span + cellDur)
+    }
+}
+
+struct SimDemoGrid: View {
+    let unit: FreedomMath.GridUnit
+    let oldCount: Int
+    let newCount: Int
+    /// 蓝格(锁定资产)数 —— 旧态/新态分别,边界外即金格(现金)
+    let oldBlue: Int
+    let newBlue: Int
+    let phase: SimDemoPhase
+
+    @Environment(\.colorScheme) private var scheme
+
+    private var total: Int { max(oldCount, newCount) }
+    private var delta: Int { abs(newCount - oldCount) }
+    private var isIgnite: Bool { newCount > oldCount }
+
+    var body: some View {
+        Group {
+            switch phase {
+            case .idle:
+                gridFrame(elapsed: -1)            // 停在旧态
+            case .done:
+                gridFrame(elapsed: 9999)          // 停在新态
+            case .playing(let start):
+                TimelineView(.animation) { ctx in
+                    gridFrame(elapsed: ctx.date.timeIntervalSince(start))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func gridFrame(elapsed: Double) -> some View {
+        let timing = simDemoTiming(delta: delta, ignite: isIgnite)
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: unit.cellSize, maximum: unit.cellSize),
+                               spacing: unit.spacing)],
+            spacing: unit.spacing
+        ) {
+            ForEach(0..<total, id: \.self) { i in
+                cell(index: i, elapsed: elapsed, timing: timing)
+            }
+        }
+    }
+
+    /// 单格:稳定区直接满亮;过渡区按 envelope 点燃/熄灭。
+    @ViewBuilder
+    private func cell(index i: Int, elapsed: Double,
+                      timing: (span: Double, cellDur: Double, total: Double)) -> some View {
+        let stableCount = min(oldCount, newCount)
+
+        if i < stableCount {
+            // 稳定区:始终满亮,用新态配色
+            // 配色跟 Dashboard LifeGrid 一致:前段(资产/blue 计数)= 金 incomeGold,后段(现金)= 蓝 assetBlue
+            // 注:token 命名历史遗留反了 —— "blue" 计数其实渲染成金色。详见 DesignSystem 注释。
+            litCell(base: i < newBlue ? .incomeGold : .assetBlue, opacity: 1, scale: 1, glow: 0, glowColor: .clear)
+        } else {
+            // 过渡区:计算该格在级联里的顺序 k → 本地进度 lt ∈ [0,1]
+            let k: Int = isIgnite ? (i - oldCount) : (oldCount - 1 - i)
+            let startK = delta <= 1 ? 0 : (Double(k) / Double(delta - 1)) * timing.span
+            let lt = min(1, max(0, (elapsed - startK) / timing.cellDur))
+
+            if isIgnite {
+                let base: Color = i < newBlue ? .incomeGold : .assetBlue
+                let e = envelope(lt, attack: 0.12, release: 1.4)
+                let opacity = 0.14 + 0.86 * easeOut(min(1, lt / 0.30))
+                litCell(base: base, opacity: opacity, scale: 1 + 0.20 * e,
+                        glow: e * 0.9, glowColor: base)
+            } else {
+                let base: Color = i < oldBlue ? .incomeGold : .assetBlue
+                let e = envelope(lt, attack: 0.16, release: 1.4)
+                let opacity = 1 - 0.86 * easeOut(min(1, lt / 0.55))
+                // 熄灭用 flame 焰光 —— 贴合 App "支出 = 朱砂" 语义
+                litCell(base: base, opacity: opacity, scale: 1 + 0.12 * e,
+                        glow: e * 0.8, glowColor: .flame)
+            }
+        }
+    }
+
+    private func litCell(base: Color, opacity: Double, scale: CGFloat,
+                         glow: Double, glowColor: Color) -> some View {
+        Rectangle()
+            .fill(base.opacity(opacity))
+            .frame(width: unit.cellSize, height: unit.cellSize)
+            .cornerRadius(unit.cellSize * 0.13)
+            .shadow(color: glowColor.opacity(glow * 0.9),
+                    radius: unit.cellSize * 0.8 * glow)
+            .scaleEffect(scale)
+            .zIndex(glow > 0.01 ? 1 : 0)
+    }
+
+    // ===== envelope helpers(移植 lead-wealth _eoq / _env)=====
+
+    /// ease-out quart:1-(1-t)^4,收尾绵软
+    private func easeOut(_ t: Double) -> Double {
+        let c = min(1, max(0, t))
+        return 1 - pow(1 - c, 4)
+    }
+
+    /// attack-release 包络:t<attack 缓入到 1,之后按 release 指数衰减回 0。
+    /// 给辉光/缩放脉冲用 —— 点亮瞬间鼓一下再落定。
+    private func envelope(_ t: Double, attack: Double, release: Double) -> Double {
+        if t >= 1 { return 0 }
+        if t < attack { return easeOut(t / attack) }
+        return pow(1 - (t - attack) / (1 - attack), release)
+    }
+}
+
+// ============================================================================
 // MARK: - SimulateSheet (模拟一笔 - 决策预演,不写数据库)
 // ============================================================================
 // 设计动机:lead-wealth 的核心差异化——"要不要买"之前先预演。
@@ -3047,6 +3193,8 @@ struct SimulateSheet: View {
     // ===== 模拟状态 =====
     @State private var amount: String = ""
     @State private var mode: Mode = .expense
+    /// 格子推演动画三态
+    @State private var demoPhase: SimDemoPhase = .idle
 
     enum Mode: String, CaseIterable, Identifiable {
         case expense = "模拟支出"
@@ -3063,6 +3211,7 @@ struct SimulateSheet: View {
                     amountInput
                     if let amt = Double(amount), amt > 0 {
                         previewCard(amount: amt)
+                        gridDemoCard(amount: amt)
                     } else {
                         hintCard
                     }
@@ -3071,6 +3220,9 @@ struct SimulateSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
+            // 金额或模式一变,演示回到静止态(旧网格),让用户重新观察这一笔
+            .onChange(of: amount) { _, _ in demoPhase = .idle }
+            .onChange(of: mode) { _, _ in demoPhase = .idle }
             .navigationTitle("模拟决策")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -3176,75 +3328,202 @@ struct SimulateSheet: View {
     }
 
     // ============================================================================
+    // MARK: - 格子推演卡(动画演示)
+    // ============================================================================
+
+    /// 把"自由天数 from→to"翻译成可见的格子级联熄灭(支出)/ 点亮(收入)。
+    @ViewBuilder
+    private func gridDemoCard(amount: Double) -> some View {
+        let o = outcome(amount: amount)
+        // 锁定"当前态"档位渲染两态 —— 保证格子语义在动画全程一致
+        let unit = gridUnit(for: o.currentFreedom)
+        let oldCount = cellCount(freedomDays: o.currentFreedom, unit: unit)
+        let newCount = cellCount(freedomDays: o.newFreedom, unit: unit)
+        let oldBlue = blueCells(count: oldCount, locked: o.lockedAssets, netWorth: o.currentNW)
+        let newBlue = blueCells(count: newCount, locked: o.lockedAssets, netWorth: o.newNW)
+        let delta = abs(newCount - oldCount)
+        let isExpense = mode == .expense
+
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "格子推演")
+                    Spacer()
+                    Text("\(oldCount) → \(newCount) \(unit.label)")
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.inkFaint)
+                }
+
+                if delta == 0 {
+                    Text(isExpense ? "不足一格 —— 还在当日预算内, 这笔不削自由。"
+                                   : "不足一格 —— 这笔还不够点亮一格自由。")
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, Spacing.sm)
+                } else {
+                    SimDemoGrid(unit: unit, oldCount: oldCount, newCount: newCount,
+                                oldBlue: oldBlue, newBlue: newBlue, phase: demoPhase)
+                        .padding(.vertical, Spacing.xs)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: isExpense ? "flame" : "sparkles")
+                            .font(.system(size: 11))
+                            .foregroundStyle(isExpense ? Color.flame : Color.skyDeep)
+                        Text(isExpense ? "熄灭 \(delta) 格 · 每格 1 \(unit.label)自由"
+                                       : "点亮 \(delta) 格 · 每格 1 \(unit.label)自由")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                        Spacer()
+                    }
+
+                    demoButton(delta: delta, isExpense: isExpense)
+                }
+            }
+        }
+    }
+
+    /// 演示 / 推演中 / 重播 三态按钮
+    private func demoButton(delta: Int, isExpense: Bool) -> some View {
+        let title: String
+        let isPlaying: Bool
+        switch demoPhase {
+        case .idle:    title = isExpense ? "演示这笔熄灭哪几格" : "演示这笔点亮哪几格"; isPlaying = false
+        case .playing: title = "推演中…"; isPlaying = true
+        case .done:    title = "重播"; isPlaying = false
+        }
+        return VaultButton(title: title,
+                           icon: demoPhase == .done ? "arrow.counterclockwise" : "play.fill",
+                           style: isExpense ? .destructive : .primary) {
+            playDemo(delta: delta)
+        }
+        .disabled(isPlaying)
+        .opacity(isPlaying ? 0.5 : 1)
+    }
+
+    /// 触发一次推演:置 playing,计时到 totalDur 后落定到 done(停在新态)
+    private func playDemo(delta: Int) {
+        let start = Date()
+        demoPhase = .playing(start)
+        let total = simDemoTiming(delta: delta, ignite: mode == .income).total
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(total))
+            if case .playing(let s) = demoPhase, s == start {
+                demoPhase = .done
+            }
+        }
+    }
+
+    // ===== freedomDays → 格子换算(沿用 FreedomMath.gridState 档位规则)=====
+
+    private func gridUnit(for freedomDays: Double) -> FreedomMath.GridUnit {
+        if freedomDays.isInfinite || freedomDays >= 3650 { return .year }
+        if freedomDays >= 365 { return .month }
+        return .day
+    }
+
+    private func cellCount(freedomDays: Double, unit: FreedomMath.GridUnit) -> Int {
+        if freedomDays.isInfinite { return unit.maxCells }
+        let raw: Double
+        switch unit {
+        case .day:   raw = freedomDays
+        case .month: raw = freedomDays / 30.44
+        case .year:  raw = freedomDays / 365.25
+        }
+        return min(max(0, Int(raw)), unit.maxCells)
+    }
+
+    private func blueCells(count: Int, locked: Double, netWorth: Double) -> Int {
+        guard netWorth > 0, count > 0 else { return 0 }
+        return min(count, Int((Double(count) * max(0, locked) / netWorth).rounded()))
+    }
+
+    // ============================================================================
     // MARK: - 预览计算(支出 / 收入)
     // ============================================================================
 
-    private func expensePreview(amount: Double) -> some View {
-        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
+    /// 一次模拟的完整结果 —— preview 表格和格子推演共用一份, 保证数字一致。
+    private struct SimOutcome {
+        let lockedAssets: Double
+        let currentNW: Double
+        let newNW: Double
+        let currentAvg: Double
+        let newAvg: Double
+        let currentFreedom: Double
+        let newFreedom: Double
+    }
+
+    private func outcome(amount: Double) -> SimOutcome {
+        let locked = assetsArr.first?.lockedAssets ?? 0
+        let cash = assetsArr.first?.cash ?? 0
+        let currentNW = locked + cash
         let firstDate = assetsArr.first?.firstRecordDate
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-
-        let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
-        let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
+        let totalExp = expenses.reduce(0) { $0 + $1.amount }
+        let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
         let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
 
-        let newNW = currentNW - amount
-        let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
+        let newNW: Double
+        let newAvg: Double
+        if mode == .expense {
+            newNW = currentNW - amount
+            newAvg = FreedomMath.dailyBurn(totalExpenses: totalExp + amount, trackDays: days)
+        } else {
+            newNW = currentNW + amount
+            newAvg = currentAvg   // 收入不改日均消费
+        }
         let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg, dailyPassive: dailyPassive)
 
-        let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
+        return SimOutcome(lockedAssets: locked, currentNW: currentNW, newNW: newNW,
+                          currentAvg: currentAvg, newAvg: newAvg,
+                          currentFreedom: currentFreedom, newFreedom: newFreedom)
+    }
+
+    private func expensePreview(amount: Double) -> some View {
+        let o = outcome(amount: amount)
+        let freedomLoss: Double = o.currentFreedom.isInfinite ? 0 : (o.currentFreedom - o.newFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "KILL 1 净值",
-                      from: formatYuan(currentNW),
-                      to: formatYuan(newNW),
+                      from: formatYuan(o.currentNW),
+                      to: formatYuan(o.newNW),
                       delta: "−\(formatYuan(amount))",
                       color: Color.vermillion)
 
             impactRow(label: "KILL 2 日均",
-                      from: formatYuan(currentAvg, precision: 1),
-                      to: formatYuan(newAvg, precision: 2),
-                      delta: "+\(formatYuan(newAvg - currentAvg, precision: 2))",
+                      from: formatYuan(o.currentAvg, precision: 1),
+                      to: formatYuan(o.newAvg, precision: 2),
+                      delta: "+\(formatYuan(o.newAvg - o.currentAvg, precision: 2))",
                       color: Color.vermillion)
 
             // from/to 智能档, delta 固定天
             impactRow(label: "KILL 3 自由天数",
-                      from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                      to: FreedomMath.freedomDaysDisplay(newFreedom),
-                      delta: currentFreedom.isInfinite ? "—" : "−\(String(format: "%.0f", freedomLoss)) 天",
+                      from: FreedomMath.freedomDaysDisplay(o.currentFreedom),
+                      to: FreedomMath.freedomDaysDisplay(o.newFreedom),
+                      delta: o.currentFreedom.isInfinite ? "—" : "−\(String(format: "%.0f", freedomLoss)) 天",
                       color: Color.vermillion)
         }
     }
 
     private func incomePreview(amount: Double) -> some View {
-        let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-        let firstDate = assetsArr.first?.firstRecordDate
-        let days = FreedomMath.trackDays(firstRecordDate: firstDate)
-        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-
-        let totalExp = expenses.reduce(0) { $0 + $1.amount }
-        let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
-
-        let newNW = currentNW + amount
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
-
-        let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
-            ? 0 : (newFreedom - currentFreedom)
+        let o = outcome(amount: amount)
+        let freedomGain: Double = (o.currentFreedom.isInfinite || o.newFreedom.isInfinite)
+            ? 0 : (o.newFreedom - o.currentFreedom)
 
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "GAIN 1 净值",
-                      from: formatYuan(currentNW),
-                      to: formatYuan(newNW),
+                      from: formatYuan(o.currentNW),
+                      to: formatYuan(o.newNW),
                       delta: "+\(formatYuan(amount))",
                       color: Color.skyDeep)
 
             // from/to 智能档, delta 固定天
             impactRow(label: "GAIN 2 自由天数",
-                      from: FreedomMath.freedomDaysDisplay(currentFreedom),
-                      to: FreedomMath.freedomDaysDisplay(newFreedom),
-                      delta: currentFreedom.isInfinite ? "—" : "+\(String(format: "%.0f", freedomGain)) 天",
+                      from: FreedomMath.freedomDaysDisplay(o.currentFreedom),
+                      to: FreedomMath.freedomDaysDisplay(o.newFreedom),
+                      delta: o.currentFreedom.isInfinite ? "—" : "+\(String(format: "%.0f", freedomGain)) 天",
                       color: Color.skyDeep)
         }
     }
