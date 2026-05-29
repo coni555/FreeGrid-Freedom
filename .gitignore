@@ -45,3 +45,6 @@ fastlane/test_output
 
 # 私人接力笔记 (跨对话状态文档,只本地存在,不让 fork/contributor 看到)
 HANDOFF.md
+
+# 图标源图 / 设计导出素材 (成品已进 Assets.xcassets, 这里是工作文件, 只本地留)
+exports/

@@ -868,7 +868,7 @@ struct DashboardView: View {
     /// 空网格时的提示:暗色 SF symbol + 文案
     private var emptyGridHint: some View {
         VStack(spacing: Spacing.sm) {
-            Image(systemName: "square.grid.3x3.middleandbottom.filled")
+            Image(systemName: "square.grid.3x3.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.inkFaint)
             Text("记录第一笔后,网格开始点亮")
