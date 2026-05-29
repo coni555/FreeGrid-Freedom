@@ -1028,7 +1028,7 @@ struct AssetsView: View {
     @State private var showingPurgeAlert = false
     @State private var importStatus: String? = nil
     @State private var pendingImport: DataIO.ImportPreview? = nil
-    @State private var showingImportConfirm = false
+    @State private var showingImportReview = false
 
     var body: some View {
         NavigationStack {
@@ -1060,18 +1060,13 @@ struct AssetsView: View {
             } message: {
                 Text("将删除所有支出、收入、被动收入源、设备记录和资产数据。此操作不可撤销。")
             }
-            .confirmationDialog(
-                "导入策略",
-                isPresented: $showingImportConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("替换当前净值") { commitImport(strategy: .replace) }
-                Button("加到现金桶") { commitImport(strategy: .addToCash) }
-                Button("只导入交易,不动净值") { commitImport(strategy: .skipAssets) }
-                Button("取消", role: .cancel) { pendingImport = nil }
-            } message: {
+            .sheet(isPresented: $showingImportReview) {
                 if let p = pendingImport {
-                    Text(importPreviewMessage(p))
+                    ImportReviewSheet(preview: p) { strategy, categoryMap in
+                        commitImport(strategy: strategy, categoryMap: categoryMap)
+                    } onCancel: {
+                        pendingImport = nil
+                    }
                 }
             }
             .sheet(item: $editingBucket) { bucket in
@@ -1456,7 +1451,7 @@ struct AssetsView: View {
                 let preview = try DataIO.previewJSON(data: data, context: modelContext)
                 pendingImport = preview
                 importStatus = nil
-                showingImportConfirm = true
+                showingImportReview = true
             } catch {
                 importStatus = "✗ 解析失败: \(error.localizedDescription)"
             }
@@ -1465,10 +1460,10 @@ struct AssetsView: View {
         }
     }
 
-    private func commitImport(strategy: DataIO.AssetsImportStrategy) {
+    private func commitImport(strategy: DataIO.AssetsImportStrategy, categoryMap: [String: String] = [:]) {
         guard let preview = pendingImport else { return }
         do {
-            let result = try DataIO.commitImport(preview: preview, strategy: strategy, context: modelContext)
+            let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap, context: modelContext)
             var lines: [String] = ["✓ 导入完成"]
             lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
             lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
@@ -1488,21 +1483,6 @@ struct AssetsView: View {
             importStatus = "✗ 写入失败: \(error.localizedDescription)"
         }
         pendingImport = nil
-    }
-
-    private func importPreviewMessage(_ p: DataIO.ImportPreview) -> String {
-        let newExp = p.expensesNew.count
-        let newInc = p.incomesNew.count
-        let newPass = p.passiveSourcesNew.count
-        var lines: [String] = []
-        lines.append("新增 \(newExp) 笔支出 · \(newInc) 笔收入 · \(newPass) 个被动源")
-        if p.expensesSkipped > 0 || p.incomesSkipped > 0 {
-            lines.append("跳过重复: \(p.expensesSkipped) 支出 / \(p.incomesSkipped) 收入")
-        }
-        lines.append("")
-        lines.append("JSON 净值: ¥\(Int(p.jsonAssetsTotal))")
-        lines.append("当前: 资产 ¥\(Int(p.currentLockedAssets)) / 现金 ¥\(Int(p.currentCash))")
-        return lines.joined(separator: "\n")
     }
 
     private func purgeData() {
@@ -1903,6 +1883,46 @@ struct LumenDataJSON: Codable {
 }
 
 // ============================================================================
+// MARK: - ExpenseCategory (支出分类:权威列表 + 导入归一)
+// ============================================================================
+// 单一来源:AddExpenseSheet 的 Picker 和 导入分类对齐都引用这里, 避免两套词表打架。
+// 设计哲学:手动记账只能选 canonical;导入是唯一会混进外来分类的口子, 在导入边界
+// 用 suggest() 归一到 canonical → 数据层永远只存这 9 个, 分析层(汇总条/图表)
+// 不可能再冒出选不到的分类。raw 标签若被改写, 压进 note 留底。
+
+enum ExpenseCategory {
+    /// 权威分类(记账 Picker + 一切分析口径的唯一标准)
+    static let canonical = ["早餐", "午餐", "晚餐", "购物", "交通", "娱乐",
+                            "成长投资", "医疗", "其他"]
+
+    /// 兜底分类(归一不出来时的默认)
+    static let fallback = "其他"
+
+    /// 外来标签 → canonical 的高置信别名表(只放"几乎不会错"的)。
+    /// 英文 key 走小写匹配(lead-wealth web 旧版分类键);中文 key 精确匹配。
+    /// 拿不准的(food / 订阅 / 日用 / 人情 …)故意不放, 让它们落到 needs-review,
+    /// 由用户在导入预览里手动归类 —— 这就是"稳"的含义。
+    static let aliases: [String: String] = [
+        "transport": "交通", "transportation": "交通",
+        "shopping": "购物", "shop": "购物",
+        "entertainment": "娱乐",
+        "medical": "医疗", "health": "医疗",
+        "other": "其他", "others": "其他", "misc": "其他",
+        "growth": "成长投资", "investment": "成长投资",
+        "数码": "购物",   // 经用户确认:电子产品并入购物
+    ]
+
+    /// 归一建议。已是 canonical → 原样(known);命中别名 → canonical(known);
+    /// 都不命中 → fallback 但 known=false(需用户在预览里确认)。
+    static func suggest(_ raw: String) -> (canonical: String, known: Bool) {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if canonical.contains(t) { return (t, true) }
+        if let mapped = aliases[t] ?? aliases[t.lowercased()] { return (mapped, true) }
+        return (fallback, false)
+    }
+}
+
+// ============================================================================
 // MARK: - DataImporter / DataPurger (导入 + 清空数据)
 // ============================================================================
 // 设计动机:用户的 lead-wealth web 版已经积累几百天数据,iOS 版要能继承。
@@ -1919,7 +1939,17 @@ enum DataIO {
         let firstRecordDate: Date?
     }
 
-    /// 导入预览: previewJSON 算出来交给 UI, UI 弹确认对话框, 用户选 strategy 后调 commitImport
+    /// 待导入数据里"非标准支出分类"的一条对齐建议(UI 在预览里展示 + 可改)
+    struct CategoryMapEntry: Identifiable {
+        var id: String { raw }
+        let raw: String          // 原始分类标签(如 "数码" / "food")
+        let count: Int           // 这批待导入里有几笔
+        let total: Double        // 总额
+        var canonical: String    // 归到哪个权威分类(可被用户改)
+        let needsReview: Bool     // true = 没把握自动归类, UI 高亮提醒确认
+    }
+
+    /// 导入预览: previewJSON 算出来交给 UI, UI 展示 + 用户调分类/strategy 后调 commitImport
     struct ImportPreview {
         let expensesNew: [LumenDataJSON.ExpenseJSON]
         let expensesSkipped: Int
@@ -1931,13 +1961,15 @@ enum DataIO {
         let jsonFirstRecordDate: Date?
         let currentCash: Double
         let currentLockedAssets: Double
+        /// 待导入支出里所有"非 canonical"分类的对齐建议(已是标准的不进此列表)。按总额降序。
+        let categoryEntries: [CategoryMapEntry]
     }
 
     /// 导入时如何对待 UserAssets (现金/资产桶):
     /// - replace: 用 JSON.total 整体替换, lockedAssets 清零, cash = JSON.total
     /// - addToCash: cash += JSON.total, lockedAssets 不动
     /// - skipAssets: 完全不动两桶, 只导入交易记录
-    enum AssetsImportStrategy {
+    enum AssetsImportStrategy: Equatable {
         case replace
         case addToCash
         case skipAssets
@@ -2000,6 +2032,24 @@ enum DataIO {
 
         let existingAssets = try? context.fetch(FetchDescriptor<UserAssets>()).first
 
+        // ===== 分类对齐:扫待导入支出里所有"非 canonical"分类, 给归一建议 =====
+        var catAgg: [String: (count: Int, total: Double)] = [:]
+        for e in expensesNew {
+            let raw = e.category.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !ExpenseCategory.canonical.contains(raw) else { continue }  // 已标准的不用对齐
+            let prev = catAgg[raw] ?? (0, 0)
+            catAgg[raw] = (prev.count + 1, prev.total + e.amount)
+        }
+        let categoryEntries: [CategoryMapEntry] = catAgg
+            .map { raw, agg in
+                let s = ExpenseCategory.suggest(raw)
+                return CategoryMapEntry(
+                    raw: raw, count: agg.count, total: agg.total,
+                    canonical: s.canonical, needsReview: !s.known
+                )
+            }
+            .sorted { $0.total > $1.total }
+
         return ImportPreview(
             expensesNew: expensesNew,
             expensesSkipped: expSkipped,
@@ -2010,24 +2060,35 @@ enum DataIO {
             jsonAssetsUpdatedAt: dump.assets?.updatedAt.flatMap { parseISO($0) },
             jsonFirstRecordDate: dump.firstRecordDate.flatMap { parseDate($0) },
             currentCash: existingAssets?.cash ?? 0,
-            currentLockedAssets: existingAssets?.lockedAssets ?? 0
+            currentLockedAssets: existingAssets?.lockedAssets ?? 0,
+            categoryEntries: categoryEntries
         )
     }
 
     /// 第二步: 接受 preview + 用户选的 strategy, 写入 context。
     /// expenses / incomes / passive 只插入 preview 里筛剩的 new 行 (跳过重复)。
+    /// categoryMap: 原始支出分类 → canonical(来自预览里用户确认的对齐)。
+    /// 不在表里的分类(本就是 canonical)原样保留。改写的把原标签压进 note 留底。
     static func commitImport(
         preview: ImportPreview,
         strategy: AssetsImportStrategy,
+        categoryMap: [String: String] = [:],
         context: ModelContext
     ) throws -> ImportResult {
         // ===== expenses =====
         var expCount = 0
         for e in preview.expensesNew {
+            let rawCat = e.category.trimmingCharacters(in: .whitespacesAndNewlines)
+            let mappedCat = categoryMap[rawCat] ?? e.category
+            // 分类被归一改写 → 原标签压进 note 留底("可以保留")
+            var note = e.note ?? ""
+            if mappedCat != rawCat {
+                note = note.isEmpty ? "原分类·\(rawCat)" : "\(note) · 原分类·\(rawCat)"
+            }
             let exp = Expense(
                 amount: e.amount,
-                category: e.category,
-                note: e.note ?? "",
+                category: mappedCat,
+                note: note,
                 date: parseDate(e.date) ?? .now
             )
             if let createdAt = e.createdAt, let d = parseISO(createdAt) {
@@ -2697,10 +2758,9 @@ struct AddExpenseSheet: View {
     @State private var note: String = ""
     @State private var date: Date = .now
 
-    /// 分类清单。"人情"/"日用" 用户反馈日常用不到,2026-05 移除。
-    /// 旧记录里的"人情"/"日用"仍能在 History 正常显示,只是 Picker 选不到了。
-    private let categories = ["早餐", "午餐", "晚餐", "购物", "交通", "娱乐",
-                              "成长投资", "医疗", "其他"]
+    /// 分类清单 = 权威 canonical(单一来源 ExpenseCategory.canonical)。
+    /// "人情"/"日用" 已不在清单(2026-05 移除);旧记录仍能在 History 正常显示。
+    private let categories = ExpenseCategory.canonical
 
     var body: some View {
         NavigationStack {
@@ -3020,6 +3080,186 @@ struct AddIncomeSheet: View {
 
         onSaved?(income)
         dismiss()
+    }
+}
+
+// ============================================================================
+// MARK: - ImportReviewSheet (导入预览 + 分类对齐 + 净值策略)
+// ============================================================================
+// "稳"方案:导入前把这批数据的非标准支出分类摊出来 —— 自动归一的可改、没把握的高亮,
+// 用户确认后才落库 → 数据层永远只存 canonical 分类。净值策略也搬进来一并确认。
+// 取代旧的 confirmationDialog(三个策略按钮),因为分类对齐需要列表式可编辑 UI。
+
+struct ImportReviewSheet: View {
+    let preview: DataIO.ImportPreview
+    let onCommit: (DataIO.AssetsImportStrategy, [String: String]) -> Void
+    let onCancel: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var entries: [DataIO.CategoryMapEntry]
+    @State private var strategy: DataIO.AssetsImportStrategy = .skipAssets
+
+    init(preview: DataIO.ImportPreview,
+         onCommit: @escaping (DataIO.AssetsImportStrategy, [String: String]) -> Void,
+         onCancel: @escaping () -> Void) {
+        self.preview = preview
+        self.onCommit = onCommit
+        self.onCancel = onCancel
+        _entries = State(initialValue: preview.categoryEntries)
+    }
+
+    private var reviewCount: Int { entries.filter { $0.needsReview }.count }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: Spacing.lg) {
+                    summaryCard
+                    if !entries.isEmpty { categoryCard }
+                    strategyCard
+                }
+                .padding()
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
+            .navigationTitle("导入预览")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { onCancel(); dismiss() }
+                        .foregroundStyle(Color.inkMuted)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("导入") {
+                        let map = Dictionary(uniqueKeysWithValues: entries.map { ($0.raw, $0.canonical) })
+                        onCommit(strategy, map)
+                        dismiss()
+                    }
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.skyDeep)
+                }
+            }
+        }
+    }
+
+    // ===== 摘要 =====
+    private var summaryCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                KickerLabel(text: "导入预览")
+                summaryRow("新增支出", "\(preview.expensesNew.count) 笔")
+                summaryRow("新增收入", "\(preview.incomesNew.count) 笔")
+                if preview.passiveSourcesNew.count > 0 {
+                    summaryRow("新增被动源", "\(preview.passiveSourcesNew.count) 个")
+                }
+                if preview.expensesSkipped > 0 || preview.incomesSkipped > 0 {
+                    summaryRow("跳过重复", "\(preview.expensesSkipped) 支出 / \(preview.incomesSkipped) 收入")
+                }
+            }
+        }
+    }
+
+    private func summaryRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(.callout, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+            Spacer()
+            Text(value)
+                .font(.system(.callout, design: .monospaced))
+                .foregroundStyle(Color.ink)
+        }
+    }
+
+    // ===== 分类对齐 =====
+    private var categoryCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "分类对齐")
+                    Spacer()
+                    if reviewCount > 0 {
+                        Text("\(reviewCount) 个待确认")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.flame)
+                    }
+                }
+                Text("这些分类不在你的标准分类里(导入数据带来的)。已自动归类的可改,标橙的请确认。")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+
+                ForEach($entries) { $entry in
+                    Hairline()
+                    categoryRow($entry)
+                }
+            }
+        }
+    }
+
+    private func categoryRow(_ entry: Binding<DataIO.CategoryMapEntry>) -> some View {
+        HStack(spacing: Spacing.sm) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    if entry.wrappedValue.needsReview {
+                        Circle().fill(Color.flame).frame(width: 6, height: 6)
+                    }
+                    Text(entry.wrappedValue.raw)
+                        .font(.system(.callout, design: .rounded).weight(.medium))
+                        .foregroundStyle(Color.ink)
+                }
+                Text("\(entry.wrappedValue.count) 笔 · ¥\(Int(entry.wrappedValue.total))")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
+            }
+            Spacer()
+            Image(systemName: "arrow.right")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.inkGhost)
+            Picker("", selection: entry.canonical) {
+                ForEach(ExpenseCategory.canonical, id: \.self) { c in
+                    Text(c).tag(c)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Color.skyDeep)
+        }
+    }
+
+    // ===== 净值策略 =====
+    private var strategyCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "净值处理")
+                strategyOption(.skipAssets, "只导入交易", "不动现有现金 / 资产桶")
+                Hairline()
+                strategyOption(.replace, "替换净值",
+                               "用 JSON 净值 ¥\(Int(preview.jsonAssetsTotal)) 整体替换(原资产清零)")
+                Hairline()
+                strategyOption(.addToCash, "加到现金", "现金桶 +¥\(Int(preview.jsonAssetsTotal))")
+            }
+        }
+    }
+
+    private func strategyOption(_ s: DataIO.AssetsImportStrategy, _ title: String, _ desc: String) -> some View {
+        Button {
+            strategy = s
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: strategy == s ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(strategy == s ? Color.skyDeep : Color.inkGhost)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(.callout, design: .rounded).weight(.medium))
+                        .foregroundStyle(Color.ink)
+                    Text(desc)
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
