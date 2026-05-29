@@ -255,13 +255,15 @@ enum FreedomMath {
     /// 365-3649 天 → 月数整数 "16" (= days / 30.44)
     /// ≥ 3650 天   → 年数 1 位小数 "38.1" (= days / 365.25)
     /// ∞ / NaN     → "∞"
+    /// 取整一律向下(floor), 跟 LifeGrid 的 Int() 截断一致 —— 否则 77.9 天 Hero 四舍五入
+    /// 显示 78、Grid 截断显示 77, 同屏裂开。语义上"还能撑 N 天"= 至少能完整撑 N 天。
     static func freedomDaysDisplay(_ value: Double) -> String {
         if value.isInfinite || value.isNaN { return "∞" }
         if value < 365 {
-            return String(format: "%.0f", value)
+            return String(Int(value))
         }
         if value < 3650 {
-            return String(format: "%.0f", value / 30.44)
+            return String(Int(value / 30.44))
         }
         return String(format: "%.1f", value / 365.25)
     }
@@ -466,14 +468,22 @@ enum FreedomMath {
             guard let weekEnd = cal.date(byAdding: .day, value: -7 * i, to: today) else { continue }
             if weekEnd < firstDate { continue }
 
-            let trackDays_i = max(1, cal.dateComponents([.day], from: firstDate, to: weekEnd).day ?? 1)
+            // +1 跟 Hero 的 trackDays(today − first + 1)同口径 —— 含端点当天,
+            // 否则分母少 1 天、dailyBurn 微高, sparkline 终点会比 Hero 大数字少 1。
+            let trackDays_i = max(1, (cal.dateComponents([.day], from: firstDate, to: weekEnd).day ?? 1) + 1)
 
-            let expUntil = expenses.filter { $0.date <= weekEnd }.reduce(0) { $0 + $1.amount }
+            // 关键:交易按"自然日"归属, 不看具体时间戳。
+            // weekEnd 是某天的 00:00;若用裸 date 比较, 当天白天发生的交易(时间戳 > 00:00)
+            // 会被误判成"weekEnd 之后", 在终点(weekEnd = 今天)那步, 今天到账的收入被当成
+            // "今天之后"从 incAfter 减掉 → 终点净值塌陷, sparkline 终点 ≠ Hero 大数字。
+            // 用 startOfDay 比较, 把"今天"完整算进 expUntil/此刻净值, 终点就跟 Hero 对齐。
+            let dayOf: (Date) -> Date = { cal.startOfDay(for: $0) }
+            let expUntil = expenses.filter { dayOf($0.date) <= weekEnd }.reduce(0) { $0 + $1.amount }
             let dailyBurn_i = expUntil / Double(trackDays_i)
 
-            // 反推那时的净值 = 当前净值 + 之后支出 - 之后收入
-            let expAfter = expenses.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
-            let incAfter = incomes.filter { $0.date > weekEnd }.reduce(0) { $0 + $1.amount }
+            // 反推那时的净值 = 当前净值 + 之后支出 - 之后收入(均按自然日)
+            let expAfter = expenses.filter { dayOf($0.date) > weekEnd }.reduce(0) { $0 + $1.amount }
+            let incAfter = incomes.filter { dayOf($0.date) > weekEnd }.reduce(0) { $0 + $1.amount }
             let netWorth_i = currentNetWorth + expAfter - incAfter
 
             let netBurn_i = max(0, dailyBurn_i - dailyPassive)
@@ -498,8 +508,9 @@ enum FreedomMath {
     static func deltaSummary(history: [HistoryPoint]) -> (start: Int, end: Int, delta: Int)? {
         guard let first = history.first, let last = history.last,
               history.count >= 2 else { return nil }
-        let s = Int(first.freedomDays.rounded())
-        let e = Int(last.freedomDays.rounded())
+        // 向下取整, 跟 Hero freedomDaysDisplay / Grid 一致(避免 sparkline 起终点又四舍五入裂开)
+        let s = Int(first.freedomDays)
+        let e = Int(last.freedomDays)
         return (s, e, e - s)
     }
 
