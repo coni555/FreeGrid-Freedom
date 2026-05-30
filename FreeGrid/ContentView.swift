@@ -22,7 +22,7 @@ import UIKit                    // 导出分享面板 UIActivityViewController
 // ============================================================================
 // MARK: - Color(hex:) (颜色扩展)
 // ============================================================================
-// SwiftUI 没有内置 hex 颜色构造器,加一个方便用 lead-wealth web 版的色板
+// SwiftUI 没有内置 hex 颜色构造器,加一个方便用 早期 web 版的色板
 // 例: Color(hex: "9cc3ff") = 资产蓝, Color(hex: "ffd166") = 收入金
 
 extension Color {
@@ -142,7 +142,7 @@ struct LifeGrid: View {
 // MARK: - MeteorLayer (暗色模式天文台流星)
 // ============================================================================
 // 4 颗流星周期性飞过整屏背景, 拖尾用 LinearGradient 模拟 web 版 CSS .meteor
-// (lead-wealth/app.html shoot keyframes). 用 TimelineView(.animation) 余弦相位
+// (早期 web 版 shoot keyframes). 用 TimelineView(.animation) 余弦相位
 // 驱动 — 跟 LifeGrid 呼吸同套路, 不依赖 @State, 避免 iOS 17+ repeatForever 冻结。
 // 装在 Dashboard background, isDarkMode 时显示。
 
@@ -255,7 +255,7 @@ struct ContentView: View {
 // ============================================================================
 // MARK: - DashboardView (主面板)
 // ============================================================================
-// 对应 lead-wealth web 版的 Dashboard tab
+// 对应 早期 web 版的 Dashboard tab
 // 核心: Hero (Freedom Days) + 三联卡 + 收支按钮
 
 struct DashboardView: View {
@@ -913,7 +913,7 @@ struct DashboardView: View {
     // ============================================================================
     // MARK: - 核心计算 (业务逻辑)
     // ============================================================================
-    // lead-wealth web 版 app.html 的业务函数 1:1 Swift 复刻
+    // 早期 web 版的业务函数 1:1 Swift 复刻
     // 用 computed property,SwiftUI 自动追踪依赖,@Query 数据变化时自动重算
 
     private var userAssetsSingleton: UserAssets? {
@@ -1915,13 +1915,13 @@ enum TxKind: Identifiable {
 }
 
 // ============================================================================
-// MARK: - LumenDataJSON (lead-wealth web 版 JSON 数据结构)
+// MARK: - BackupJSON (早期 web 版 JSON 数据结构)
 // ============================================================================
-// 用于把 web 版导出的 lumen_data_*.json 解析到 Swift 类型。
+// 用于把 web 版导出的备份 JSON 解析到 Swift 类型。
 // keyDecodingStrategy = .convertFromSnakeCase 会自动把 is_passive → isPassive
 // monthly_amount → monthlyAmount 等。
 
-struct LumenDataJSON: Codable {
+struct BackupJSON: Codable {
     struct AssetsJSON: Codable {
         let total: Double
         let updatedAt: String?      // ISO 字符串 "2026-05-25T08:55:55.159Z"
@@ -1970,7 +1970,7 @@ enum ExpenseCategory {
     static let fallback = "其他"
 
     /// 外来标签 → canonical 的高置信别名表(只放"几乎不会错"的)。
-    /// 英文 key 走小写匹配(lead-wealth web 旧版分类键);中文 key 精确匹配。
+    /// 英文 key 走小写匹配(早期 web 旧版分类键);中文 key 精确匹配。
     /// 拿不准的(food / 订阅 / 日用 / 人情 …)故意不放, 让它们落到 needs-review,
     /// 由用户在导入预览里手动归类 —— 这就是"稳"的含义。
     static let aliases: [String: String] = [
@@ -1996,7 +1996,7 @@ enum ExpenseCategory {
 // ============================================================================
 // MARK: - DataImporter / DataPurger (导入 + 清空数据)
 // ============================================================================
-// 设计动机:用户的 lead-wealth web 版已经积累几百天数据,iOS 版要能继承。
+// 设计动机:用户的 早期 web 版已经积累几百天数据,iOS 版要能继承。
 // 不然测试数据(trackDays=1)会让 dailyBurn 算法看不出真实表现。
 
 enum DataIO {
@@ -2022,11 +2022,11 @@ enum DataIO {
 
     /// 导入预览: previewJSON 算出来交给 UI, UI 展示 + 用户调分类/strategy 后调 commitImport
     struct ImportPreview {
-        let expensesNew: [LumenDataJSON.ExpenseJSON]
+        let expensesNew: [BackupJSON.ExpenseJSON]
         let expensesSkipped: Int
-        let incomesNew: [LumenDataJSON.IncomeJSON]
+        let incomesNew: [BackupJSON.IncomeJSON]
         let incomesSkipped: Int
-        let passiveSourcesNew: [LumenDataJSON.PassiveSourceJSON]
+        let passiveSourcesNew: [BackupJSON.PassiveSourceJSON]
         let jsonAssetsTotal: Double
         let jsonAssetsUpdatedAt: Date?
         let jsonFirstRecordDate: Date?
@@ -2059,7 +2059,7 @@ enum DataIO {
         return f
     }
 
-    /// 导出为 JSON —— 与「从 JSON 导入」完全对称(同一套 LumenDataJSON schema),
+    /// 导出为 JSON —— 与「从 JSON 导入」完全对称(同一套 BackupJSON schema),
     /// 导出的文件能被本 App 原样回导。用于完整备份 / 换机 / 迁移。
     static func exportJSON(context: ModelContext) -> Data? {
         let day = dayFormatter()
@@ -2069,19 +2069,19 @@ enum DataIO {
         let passives = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
         let assets   = try? context.fetch(FetchDescriptor<UserAssets>()).first
 
-        let dump = LumenDataJSON(
-            assets: assets.map { LumenDataJSON.AssetsJSON(total: $0.netWorth, updatedAt: iso.string(from: $0.updatedAt)) },
+        let dump = BackupJSON(
+            assets: assets.map { BackupJSON.AssetsJSON(total: $0.netWorth, updatedAt: iso.string(from: $0.updatedAt)) },
             expenses: expenses.map {
-                LumenDataJSON.ExpenseJSON(amount: $0.amount, category: $0.category,
+                BackupJSON.ExpenseJSON(amount: $0.amount, category: $0.category,
                                           date: day.string(from: $0.date), note: $0.note,
                                           createdAt: iso.string(from: $0.createdAt))
             },
             incomes: incomes.map {
-                LumenDataJSON.IncomeJSON(amount: $0.amount, source: $0.source,
+                BackupJSON.IncomeJSON(amount: $0.amount, source: $0.source,
                                          date: day.string(from: $0.date), note: $0.note,
                                          isPassive: $0.isPassive, createdAt: iso.string(from: $0.createdAt))
             },
-            passiveSources: passives.map { LumenDataJSON.PassiveSourceJSON(name: $0.name, monthlyAmount: $0.monthlyAmount) },
+            passiveSources: passives.map { BackupJSON.PassiveSourceJSON(name: $0.name, monthlyAmount: $0.monthlyAmount) },
             firstRecordDate: assets?.firstRecordDate.map { day.string(from: $0) }
         )
         let enc = JSONEncoder()
@@ -2123,7 +2123,7 @@ enum DataIO {
     static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let dump = try decoder.decode(LumenDataJSON.self, from: data)
+        let dump = try decoder.decode(BackupJSON.self, from: data)
 
         // ===== 现有数据的去重 key =====
         let existingExp = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
@@ -2140,7 +2140,7 @@ enum DataIO {
         let existingPassKeys = Set(existingPass.map { passiveKey(name: $0.name, monthlyAmount: $0.monthlyAmount) })
 
         // ===== 过滤 expenses =====
-        var expensesNew: [LumenDataJSON.ExpenseJSON] = []
+        var expensesNew: [BackupJSON.ExpenseJSON] = []
         var expSkipped = 0
         for e in dump.expenses ?? [] {
             let d = parseDate(e.date) ?? .now
@@ -2153,7 +2153,7 @@ enum DataIO {
         }
 
         // ===== 过滤 incomes =====
-        var incomesNew: [LumenDataJSON.IncomeJSON] = []
+        var incomesNew: [BackupJSON.IncomeJSON] = []
         var incSkipped = 0
         for i in dump.incomes ?? [] {
             let d = parseDate(i.date) ?? .now
@@ -2166,7 +2166,7 @@ enum DataIO {
         }
 
         // ===== 过滤 passive sources =====
-        var passNew: [LumenDataJSON.PassiveSourceJSON] = []
+        var passNew: [BackupJSON.PassiveSourceJSON] = []
         for p in dump.passiveSources ?? [] {
             let k = passiveKey(name: p.name, monthlyAmount: p.monthlyAmount)
             if !existingPassKeys.contains(k) {
@@ -2684,7 +2684,7 @@ struct HistoryView: View {
     // ============================================================================
     // MARK: - 撤销 confirm 消息 + 执行
     // ============================================================================
-    // 设计跟 lead-wealth deleteTx() 对齐: alert 文案显式列出"哪一天 / 类别 / 金额 /
+    // 设计跟 早期 web 版 deleteTx() 对齐: alert 文案显式列出"哪一天 / 类别 / 金额 /
     // 资产会反向 +/− XXX 元", 用户明确知道这次操作会改什么再确认。
 
     private func deleteMessage(_ tx: TxKind) -> String {
@@ -2734,7 +2734,7 @@ struct HistoryView: View {
 // ============================================================================
 // MARK: - CheckView (财富自由自检清单)
 // ============================================================================
-// 8 项自检源自 lead-wealth web 版 SELF_CHECKS, 全部从现有 SwiftData @Query +
+// 8 项自检源自 早期 web 版 SELF_CHECKS, 全部从现有 SwiftData @Query +
 // FreedomMath helper 反推, 不引入新状态。每项即时计算, 数据变化自动重算。
 
 // ============================================================================
@@ -3038,7 +3038,7 @@ struct CheckView: View {
     }
 
     private var footnote: some View {
-        Text("自检规则源自 lead-wealth · 数据从记录自动反推, 不需手动勾选")
+        Text("自检规则源自 早期 web 版 · 数据从记录自动反推, 不需手动勾选")
             .font(.system(.caption2, design: .rounded))
             .foregroundStyle(Color.inkFaint)
             .multilineTextAlignment(.center)
@@ -3579,10 +3579,10 @@ struct ImportReviewSheet: View {
 // ============================================================================
 // MARK: - SimDemoGrid (模拟决策的格子推演动画)
 // ============================================================================
-// 设计动机:lead-wealth web 版核心体感——"这笔花出去,自由的格子要熄灭几格"。
+// 设计动机:早期 web 版核心体感——"这笔花出去,自由的格子要熄灭几格"。
 // 把抽象的"−16 天"翻译成肉眼可见的格子级联熄灭(支出)/ 点亮(收入)。
 //
-// 移植自 lead-wealth `animateGridTransition()`(Canvas 版),做了三处简化:
+// 移植自 早期 web 版 `animateGridTransition()`(Canvas 版),做了三处简化:
 //   1. 砍掉镜头推近(camera zoom)—— 小 sheet 上会眩晕,且非核心体感
 //   2. 辉光用 SwiftUI .shadow 替代 Canvas radialGradient
 //   3. 不照搬定长 1825 日格,沿用 App 自适应档(日/月/年),锁定"当前态"的档位
@@ -3705,7 +3705,7 @@ struct SimDemoGrid: View {
             .zIndex(glow > 0.01 ? 1 : 0)
     }
 
-    // ===== envelope helpers(移植 lead-wealth _eoq / _env)=====
+    // ===== envelope helpers(移植 早期 web 版 _eoq / _env)=====
 
     /// ease-out quart:1-(1-t)^4,收尾绵软
     private func easeOut(_ t: Double) -> Double {
@@ -3725,7 +3725,7 @@ struct SimDemoGrid: View {
 // ============================================================================
 // MARK: - SimulateSheet (模拟一笔 - 决策预演,不写数据库)
 // ============================================================================
-// 设计动机:lead-wealth 的核心差异化——"要不要买"之前先预演。
+// 设计动机:早期 web 版的核心差异化——"要不要买"之前先预演。
 // 关键差异(对比 AddExpenseSheet / AddIncomeSheet):
 // - 没有"保存"按钮,只有"关闭"
 // - Segmented 切换"模拟支出 / 模拟收入"
