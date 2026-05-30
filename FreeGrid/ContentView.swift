@@ -17,6 +17,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers   // 提供 .json UTType,供 fileImporter 使用
+import UIKit                    // 导出分享面板 UIActivityViewController
 
 // ============================================================================
 // MARK: - Color(hex:) (颜色扩展)
@@ -1001,6 +1002,17 @@ struct DashboardView: View {
 // 用户点击桶卡片分别录入/修正,「调拨」用于桶间资金流转。
 // 收入默认进现金,支出从现金扣。
 
+/// 导出分享: 点导出按钮 → 按需生成临时文件 → 系统分享面板(存 Files / AirDrop / 邮件)
+struct ExportShareItem: Identifiable { let id = UUID(); let url: URL }
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
 struct AssetsView: View {
     @Query private var assetsArr: [UserAssets]
     @Query private var expenses: [Expense]              // 算 dailyBurn 用
@@ -1031,6 +1043,9 @@ struct AssetsView: View {
     @State private var pendingImport: DataIO.ImportPreview? = nil
     @State private var showingImportReview = false
 
+    // --- 数据导出 (按需: 点按钮才序列化 + 弹分享, 平时切页面不碰) ---
+    @State private var shareItem: ExportShareItem? = nil
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -1048,6 +1063,7 @@ struct AssetsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Assets")
+            .sheet(item: $shareItem) { ShareSheet(url: $0.url) }
             .fileImporter(
                 isPresented: $showingFileImporter,
                 allowedContentTypes: [.json],
@@ -1410,26 +1426,80 @@ struct AssetsView: View {
                         .foregroundStyle(Color.inkFaint)
                 }
 
-                VaultButton(title: "从 JSON 导入",
-                            icon: "square.and.arrow.down",
-                            style: .secondary) {
-                    showingFileImporter = true
+                // 导出: 两个紧凑按钮并排(CSV / JSON 是一对)
+                HStack(spacing: Spacing.sm) {
+                    compactDataButton("导出 CSV", icon: "tablecells") { exportNow(.csv) }
+                    compactDataButton("导出 JSON", icon: "curlybraces") { exportNow(.json) }
                 }
+                Text("CSV 用 Excel / Numbers 打开,JSON 可回导备份")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
 
-                VaultButton(title: "清空所有数据",
-                            icon: "trash",
-                            style: .destructive) {
-                    showingPurgeAlert = true
+                // 导入
+                compactDataButton("从 JSON 导入", icon: "square.and.arrow.down") {
+                    showingFileImporter = true
                 }
 
                 if let status = importStatus {
                     Text(status)
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
-                        .padding(.top, Spacing.xs)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                // 清空: 分隔线 + 弱化的危险操作(不抢工具按钮的视觉权重)
+                Rectangle().fill(Color.hairlineSoft).frame(height: 1)
+                    .padding(.vertical, Spacing.xs)
+                Button {
+                    showingPurgeAlert = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash").font(.system(size: 12))
+                        Text("清空所有数据").font(.system(.subheadline, design: .rounded))
+                    }
+                    .foregroundStyle(Color.flame)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
+
+    /// 紧凑数据按钮(比 VaultButton 矮、描边更淡;并排或单列都适配)
+    private func compactDataButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 13))
+                Text(title).font(.system(.subheadline, design: .rounded))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .foregroundStyle(Color.ink)
+            .overlay(Capsule().stroke(Color.ink.opacity(0.45), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 数据导出 (按需: 点按钮才序列化, 写临时文件 → 弹分享面板)
+    enum ExportFormat { case csv, json }
+
+    private func exportNow(_ format: ExportFormat) {
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyyMMdd"
+        let day = stamp.string(from: .now)
+        let data: Data?
+        let name: String
+        switch format {
+        case .csv:  data = DataIO.exportCSV(context: modelContext);  name = "FreeGrid-记账-\(day).csv"
+        case .json: data = DataIO.exportJSON(context: modelContext); name = "FreeGrid-备份-\(day).json"
+        }
+        guard let data else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do {
+            try data.write(to: url, options: .atomic)
+            shareItem = ExportShareItem(url: url)   // 触发 .sheet 弹分享
+        } catch {
+            // 写入失败静默忽略(不影响其它功能)
         }
     }
 
@@ -1976,6 +2046,79 @@ enum DataIO {
         case skipAssets
     }
 
+    // ========================================================================
+    // MARK: - 导出 (JSON 完整备份 / CSV 给 Excel·Numbers)
+    // ========================================================================
+
+    private static func dayFormatter() -> DateFormatter {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }
+
+    /// 导出为 JSON —— 与「从 JSON 导入」完全对称(同一套 LumenDataJSON schema),
+    /// 导出的文件能被本 App 原样回导。用于完整备份 / 换机 / 迁移。
+    static func exportJSON(context: ModelContext) -> Data? {
+        let day = dayFormatter()
+        let iso = ISO8601DateFormatter()
+        let expenses = (try? context.fetch(FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.date)]))) ?? []
+        let incomes  = (try? context.fetch(FetchDescriptor<Income>(sortBy: [SortDescriptor(\.date)]))) ?? []
+        let passives = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
+        let assets   = try? context.fetch(FetchDescriptor<UserAssets>()).first
+
+        let dump = LumenDataJSON(
+            assets: assets.map { LumenDataJSON.AssetsJSON(total: $0.netWorth, updatedAt: iso.string(from: $0.updatedAt)) },
+            expenses: expenses.map {
+                LumenDataJSON.ExpenseJSON(amount: $0.amount, category: $0.category,
+                                          date: day.string(from: $0.date), note: $0.note,
+                                          createdAt: iso.string(from: $0.createdAt))
+            },
+            incomes: incomes.map {
+                LumenDataJSON.IncomeJSON(amount: $0.amount, source: $0.source,
+                                         date: day.string(from: $0.date), note: $0.note,
+                                         isPassive: $0.isPassive, createdAt: iso.string(from: $0.createdAt))
+            },
+            passiveSources: passives.map { LumenDataJSON.PassiveSourceJSON(name: $0.name, monthlyAmount: $0.monthlyAmount) },
+            firstRecordDate: assets?.firstRecordDate.map { day.string(from: $0) }
+        )
+        let enc = JSONEncoder()
+        enc.keyEncodingStrategy = .convertToSnakeCase   // 与 import 的 convertFromSnakeCase 对称
+        enc.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+        return try? enc.encode(dump)
+    }
+
+    /// 导出为 CSV —— 支出 + 收入合一张表(类型列区分), Excel / Numbers / 腾讯文档直接打开。
+    /// 加 UTF-8 BOM 防中文乱码; 含逗号/引号/换行的字段按 RFC4180 加引号转义。
+    static func exportCSV(context: ModelContext) -> Data? {
+        let day = dayFormatter()
+        let expenses = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
+        let incomes  = (try? context.fetch(FetchDescriptor<Income>())) ?? []
+
+        struct Row { let date: String; let kind: String; let label: String; let amount: Double; let note: String }
+        var rows: [Row] = []
+        rows += expenses.map { Row(date: day.string(from: $0.date), kind: "支出", label: $0.category, amount: $0.amount, note: $0.note) }
+        rows += incomes.map  { Row(date: day.string(from: $0.date), kind: "收入", label: $0.source,   amount: $0.amount, note: $0.note) }
+        rows.sort { $0.date < $1.date }
+
+        func esc(_ s: String) -> String {
+            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
+            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        func amt(_ v: Double) -> String {
+            v.formatted(.number.grouping(.never).precision(.fractionLength(0...2)))
+        }
+
+        var csv = "\u{FEFF}"                       // UTF-8 BOM
+        csv += "日期,类型,类别/来源,金额,备注\n"
+        for r in rows {
+            csv += "\(r.date),\(r.kind),\(esc(r.label)),\(amt(r.amount)),\(esc(r.note))\n"
+        }
+        return csv.data(using: .utf8)
+    }
+
     /// 第一步: 解析 JSON, 用 (date|amount|category-or-source|note) 做去重, 但不写入 context。
     static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
         let decoder = JSONDecoder()
@@ -2286,6 +2429,15 @@ struct HistoryView: View {
             }
             .background(Color.paper)
             .navigationTitle("History")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        MonthlySummaryView()
+                    } label: {
+                        Image(systemName: "calendar")
+                    }
+                }
+            }
             .alert(
                 "撤销这笔记录?",
                 isPresented: Binding(
@@ -2584,6 +2736,166 @@ struct HistoryView: View {
 // ============================================================================
 // 8 项自检源自 lead-wealth web 版 SELF_CHECKS, 全部从现有 SwiftData @Query +
 // FreedomMath helper 反推, 不引入新状态。每项即时计算, 数据变化自动重算。
+
+// ============================================================================
+// MARK: - MonthlySummaryView (月度汇总: 每月总支出/收入 + 月内分类明细)
+// ============================================================================
+// 从 History 导航栏进入。区别于 History 全时段的"分类汇总条", 这里按月切分。
+// 月卡显示 支出/收入/净; 点开看当月各分类支出(占比条 + %)。
+
+struct MonthlySummaryView: View {
+    @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    @State private var expanded: Set<String> = []
+
+    struct MonthlyStat: Identifiable {
+        let id: String          // "2026-05"
+        let label: String       // "2026年5月"
+        let totalExpense: Double
+        let totalIncome: Double
+        var net: Double { totalIncome - totalExpense }
+        let categories: [(category: String, total: Double)]  // 月内支出分类, 降序
+    }
+
+    var body: some View {
+        ScrollView {
+            if monthlyStats.isEmpty {
+                VStack(spacing: Spacing.sm) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Color.inkFaint)
+                    Text("还没有可汇总的记录")
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 100)
+            } else {
+                LazyVStack(spacing: Spacing.md) {
+                    ForEach(monthlyStats) { monthCard($0) }
+                }
+                .padding()
+            }
+        }
+        .background(Color.paper)
+        .navigationTitle("月度汇总")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func monthCard(_ stat: MonthlyStat) -> some View {
+        let isExpanded = expanded.contains(stat.id)
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if isExpanded { expanded.remove(stat.id) } else { expanded.insert(stat.id) }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        HStack {
+                            Text(stat.label)
+                                .font(.system(.headline, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                            Spacer()
+                            Text("净 " + signed(stat.net))
+                                .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
+                                .foregroundStyle(stat.net >= 0 ? Color.mossGreen : Color.flame)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                        HStack(spacing: Spacing.xl) {
+                            amountStat("支出", stat.totalExpense, Color.ink)
+                            amountStat("收入", stat.totalIncome, Color.incomeGold)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if isExpanded && !stat.categories.isEmpty {
+                    Rectangle().fill(Color.hairlineSoft).frame(height: 1)
+                    let maxCat = stat.categories.first?.total ?? 1
+                    VStack(spacing: Spacing.sm) {
+                        ForEach(stat.categories, id: \.category) { c in
+                            categoryRow(c.category, c.total, maxCat: maxCat, monthTotal: stat.totalExpense)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func amountStat(_ label: String, _ amount: Double, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Color.inkFaint)
+            Text("¥" + amount.formatted(.number.precision(.fractionLength(0...0))))
+                .font(.system(.title3, design: .rounded).weight(.medium).monospacedDigit())
+                .foregroundStyle(color)
+        }
+    }
+
+    private func categoryRow(_ name: String, _ total: Double, maxCat: Double, monthTotal: Double) -> some View {
+        let pct = monthTotal > 0 ? total / monthTotal : 0
+        return HStack(spacing: Spacing.sm) {
+            Text(name)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+                .frame(width: 52, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mist)
+                    Capsule().fill(Color.assetBlue)
+                        .frame(width: max(4, geo.size.width * (maxCat > 0 ? total / maxCat : 0)))
+                }
+            }
+            .frame(height: 8)
+            Text("¥" + total.formatted(.number.precision(.fractionLength(0...0))))
+                .font(.system(.caption, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.ink)
+                .frame(width: 56, alignment: .trailing)
+            Text(pct.formatted(.percent.precision(.fractionLength(0...0))))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Color.inkFaint)
+                .frame(width: 34, alignment: .trailing)
+        }
+    }
+
+    private func signed(_ v: Double) -> String {
+        (v >= 0 ? "+¥" : "−¥") + abs(v).formatted(.number.precision(.fractionLength(0...0)))
+    }
+
+    /// 按 年-月 分组聚合; 月内再按分类聚合支出。最近的月在前。
+    private var monthlyStats: [MonthlyStat] {
+        let cal = Calendar.current
+        func key(_ d: Date) -> String {
+            let c = cal.dateComponents([.year, .month], from: d)
+            return String(format: "%04d-%02d", c.year ?? 0, c.month ?? 0)
+        }
+        var expByMonth: [String: [Expense]] = [:]
+        var incByMonth: [String: Double] = [:]
+        var keys = Set<String>()
+        for e in expenses { let k = key(e.date); keys.insert(k); expByMonth[k, default: []].append(e) }
+        for i in incomes  { let k = key(i.date); keys.insert(k); incByMonth[k, default: 0] += i.amount }
+
+        return keys.sorted(by: >).map { k in
+            let exps = expByMonth[k] ?? []
+            let cats = Dictionary(grouping: exps, by: { $0.category })
+                .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
+                .sorted { $0.total > $1.total }
+            let parts = k.split(separator: "-")
+            let label = "\(parts[0])年\(Int(parts[1]) ?? 0)月"
+            return MonthlyStat(
+                id: k, label: label,
+                totalExpense: exps.reduce(0) { $0 + $1.amount },
+                totalIncome: incByMonth[k] ?? 0,
+                categories: cats
+            )
+        }
+    }
+}
 
 struct CheckView: View {
 
