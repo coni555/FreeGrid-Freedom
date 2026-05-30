@@ -19,6 +19,12 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS 记账与"财富�
 
 每记一笔支出，你都能直观看到"自由的格子熄灭了几格"；每记一笔收入或被动收入，格子重新点亮。当被动收入覆盖日常消费 ≥ 100%，自由天数变成 **∞**——你已财富自由。
 
+## 📲 下载安装(无需 App Store)
+
+不想自己编译?[**Releases**](https://github.com/coni555/FreeGrid-Freedom/releases/latest) 里有打包好的 `.ipa`,用 [Sideloadly](https://sideloadly.io) 或 [AltStore](https://altstore.io) + 你**自己的 Apple ID** 自签安装即可(需一台电脑配合,iOS 17.6+)。
+
+> ⚠️ 免费 Apple ID 自签的 App **7 天会过期**,需重新签名(AltStore 同 WiFi 可后台自动续);这是 iOS 系统限制,非 App 问题。详细步骤见 [最新 Release 说明](https://github.com/coni555/FreeGrid-Freedom/releases/latest)。
+
 ## 核心概念
 
 ### 自由天数（Freedom Days）
