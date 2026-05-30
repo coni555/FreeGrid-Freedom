@@ -48,3 +48,7 @@ HANDOFF.md
 
 # 图标源图 / 设计导出素材 (成品已进 Assets.xcassets, 这里是工作文件, 只本地留)
 exports/
+app图标/
+
+# 个人记账数据 (用户私人财务文件, 不进仓库)
+记账本-迭代版.xlsx
