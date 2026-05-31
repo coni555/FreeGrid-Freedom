@@ -24,6 +24,8 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS 记账与"财富�
 不想自己编译?[**Releases**](https://github.com/coni555/FreeGrid-Freedom/releases/latest) 里有打包好的 `.ipa`,用 [Sideloadly](https://sideloadly.io) 或 [AltStore](https://altstore.io) + 你**自己的 Apple ID** 自签安装即可(需一台电脑配合,iOS 17.6+)。
 
 > ⚠️ 免费 Apple ID 自签的 App **7 天会过期**,需重新签名(AltStore 同 WiFi 可后台自动续);这是 iOS 系统限制,非 App 问题。详细步骤见 [最新 Release 说明](https://github.com/coni555/FreeGrid-Freedom/releases/latest)。
+>
+> ℹ️ 自签方法(Sideloadly / AltStore 等第三方工具)整理自公开网络资料,非官方、未经逐一安全审计;过程会用到你的 Apple ID。如有顾虑,请先自行核实工具来源与安全性后再用,风险自负。
 
 ## 核心概念
 
