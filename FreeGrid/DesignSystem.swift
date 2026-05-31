@@ -12,7 +12,11 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // ============================================================================
 // MARK: - Dynamic color helper
@@ -23,11 +27,15 @@ import UIKit
 extension Color {
     /// 创建一个根据 colorScheme 自动切换的 Color
     static func dyn(light: Color, dark: Color) -> Color {
+        #if canImport(UIKit)
         Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(dark)
-                : UIColor(light)
+            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
         })
+        #elseif canImport(AppKit)
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
+        })
+        #endif
     }
 
     /// 直接用 RGB 三元组创建 dynamic (避免嵌套 Color)
@@ -35,11 +43,17 @@ extension Color {
         lightRGB: (Double, Double, Double),
         darkRGB: (Double, Double, Double)
     ) -> Color {
+        #if canImport(UIKit)
         Color(uiColor: UIColor { traits in
-            let isDark = traits.userInterfaceStyle == .dark
-            let (r, g, b) = isDark ? darkRGB : lightRGB
+            let (r, g, b) = traits.userInterfaceStyle == .dark ? darkRGB : lightRGB
             return UIColor(red: r, green: g, blue: b, alpha: 1)
         })
+        #elseif canImport(AppKit)
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let (r, g, b) = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? darkRGB : lightRGB
+            return NSColor(red: r, green: g, blue: b, alpha: 1)
+        })
+        #endif
     }
 }
 

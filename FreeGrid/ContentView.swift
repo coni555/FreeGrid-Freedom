@@ -17,7 +17,9 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers   // 提供 .json UTType,供 fileImporter 使用
-import UIKit                    // 导出分享面板 UIActivityViewController
+#if os(iOS)
+import UIKit                    // iOS: 导出分享面板 UIActivityViewController
+#endif
 
 // ============================================================================
 // MARK: - Color(hex:) (颜色扩展)
@@ -307,7 +309,7 @@ struct DashboardView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.midnight.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .hideNavBar()
             .safeAreaInset(edge: .top) {
                 if pendingUndoID != nil {
                     undoToast
@@ -1005,6 +1007,7 @@ struct DashboardView: View {
 /// 导出分享: 点导出按钮 → 按需生成临时文件 → 系统分享面板(存 Files / AirDrop / 邮件)
 struct ExportShareItem: Identifiable { let id = UUID(); let url: URL }
 
+#if os(iOS)
 struct ShareSheet: UIViewControllerRepresentable {
     let url: URL
     func makeUIViewController(context: Context) -> UIActivityViewController {
@@ -1012,6 +1015,30 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
+#else
+/// macOS: 用 SwiftUI 原生 ShareLink 呈现系统分享(文件已生成,分享或完成)。
+struct ShareSheet: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "square.and.arrow.up.circle")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.secondary)
+            Text("导出文件已生成")
+                .font(.headline)
+            Text(url.lastPathComponent)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            ShareLink("分享…", item: url)
+                .buttonStyle(.borderedProminent)
+            Button("完成") { dismiss() }
+        }
+        .padding(40)
+        .frame(minWidth: 320)
+    }
+}
+#endif
 
 struct AssetsView: View {
     @Query private var assetsArr: [UserAssets]
@@ -1370,7 +1397,7 @@ struct AssetsView: View {
                         .font(.system(.title3, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                     TextField("0", text: $transferAmount)
-                        .keyboardType(.decimalPad)
+                        .decimalKeyboard()
                         .font(.system(.title3, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
                         .padding(.vertical, 8)
@@ -1685,7 +1712,7 @@ struct EditBucketSheet: View {
                                 .font(.system(size: 32, weight: .ultraLight, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
                             TextField("0", text: $amount)
-                                .keyboardType(.decimalPad)
+                                .decimalKeyboard()
                                 .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.ink)
                                 .focused($fieldFocused)
@@ -1727,7 +1754,7 @@ struct EditBucketSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("编辑\(bucket.label)")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -1746,8 +1773,7 @@ struct EditBucketSheet: View {
                 fieldFocused = true
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .iosSheetDetents()
     }
 
     private var isValid: Bool {
@@ -1813,7 +1839,7 @@ struct PassiveSourceSheet: View {
                                 .font(.system(size: 28, weight: .ultraLight, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
                             TextField("0", text: $monthly)
-                                .keyboardType(.decimalPad)
+                                .decimalKeyboard()
                                 .font(.system(size: 36, weight: .ultraLight, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.ink)
                         }
@@ -1848,7 +1874,7 @@ struct PassiveSourceSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -1869,8 +1895,7 @@ struct PassiveSourceSheet: View {
                 nameFocused = !isEditing  // 新增聚焦名字, 编辑不自动弹键盘
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .iosSheetDetents()
     }
 
     private var isValid: Bool {
@@ -2430,7 +2455,7 @@ struct HistoryView: View {
             .background(Color.paper)
             .navigationTitle("History")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     NavigationLink {
                         MonthlySummaryView()
                     } label: {
@@ -2779,7 +2804,7 @@ struct MonthlySummaryView: View {
         }
         .background(Color.paper)
         .navigationTitle("月度汇总")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavTitle()
     }
 
     @ViewBuilder
@@ -3080,7 +3105,7 @@ struct AddExpenseSheet: View {
             Form {
                 Section("金额 (元)") {
                     TextField("0.00", text: $amount)
-                        .keyboardType(.decimalPad)
+                        .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 }
                 Section("分类") {
@@ -3113,7 +3138,7 @@ struct AddExpenseSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加支出")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -3255,7 +3280,7 @@ struct AddIncomeSheet: View {
             Form {
                 Section("金额 (元)") {
                     TextField("0.00", text: $amount)
-                        .keyboardType(.decimalPad)
+                        .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 }
                 Section("来源") {
@@ -3284,7 +3309,7 @@ struct AddIncomeSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加收入")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -3436,7 +3461,7 @@ struct ImportReviewSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("导入预览")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { onCancel(); dismiss() }
@@ -3777,7 +3802,7 @@ struct SimulateSheet: View {
             .onChange(of: amount) { _, _ in demoPhase = .idle }
             .onChange(of: mode) { _, _ in demoPhase = .idle }
             .navigationTitle("模拟决策")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("关闭") { dismiss() }
@@ -3837,7 +3862,7 @@ struct SimulateSheet: View {
                         .font(.system(.title3, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                     TextField("0.00", text: $amount)
-                        .keyboardType(.decimalPad)
+                        .decimalKeyboard()
                         .font(.system(.title3, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
                 }
