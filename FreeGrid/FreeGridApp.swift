@@ -8,6 +8,15 @@
 import SwiftUI
 import SwiftData
 
+#if os(macOS)
+/// macOS 菜单栏命令 → 根层 sheet 的桥(⌘N 记支出 / ⌘⇧N 记收入)
+@Observable
+final class MenuActions {
+    var addExpense = false
+    var addIncome = false
+}
+#endif
+
 @main
 struct FreeGridApp: App {
     /// ModelContainer 是 SwiftData 的核心容器,负责所有 @Model 类的持久化存储。
@@ -36,10 +45,29 @@ struct FreeGridApp: App {
         }
     }()
 
+    #if os(macOS)
+    @State private var menuActions = MenuActions()
+    #endif
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+            #if os(macOS)
+                .environment(menuActions)
+                .frame(minWidth: 920, minHeight: 640)
+            #endif
         }
         .modelContainer(sharedModelContainer)
+        #if os(macOS)
+        .defaultSize(width: 1120, height: 740)
+        .commands {
+            CommandMenu("记账") {
+                Button("记一笔支出") { menuActions.addExpense = true }
+                    .keyboardShortcut("n", modifiers: .command)
+                Button("记一笔收入") { menuActions.addIncome = true }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+            }
+        }
+        #endif
     }
 }

@@ -225,7 +225,27 @@ struct ContentView: View {
     /// 跨启动持久化主题选择
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
+    #if os(macOS)
+    @Environment(MenuActions.self) private var menuActions
+    #endif
+
     var body: some View {
+        #if os(macOS)
+        @Bindable var actions = menuActions
+        return tabView
+            // 菜单栏 ⌘N / ⌘⇧N 在根层唤起快速记账(任意 Tab 下可用)
+            .sheet(isPresented: $actions.addExpense) {
+                AddExpenseSheet(onSaved: { _ in })
+            }
+            .sheet(isPresented: $actions.addIncome) {
+                AddIncomeSheet(onSaved: { _ in })
+            }
+        #else
+        return tabView
+        #endif
+    }
+
+    private var tabView: some View {
         TabView {
             DashboardView()
                 .tabItem {
