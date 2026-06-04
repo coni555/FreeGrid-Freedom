@@ -56,3 +56,19 @@ app图标/
 
 # 个人记账数据 (用户私人财务文件, 不进仓库)
 记账本-迭代版.xlsx
+
+# Claude Code 本地状态 (worktrees / 会话产物, 只本地)
+.claude/
+
+# 临时目录
+tmp/
+
+# 本地规划 / 工作笔记 (不进公开仓)
+MACOS_PORT_PLAN.md
+
+# 宣传 / 教程视频工程 (渲染帧 + mp4 + 配置, 体积大, 只本地留)
+freegrid-promo-video/
+freegrid-tutorial-video/
+
+# 产品落地页 (独立部署到 Cloudflare Pages, 不从本仓发布)
+site/
