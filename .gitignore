@@ -72,3 +72,9 @@ freegrid-tutorial-video/
 
 # 产品落地页 (独立部署到 Cloudflare Pages, 不从本仓发布)
 site/
+
+# Screen Studio 演示片工程 (只本地, 成品另传)
+freegrid-screenstudio-sample/
+
+# 产品介绍截图素材 (本地工作文件)
+product-intro-captures/
