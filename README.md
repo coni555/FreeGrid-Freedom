@@ -9,11 +9,7 @@
 ![Offline](https://img.shields.io/badge/100%25-本地·零网络-2ea44f.svg)
 ![License](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-lightgrey.svg)
 
-<p align="center">
-  <img src="docs/freegrid-hero.gif" width="760" alt="FreeGrid 演示：自由天数与自由网格">
-</p>
-
-<p align="center"><b>▶ 完整演示（22 秒）</b></p>
+<p align="center"><b>▶ 产品演示（22 秒）</b></p>
 
 https://github.com/user-attachments/assets/68b39b2c-2691-4204-8c41-b22eb9307cee
 
