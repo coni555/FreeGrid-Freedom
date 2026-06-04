@@ -111,18 +111,9 @@ FreeGrid 最早只是我自己想用的记账工具。我用 iPhone，所以从 
 
 说实话我是个**编程新手**——这个 App 几乎全程是我和 Claude Code「vibe coding」一起做出来的，过程里学到了非常多。所以如果你是大佬，**特别欢迎一起共创维护**：PR / issue / discussion 都欢迎。
 
-**为什么没上 App Store？** 苹果开发者账号 ¥688/年，对我个人来说太贵了，所以原生版需要你自签安装（方法见下）。如果大家对这个项目有热情，我会在这里放一个收款码——可以请我喝杯咖啡 ☕；要是攒够了，我就开个开发者账号，把它正式上架，让大家装得更省心。
+**为什么没上 App Store？** 苹果开发者账号 ¥688/年，对我个人来说太贵了，所以原生版需要你自签安装（方法见release）。如果大家对这个项目有热情，我会在这里放一个收款码——可以请我喝杯咖啡 ☕；要是攒够了，我就开个开发者账号，把它正式上架，让大家装得更省心。
 
 <!-- TODO：请我喝咖啡 / 赞助上架的收款二维码占位，待补图 -->
-
-## 📲 下载安装（无需 App Store）
-
-不想自己编译？[**Releases**](https://github.com/coni555/FreeGrid-Freedom/releases/latest) 里有打包好的 `.ipa`（iOS）和 `.dmg`（macOS）。
-
-- **iOS**：用 [Sideloadly](https://sideloadly.io) 或 [AltStore](https://altstore.io) + 你**自己的 Apple ID** 自签安装（需一台电脑配合，iOS 17.6+）。免费 Apple ID 自签 **7 天会过期**，需重签（AltStore 同 WiFi 可后台自动续）——这是 iOS 系统限制，非 App 问题。
-- **macOS**：原生 SwiftUI（非 Catalyst），含菜单栏 ⌘N 快速记账。安装包**未公证**，下载后**右键 → 打开**放行一次即可（或 `xattr -dr com.apple.quarantine FreeGrid.app` 去隔离）。macOS 15.6+ · Apple Silicon。
-
-> ⚠️ **风险自负**：iOS 自签（Sideloadly / AltStore 等第三方工具）与桌面端未签名运行的方法，均整理自公开网络资料，**非官方、未经逐一安全审计**；iOS 自签会用到你的 Apple ID。如有顾虑，请先自行核实工具来源后再用。想零风险先尝一口，可以用[在线 demo](https://freegrid-web.pages.dev)（纯前端、零安装）。源码完全公开，你也可以自己 clone 后用 Xcode 编译。
 
 ## 自行构建
 
