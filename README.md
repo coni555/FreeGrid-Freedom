@@ -13,6 +13,10 @@
   <img src="docs/freegrid-hero.gif" width="760" alt="FreeGrid 演示：自由天数与自由网格">
 </p>
 
+<p align="center"><b>▶ 完整演示（22 秒）</b></p>
+
+https://github.com/user-attachments/assets/68b39b2c-2691-4204-8c41-b22eb9307cee
+
 <p align="center">
   <a href="https://freegrid-web.pages.dev"><b>🌐 在线 demo（零安装）</b></a>
 </p>
