@@ -14,8 +14,6 @@
 </p>
 
 <p align="center">
-  <a href="docs/freegrid-demo.mp4"><b>▶ 看完整 22 秒 demo</b></a>
-  &nbsp;·&nbsp;
   <a href="https://freegrid-web.pages.dev"><b>🌐 在线 demo（零安装）</b></a>
 </p>
 
