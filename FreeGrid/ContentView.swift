@@ -388,7 +388,7 @@ struct DashboardView: View {
         pendingUndoTimer?.cancel()
 
         let sign = isExpense ? "支出" : "收入"
-        let formatted = amount.formatted(.number.precision(.fractionLength(0...0)))
+        let formatted = amount.formatted(.number.precision(.fractionLength(0...2)))
         withAnimation(.spring(duration: 0.3)) {
             pendingUndoID = id
             pendingUndoLabel = "已记\(sign) ¥\(formatted)"
@@ -2536,7 +2536,7 @@ struct HistoryView: View {
                     .font(.system(.caption2, design: .monospaced))
                     .tracking(0.5)
                     .foregroundStyle(selected ? Color.paper : Color.inkMuted)
-                Text("¥" + amount.formatted(.number.precision(.fractionLength(0...0))))
+                Text("¥" + amount.formatted(.number.precision(.fractionLength(0...2))))
                     .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
                     .foregroundStyle(selected ? Color.paper : Color.ink)
             }
@@ -2876,7 +2876,7 @@ struct MonthlySummaryView: View {
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(Color.inkFaint)
-            Text("¥" + amount.formatted(.number.precision(.fractionLength(0...0))))
+            Text("¥" + amount.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.system(.title3, design: .rounded).weight(.medium).monospacedDigit())
                 .foregroundStyle(color)
         }
@@ -2897,7 +2897,7 @@ struct MonthlySummaryView: View {
                 }
             }
             .frame(height: 8)
-            Text("¥" + total.formatted(.number.precision(.fractionLength(0...0))))
+            Text("¥" + total.formatted(.number.precision(.fractionLength(0...2))))
                 .font(.system(.caption, design: .rounded).monospacedDigit())
                 .foregroundStyle(Color.ink)
                 .frame(width: 56, alignment: .trailing)
@@ -2909,7 +2909,7 @@ struct MonthlySummaryView: View {
     }
 
     private func signed(_ v: Double) -> String {
-        (v >= 0 ? "+¥" : "−¥") + abs(v).formatted(.number.precision(.fractionLength(0...0)))
+        (v >= 0 ? "+¥" : "−¥") + abs(v).formatted(.number.precision(.fractionLength(0...2)))
     }
 
     /// 按 年-月 分组聚合; 月内再按分类聚合支出。最近的月在前。
@@ -3232,12 +3232,14 @@ struct AddExpenseSheet: View {
 
     /// 格式化金额: 1234.56 → "¥1,234.56" (带千分位 + 指定精度)
     /// 用 NumberFormatter 自动加千分位逗号,精度由参数控制
-    private func formatYuan(_ value: Double, precision: Int = 0) -> String {
+    private func formatYuan(_ value: Double, precision: Int? = nil) -> String {
         let f = NumberFormatter()
         f.numberStyle = .decimal
-        f.minimumFractionDigits = precision
-        f.maximumFractionDigits = precision
-        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision)f", value)
+        // 默认档(precision=nil): 整数干净显示, 有小数才补到最多 2 位 —— 与流水列表口径一致,
+        // 避免 3.5 / 4.5 被舍成 4(原来 min=max=0 用银行家舍入, 两者都进 4)。
+        f.minimumFractionDigits = precision ?? 0
+        f.maximumFractionDigits = precision ?? 2
+        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision ?? 2)f", value)
         return "¥\(s)"
     }
 
@@ -3398,12 +3400,14 @@ struct AddIncomeSheet: View {
     }
 
     /// 格式化金额: 同 AddExpenseSheet 里的实现(为简化没抽公共,允许重复)
-    private func formatYuan(_ value: Double, precision: Int = 0) -> String {
+    private func formatYuan(_ value: Double, precision: Int? = nil) -> String {
         let f = NumberFormatter()
         f.numberStyle = .decimal
-        f.minimumFractionDigits = precision
-        f.maximumFractionDigits = precision
-        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision)f", value)
+        // 默认档(precision=nil): 整数干净显示, 有小数才补到最多 2 位 —— 与流水列表口径一致,
+        // 避免 3.5 / 4.5 被舍成 4(原来 min=max=0 用银行家舍入, 两者都进 4)。
+        f.minimumFractionDigits = precision ?? 0
+        f.maximumFractionDigits = precision ?? 2
+        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision ?? 2)f", value)
         return "¥\(s)"
     }
 
@@ -4144,12 +4148,14 @@ struct SimulateSheet: View {
     }
 
     /// 格式化金额(和 AddExpenseSheet/AddIncomeSheet 一致,允许局部重复)
-    private func formatYuan(_ value: Double, precision: Int = 0) -> String {
+    private func formatYuan(_ value: Double, precision: Int? = nil) -> String {
         let f = NumberFormatter()
         f.numberStyle = .decimal
-        f.minimumFractionDigits = precision
-        f.maximumFractionDigits = precision
-        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision)f", value)
+        // 默认档(precision=nil): 整数干净显示, 有小数才补到最多 2 位 —— 与流水列表口径一致,
+        // 避免 3.5 / 4.5 被舍成 4(原来 min=max=0 用银行家舍入, 两者都进 4)。
+        f.minimumFractionDigits = precision ?? 0
+        f.maximumFractionDigits = precision ?? 2
+        let s = f.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision ?? 2)f", value)
         return "¥\(s)"
     }
 }
