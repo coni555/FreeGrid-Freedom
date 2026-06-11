@@ -1968,10 +1968,13 @@ enum TxKind: Identifiable {
 
 struct BackupJSON: Codable {
     struct AssetsJSON: Codable {
-        let total: Double
+        let total: Double           // 净值 = lockedAssets + cash。保留:旧文件/Web 版只有它
+        let lockedAssets: Double?   // 锁定资产桶。旧文件没有 → 导入退回 total 单桶行为
+        let cash: Double?           // 现金桶
         let updatedAt: String?      // ISO 字符串 "2026-05-25T08:55:55.159Z"
     }
     struct ExpenseJSON: Codable {
+        let id: String?             // UUID 字符串。旧文件/Web 版没有 → 去重退回内容指纹
         let amount: Double
         let category: String
         let date: String            // "YYYY-MM-DD"
@@ -1979,6 +1982,7 @@ struct BackupJSON: Codable {
         let createdAt: String?      // ISO 字符串
     }
     struct IncomeJSON: Codable {
+        let id: String?
         let amount: Double
         let source: String
         let date: String
@@ -1991,6 +1995,7 @@ struct BackupJSON: Codable {
         let monthlyAmount: Double
     }
 
+    let schemaVersion: Int?         // 备份格式版本。缺失视为 v0(早期 app 版/Web 版导出)
     let assets: AssetsJSON?
     let expenses: [ExpenseJSON]?
     let incomes: [IncomeJSON]?
@@ -2073,6 +2078,9 @@ enum DataIO {
         let incomesSkipped: Int
         let passiveSourcesNew: [BackupJSON.PassiveSourceJSON]
         let jsonAssetsTotal: Double
+        /// 双桶拆分(schema v1 起导出)。旧文件为 nil → .replace 退回单桶行为
+        let jsonLockedAssets: Double?
+        let jsonCash: Double?
         let jsonAssetsUpdatedAt: Date?
         let jsonFirstRecordDate: Date?
         let currentCash: Double
@@ -2082,7 +2090,8 @@ enum DataIO {
     }
 
     /// 导入时如何对待 UserAssets (现金/资产桶):
-    /// - replace: 用 JSON.total 整体替换, lockedAssets 清零, cash = JSON.total
+    /// - replace: 整体替换。文件带双桶字段(schema v1)→ 按 locked_assets/cash 还原;
+    ///   旧文件只有 total → lockedAssets 清零, cash = JSON.total
     /// - addToCash: cash += JSON.total, lockedAssets 不动
     /// - skipAssets: 完全不动两桶, 只导入交易记录
     enum AssetsImportStrategy: Equatable {
@@ -2115,14 +2124,20 @@ enum DataIO {
         let assets   = try? context.fetch(FetchDescriptor<UserAssets>()).first
 
         let dump = BackupJSON(
-            assets: assets.map { BackupJSON.AssetsJSON(total: $0.netWorth, updatedAt: iso.string(from: $0.updatedAt)) },
+            schemaVersion: 1,
+            assets: assets.map {
+                BackupJSON.AssetsJSON(total: $0.netWorth, lockedAssets: $0.lockedAssets,
+                                      cash: $0.cash, updatedAt: iso.string(from: $0.updatedAt))
+            },
             expenses: expenses.map {
-                BackupJSON.ExpenseJSON(amount: $0.amount, category: $0.category,
+                BackupJSON.ExpenseJSON(id: $0.id.uuidString,
+                                          amount: $0.amount, category: $0.category,
                                           date: day.string(from: $0.date), note: $0.note,
                                           createdAt: iso.string(from: $0.createdAt))
             },
             incomes: incomes.map {
-                BackupJSON.IncomeJSON(amount: $0.amount, source: $0.source,
+                BackupJSON.IncomeJSON(id: $0.id.uuidString,
+                                         amount: $0.amount, source: $0.source,
                                          date: day.string(from: $0.date), note: $0.note,
                                          isPassive: $0.isPassive, createdAt: iso.string(from: $0.createdAt))
             },
@@ -2164,7 +2179,9 @@ enum DataIO {
         return csv.data(using: .utf8)
     }
 
-    /// 第一步: 解析 JSON, 用 (date|amount|category-or-source|note) 做去重, 但不写入 context。
+    /// 第一步: 解析 JSON 做去重, 但不写入 context。
+    /// 去重策略: 记录带 id(schema v1 起导出)→ 按 UUID 精确去重;
+    /// 无 id(旧文件/Web 版)→ 退回 (date|amount|category-or-source|note) 内容指纹。
     static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -2175,11 +2192,13 @@ enum DataIO {
         let existingExpKeys = Set(existingExp.map {
             expenseKey(amount: $0.amount, date: $0.date, category: $0.category, note: $0.note)
         })
+        let existingExpIDs = Set(existingExp.map(\.id))
 
         let existingInc = (try? context.fetch(FetchDescriptor<Income>())) ?? []
         let existingIncKeys = Set(existingInc.map {
             incomeKey(amount: $0.amount, date: $0.date, source: $0.source, note: $0.note)
         })
+        let existingIncIDs = Set(existingInc.map(\.id))
 
         let existingPass = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
         let existingPassKeys = Set(existingPass.map { passiveKey(name: $0.name, monthlyAmount: $0.monthlyAmount) })
@@ -2188,9 +2207,16 @@ enum DataIO {
         var expensesNew: [BackupJSON.ExpenseJSON] = []
         var expSkipped = 0
         for e in dump.expenses ?? [] {
-            let d = parseDate(e.date) ?? .now
-            let k = expenseKey(amount: e.amount, date: d, category: e.category, note: e.note ?? "")
-            if existingExpKeys.contains(k) {
+            let isDup: Bool
+            if let uuid = e.id.flatMap({ UUID(uuidString: $0) }) {
+                isDup = existingExpIDs.contains(uuid)
+            } else {
+                let d = parseDate(e.date) ?? .now
+                isDup = existingExpKeys.contains(
+                    expenseKey(amount: e.amount, date: d, category: e.category, note: e.note ?? "")
+                )
+            }
+            if isDup {
                 expSkipped += 1
             } else {
                 expensesNew.append(e)
@@ -2201,9 +2227,16 @@ enum DataIO {
         var incomesNew: [BackupJSON.IncomeJSON] = []
         var incSkipped = 0
         for i in dump.incomes ?? [] {
-            let d = parseDate(i.date) ?? .now
-            let k = incomeKey(amount: i.amount, date: d, source: i.source, note: i.note ?? "")
-            if existingIncKeys.contains(k) {
+            let isDup: Bool
+            if let uuid = i.id.flatMap({ UUID(uuidString: $0) }) {
+                isDup = existingIncIDs.contains(uuid)
+            } else {
+                let d = parseDate(i.date) ?? .now
+                isDup = existingIncKeys.contains(
+                    incomeKey(amount: i.amount, date: d, source: i.source, note: i.note ?? "")
+                )
+            }
+            if isDup {
                 incSkipped += 1
             } else {
                 incomesNew.append(i)
@@ -2246,6 +2279,8 @@ enum DataIO {
             incomesSkipped: incSkipped,
             passiveSourcesNew: passNew,
             jsonAssetsTotal: dump.assets?.total ?? 0,
+            jsonLockedAssets: dump.assets?.lockedAssets,
+            jsonCash: dump.assets?.cash,
             jsonAssetsUpdatedAt: dump.assets?.updatedAt.flatMap { parseISO($0) },
             jsonFirstRecordDate: dump.firstRecordDate.flatMap { parseDate($0) },
             currentCash: existingAssets?.cash ?? 0,
@@ -2280,6 +2315,10 @@ enum DataIO {
                 note: note,
                 date: parseDate(e.date) ?? .now
             )
+            // 保留原 UUID — 否则同一文件再导入时 id 对不上, 按 id 去重会失效
+            if let uuid = e.id.flatMap({ UUID(uuidString: $0) }) {
+                exp.id = uuid
+            }
             if let createdAt = e.createdAt, let d = parseISO(createdAt) {
                 exp.createdAt = d
             }
@@ -2297,6 +2336,9 @@ enum DataIO {
                 note: i.note ?? "",
                 date: parseDate(i.date) ?? .now
             )
+            if let uuid = i.id.flatMap({ UUID(uuidString: $0) }) {
+                inc.id = uuid
+            }
             if let createdAt = i.createdAt, let d = parseISO(createdAt) {
                 inc.createdAt = d
             }
@@ -2325,8 +2367,14 @@ enum DataIO {
         case .replace:
             // 净值整体替换 → firstRecordDate 也一并换成 JSON 的(不保留本地 baseline,
             // 否则会出现"净值是 JSON 的, 起算日是本地的"这种半新半旧状态)
-            userAssets.lockedAssets = 0
-            userAssets.cash = preview.jsonAssetsTotal
+            // schema v1 文件带双桶拆分 → 原样还原; 旧文件只有 total → 全进现金桶
+            if let locked = preview.jsonLockedAssets, let cash = preview.jsonCash {
+                userAssets.lockedAssets = locked
+                userAssets.cash = cash
+            } else {
+                userAssets.lockedAssets = 0
+                userAssets.cash = preview.jsonAssetsTotal
+            }
             userAssets.updatedAt = preview.jsonAssetsUpdatedAt ?? .now
             if let jsonDate = preview.jsonFirstRecordDate {
                 userAssets.firstRecordDate = jsonDate
