@@ -1072,7 +1072,7 @@ struct AssetsView: View {
     // --- 调拨 ---
     @State private var transferAmount: String = ""
     @State private var transferDirection: TransferDirection = .cashToAssets
-    @FocusState private var transferFocused: Bool   // decimalPad 无 return 键, 靠 FocusState + 键盘工具栏「完成」收起
+    @FocusState private var transferFocused: Bool   // decimalPad 无 return 键, 靠点空白处 / 下拉滚动收起
 
     enum TransferDirection: String, CaseIterable {
         case cashToAssets = "现金 → 资产"
@@ -1107,6 +1107,10 @@ struct AssetsView: View {
                     dataManagementCard
                 }
                 .padding()
+                // 点击卡片之外的空白处收起调拨键盘(decimalPad 无 return 键)。
+                // contentShape 让空白区也可命中; 子控件(按钮/Picker/输入框)优先级更高, 不受影响。
+                .contentShape(Rectangle())
+                .onTapGesture { transferFocused = false }
             }
             .scrollContentBackground(.hidden)
             .dismissKeyboardOnScroll()
@@ -1429,7 +1433,6 @@ struct AssetsView: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(Color.hairline, lineWidth: 1)
                         )
-                        .keyboardDoneToolbar(focus: $transferFocused)
                 }
 
                 VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
