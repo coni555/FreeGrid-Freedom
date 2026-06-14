@@ -1072,6 +1072,7 @@ struct AssetsView: View {
     // --- 调拨 ---
     @State private var transferAmount: String = ""
     @State private var transferDirection: TransferDirection = .cashToAssets
+    @FocusState private var transferFocused: Bool   // decimalPad 无 return 键, 靠 FocusState + 键盘工具栏「完成」收起
 
     enum TransferDirection: String, CaseIterable {
         case cashToAssets = "现金 → 资产"
@@ -1108,6 +1109,7 @@ struct AssetsView: View {
                 .padding()
             }
             .scrollContentBackground(.hidden)
+            .dismissKeyboardOnScroll()
             .background(Color.paper)
             .navigationTitle("Assets")
             .sheet(item: $shareItem) { ShareSheet(url: $0.url) }
@@ -1418,6 +1420,7 @@ struct AssetsView: View {
                         .foregroundStyle(Color.inkFaint)
                     TextField("0", text: $transferAmount)
                         .decimalKeyboard()
+                        .focused($transferFocused)
                         .font(.system(.title3, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
                         .padding(.vertical, 8)
@@ -1426,6 +1429,7 @@ struct AssetsView: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(Color.hairline, lineWidth: 1)
                         )
+                        .keyboardDoneToolbar(focus: $transferFocused)
                 }
 
                 VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
@@ -1648,6 +1652,7 @@ struct AssetsView: View {
         }
         assets.updatedAt = .now
         transferAmount = ""
+        transferFocused = false   // 调拨完成顺手收键盘
     }
 
     // MARK: - 读写助手

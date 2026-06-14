@@ -46,4 +46,28 @@ extension View {
         self
         #endif
     }
+
+    /// iOS 给数字键盘加「完成」收起按钮(decimalPad 没有 return 键, 不加就退不出去);
+    /// macOS 无软键盘,no-op。
+    func keyboardDoneToolbar(focus: FocusState<Bool>.Binding) -> some View {
+        #if os(iOS)
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("完成") { focus.wrappedValue = false }
+            }
+        }
+        #else
+        self
+        #endif
+    }
+
+    /// iOS 滚动内容时可下拉收起键盘(兜底);macOS no-op。
+    func dismissKeyboardOnScroll() -> some View {
+        #if os(iOS)
+        scrollDismissesKeyboard(.interactively)
+        #else
+        self
+        #endif
+    }
 }
