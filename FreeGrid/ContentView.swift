@@ -6,7 +6,7 @@
 //  - Dashboard: Freedom Days + 三联卡 + 收支记录按钮
 //  - Assets: 资产总额管理(Freedom Days 的基准)
 //  - History: 历史记录(占位,下一轮实现)
-//  - Check: 自检清单(占位,下一轮实现)
+//  - Settings: 设置(顶部自检收缩卡 + 外观/关于/支持)
 //
 //  设计原则:
 //  - 每个 Tab 独立 NavigationStack,各自的 navigationTitle
@@ -18,7 +18,9 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers   // 提供 .json UTType,供 fileImporter 使用
 #if os(iOS)
-import UIKit                    // iOS: 导出分享面板 UIActivityViewController
+import UIKit                    // iOS: 导出分享面板 UIActivityViewController + UIPasteboard
+#elseif canImport(AppKit)
+import AppKit                   // macOS: NSPasteboard(复制 ICP 备案号)
 #endif
 
 // ============================================================================
@@ -262,9 +264,9 @@ struct ContentView: View {
                     Label("History", systemImage: "clock.arrow.circlepath")
                 }
 
-            CheckView()
+            SettingsView()
                 .tabItem {
-                    Label("Check", systemImage: "checklist")
+                    Label("Settings", systemImage: "gearshape")
                 }
         }
         // tab 选中态吃 sky 主色,品牌一致
@@ -2998,59 +3000,314 @@ struct MonthlySummaryView: View {
     }
 }
 
-struct CheckView: View {
+// ============================================================================
+// MARK: - SettingsView (设置 — 顶部自检收缩卡 + 分组列表)
+// ============================================================================
+// 替换原 Check tab。顶部把「财富自由自检」收成一张卡(点开 push CheckView 完整子页),
+// 下面是 iOS 分组列表(外观/关于/支持)。配色全用 DesignSystem 的 dynamic token,
+// 自动适配深/浅。数据导入导出仍在 Assets, 本页不含。
+
+struct SettingsView: View {
+    // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
     @Query private var expenses: [Expense]
-    @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
 
-    private struct ChecklistItem {
-        let title: String
-        let done: Bool
+    @Environment(\.openURL) private var openURL
+    @State private var icpCopied = false
+
+    private let icpNumber = "浙ICP备2026045014号-1A"
+    private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
+    private let rateURL = URL(string: "https://apps.apple.com/app/id6781104287?action=write-review")!
+
+    private var summary: FreedomSummary {
+        FreedomChecklist.evaluate(expenses: expenses,
+                                  passiveSources: passiveSources,
+                                  assets: assetsArr.first)
     }
 
-    /// 8 项自检 — 顺序、阈值跟 web 版完全对齐
-    private var items: [ChecklistItem] {
-        let firstDate = assetsArr.first?.firstRecordDate
-        let days = FreedomMath.trackDays(firstRecordDate: firstDate)
-        let totalExp = expenses.reduce(0) { $0 + $1.amount }
-        let dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let netWorth = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-        let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-        let passiveRatio = FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
-        // 自由天数含被动 — 跟 Dashboard hero 一致
-        let freedom = FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn, dailyPassive: dailyPassive)
-
-        return [
-            ChecklistItem(title: "记录天数超过 30 天", done: days >= 30),
-            ChecklistItem(title: "了解自己的日均消费", done: days >= 7 && dailyBurn > 0),
-            ChecklistItem(title: "记录了可变现资产", done: netWorth > 0),
-            ChecklistItem(title: "自由天数超过 180 天", done: freedom >= 180),
-            ChecklistItem(title: "自由天数超过 365 天", done: freedom >= 365),
-            ChecklistItem(title: "有被动收入来源", done: !passiveSources.isEmpty),
-            ChecklistItem(title: "被动覆盖率超过 50%", done: passiveRatio >= 0.5),
-            ChecklistItem(title: "被动收入覆盖日常消费 (≥100%)", done: passiveRatio >= 1.0),
-        ]
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
-
-    private var completedCount: Int { items.filter(\.done).count }
-    private var progress: Double { Double(completedCount) / Double(items.count) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: Spacing.lg) {
-                    heroCard
-                    checklistCard
-                    footnote
+                VStack(spacing: Spacing.xl) {
+                    checkCard
+                    appearanceSection
+                    aboutSupportSection
                 }
                 .padding()
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
-            .navigationTitle("Check")
+            .navigationTitle("Settings")
         }
+    }
+
+    // MARK: - 自检收缩卡 → push 完整自检子页
+    private var checkCard: some View {
+        let s = summary   // 整张卡只算一次 evaluate
+        return NavigationLink {
+            CheckView()
+        } label: {
+            VaultCard(emphasis: .high) {
+                HStack(spacing: Spacing.lg) {
+                    // 圆环进度
+                    ZStack {
+                        Circle().stroke(Color.mist2, lineWidth: 5)
+                        Circle()
+                            .trim(from: 0, to: s.progress)
+                            .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        (Text("\(s.doneCount)")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+                         + Text("/\(s.total)")
+                            .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
+                            .foregroundStyle(Color.ink)
+                    }
+                    .frame(width: 56, height: 56)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("财富自由自检")
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        if let stop = s.nextStopTitle {
+                            Text("下一站 · \(stop)")
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(Color.inkMuted)
+                            if let remain = s.remainText {
+                                Text(remain)
+                                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                    .foregroundStyle(Color.skyDeep)
+                            }
+                        } else {
+                            Text("已全部达成 🎉")
+                                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                                .foregroundStyle(Color.skyDeep)
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.inkGhost)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 分组
+    private var appearanceSection: some View {
+        settingsSection("外观") {
+            settingsRow(icon: "moon", title: "主题") {
+                // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
+                // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
+                // 跟 Dashboard 顶栏切换同款 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
+                Picker("主题", selection: themeBinding) {
+                    Text("浅色").tag(false)
+                    Text("深色").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
+        }
+    }
+
+    /// 主题绑定: setter 包在 withAnimation 里 — 切换时整页换色走 0.25s 缓动交叉淡入,
+    /// 不是单帧硬重绘。这是消除"切主题突然卡顿"的关键。
+    private var themeBinding: Binding<Bool> {
+        Binding(
+            get: { isDarkMode },
+            set: { newValue in
+                withAnimation(.easeInOut(duration: 0.25)) { isDarkMode = newValue }
+            }
+        )
+    }
+
+    /// 关于(进子页) + 评价与反馈(跳 App Store)。无标题分组 —— 顶层保持精简,
+    /// 后续加新功能时也按"入口行 → push 子页"这套模式往这里 / 新卡里加。
+    private var aboutSupportSection: some View {
+        settingsSection("") {
+            NavigationLink {
+                aboutPage
+            } label: {
+                settingsRow(icon: "info.circle", title: "关于") { chevron }
+            }
+            .buttonStyle(.plain)
+            rowDivider
+            settingsRow(icon: "star", title: "评价与反馈",
+                        action: { openURL(rateURL) }) {
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.inkGhost)
+            }
+        }
+    }
+
+    // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
+    private var aboutPage: some View {
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                settingsSection("") {
+                    settingsRow(icon: "info.circle", title: "版本") {
+                        Text(appVersion)
+                            .font(.system(.subheadline, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                    rowDivider
+                    settingsRow(icon: "lock.shield", title: "隐私政策",
+                                action: { openURL(privacyURL) }) { chevron }
+                    rowDivider
+                    icpRow
+                }
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .navigationTitle("关于")
+        .inlineNavTitle()
+    }
+
+    // ICP 备案号: 等宽显示 + 点行复制(满足「App 内显著位置标注备案号」合规)
+    private var icpRow: some View {
+        Button {
+            copyICP()
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "checkmark.seal")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.inkMuted)
+                    .frame(width: 26, alignment: .center)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ICP 备案号")
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                    Text(icpNumber)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                        .textSelection(.enabled)
+                }
+                Spacer(minLength: Spacing.sm)
+                Image(systemName: icpCopied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 14))
+                    .foregroundStyle(icpCopied ? Color.mossGreen : Color.inkGhost)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 复用组件
+    /// 一节: 小标题 + 圆角分组卡(行之间手动插 rowDivider)
+    @ViewBuilder
+    private func settingsSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if !title.isEmpty {
+                Text(title)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.leading, Spacing.md)
+            }
+            VaultCard(padding: 0) {
+                VStack(spacing: 0) { content() }
+            }
+        }
+    }
+
+    /// 一行: 图标 + 标题 + 右侧 trailing。给 action 则整行可点。
+    @ViewBuilder
+    private func settingsRow<Trailing: View>(
+        icon: String,
+        title: String,
+        iconColor: Color = .inkMuted,
+        titleColor: Color = .ink,
+        action: (() -> Void)? = nil,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        let row = HStack(spacing: Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(iconColor)
+                .frame(width: 26, alignment: .center)
+            Text(title)
+                .font(.system(.body, design: .rounded))
+                .foregroundStyle(titleColor)
+            Spacer(minLength: Spacing.sm)
+            trailing()
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+
+        if let action {
+            Button(action: action) { row }
+                .buttonStyle(.plain)
+        } else {
+            row
+        }
+    }
+
+    private var rowDivider: some View {
+        Hairline().padding(.leading, Spacing.lg + 26 + Spacing.md)
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Color.inkGhost)
+    }
+
+    private func copyICP() {
+        #if os(iOS)
+        UIPasteboard.general.string = icpNumber
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(icpNumber, forType: .string)
+        #endif
+        withAnimation { icpCopied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { icpCopied = false }
+        }
+    }
+}
+
+struct CheckView: View {
+
+    @Query private var expenses: [Expense]
+    @Query private var passiveSources: [PassiveSource]
+    @Query private var assetsArr: [UserAssets]
+
+    /// 8 项自检 + 汇总 — 逻辑统一在 FreedomChecklist, collapsed 卡与本页共用
+    private var summary: FreedomSummary {
+        FreedomChecklist.evaluate(expenses: expenses,
+                                  passiveSources: passiveSources,
+                                  assets: assetsArr.first)
+    }
+
+    // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)
+    var body: some View {
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                heroCard
+                checklistCard
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .navigationTitle("财富自由自检")
+        .inlineNavTitle()
     }
 
     // MARK: - Hero 进度卡
@@ -3061,14 +3318,14 @@ struct CheckView: View {
                 KickerLabel(text: "Freedom Checklist")
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(completedCount)")
+                    Text("\(summary.doneCount)")
                         .font(.system(size: 56, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
-                    Text("/ \(items.count)")
+                    Text("/ \(summary.total)")
                         .font(.system(size: 22, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.inkFaint)
                     Spacer()
-                    Text("\(Int((progress * 100).rounded()))%")
+                    Text("\(Int((summary.progress * 100).rounded()))%")
                         .font(.system(.callout, design: .monospaced).monospacedDigit())
                         .foregroundStyle(Color.skyDeep)
                 }
@@ -3079,7 +3336,7 @@ struct CheckView: View {
                         Capsule().fill(Color.mist)
                         Capsule()
                             .fill(Color.skyDeep)
-                            .frame(width: max(2, geo.size.width * progress))
+                            .frame(width: max(2, geo.size.width * summary.progress))
                     }
                 }
                 .frame(height: 4)
@@ -3096,10 +3353,10 @@ struct CheckView: View {
     private var checklistCard: some View {
         VaultCard(padding: 0) {
             VStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                    checklistRow(idx: idx, item: item)
+                ForEach(Array(summary.items.enumerated()), id: \.element.id) { idx, item in
+                    checklistRow(item: item)
                         .padding(.horizontal, Spacing.lg)
-                    if idx < items.count - 1 {
+                    if idx < summary.items.count - 1 {
                         Hairline().padding(.leading, Spacing.lg + 30)
                     }
                 }
@@ -3108,8 +3365,8 @@ struct CheckView: View {
         }
     }
 
-    private func checklistRow(idx: Int, item: ChecklistItem) -> some View {
-        HStack(spacing: 12) {
+    private func checklistRow(item: FreedomCheckItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
             // 状态点: 达成 = sky 实心 + 勾, 未达成 = outline
             ZStack {
                 Circle()
@@ -3121,29 +3378,47 @@ struct CheckView: View {
                         .foregroundStyle(Color.skyDeep)
                 }
             }
+            .padding(.top, 1)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(idx + 1). \(item.title)")
+            VStack(alignment: .leading, spacing: 5) {
+                Text("\(item.id). \(item.title)")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(item.done ? Color.ink : Color.inkMuted)
                     .strikethrough(item.done, color: Color.inkFaint)
-                Text(item.done ? "已达成" : "未达成")
-                    .font(.system(.caption2, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(item.done ? Color.skyDeep : Color.inkFaint)
+
+                if item.done {
+                    Text("已达成")
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.skyDeep)
+                } else {
+                    // 量化项(1/4/5/7/8): 细进度条 + 当前/目标; 二元项(2/3/6): 跳过
+                    if let p = item.progress {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.mist2)
+                                Capsule()
+                                    .fill(Color.skyDeep)
+                                    .frame(width: max(2, geo.size.width * p))
+                            }
+                        }
+                        .frame(height: 4)
+                        Text(item.detail)
+                            .font(.system(.caption2, design: .monospaced))
+                            .tracking(0.5)
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                    // 怎么前进
+                    Text("怎么前进 · \(item.hint)")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var footnote: some View {
-        Text("自检规则源自 早期 web 版 · 数据从记录自动反推, 不需手动勾选")
-            .font(.system(.caption2, design: .rounded))
-            .foregroundStyle(Color.inkFaint)
-            .multilineTextAlignment(.center)
-            .padding(.top, Spacing.xs)
     }
 }
 
