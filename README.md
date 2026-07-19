@@ -63,19 +63,20 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS / macOS 记账 Ap
 
 外加 **模拟决策**（下单前预演这笔支出对自由天数 / 格子的冲击）、**数据导入**（已有账本导出 JSON 直接导入）、**双主题 Silverline**（浅色冷白银 / 深色天文台冷蓝紫，随系统切换）。
 
-## 不止 iOS——三端，一套引擎
+## 不止 iOS——四端，一套引擎
 
-同一套「自由天数」引擎，原生跑在三个平台：
+同一套「自由天数」引擎，原生跑在四个平台：
 
 | 平台 | 怎么获取 | 备注 |
 |---|---|---|
-| 🍎 **iOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/latest) `.ipa` | 自签安装（方法见 release 说明） |
-| 💻 **macOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/latest) `.dmg` | 原生 SwiftUI，右键打开放行 |
+| 🍎 **iOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/v1.1) `.ipa` | 自签安装（方法见 release 说明） |
+| 💻 **macOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/v1.1) `.dmg` | 原生 SwiftUI，右键打开放行 |
+| 🤖 **Android** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/android-v1.0.0) `.apk` | 原生 Flutter，零联网 ｜ 源码在 [FreeGrid-Android](https://github.com/coni555/FreeGrid-Android) |
 | 🪟 **Windows** | [FreeGrid-Web Releases](https://github.com/coni555/FreeGrid-Web/releases/latest) `.exe` | 网页内核 + Tauri，自带自动更新 ｜ 源码在 [FreeGrid-Web](https://github.com/coni555/FreeGrid-Web) |
 
 > 🌐 **另有一个在线 demo**：[freegrid-web.pages.dev](https://freegrid-web.pages.dev) —— 纯前端体验站（无后端、不保存账号、清浏览器就没），**只用来打开看看产品长啥样**，不建议当日常工具。
 >
-> 🔁 **数据互通**：iPhone 上记的账导出 JSON，到 Windows 直接导入——一份备份格式，各端通用，自由迁移。
+> 🔁 **数据互通**：iPhone 上记的账导出 JSON，到 Windows / 安卓直接导入——一份备份格式，各端通用，自由迁移。
 
 ## 隐私
 
@@ -112,7 +113,7 @@ Xcode 16+，选 iOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing 
 
 ## 后续计划
 
-- **安卓**：暂时搁置——我没有安卓环境，加上临近期末、备考压力上来了，精力有限。欢迎有能力的朋友到 [FreeGrid-Web 仓库](https://github.com/coni555/FreeGrid-Web) 提交安卓 PR。
+- ~~**安卓**：暂时搁置~~ → **已发布！** 原生 Flutter 版 [android-v1.0.0](https://github.com/coni555/FreeGrid-Freedom/releases/tag/android-v1.0.0)，零联网、与 iOS 数据互通，源码在 [FreeGrid-Android](https://github.com/coni555/FreeGrid-Android)。
 - **代码签名 / App Store 上架**——视大家的支持情况。
 - 想法 / bug 欢迎 issue / discussion。
 
