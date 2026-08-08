@@ -148,6 +148,7 @@ struct ValidatedImport: Sendable {
     let schemaVersion: Int
     let assets: Assets?
     let expenses: [ExpenseRecord]
+    let legacyZeroExpensesSkipped: Int
     let incomes: [IncomeRecord]
     let devices: [DeviceRecord]
     let passiveSources: [PassiveSourceRecord]
@@ -252,14 +253,24 @@ enum ImportValidator {
             )
         }
 
-        let expenses = try (envelope.expenses ?? []).map { raw in
-            ValidatedImport.ExpenseRecord(
-                id: try identifier(raw.id, field: "支出"),
-                amount: try amount(raw.amount, field: "支出", allowsZero: false, policy: policy),
-                category: try text(raw.category, field: "支出分类", maximum: policy.maxNameCharacters),
-                date: try day(raw.date, field: "支出日期", now: now),
-                note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) }
+        var legacyZeroExpensesSkipped = 0
+        var expenses: [ValidatedImport.ExpenseRecord] = []
+        for raw in envelope.expenses ?? [] {
+            // 旧版导入器会把“当天无消费”保存成 0 元支出。它没有财务影响，
+            // 但不能让真实的 v0/v1 备份因此整份失效；v2 仍保持严格边界。
+            if raw.amount == 0, schemaVersion < latestSchemaVersion {
+                legacyZeroExpensesSkipped += 1
+                continue
+            }
+            expenses.append(
+                ValidatedImport.ExpenseRecord(
+                    id: try identifier(raw.id, field: "支出"),
+                    amount: try amount(raw.amount, field: "支出", allowsZero: false, policy: policy),
+                    category: try text(raw.category, field: "支出分类", maximum: policy.maxNameCharacters),
+                    date: try day(raw.date, field: "支出日期", now: now),
+                    note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),
+                    createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) }
+                )
             )
         }
 
@@ -331,6 +342,7 @@ enum ImportValidator {
             schemaVersion: schemaVersion,
             assets: assets,
             expenses: expenses,
+            legacyZeroExpensesSkipped: legacyZeroExpensesSkipped,
             incomes: incomes,
             devices: devices,
             passiveSources: passiveSources,

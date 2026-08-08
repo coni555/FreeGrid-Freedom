@@ -33,6 +33,29 @@ struct ImportValidationTests {
         #expect(try ImportValidator.validate(data: v1).schemaVersion == 1)
     }
 
+    @Test func skipsLegacyZeroExpensesButKeepsV2Strict() throws {
+        let legacy = Data("""
+        {
+          "schema_version": 1,
+          "expenses": [
+            {"amount": 0, "category": "无消费", "date": "2026-02-01"},
+            {"amount": 30, "category": "晚餐", "date": "2026-02-02"},
+            {"amount": 0, "category": "无消费", "date": "2026-02-03"}
+          ]
+        }
+        """.utf8)
+        let validated = try ImportValidator.validate(data: legacy)
+
+        #expect(validated.expenses.count == 1)
+        #expect(validated.legacyZeroExpensesSkipped == 2)
+
+        let current = Data(#"{"schema_version":2,"expenses":[{"amount":0,"category":"午餐","date":"2026-02-01"}]}"#.utf8)
+        expectError(current) {
+            if case .amountOutOfRange = $0 { return true }
+            return false
+        }
+    }
+
     @Test func rejectsFutureSchemaAndInvalidUUID() {
         expectError(Data(#"{"schema_version":99}"#.utf8)) {
             if case .unsupportedSchema(99) = $0 { return true }

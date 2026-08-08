@@ -58,6 +58,7 @@ enum DataIO {
     struct ImportPreview {
         let schemaVersion: Int
         let expensesNew: [ValidatedImport.ExpenseRecord]
+        let legacyZeroExpensesSkipped: Int
         let expenseDuplicates: DuplicateCount
         let incomesNew: [ValidatedImport.IncomeRecord]
         let incomeDuplicates: DuplicateCount
@@ -464,6 +465,7 @@ enum DataIO {
         return ImportPreview(
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
+            legacyZeroExpensesSkipped: validated.legacyZeroExpensesSkipped,
             expenseDuplicates: DuplicateCount(
                 existing: expenseExistingDuplicates,
                 inFile: expenseFileDuplicates
