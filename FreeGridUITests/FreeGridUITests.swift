@@ -2,42 +2,45 @@
 //  FreeGridUITests.swift
 //  FreeGridUITests
 //
-//  Created by coni on 2026/5/26.
+//  最终 smoke 只启动两次：内存库主导航一次、强制恢复页一次。
 //
 
 import XCTest
 
 final class FreeGridUITests: XCTestCase {
-
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
+        app.launchArguments.append("-UseInMemoryStore")
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
+
+        for title in ["Assets", "History", "Settings"] {
+            app.tabBars.buttons[title].tap()
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
+        }
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+    func testStoreRecoveryViewAppearsWhenBootstrapFails() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-UseInMemoryStore",
+            "-ForceStoreBootstrapFailure",
+        ])
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["store-recovery-view"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.buttons["store-retry-button"].exists)
+        XCTAssertTrue(app.staticTexts["本地数据暂时无法打开"].exists)
     }
 }

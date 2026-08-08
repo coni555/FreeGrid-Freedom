@@ -415,6 +415,9 @@ struct DashboardView: View {
             if let exp = expenses.first(where: { $0.id == id }) {
                 assets?.cash += exp.amount
                 modelContext.delete(exp)
+                assets?.firstRecordDate = FreedomMath.earliestExpenseDate(
+                    expenses.filter { $0.id != id }
+                )
             }
         } else {
             if let inc = incomes.first(where: { $0.id == id }) {
@@ -590,14 +593,26 @@ struct DashboardView: View {
     private func heroBodyLeading(deplete: Date?) -> some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
-                if freedomDays.isInfinite {
-                    // 被动覆盖, 副标:你已 [财富] 自由 + caption 提示
+                switch freedomState {
+                case .covered:
                     emphasized("你已", "财富", "自由", size: 18)
                     Text("按当前日均消费, 被动已覆盖")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
-                } else {
+                case .insufficientData:
+                    emphasized("先记", "一笔支出", "", size: 18)
+                    Text("有消费数据后开始计算自由天数")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.top, 4)
+                case .invalidData:
+                    emphasized("检查", "财务数据", "", size: 18)
+                    Text("存在无法计算的金额, 请检查记录")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.flame)
+                        .padding(.top, 4)
+                case .finite:
                     emphasized("你的", "自由", "", size: 18)
                     Text("还能撑这么多\(heroSubUnit)")
                         .font(.system(size: 18, weight: .light, design: .rounded))
@@ -616,7 +631,7 @@ struct DashboardView: View {
 
             Text(freedomDaysDisplay)
                 .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(freedomDays.isInfinite ? Color.mossGreen : Color.ink)
+                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.35)
                 .padding(.vertical, -8)
@@ -630,18 +645,31 @@ struct DashboardView: View {
         VStack(alignment: .center, spacing: Spacing.sm) {
             Text(freedomDaysDisplay)
                 .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(freedomDays.isInfinite ? Color.mossGreen : Color.ink)
+                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.35)
                 .padding(.vertical, -8)
 
-            if freedomDays.isInfinite {
+            switch freedomState {
+            case .covered:
                 emphasized("你已", "财富", "自由", size: 18)
                 Text("按当前日均消费, 被动已覆盖")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)
-            } else {
+            case .insufficientData:
+                emphasized("先记", "一笔支出", "", size: 18)
+                Text("有消费数据后开始计算自由天数")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.top, 2)
+            case .invalidData:
+                emphasized("检查", "财务数据", "", size: 18)
+                Text("存在无法计算的金额, 请检查记录")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.flame)
+                    .padding(.top, 2)
+            case .finite:
                 emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
                 if let d = deplete {
                     Text("约 \(depleteDateString(d)) 见底")
@@ -689,10 +717,10 @@ struct DashboardView: View {
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
             statCard(label: "Daily",
-                     value: String(format: "%.1f", dailyBurn),
+                     value: dailyBurn.isFinite ? String(format: "%.1f", dailyBurn) : "—",
                      unit: "元/天")
             statCard(label: "Passive",
-                     value: String(format: "%.0f%%", passiveRatio * 100),
+                     value: FinancialFormatting.percentage(passiveRatio),
                      unit: "被动覆盖")
             statCard(label: "Track",
                      value: "\(trackDays)",
@@ -732,7 +760,7 @@ struct DashboardView: View {
                 HStack(alignment: .center, spacing: Spacing.md) {
                     // 左:今日金额
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(String(format: "¥%.1f", todaySpending))
+                        Text(todaySpending.isFinite ? String(format: "¥%.1f", todaySpending) : "¥—")
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.ink)
                         KickerLabel(text: "Today")
@@ -762,7 +790,7 @@ struct DashboardView: View {
 
                     // 右:日均金额
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(String(format: "¥%.1f", dailyBurn))
+                        Text(dailyBurn.isFinite ? String(format: "¥%.1f", dailyBurn) : "¥—")
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkMuted)
                         KickerLabel(text: "avg")
@@ -782,11 +810,16 @@ struct DashboardView: View {
 
     /// today bar 下方的 delta 文案
     private var todayDeltaText: String {
-        if dailyBurn == 0 { return "等待日均数据" }
+        guard dailyBurn.isFinite, dailyBurn > 0, todaySpending.isFinite else {
+            return "等待有效日均数据"
+        }
         if todaySpending == 0 {
             return "今日尚未消费"
         }
-        let diffPct = Int(abs((1 - todayPercent) * 100))
+        let diffPct = FinancialFormatting.clampedInteger(
+            abs((1 - todayPercent) * 100),
+            range: 0...9_999
+        )
         if todaySpending > dailyBurn {
             let over = todaySpending - dailyBurn
             return "高于日均 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
@@ -813,20 +846,22 @@ struct DashboardView: View {
 
     /// 今日 vs 日均的描述文案,根据高低给出不同评价
     private var todayVsAvgText: String {
-        if dailyBurn == 0 {
-            return "还没有日均数据,先记几笔再看对比。"
+        guard dailyBurn.isFinite, dailyBurn > 0, todaySpending.isFinite else {
+            return "还没有有效日均数据,先检查或补充支出记录。"
         }
         let today = todaySpending
         let avg = dailyBurn
+        let todayText = FinancialFormatting.wholeNumber(today)
+        let avgText = FinancialFormatting.wholeNumber(avg)
         if today == 0 {
-            return "今日尚未消费 · 日均 ¥\(Int(avg))"
+            return "今日尚未消费 · 日均 ¥\(avgText)"
         }
         let diff = today - avg
-        let pct = abs(diff) / avg * 100
+        let pct = FinancialFormatting.wholeNumber(abs(diff) / avg * 100)
         if today > avg {
-            return "今日已花 ¥\(Int(today)) · 日均 ¥\(Int(avg)) · 高于日均 \(String(format: "%.0f", pct))%"
+            return "今日已花 ¥\(todayText) · 日均 ¥\(avgText) · 高于日均 \(pct)%"
         } else {
-            return "今日已花 ¥\(Int(today)) · 日均 ¥\(Int(avg)) · 低于日均 \(String(format: "%.0f", pct))%"
+            return "今日已花 ¥\(todayText) · 日均 ¥\(avgText) · 低于日均 \(pct)%"
         }
     }
 
@@ -896,12 +931,20 @@ struct DashboardView: View {
             Image(systemName: "square.grid.3x3.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.inkFaint)
-            Text("记录第一笔后,网格开始点亮")
+            Text(gridEmptyText)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xxl)
+    }
+
+    private var gridEmptyText: String {
+        switch freedomState {
+        case .invalidData: return "数据异常, 检查金额后再生成网格"
+        case .insufficientData: return "记录第一笔支出后, 网格开始点亮"
+        case .finite, .covered: return "当前净值还没有可点亮的自由格"
+        }
     }
 
     /// 收支双按钮:filled prominent
@@ -941,9 +984,7 @@ struct DashboardView: View {
     // 用 computed property,SwiftUI 自动追踪依赖,@Query 数据变化时自动重算
 
     private var userAssetsSingleton: UserAssets? {
-        let a = assetsArr.first
-        a?.migrateIfNeeded()
-        return a
+        assetsArr.first
     }
 
     private var lockedAssets: Double {
@@ -959,7 +1000,7 @@ struct DashboardView: View {
     }
 
     private var firstRecordDate: Date? {
-        userAssetsSingleton?.firstRecordDate
+        FreedomMath.earliestExpenseDate(expenses)
     }
 
     private var totalExpenses: Double {
@@ -971,14 +1012,11 @@ struct DashboardView: View {
     }
 
     private var trackDays: Int {
-        guard let firstDate = firstRecordDate else { return 1 }
-        let days = Calendar.current.dateComponents([.day], from: firstDate, to: .now).day ?? 0
-        return max(1, days + 1)
+        FreedomMath.trackDays(firstRecordDate: firstRecordDate)
     }
 
     private var dailyBurn: Double {
-        guard trackDays > 0 else { return 0 }
-        return totalExpenses / Double(trackDays)
+        FreedomMath.dailyBurn(totalExpenses: totalExpenses, trackDays: trackDays)
     }
 
     private var dailyPassive: Double {
@@ -986,34 +1024,57 @@ struct DashboardView: View {
     }
 
     private var passiveRatio: Double {
-        guard dailyBurn > 0 else { return 0 }
-        return dailyPassive / dailyBurn
+        FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
+    }
+
+    private var freedomState: FreedomState {
+        FreedomMath.freedomState(
+            netWorth: netWorth,
+            dailyBurn: dailyBurn,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
     }
 
     private var freedomDays: Double {
-        FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn, dailyPassive: dailyPassive)
+        switch freedomState {
+        case .finite(let days): return days
+        case .covered: return .infinity
+        case .insufficientData, .invalidData: return .nan
+        }
+    }
+
+    private var isFreedomCovered: Bool {
+        if case .covered = freedomState { return true }
+        return false
     }
 
     /// 三档无后缀 hero 数字: 日整数 / 月整数 / 年1位小数 / ∞
     private var freedomDaysDisplay: String {
-        FreedomMath.freedomDaysDisplay(freedomDays)
+        FreedomMath.freedomDaysDisplay(freedomState)
     }
 
     /// hero 副标单位:跟数字档位同步
     private var heroSubUnit: String {
-        if freedomDays.isInfinite { return "久" }
-        if freedomDays < 365 { return "天" }
-        if freedomDays < 3650 { return "月" }
-        return "年"
+        switch freedomState {
+        case .covered: return "久"
+        case .finite(let days) where days < 365: return "天"
+        case .finite(let days) where days < 3650: return "月"
+        case .finite: return "年"
+        case .insufficientData, .invalidData: return ""
+        }
     }
 
     /// hero kicker 文案:跟数字档位同步
-    /// FREEDOM DAYS / FREEDOM MONTHS / FREEDOM YEARS / FREEDOM
     private var heroKickerText: String {
-        if freedomDays.isInfinite { return "Freedom" }
-        if freedomDays < 365 { return "Freedom Days" }
-        if freedomDays < 3650 { return "Freedom Months" }
-        return "Freedom Years"
+        switch freedomState {
+        case .covered: return "Freedom"
+        case .finite(let days) where days < 365: return "Freedom Days"
+        case .finite(let days) where days < 3650: return "Freedom Months"
+        case .finite: return "Freedom Years"
+        case .insufficientData: return "Freedom Pending"
+        case .invalidData: return "Data Check"
+        }
     }
 }
 
@@ -1176,14 +1237,14 @@ struct AssetsView: View {
                 }
                 Button("取消", role: .cancel) { pendingDeletePassive = nil }
             } message: { src in
-                Text("\(src.name) · 月入 ¥\(Int(src.monthlyAmount))\n删除后被动覆盖率会下降。")
+                Text("\(src.name) · 月入 ¥\(FinancialFormatting.wholeNumber(src.monthlyAmount))\n删除后被动覆盖率会下降。")
             }
         }
     }
 
     // MARK: - 被动收入 computed
     private var dailyBurnAssetsView: Double {
-        let firstDate = assetsArr.first?.firstRecordDate
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
         let total = expenses.reduce(0) { $0 + $1.amount }
         return FreedomMath.dailyBurn(totalExpenses: total, trackDays: days)
@@ -1317,7 +1378,7 @@ struct AssetsView: View {
 
                 // 大数字: 覆盖率
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(Int((passiveRatioAssetsView * 100).rounded()))")
+                    Text(FinancialFormatting.wholeNumber((passiveRatioAssetsView * 100).rounded()))
                         .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(passiveRatioAssetsView >= 1 ? Color.mossGreen : Color.ink)
                     Text("%")
@@ -1333,7 +1394,7 @@ struct AssetsView: View {
                 // subtitle: 月入 + 日均
                 if !passiveSources.isEmpty {
                     HStack(spacing: 8) {
-                        Text("月入 ¥\(Int(totalMonthlyPassive))")
+                        Text("月入 ¥\(FinancialFormatting.wholeNumber(totalMonthlyPassive))")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                         Text("·")
@@ -1382,7 +1443,7 @@ struct AssetsView: View {
                         Text(s.name)
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.ink)
-                        Text("¥\(Int(s.monthlyAmount))/月 · ¥\(String(format: "%.1f", s.monthlyAmount / 30))/天")
+                        Text("¥\(FinancialFormatting.wholeNumber(s.monthlyAmount))/月 · ¥\(s.monthlyAmount.isFinite ? String(format: "%.1f", s.monthlyAmount / 30) : "—")/天")
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(Color.inkFaint)
                     }
@@ -1541,21 +1602,27 @@ struct AssetsView: View {
 
     private func exportNow(_ format: ExportFormat) {
         let stamp = DateFormatter()
-        stamp.dateFormat = "yyyyMMdd"
-        let day = stamp.string(from: .now)
-        let data: Data?
-        let name: String
-        switch format {
-        case .csv:  data = DataIO.exportCSV(context: modelContext);  name = "FreeGrid-记账-\(day).csv"
-        case .json: data = DataIO.exportJSON(context: modelContext); name = "FreeGrid-备份-\(day).json"
-        }
-        guard let data else { return }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        stamp.dateFormat = "yyyyMMdd-HHmmss"
+        let timestamp = stamp.string(from: .now)
+        let nonce = UUID().uuidString.prefix(8)
+
         do {
+            let data: Data
+            let name: String
+            switch format {
+            case .csv:
+                data = try DataIO.exportCSV(context: modelContext)
+                name = "FreeGrid-记账-\(timestamp)-\(nonce).csv"
+            case .json:
+                data = try DataIO.exportJSON(context: modelContext)
+                name = "FreeGrid-备份-\(timestamp)-\(nonce).json"
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
             try data.write(to: url, options: .atomic)
-            shareItem = ExportShareItem(url: url)   // 触发 .sheet 弹分享
+            importStatus = nil
+            shareItem = ExportShareItem(url: url)
         } catch {
-            // 写入失败静默忽略(不影响其它功能)
+            importStatus = "✗ 导出失败: \(error.localizedDescription)"
         }
     }
 
@@ -1567,20 +1634,25 @@ struct AssetsView: View {
                 importStatus = "未选择文件"
                 return
             }
-            guard url.startAccessingSecurityScopedResource() else {
-                importStatus = "无法访问该文件"
-                return
-            }
-            defer { url.stopAccessingSecurityScopedResource() }
+            Task {
+                guard url.startAccessingSecurityScopedResource() else {
+                    importStatus = "无法访问该文件"
+                    return
+                }
+                defer { url.stopAccessingSecurityScopedResource() }
 
-            do {
-                let data = try Data(contentsOf: url)
-                let preview = try DataIO.previewJSON(data: data, context: modelContext)
-                pendingImport = preview
-                importStatus = nil
-                showingImportReview = true
-            } catch {
-                importStatus = "✗ 解析失败: \(error.localizedDescription)"
+                do {
+                    let validated = try await Task.detached(priority: .userInitiated) {
+                        let data = try ImportValidator.loadData(from: url)
+                        return try ImportValidator.validate(data: data)
+                    }.value
+                    let preview = try DataIO.preview(validated: validated, context: modelContext)
+                    pendingImport = preview
+                    importStatus = nil
+                    showingImportReview = true
+                } catch {
+                    importStatus = "✗ 解析失败: \(error.localizedDescription)"
+                }
             }
         case .failure(let error):
             importStatus = "✗ 文件读取失败: \(error.localizedDescription)"
@@ -1594,14 +1666,17 @@ struct AssetsView: View {
             var lines: [String] = ["✓ 导入完成"]
             lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
             lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
+            if result.devicesAdded > 0 {
+                lines.append("设备 +\(result.devicesAdded)")
+            }
             if result.passiveSourcesAdded > 0 {
                 lines.append("被动源 +\(result.passiveSourcesAdded)")
             }
             switch strategy {
             case .replace:
-                lines.append("净值已替换为 ¥\(Int(preview.jsonAssetsTotal))")
+                lines.append("净值已替换为 ¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
             case .addToCash:
-                lines.append("现金 +¥\(Int(preview.jsonAssetsTotal))")
+                lines.append("现金 +¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
             case .skipAssets:
                 lines.append("净值未变动")
             }
@@ -1642,16 +1717,17 @@ struct AssetsView: View {
 
     // MARK: - 调拨实现
     private func doTransfer() {
-        guard let amt = Double(transferAmount), amt > 0,
-              let assets = assetsArr.first else { return }
+        guard let amt = Double(transferAmount), FinancialFormatting.validAmount(amt),
+              let assets = assetsArr.first,
+              assets.cash.isFinite, assets.lockedAssets.isFinite else { return }
 
         switch transferDirection {
         case .cashToAssets:
-            let actual = min(amt, assets.cash)
+            let actual = min(amt, max(0, assets.cash))
             assets.cash -= actual
             assets.lockedAssets += actual
         case .assetsToCash:
-            let actual = min(amt, assets.lockedAssets)
+            let actual = min(amt, max(0, assets.lockedAssets))
             assets.lockedAssets -= actual
             assets.cash += actual
         }
@@ -1676,7 +1752,6 @@ struct AssetsView: View {
     private func ensureUserAssets() -> UserAssets {
         if let existing = assetsArr.first { return existing }
         let new = UserAssets(total: 0)
-        new.firstRecordDate = .now
         modelContext.insert(new)
         return new
     }
@@ -1761,7 +1836,9 @@ struct EditBucketSheet: View {
                         )
 
                         // delta 预览: 写新金额后实时显示净值变化
-                        if let new = Double(amount), new != currentAmount {
+                        if let new = Double(amount),
+                           FinancialFormatting.validAmount(new, allowsZero: true),
+                           new != currentAmount {
                             HStack(spacing: 4) {
                                 Image(systemName: new > currentAmount ? "arrow.up" : "arrow.down")
                                     .font(.system(size: 10))
@@ -1807,13 +1884,14 @@ struct EditBucketSheet: View {
     }
 
     private var isValid: Bool {
-        guard let v = Double(amount), v >= 0 else { return false }
-        return true
+        guard let value = Double(amount) else { return false }
+        return FinancialFormatting.validAmount(value, allowsZero: true)
     }
 
     private func save() {
-        guard let v = Double(amount), v >= 0 else { return }
-        onSave(v)
+        guard let value = Double(amount),
+              FinancialFormatting.validAmount(value, allowsZero: true) else { return }
+        onSave(value)
         dismiss()
     }
 }
@@ -1885,7 +1963,7 @@ struct PassiveSourceSheet: View {
                         )
 
                         // 日均预览
-                        if let m = Double(monthly), m > 0 {
+                        if let m = Double(monthly), FinancialFormatting.validAmount(m) {
                             Text("≈ ¥\(String(format: "%.1f", m / 30)) / 天")
                                 .font(.system(.caption, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.mossGreen)
@@ -1930,15 +2008,17 @@ struct PassiveSourceSheet: View {
 
     private var isValid: Bool {
         let n = name.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty else { return false }
-        guard let m = Double(monthly), m > 0 else { return false }
-        return true
+        guard !n.isEmpty, n.count <= FinancialLimits.nameCharacters,
+              let monthlyAmount = Double(monthly) else { return false }
+        return FinancialFormatting.validAmount(monthlyAmount)
     }
 
     private func save() {
         let n = name.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty, let m = Double(monthly), m > 0 else { return }
-        onSave(n, m)
+        guard !n.isEmpty, n.count <= FinancialLimits.nameCharacters,
+              let monthlyAmount = Double(monthly),
+              FinancialFormatting.validAmount(monthlyAmount) else { return }
+        onSave(n, monthlyAmount)
         dismiss()
     }
 }
@@ -1967,50 +2047,6 @@ enum TxKind: Identifiable {
         case .income(let i): return i.date
         }
     }
-}
-
-// ============================================================================
-// MARK: - BackupJSON (早期 web 版 JSON 数据结构)
-// ============================================================================
-// 用于把 web 版导出的备份 JSON 解析到 Swift 类型。
-// keyDecodingStrategy = .convertFromSnakeCase 会自动把 is_passive → isPassive
-// monthly_amount → monthlyAmount 等。
-
-struct BackupJSON: Codable {
-    struct AssetsJSON: Codable {
-        let total: Double           // 净值 = lockedAssets + cash。保留:旧文件/Web 版只有它
-        let lockedAssets: Double?   // 锁定资产桶。旧文件没有 → 导入退回 total 单桶行为
-        let cash: Double?           // 现金桶
-        let updatedAt: String?      // ISO 字符串 "2026-05-25T08:55:55.159Z"
-    }
-    struct ExpenseJSON: Codable {
-        let id: String?             // UUID 字符串。旧文件/Web 版没有 → 去重退回内容指纹
-        let amount: Double
-        let category: String
-        let date: String            // "YYYY-MM-DD"
-        let note: String?
-        let createdAt: String?      // ISO 字符串
-    }
-    struct IncomeJSON: Codable {
-        let id: String?
-        let amount: Double
-        let source: String
-        let date: String
-        let note: String?
-        let isPassive: Bool?
-        let createdAt: String?
-    }
-    struct PassiveSourceJSON: Codable {
-        let name: String
-        let monthlyAmount: Double
-    }
-
-    let schemaVersion: Int?         // 备份格式版本。缺失视为 v0(早期 app 版/Web 版导出)
-    let assets: AssetsJSON?
-    let expenses: [ExpenseJSON]?
-    let incomes: [IncomeJSON]?
-    let passiveSources: [PassiveSourceJSON]?
-    let firstRecordDate: String?    // "YYYY-MM-DD"
 }
 
 // ============================================================================
@@ -2050,416 +2086,6 @@ enum ExpenseCategory {
         if canonical.contains(t) { return (t, true) }
         if let mapped = aliases[t] ?? aliases[t.lowercased()] { return (mapped, true) }
         return (fallback, false)
-    }
-}
-
-// ============================================================================
-// MARK: - DataImporter / DataPurger (导入 + 清空数据)
-// ============================================================================
-// 设计动机:用户的 早期 web 版已经积累几百天数据,iOS 版要能继承。
-// 不然测试数据(trackDays=1)会让 dailyBurn 算法看不出真实表现。
-
-enum DataIO {
-
-    /// 导入结果统计, UI 用来展示反馈
-    struct ImportResult {
-        let expensesAdded: Int
-        let incomesAdded: Int
-        let passiveSourcesAdded: Int
-        let assetsTotal: Double
-        let firstRecordDate: Date?
-    }
-
-    /// 待导入数据里"非标准支出分类"的一条对齐建议(UI 在预览里展示 + 可改)
-    struct CategoryMapEntry: Identifiable {
-        var id: String { raw }
-        let raw: String          // 原始分类标签(如 "数码" / "food")
-        let count: Int           // 这批待导入里有几笔
-        let total: Double        // 总额
-        var canonical: String    // 归到哪个权威分类(可被用户改)
-        let needsReview: Bool     // true = 没把握自动归类, UI 高亮提醒确认
-    }
-
-    /// 导入预览: previewJSON 算出来交给 UI, UI 展示 + 用户调分类/strategy 后调 commitImport
-    struct ImportPreview {
-        let expensesNew: [BackupJSON.ExpenseJSON]
-        let expensesSkipped: Int
-        let incomesNew: [BackupJSON.IncomeJSON]
-        let incomesSkipped: Int
-        let passiveSourcesNew: [BackupJSON.PassiveSourceJSON]
-        let jsonAssetsTotal: Double
-        /// 双桶拆分(schema v1 起导出)。旧文件为 nil → .replace 退回单桶行为
-        let jsonLockedAssets: Double?
-        let jsonCash: Double?
-        let jsonAssetsUpdatedAt: Date?
-        let jsonFirstRecordDate: Date?
-        let currentCash: Double
-        let currentLockedAssets: Double
-        /// 待导入支出里所有"非 canonical"分类的对齐建议(已是标准的不进此列表)。按总额降序。
-        let categoryEntries: [CategoryMapEntry]
-    }
-
-    /// 导入时如何对待 UserAssets (现金/资产桶):
-    /// - replace: 整体替换。文件带双桶字段(schema v1)→ 按 locked_assets/cash 还原;
-    ///   旧文件只有 total → lockedAssets 清零, cash = JSON.total
-    /// - addToCash: cash += JSON.total, lockedAssets 不动
-    /// - skipAssets: 完全不动两桶, 只导入交易记录
-    enum AssetsImportStrategy: Equatable {
-        case replace
-        case addToCash
-        case skipAssets
-    }
-
-    // ========================================================================
-    // MARK: - 导出 (JSON 完整备份 / CSV 给 Excel·Numbers)
-    // ========================================================================
-
-    private static func dayFormatter() -> DateFormatter {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }
-
-    /// 导出为 JSON —— 与「从 JSON 导入」完全对称(同一套 BackupJSON schema),
-    /// 导出的文件能被本 App 原样回导。用于完整备份 / 换机 / 迁移。
-    static func exportJSON(context: ModelContext) -> Data? {
-        let day = dayFormatter()
-        let iso = ISO8601DateFormatter()
-        let expenses = (try? context.fetch(FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.date)]))) ?? []
-        let incomes  = (try? context.fetch(FetchDescriptor<Income>(sortBy: [SortDescriptor(\.date)]))) ?? []
-        let passives = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
-        let assets   = try? context.fetch(FetchDescriptor<UserAssets>()).first
-
-        let dump = BackupJSON(
-            schemaVersion: 1,
-            assets: assets.map {
-                BackupJSON.AssetsJSON(total: $0.netWorth, lockedAssets: $0.lockedAssets,
-                                      cash: $0.cash, updatedAt: iso.string(from: $0.updatedAt))
-            },
-            expenses: expenses.map {
-                BackupJSON.ExpenseJSON(id: $0.id.uuidString,
-                                          amount: $0.amount, category: $0.category,
-                                          date: day.string(from: $0.date), note: $0.note,
-                                          createdAt: iso.string(from: $0.createdAt))
-            },
-            incomes: incomes.map {
-                BackupJSON.IncomeJSON(id: $0.id.uuidString,
-                                         amount: $0.amount, source: $0.source,
-                                         date: day.string(from: $0.date), note: $0.note,
-                                         isPassive: $0.isPassive, createdAt: iso.string(from: $0.createdAt))
-            },
-            passiveSources: passives.map { BackupJSON.PassiveSourceJSON(name: $0.name, monthlyAmount: $0.monthlyAmount) },
-            firstRecordDate: assets?.firstRecordDate.map { day.string(from: $0) }
-        )
-        let enc = JSONEncoder()
-        enc.keyEncodingStrategy = .convertToSnakeCase   // 与 import 的 convertFromSnakeCase 对称
-        enc.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-        return try? enc.encode(dump)
-    }
-
-    /// 导出为 CSV —— 支出 + 收入合一张表(类型列区分), Excel / Numbers / 腾讯文档直接打开。
-    /// 加 UTF-8 BOM 防中文乱码; 含逗号/引号/换行的字段按 RFC4180 加引号转义。
-    static func exportCSV(context: ModelContext) -> Data? {
-        let day = dayFormatter()
-        let expenses = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
-        let incomes  = (try? context.fetch(FetchDescriptor<Income>())) ?? []
-
-        struct Row { let date: String; let kind: String; let label: String; let amount: Double; let note: String }
-        var rows: [Row] = []
-        rows += expenses.map { Row(date: day.string(from: $0.date), kind: "支出", label: $0.category, amount: $0.amount, note: $0.note) }
-        rows += incomes.map  { Row(date: day.string(from: $0.date), kind: "收入", label: $0.source,   amount: $0.amount, note: $0.note) }
-        rows.sort { $0.date < $1.date }
-
-        func esc(_ s: String) -> String {
-            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
-            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
-        }
-        func amt(_ v: Double) -> String {
-            v.formatted(.number.grouping(.never).precision(.fractionLength(0...2)))
-        }
-
-        var csv = "\u{FEFF}"                       // UTF-8 BOM
-        csv += "日期,类型,类别/来源,金额,备注\n"
-        for r in rows {
-            csv += "\(r.date),\(r.kind),\(esc(r.label)),\(amt(r.amount)),\(esc(r.note))\n"
-        }
-        return csv.data(using: .utf8)
-    }
-
-    /// 第一步: 解析 JSON 做去重, 但不写入 context。
-    /// 去重策略: 记录带 id(schema v1 起导出)→ 按 UUID 精确去重;
-    /// 无 id(旧文件/Web 版)→ 退回 (date|amount|category-or-source|note) 内容指纹。
-    static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let dump = try decoder.decode(BackupJSON.self, from: data)
-
-        // ===== 现有数据的去重 key =====
-        let existingExp = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
-        let existingExpKeys = Set(existingExp.map {
-            expenseKey(amount: $0.amount, date: $0.date, category: $0.category, note: $0.note)
-        })
-        let existingExpIDs = Set(existingExp.map(\.id))
-
-        let existingInc = (try? context.fetch(FetchDescriptor<Income>())) ?? []
-        let existingIncKeys = Set(existingInc.map {
-            incomeKey(amount: $0.amount, date: $0.date, source: $0.source, note: $0.note)
-        })
-        let existingIncIDs = Set(existingInc.map(\.id))
-
-        let existingPass = (try? context.fetch(FetchDescriptor<PassiveSource>())) ?? []
-        let existingPassKeys = Set(existingPass.map { passiveKey(name: $0.name, monthlyAmount: $0.monthlyAmount) })
-
-        // ===== 过滤 expenses =====
-        var expensesNew: [BackupJSON.ExpenseJSON] = []
-        var expSkipped = 0
-        for e in dump.expenses ?? [] {
-            let isDup: Bool
-            if let uuid = e.id.flatMap({ UUID(uuidString: $0) }) {
-                isDup = existingExpIDs.contains(uuid)
-            } else {
-                let d = parseDate(e.date) ?? .now
-                isDup = existingExpKeys.contains(
-                    expenseKey(amount: e.amount, date: d, category: e.category, note: e.note ?? "")
-                )
-            }
-            if isDup {
-                expSkipped += 1
-            } else {
-                expensesNew.append(e)
-            }
-        }
-
-        // ===== 过滤 incomes =====
-        var incomesNew: [BackupJSON.IncomeJSON] = []
-        var incSkipped = 0
-        for i in dump.incomes ?? [] {
-            let isDup: Bool
-            if let uuid = i.id.flatMap({ UUID(uuidString: $0) }) {
-                isDup = existingIncIDs.contains(uuid)
-            } else {
-                let d = parseDate(i.date) ?? .now
-                isDup = existingIncKeys.contains(
-                    incomeKey(amount: i.amount, date: d, source: i.source, note: i.note ?? "")
-                )
-            }
-            if isDup {
-                incSkipped += 1
-            } else {
-                incomesNew.append(i)
-            }
-        }
-
-        // ===== 过滤 passive sources =====
-        var passNew: [BackupJSON.PassiveSourceJSON] = []
-        for p in dump.passiveSources ?? [] {
-            let k = passiveKey(name: p.name, monthlyAmount: p.monthlyAmount)
-            if !existingPassKeys.contains(k) {
-                passNew.append(p)
-            }
-        }
-
-        let existingAssets = try? context.fetch(FetchDescriptor<UserAssets>()).first
-
-        // ===== 分类对齐:扫待导入支出里所有"非 canonical"分类, 给归一建议 =====
-        var catAgg: [String: (count: Int, total: Double)] = [:]
-        for e in expensesNew {
-            let raw = e.category.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !ExpenseCategory.canonical.contains(raw) else { continue }  // 已标准的不用对齐
-            let prev = catAgg[raw] ?? (0, 0)
-            catAgg[raw] = (prev.count + 1, prev.total + e.amount)
-        }
-        let categoryEntries: [CategoryMapEntry] = catAgg
-            .map { raw, agg in
-                let s = ExpenseCategory.suggest(raw)
-                return CategoryMapEntry(
-                    raw: raw, count: agg.count, total: agg.total,
-                    canonical: s.canonical, needsReview: !s.known
-                )
-            }
-            .sorted { $0.total > $1.total }
-
-        return ImportPreview(
-            expensesNew: expensesNew,
-            expensesSkipped: expSkipped,
-            incomesNew: incomesNew,
-            incomesSkipped: incSkipped,
-            passiveSourcesNew: passNew,
-            jsonAssetsTotal: dump.assets?.total ?? 0,
-            jsonLockedAssets: dump.assets?.lockedAssets,
-            jsonCash: dump.assets?.cash,
-            jsonAssetsUpdatedAt: dump.assets?.updatedAt.flatMap { parseISO($0) },
-            jsonFirstRecordDate: dump.firstRecordDate.flatMap { parseDate($0) },
-            currentCash: existingAssets?.cash ?? 0,
-            currentLockedAssets: existingAssets?.lockedAssets ?? 0,
-            categoryEntries: categoryEntries
-        )
-    }
-
-    /// 第二步: 接受 preview + 用户选的 strategy, 写入 context。
-    /// expenses / incomes / passive 只插入 preview 里筛剩的 new 行 (跳过重复)。
-    /// categoryMap: 原始支出分类 → canonical(来自预览里用户确认的对齐)。
-    /// 不在表里的分类(本就是 canonical)原样保留。改写的把原标签压进 note 留底。
-    static func commitImport(
-        preview: ImportPreview,
-        strategy: AssetsImportStrategy,
-        categoryMap: [String: String] = [:],
-        context: ModelContext
-    ) throws -> ImportResult {
-        // ===== expenses =====
-        var expCount = 0
-        for e in preview.expensesNew {
-            let rawCat = e.category.trimmingCharacters(in: .whitespacesAndNewlines)
-            let mappedCat = categoryMap[rawCat] ?? e.category
-            // 分类被归一改写 → 原标签压进 note 留底("可以保留")
-            var note = e.note ?? ""
-            if mappedCat != rawCat {
-                note = note.isEmpty ? "原分类·\(rawCat)" : "\(note) · 原分类·\(rawCat)"
-            }
-            let exp = Expense(
-                amount: e.amount,
-                category: mappedCat,
-                note: note,
-                date: parseDate(e.date) ?? .now
-            )
-            // 保留原 UUID — 否则同一文件再导入时 id 对不上, 按 id 去重会失效
-            if let uuid = e.id.flatMap({ UUID(uuidString: $0) }) {
-                exp.id = uuid
-            }
-            if let createdAt = e.createdAt, let d = parseISO(createdAt) {
-                exp.createdAt = d
-            }
-            context.insert(exp)
-            expCount += 1
-        }
-
-        // ===== incomes =====
-        var incCount = 0
-        for i in preview.incomesNew {
-            let inc = Income(
-                amount: i.amount,
-                source: i.source,
-                isPassive: i.isPassive ?? false,
-                note: i.note ?? "",
-                date: parseDate(i.date) ?? .now
-            )
-            if let uuid = i.id.flatMap({ UUID(uuidString: $0) }) {
-                inc.id = uuid
-            }
-            if let createdAt = i.createdAt, let d = parseISO(createdAt) {
-                inc.createdAt = d
-            }
-            context.insert(inc)
-            incCount += 1
-        }
-
-        // ===== passive sources =====
-        var passCount = 0
-        for p in preview.passiveSourcesNew {
-            context.insert(PassiveSource(name: p.name, monthlyAmount: p.monthlyAmount))
-            passCount += 1
-        }
-
-        // ===== UserAssets 按 strategy 处理 =====
-        let existing = try? context.fetch(FetchDescriptor<UserAssets>()).first
-        let userAssets: UserAssets
-        if let existing = existing {
-            userAssets = existing
-        } else {
-            userAssets = UserAssets(total: 0)
-            context.insert(userAssets)
-        }
-
-        switch strategy {
-        case .replace:
-            // 净值整体替换 → firstRecordDate 也一并换成 JSON 的(不保留本地 baseline,
-            // 否则会出现"净值是 JSON 的, 起算日是本地的"这种半新半旧状态)
-            // schema v1 文件带双桶拆分 → 原样还原; 旧文件只有 total → 全进现金桶
-            if let locked = preview.jsonLockedAssets, let cash = preview.jsonCash {
-                userAssets.lockedAssets = locked
-                userAssets.cash = cash
-            } else {
-                userAssets.lockedAssets = 0
-                userAssets.cash = preview.jsonAssetsTotal
-            }
-            userAssets.updatedAt = preview.jsonAssetsUpdatedAt ?? .now
-            if let jsonDate = preview.jsonFirstRecordDate {
-                userAssets.firstRecordDate = jsonDate
-            }
-        case .addToCash, .skipAssets:
-            // 合并/跳过模式: 起算日取 (本地, JSON) 较早者, 本地为空时用 JSON
-            if let jsonDate = preview.jsonFirstRecordDate {
-                if let cur = userAssets.firstRecordDate {
-                    userAssets.firstRecordDate = min(cur, jsonDate)
-                } else {
-                    userAssets.firstRecordDate = jsonDate
-                }
-            }
-            if strategy == .addToCash {
-                userAssets.cash += preview.jsonAssetsTotal
-                userAssets.updatedAt = .now
-            }
-            // .skipAssets: 不动 cash / lockedAssets / updatedAt
-        }
-
-        return ImportResult(
-            expensesAdded: expCount,
-            incomesAdded: incCount,
-            passiveSourcesAdded: passCount,
-            assetsTotal: preview.jsonAssetsTotal,
-            firstRecordDate: preview.jsonFirstRecordDate
-        )
-    }
-
-    /// 清空所有数据(包括 UserAssets 单例)
-    static func purgeAll(context: ModelContext) throws {
-        try context.delete(model: Expense.self)
-        try context.delete(model: Income.self)
-        try context.delete(model: Device.self)
-        try context.delete(model: PassiveSource.self)
-        try context.delete(model: UserAssets.self)
-    }
-
-    // ===== 内部: 去重 key =====
-    // 设计动机: web 版导出的 JSON 没有稳定 UUID, 反复导入同一文件会重复扣账。
-    // 用 (date 精确到当地日, amount, category/source, note) 组合做幂等 key。
-    // 同一天同金额同分类同备注的两笔, 视为重复 — 这在真实场景下误判率可接受。
-
-    private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> String {
-        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
-        return "\(day)|\(amount)|\(category)|\(note)"
-    }
-
-    private static func incomeKey(amount: Double, date: Date, source: String, note: String) -> String {
-        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
-        return "\(day)|\(amount)|\(source)|\(note)"
-    }
-
-    private static func passiveKey(name: String, monthlyAmount: Double) -> String {
-        return "\(name)|\(monthlyAmount)"
-    }
-
-    // ===== 内部:日期解析工具 =====
-
-    /// 解析 "YYYY-MM-DD" 为 Date (当地时区午夜 0:00)
-    private static func parseDate(_ s: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone.current
-        return f.date(from: s)
-    }
-
-    /// 解析 ISO 8601 时间戳 "2024-09-08T08:00:00.000Z"
-    private static func parseISO(_ s: String) -> Date? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return d }
-        // fallback: 没毫秒的格式
-        f.formatOptions = [.withInternetDateTime]
-        return f.date(from: s)
     }
 }
 
@@ -2825,6 +2451,9 @@ struct HistoryView: View {
         case .expense(let e):
             assets?.cash += e.amount
             modelContext.delete(e)
+            assets?.firstRecordDate = FreedomMath.earliestExpenseDate(
+                expenses.filter { $0.id != e.id }
+            )
         case .income(let i):
             assets?.cash -= i.amount
             modelContext.delete(i)
@@ -3325,7 +2954,7 @@ struct CheckView: View {
                         .font(.system(size: 22, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.inkFaint)
                     Spacer()
-                    Text("\(Int((summary.progress * 100).rounded()))%")
+                    Text(FinancialFormatting.percentage(summary.progress))
                         .font(.system(.callout, design: .monospaced).monospacedDigit())
                         .foregroundStyle(Color.skyDeep)
                 }
@@ -3467,7 +3096,7 @@ struct AddExpenseSheet: View {
                     }
                 }
                 Section("日期") {
-                    DatePicker("日期", selection: $date, displayedComponents: .date)
+                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
@@ -3475,7 +3104,7 @@ struct AddExpenseSheet: View {
                 }
 
                 // ===== 戴维斯三杀实时预览 =====
-                if let amt = Double(amount), amt > 0 {
+                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
                     Section {
                         impactPreview(amount: amt)
                     } header: {
@@ -3511,19 +3140,41 @@ struct AddExpenseSheet: View {
 
     private func impactPreview(amount: Double) -> some View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-        let firstDate = assetsArr.first?.firstRecordDate
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
+        let newFirstDate = min(firstDate ?? date, date)
+        let newDays = FreedomMath.trackDays(firstRecordDate: newFirstDate)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let currentTotalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
+        let currentFreedom = FreedomMath.freedomState(
+            netWorth: currentNW,
+            dailyBurn: currentAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
 
         let newNW = currentNW - amount
-        let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: days)
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg, dailyPassive: dailyPassive)
+        let newAvg = FreedomMath.dailyBurn(totalExpenses: currentTotalExp + amount, trackDays: newDays)
+        let newFreedom = FreedomMath.freedomState(
+            netWorth: newNW,
+            dailyBurn: newAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: true
+        )
 
-        let freedomLoss: Double = currentFreedom.isInfinite ? 0 : (currentFreedom - newFreedom)
+        let freedomLoss: String
+        if case .finite(let currentDays) = currentFreedom,
+           case .finite(let newDays) = newFreedom,
+           let daysLost = FinancialFormatting.integer(
+               max(0, currentDays - newDays),
+               rounded: .toNearestOrAwayFromZero
+           ) {
+            freedomLoss = "−\(daysLost) 天"
+        } else {
+            freedomLoss = "—"
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
             killRow(label: "KILL 1 净值",
@@ -3540,7 +3191,7 @@ struct AddExpenseSheet: View {
             killRow(label: "KILL 3 自由天数",
                     from: FreedomMath.freedomDaysDisplay(currentFreedom),
                     to: FreedomMath.freedomDaysDisplay(newFreedom),
-                    delta: currentFreedom.isInfinite ? "—" : "−\(String(format: "%.0f", freedomLoss)) 天")
+                    delta: freedomLoss)
         }
         .padding(.vertical, 4)
     }
@@ -3575,13 +3226,19 @@ struct AddExpenseSheet: View {
     }
 
     private var isAmountValid: Bool {
-        guard let v = Double(amount), v > 0 else { return false }
-        return true
+        guard let value = Double(amount),
+              FinancialFormatting.validAmount(value),
+              note.count <= FinancialLimits.noteCharacters,
+              Calendar.current.startOfDay(for: date) <= Calendar.current.startOfDay(for: .now) else {
+            return false
+        }
+        let resultingCash = (assetsArr.first?.cash ?? 0) - value
+        return resultingCash.isFinite && abs(resultingCash) <= FinancialLimits.maximumAmount
     }
 
     /// 保存: 创建 Expense + 同步扣资产 (KILL 1) + 维护 firstRecordDate
     private func save() {
-        guard let amt = Double(amount), amt > 0 else { return }
+        guard isAmountValid, let amt = Double(amount) else { return }
 
         let expense = Expense(amount: amt, category: category, note: note, date: date)
         modelContext.insert(expense)
@@ -3595,10 +3252,7 @@ struct AddExpenseSheet: View {
         }
         assets.cash -= amt
         assets.updatedAt = .now
-
-        if assets.firstRecordDate == nil || date < assets.firstRecordDate! {
-            assets.firstRecordDate = date
-        }
+        assets.firstRecordDate = min(FreedomMath.earliestExpenseDate(expenses) ?? date, date)
 
         onSaved?(expense)
         dismiss()
@@ -3641,14 +3295,14 @@ struct AddIncomeSheet: View {
                         .font(.system(.body, design: .rounded))
                 }
                 Section("日期") {
-                    DatePicker("日期", selection: $date, displayedComponents: .date)
+                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
                         .font(.system(.body, design: .rounded))
                 }
 
-                if let amt = Double(amount), amt > 0 {
+                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
                     Section {
                         gainPreview(amount: amt)
                     } header: {
@@ -3684,19 +3338,38 @@ struct AddIncomeSheet: View {
 
     private func gainPreview(amount: Double) -> some View {
         let currentNW = (assetsArr.first?.lockedAssets ?? 0) + (assetsArr.first?.cash ?? 0)
-        let firstDate = assetsArr.first?.firstRecordDate
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
 
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
+        let currentFreedom = FreedomMath.freedomState(
+            netWorth: currentNW,
+            dailyBurn: currentAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
 
         let newNW = currentNW + amount
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
+        let newFreedom = FreedomMath.freedomState(
+            netWorth: newNW,
+            dailyBurn: currentAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
 
-        let freedomGain: Double = (currentFreedom.isInfinite || newFreedom.isInfinite)
-            ? 0 : (newFreedom - currentFreedom)
+        let freedomGain: String
+        if case .finite(let currentDays) = currentFreedom,
+           case .finite(let newDays) = newFreedom,
+           let daysGained = FinancialFormatting.integer(
+               max(0, newDays - currentDays),
+               rounded: .toNearestOrAwayFromZero
+           ) {
+            freedomGain = "+\(daysGained) 天"
+        } else {
+            freedomGain = "—"
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
             gainRow(label: "GAIN 1 净值",
@@ -3708,7 +3381,7 @@ struct AddIncomeSheet: View {
             gainRow(label: "GAIN 2 自由天数",
                     from: FreedomMath.freedomDaysDisplay(currentFreedom),
                     to: FreedomMath.freedomDaysDisplay(newFreedom),
-                    delta: currentFreedom.isInfinite ? "—" : "+\(String(format: "%.0f", freedomGain)) 天")
+                    delta: freedomGain)
         }
         .padding(.vertical, 4)
     }
@@ -3742,18 +3415,28 @@ struct AddIncomeSheet: View {
         return "¥\(s)"
     }
 
-    /// 输入有效性: 金额>0 + 来源非空
+    /// 输入有效性: 金额、来源、备注和日期都必须落在备份可表示边界内。
     private var isValid: Bool {
-        guard let v = Double(amount), v > 0 else { return false }
-        return !source.trimmingCharacters(in: .whitespaces).isEmpty
+        let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Double(amount),
+              FinancialFormatting.validAmount(value),
+              !trimmedSource.isEmpty,
+              trimmedSource.count <= FinancialLimits.nameCharacters,
+              note.count <= FinancialLimits.noteCharacters,
+              Calendar.current.startOfDay(for: date) <= Calendar.current.startOfDay(for: .now) else {
+            return false
+        }
+        let resultingCash = (assetsArr.first?.cash ?? 0) + value
+        return resultingCash.isFinite && abs(resultingCash) <= FinancialLimits.maximumAmount
     }
 
-    /// 保存: 创建 Income + 资产加金额 + 维护 firstRecordDate
+    /// 保存: 创建 Income + 资产加金额；收入不启动支出追踪基线。
     private func save() {
-        guard let amt = Double(amount), amt > 0 else { return }
+        guard isValid, let amt = Double(amount) else { return }
+        let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // isPassive 字段保留(JSON 兼容)但新建一律 false — 被动收入改由 PassiveSource 模型承载
-        let income = Income(amount: amt, source: source, isPassive: false,
+        let income = Income(amount: amt, source: trimmedSource, isPassive: false,
                             note: note, date: date)
         modelContext.insert(income)
 
@@ -3766,10 +3449,6 @@ struct AddIncomeSheet: View {
         }
         assets.cash += amt
         assets.updatedAt = .now
-
-        if assets.firstRecordDate == nil || date < assets.firstRecordDate! {
-            assets.firstRecordDate = date
-        }
 
         onSaved?(income)
         dismiss()
@@ -3842,11 +3521,25 @@ struct ImportReviewSheet: View {
                 KickerLabel(text: "导入预览")
                 summaryRow("新增支出", "\(preview.expensesNew.count) 笔")
                 summaryRow("新增收入", "\(preview.incomesNew.count) 笔")
+                if preview.devicesNew.count > 0 {
+                    summaryRow("新增设备", "\(preview.devicesNew.count) 个")
+                }
                 if preview.passiveSourcesNew.count > 0 {
                     summaryRow("新增被动源", "\(preview.passiveSourcesNew.count) 个")
                 }
-                if preview.expensesSkipped > 0 || preview.incomesSkipped > 0 {
-                    summaryRow("跳过重复", "\(preview.expensesSkipped) 支出 / \(preview.incomesSkipped) 收入")
+                let existingDuplicates = preview.expenseDuplicates.existing
+                    + preview.incomeDuplicates.existing
+                    + preview.deviceDuplicates.existing
+                    + preview.passiveSourceDuplicates.existing
+                let fileDuplicates = preview.expenseDuplicates.inFile
+                    + preview.incomeDuplicates.inFile
+                    + preview.deviceDuplicates.inFile
+                    + preview.passiveSourceDuplicates.inFile
+                if existingDuplicates > 0 {
+                    summaryRow("库内重复", "\(existingDuplicates) 条")
+                }
+                if fileDuplicates > 0 {
+                    summaryRow("文件内重复", "\(fileDuplicates) 条")
                 }
             }
         }
@@ -3900,7 +3593,7 @@ struct ImportReviewSheet: View {
                         .font(.system(.callout, design: .rounded).weight(.medium))
                         .foregroundStyle(Color.ink)
                 }
-                Text("\(entry.wrappedValue.count) 笔 · ¥\(Int(entry.wrappedValue.total))")
+                Text("\(entry.wrappedValue.count) 笔 · ¥\(FinancialFormatting.wholeNumber(entry.wrappedValue.total))")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Color.inkFaint)
             }
@@ -3923,14 +3616,29 @@ struct ImportReviewSheet: View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 KickerLabel(text: "净值处理")
+                summaryRow("备份资产桶", "¥\(money(preview.importedAssets.lockedAssets))")
+                summaryRow("备份现金桶", "¥\(money(preview.importedAssets.cash))")
+                summaryRow("备份净值", "¥\(money(preview.importedAssets.total))")
+                Hairline()
                 strategyOption(.skipAssets, "只导入交易", "不动现有现金 / 资产桶")
                 Hairline()
-                strategyOption(.replace, "替换净值",
-                               "用 JSON 净值 ¥\(Int(preview.jsonAssetsTotal)) 整体替换(原资产清零)")
+                strategyOption(
+                    .replace,
+                    "替换双桶",
+                    "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))"
+                )
                 Hairline()
-                strategyOption(.addToCash, "加到现金", "现金桶 +¥\(Int(preview.jsonAssetsTotal))")
+                strategyOption(
+                    .addToCash,
+                    "加到现金",
+                    "现金桶 +¥\(money(preview.importedAssets.total))"
+                )
             }
         }
+    }
+
+    private func money(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)))
     }
 
     private func strategyOption(_ s: DataIO.AssetsImportStrategy, _ title: String, _ desc: String) -> some View {
@@ -4142,7 +3850,7 @@ struct SimulateSheet: View {
                     bannerCard
                     modePicker
                     amountInput
-                    if let amt = Double(amount), amt > 0 {
+                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
                         previewCard(amount: amt)
                         gridDemoCard(amount: amt)
                     } else {
@@ -4288,7 +3996,19 @@ struct SimulateSheet: View {
                         .foregroundStyle(Color.inkFaint)
                 }
 
-                if delta == 0 {
+                if isInvalid(o.currentFreedom) || isInvalid(o.newFreedom) {
+                    Text("现有财务数据异常, 暂时不能推演自由格。")
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, Spacing.sm)
+                } else if isInsufficient(o.currentFreedom) && isInsufficient(o.newFreedom) {
+                    Text("先记一笔支出后, 才能推演自由格。")
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, Spacing.sm)
+                } else if delta == 0 {
                     Text(isExpense ? "不足一格 —— 还在当日预算内, 这笔不削自由。"
                                    : "不足一格 —— 这笔还不够点亮一格自由。")
                         .font(.system(.callout, design: .rounded))
@@ -4350,26 +4070,56 @@ struct SimulateSheet: View {
 
     // ===== freedomDays → 格子换算(沿用 FreedomMath.gridState 档位规则)=====
 
-    private func gridUnit(for freedomDays: Double) -> FreedomMath.GridUnit {
-        if freedomDays.isInfinite || freedomDays >= 3650 { return .year }
-        if freedomDays >= 365 { return .month }
-        return .day
+    private func gridUnit(for state: FreedomState) -> FreedomMath.GridUnit {
+        switch state {
+        case .covered:
+            return .year
+        case .finite(let days) where days >= 3650:
+            return .year
+        case .finite(let days) where days >= 365:
+            return .month
+        case .finite, .insufficientData, .invalidData:
+            return .day
+        }
     }
 
-    private func cellCount(freedomDays: Double, unit: FreedomMath.GridUnit) -> Int {
-        if freedomDays.isInfinite { return unit.maxCells }
-        let raw: Double
-        switch unit {
-        case .day:   raw = freedomDays
-        case .month: raw = freedomDays / 30.44
-        case .year:  raw = freedomDays / 365.25
+    private func cellCount(freedomDays state: FreedomState, unit: FreedomMath.GridUnit) -> Int {
+        switch state {
+        case .covered:
+            return unit.maxCells
+        case .insufficientData, .invalidData:
+            return 0
+        case .finite(let days):
+            let divisor: Double
+            switch unit {
+            case .day: divisor = 1
+            case .month: divisor = 30.44
+            case .year: divisor = 365.25
+            }
+            return FinancialFormatting.gridCount(
+                days: days,
+                divisor: divisor,
+                maximum: unit.maxCells
+            )
         }
-        return min(max(0, Int(raw)), unit.maxCells)
     }
 
     private func blueCells(count: Int, locked: Double, netWorth: Double) -> Int {
-        guard netWorth > 0, count > 0 else { return 0 }
-        return min(count, Int((Double(count) * max(0, locked) / netWorth).rounded()))
+        FinancialFormatting.assetCellSplit(
+            count: count,
+            lockedAssets: locked,
+            netWorth: netWorth
+        ).blue
+    }
+
+    private func isInvalid(_ state: FreedomState) -> Bool {
+        if case .invalidData = state { return true }
+        return false
+    }
+
+    private func isInsufficient(_ state: FreedomState) -> Bool {
+        if case .insufficientData = state { return true }
+        return false
     }
 
     // ============================================================================
@@ -4383,31 +4133,46 @@ struct SimulateSheet: View {
         let newNW: Double
         let currentAvg: Double
         let newAvg: Double
-        let currentFreedom: Double
-        let newFreedom: Double
+        let currentFreedom: FreedomState
+        let newFreedom: FreedomState
     }
 
     private func outcome(amount: Double) -> SimOutcome {
         let locked = assetsArr.first?.lockedAssets ?? 0
         let cash = assetsArr.first?.cash ?? 0
         let currentNW = locked + cash
-        let firstDate = assetsArr.first?.firstRecordDate
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let currentAvg = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
-        let currentFreedom = FreedomMath.freedomDays(netWorth: currentNW, dailyBurn: currentAvg, dailyPassive: dailyPassive)
+        let currentFreedom = FreedomMath.freedomState(
+            netWorth: currentNW,
+            dailyBurn: currentAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
 
         let newNW: Double
         let newAvg: Double
+        let newHasExpenses: Bool
         if mode == .expense {
+            let newFirstDate = min(firstDate ?? Date.now, Date.now)
+            let newDays = FreedomMath.trackDays(firstRecordDate: newFirstDate)
             newNW = currentNW - amount
-            newAvg = FreedomMath.dailyBurn(totalExpenses: totalExp + amount, trackDays: days)
+            newAvg = FreedomMath.dailyBurn(totalExpenses: totalExp + amount, trackDays: newDays)
+            newHasExpenses = true
         } else {
             newNW = currentNW + amount
             newAvg = currentAvg   // 收入不改日均消费
+            newHasExpenses = !expenses.isEmpty
         }
-        let newFreedom = FreedomMath.freedomDays(netWorth: newNW, dailyBurn: newAvg, dailyPassive: dailyPassive)
+        let newFreedom = FreedomMath.freedomState(
+            netWorth: newNW,
+            dailyBurn: newAvg,
+            dailyPassive: dailyPassive,
+            hasExpenses: newHasExpenses
+        )
 
         return SimOutcome(lockedAssets: locked, currentNW: currentNW, newNW: newNW,
                           currentAvg: currentAvg, newAvg: newAvg,
@@ -4416,7 +4181,17 @@ struct SimulateSheet: View {
 
     private func expensePreview(amount: Double) -> some View {
         let o = outcome(amount: amount)
-        let freedomLoss: Double = o.currentFreedom.isInfinite ? 0 : (o.currentFreedom - o.newFreedom)
+        let freedomLoss: String
+        if case .finite(let currentDays) = o.currentFreedom,
+           case .finite(let newDays) = o.newFreedom,
+           let daysLost = FinancialFormatting.integer(
+               max(0, currentDays - newDays),
+               rounded: .toNearestOrAwayFromZero
+           ) {
+            freedomLoss = "−\(daysLost) 天"
+        } else {
+            freedomLoss = "—"
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "KILL 1 净值",
@@ -4435,15 +4210,24 @@ struct SimulateSheet: View {
             impactRow(label: "KILL 3 自由天数",
                       from: FreedomMath.freedomDaysDisplay(o.currentFreedom),
                       to: FreedomMath.freedomDaysDisplay(o.newFreedom),
-                      delta: o.currentFreedom.isInfinite ? "—" : "−\(String(format: "%.0f", freedomLoss)) 天",
+                      delta: freedomLoss,
                       color: Color.vermillion)
         }
     }
 
     private func incomePreview(amount: Double) -> some View {
         let o = outcome(amount: amount)
-        let freedomGain: Double = (o.currentFreedom.isInfinite || o.newFreedom.isInfinite)
-            ? 0 : (o.newFreedom - o.currentFreedom)
+        let freedomGain: String
+        if case .finite(let currentDays) = o.currentFreedom,
+           case .finite(let newDays) = o.newFreedom,
+           let daysGained = FinancialFormatting.integer(
+               max(0, newDays - currentDays),
+               rounded: .toNearestOrAwayFromZero
+           ) {
+            freedomGain = "+\(daysGained) 天"
+        } else {
+            freedomGain = "—"
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
             impactRow(label: "GAIN 1 净值",
@@ -4456,7 +4240,7 @@ struct SimulateSheet: View {
             impactRow(label: "GAIN 2 自由天数",
                       from: FreedomMath.freedomDaysDisplay(o.currentFreedom),
                       to: FreedomMath.freedomDaysDisplay(o.newFreedom),
-                      delta: o.currentFreedom.isInfinite ? "—" : "+\(String(format: "%.0f", freedomGain)) 天",
+                      delta: freedomGain,
                       color: Color.skyDeep)
         }
     }
@@ -4496,9 +4280,7 @@ struct SimulateSheet: View {
 // ============================================================================
 
 #Preview {
+    let container = try! StoreBootstrap.makeContainer(isStoredInMemoryOnly: true)
     ContentView()
-        .modelContainer(for: [
-            Expense.self, Income.self, Device.self,
-            PassiveSource.self, UserAssets.self
-        ], inMemory: true)
+        .modelContainer(container)
 }

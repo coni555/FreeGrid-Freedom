@@ -188,13 +188,13 @@ final class UserAssets {
         self.updatedAt = .now
         self.firstRecordDate = firstRecordDate
     }
+}
 
-    /// 首次启动升级: total → cash 一次性迁移
-    func migrateIfNeeded() {
-        if lockedAssets == 0 && cash == 0 && total > 0 {
-            cash = total
-        }
-    }
+enum FreedomState: Equatable {
+    case insufficientData
+    case covered
+    case finite(days: Double)
+    case invalidData
 }
 
 // ============================================================================
@@ -209,18 +209,28 @@ enum FreedomMath {
 
     // ===== 基础计量 =====
 
-    /// 记录天数 = 今天 − firstRecordDate (最小 1)
-    /// 没记过账时返回 1,避免后续除零
-    static func trackDays(firstRecordDate: Date?) -> Int {
-        guard let firstDate = firstRecordDate else { return 1 }
-        let days = Calendar.current.dateComponents([.day], from: firstDate, to: .now).day ?? 0
-        return max(1, days + 1)  // +1 因为"今天也算一天"
+    /// 最早支出日期是追踪基线；收入和资产录入不启动自由天数计算。
+    static func earliestExpenseDate(_ expenses: [Expense]) -> Date? {
+        expenses.map(\.date).min()
+    }
+
+    /// 记录天数 = 今天 − 最早支出日期 + 1。没有支出或基线在未来时返回 0。
+    static func trackDays(firstRecordDate: Date?, now: Date = .now) -> Int {
+        guard let firstDate = firstRecordDate else { return 0 }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: firstDate)
+        let end = calendar.startOfDay(for: now)
+        guard let days = calendar.dateComponents([.day], from: start, to: end).day,
+              days >= 0 else {
+            return 0
+        }
+        return days + 1
     }
 
     /// 日均消费 = 总支出 ÷ 记录天数
     /// 对应 web 版的 getDailyBurn()
     static func dailyBurn(totalExpenses: Double, trackDays: Int) -> Double {
-        guard trackDays > 0 else { return 0 }
+        guard totalExpenses.isFinite, totalExpenses >= 0, trackDays > 0 else { return .nan }
         return totalExpenses / Double(trackDays)
     }
 
@@ -231,8 +241,10 @@ enum FreedomMath {
 
     /// 被动覆盖率 = 日均被动 ÷ 日均消费(≥ 1.0 即财务自由)
     static func passiveRatio(dailyPassive: Double, dailyBurn: Double) -> Double {
-        guard dailyBurn > 0 else { return 0 }
-        return dailyPassive / dailyBurn
+        guard dailyPassive.isFinite, dailyPassive >= 0,
+              dailyBurn.isFinite, dailyBurn > 0 else { return 0 }
+        let ratio = dailyPassive / dailyBurn
+        return ratio.isFinite ? ratio : 0
     }
 
     // ===== 核心: 自由天数 =====
@@ -244,26 +256,54 @@ enum FreedomMath {
     /// 当被动覆盖率 ≥ 100%, 净值不被消耗 → 自由天数 = ∞ (永远自由)。
     /// 把被动收入排除在自由天数之外, 等于让"被动覆盖率"沦为装饰指标, 跟核心数字脱钩。
     /// dailyPassive 默认 0, 旧 callsite 无需改动即可保持原静态消耗行为(但应尽快传入)。
+    static func freedomState(
+        netWorth: Double,
+        dailyBurn: Double,
+        dailyPassive: Double = 0,
+        hasExpenses: Bool
+    ) -> FreedomState {
+        guard hasExpenses else { return .insufficientData }
+        guard netWorth.isFinite, dailyBurn.isFinite, dailyPassive.isFinite,
+              dailyBurn >= 0, dailyPassive >= 0 else {
+            return .invalidData
+        }
+        guard dailyBurn > 0 else { return .invalidData }
+        guard dailyPassive < dailyBurn else { return .covered }
+
+        let days = max(0, netWorth) / (dailyBurn - dailyPassive)
+        guard days.isFinite else { return .invalidData }
+        return .finite(days: days)
+    }
+
+    /// 仅供历史趋势和模拟中的有限数学使用；业务 UI 应优先读取 FreedomState。
     static func freedomDays(netWorth: Double, dailyBurn: Double, dailyPassive: Double = 0) -> Double {
+        guard netWorth.isFinite, dailyBurn.isFinite, dailyPassive.isFinite,
+              dailyBurn >= 0, dailyPassive >= 0 else { return .nan }
         let netBurn = max(0, dailyBurn - dailyPassive)
         guard netBurn > 0 else { return .infinity }
-        return max(0, netWorth) / netBurn
+        let days = max(0, netWorth) / netBurn
+        return days.isFinite ? days : .nan
     }
 
     /// 自由天数格式化:三档无后缀(单位由 hero KickerLabel 承载)
-    /// < 365 天    → 天数整数 "127"
-    /// 365-3649 天 → 月数整数 "16" (= days / 30.44)
-    /// ≥ 3650 天   → 年数 1 位小数 "38.1" (= days / 365.25)
-    /// ∞ / NaN     → "∞"
-    /// 取整一律向下(floor), 跟 LifeGrid 的 Int() 截断一致 —— 否则 77.9 天 Hero 四舍五入
-    /// 显示 78、Grid 截断显示 77, 同屏裂开。语义上"还能撑 N 天"= 至少能完整撑 N 天。
+    static func freedomDaysDisplay(_ state: FreedomState) -> String {
+        switch state {
+        case .insufficientData, .invalidData:
+            return "—"
+        case .covered:
+            return "∞"
+        case .finite(let days):
+            return freedomDaysDisplay(days)
+        }
+    }
+
     static func freedomDaysDisplay(_ value: Double) -> String {
-        if value.isInfinite || value.isNaN { return "∞" }
+        guard value.isFinite, value >= 0 else { return value.isInfinite ? "∞" : "—" }
         if value < 365 {
-            return String(Int(value))
+            return FinancialFormatting.wholeNumber(value.rounded(.down))
         }
         if value < 3650 {
-            return String(Int(value / 30.44))
+            return FinancialFormatting.wholeNumber((value / 30.44).rounded(.down))
         }
         return String(format: "%.1f", value / 365.25)
     }
@@ -282,7 +322,8 @@ enum FreedomMath {
     /// 按指定档位格式化(给 sheet 里 to/delta 用,把它们对齐到 from 的档位)
     /// delta 用 abs 值,符号由调用方加
     static func freedomDaysFormatted(_ value: Double, unit: FreedomUnit) -> String {
-        if value.isInfinite || value.isNaN { return "∞" }
+        if value.isInfinite { return "∞" }
+        guard value.isFinite, value >= 0 else { return "—" }
         switch unit {
         case .day:   return String(format: "%.0f", value)
         case .month: return String(format: "%.0f", value / 30.44)
@@ -310,7 +351,7 @@ enum FreedomMath {
     // 跟 hero 数字单位切换同步,UI 在数字 + grid 两层一起做维度提升。
 
     /// Grid 颗粒度档位
-    enum GridUnit {
+    enum GridUnit: Equatable {
         case day, month, year
 
         /// 每格视觉尺寸 (pt)
@@ -363,59 +404,64 @@ enum FreedomMath {
     /// 根据当前财务状态,计算 grid 档位 + 应绘格数 + 双色分配
     /// dailyPassive: 日均被动收入。被动覆盖率 ≥ 100% 时净每日消耗为 0, grid 上限化(年档 99 满格)
     static func gridState(lockedAssets: Double, cash: Double, dailyBurn: Double, dailyPassive: Double = 0) -> GridState {
-        guard dailyBurn > 0 else {
+        guard lockedAssets.isFinite, cash.isFinite, dailyBurn.isFinite, dailyPassive.isFinite,
+              dailyBurn > 0, dailyPassive >= 0 else {
             return GridState(unit: .day, count: 0, blueDays: 0, yellowDays: 0, isOverflow: false)
         }
 
-        let netWorth = max(0, lockedAssets) + max(0, cash)
+        let netWorth = max(0, lockedAssets + cash)
         let netBurn = max(0, dailyBurn - dailyPassive)
 
-        // 被动完全覆盖 (净每日消耗 = 0) → 年档满格 (永远自由)
-        guard netBurn > 0 else {
-            return GridState(unit: .year, count: 99, blueDays: 99 * 365,
-                             yellowDays: 0, isOverflow: true)
+        if netBurn == 0 {
+            let count = GridUnit.year.maxCells
+            let split = FinancialFormatting.assetCellSplit(
+                count: count,
+                lockedAssets: lockedAssets,
+                netWorth: netWorth
+            )
+            return GridState(
+                unit: .year,
+                count: count,
+                blueDays: split.blue,
+                yellowDays: split.gold,
+                isOverflow: true
+            )
         }
 
         let totalDays = netWorth / netBurn
-
-        guard totalDays.isFinite else {
-            return GridState(unit: .year, count: 99, blueDays: 99 * 365,
-                             yellowDays: 0, isOverflow: true)
+        guard totalDays.isFinite, totalDays >= 0 else {
+            return GridState(unit: .day, count: 0, blueDays: 0, yellowDays: 0, isOverflow: false)
         }
 
         let unit: GridUnit
         let count: Int
         let isOverflow: Bool
-
         if totalDays < 365 {
             unit = .day
-            count = Int(totalDays)
+            count = FinancialFormatting.gridCount(days: totalDays, divisor: 1, maximum: unit.maxCells)
             isOverflow = false
         } else if totalDays < 3650 {
             unit = .month
-            count = min(Int(totalDays / 30.44), GridUnit.month.maxCells)
+            count = FinancialFormatting.gridCount(days: totalDays, divisor: 30.44, maximum: unit.maxCells)
             isOverflow = false
         } else {
             unit = .year
-            let years = Int(totalDays / 365.25)
-            count = min(years, GridUnit.year.maxCells)
-            isOverflow = years > GridUnit.year.maxCells
+            count = FinancialFormatting.gridCount(days: totalDays, divisor: 365.25, maximum: unit.maxCells)
+            isOverflow = totalDays / 365.25 > Double(unit.maxCells)
         }
 
-        // 双色分配: 蓝(资产)在前, 金(现金)在后
-        let blueCells: Int
-        let goldCells: Int
-        if netWorth > 0 {
-            blueCells = Int((Double(count) * max(0, lockedAssets) / netWorth).rounded())
-            goldCells = count - blueCells
-        } else {
-            blueCells = 0
-            goldCells = 0
-        }
-
-        return GridState(unit: unit, count: count,
-                         blueDays: blueCells, yellowDays: goldCells,
-                         isOverflow: isOverflow)
+        let split = FinancialFormatting.assetCellSplit(
+            count: count,
+            lockedAssets: lockedAssets,
+            netWorth: netWorth
+        )
+        return GridState(
+            unit: unit,
+            count: count,
+            blueDays: split.blue,
+            yellowDays: split.gold,
+            isOverflow: isOverflow
+        )
     }
 
     // ============================================================================
@@ -455,7 +501,12 @@ enum FreedomMath {
         dailyPassive: Double = 0,
         weeks: Int = 12
     ) -> [HistoryPoint] {
-        guard let firstDate = firstRecordDate else { return [] }
+        guard let firstDate = firstRecordDate,
+              currentNetWorth.isFinite,
+              dailyPassive.isFinite,
+              dailyPassive >= 0,
+              expenses.allSatisfy({ $0.amount.isFinite && $0.amount >= 0 }),
+              incomes.allSatisfy({ $0.amount.isFinite && $0.amount >= 0 }) else { return [] }
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)
         let trackedDays = cal.dateComponents([.day], from: firstDate, to: today).day ?? 0
@@ -509,16 +560,21 @@ enum FreedomMath {
         guard let first = history.first, let last = history.last,
               history.count >= 2 else { return nil }
         // 向下取整, 跟 Hero freedomDaysDisplay / Grid 一致(避免 sparkline 起终点又四舍五入裂开)
-        let s = Int(first.freedomDays)
-        let e = Int(last.freedomDays)
+        guard let s = FinancialFormatting.integer(first.freedomDays.rounded(.down)),
+              let e = FinancialFormatting.integer(last.freedomDays.rounded(.down)) else {
+            return nil
+        }
         return (s, e, e - s)
     }
 
     /// 当前自由耗尽的预计日期 (今天 + freedomDays 天)
     /// 返回 nil 表示 ∞ 或没数据
     static func depleteDate(freedomDays: Double) -> Date? {
-        guard !freedomDays.isInfinite, freedomDays > 0, freedomDays < 1825 * 5 else { return nil }
-        let days = Int(freedomDays.rounded())
+        guard freedomDays.isFinite, freedomDays > 0, freedomDays < 1825 * 5,
+              let days = FinancialFormatting.integer(
+                freedomDays,
+                rounded: .toNearestOrAwayFromZero
+              ) else { return nil }
         return Calendar.current.date(byAdding: .day, value: days, to: .now)
     }
 }
@@ -556,21 +612,35 @@ enum FreedomChecklist {
     static func evaluate(expenses: [Expense],
                          passiveSources: [PassiveSource],
                          assets: UserAssets?) -> FreedomSummary {
-        let firstDate = assets?.firstRecordDate
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
         let days = FreedomMath.trackDays(firstRecordDate: firstDate)
         let totalExp = expenses.reduce(0) { $0 + $1.amount }
         let dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExp, trackDays: days)
         let netWorth = (assets?.lockedAssets ?? 0) + (assets?.cash ?? 0)
         let dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
         let passiveRatio = FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
-        // 自由天数含被动 — 跟 Dashboard hero 一致
-        let freedom = FreedomMath.freedomDays(netWorth: netWorth, dailyBurn: dailyBurn, dailyPassive: dailyPassive)
-
-        // freedom 可能为 ∞(被动全覆盖 / 新用户无支出) — 显示与取整都要 guard,否则 Int(∞) 崩
-        let fFinite = freedom.isFinite
-        let fInt = fFinite ? Int(freedom) : Int.max
-        let fShow = fFinite ? "\(Int(freedom))" : "∞"
-        let pct = Int((passiveRatio * 100).rounded())
+        let freedomState = FreedomMath.freedomState(
+            netWorth: netWorth,
+            dailyBurn: dailyBurn,
+            dailyPassive: dailyPassive,
+            hasExpenses: !expenses.isEmpty
+        )
+        let finiteFreedom: Double?
+        let freedomMilestonesComplete: Bool
+        switch freedomState {
+        case .finite(let days):
+            finiteFreedom = days
+            freedomMilestonesComplete = false
+        case .covered:
+            finiteFreedom = nil
+            freedomMilestonesComplete = true
+        case .insufficientData, .invalidData:
+            finiteFreedom = nil
+            freedomMilestonesComplete = false
+        }
+        let fInt = finiteFreedom.flatMap { FinancialFormatting.integer($0.rounded(.down)) }
+        let fShow = FreedomMath.freedomDaysDisplay(freedomState)
+        let pct = FinancialFormatting.percentage(passiveRatio)
 
         let items: [FreedomCheckItem] = [
             FreedomCheckItem(
@@ -591,14 +661,14 @@ enum FreedomChecklist {
                 hint: "去 Assets 填入你的现金 / 可变现资产"),
             FreedomCheckItem(
                 id: 4, title: "自由天数超过 180 天", shortTitle: "自由天数 180 天",
-                done: freedom >= 180,
-                progress: fFinite ? min(1, freedom / 180) : 1,
+                done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 180,
+                progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 180),
                 detail: "当前 \(fShow) / 180 天",
                 hint: "提高净值或降低日均消费"),
             FreedomCheckItem(
                 id: 5, title: "自由天数超过 365 天", shortTitle: "自由天数 365 天",
-                done: freedom >= 365,
-                progress: fFinite ? min(1, freedom / 365) : 1,
+                done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 365,
+                progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 365),
                 detail: "当前 \(fShow) / 365 天",
                 hint: "继续积累净值或被动收入"),
             FreedomCheckItem(
@@ -610,13 +680,13 @@ enum FreedomChecklist {
                 id: 7, title: "被动覆盖率超过 50%", shortTitle: "被动覆盖率 50%",
                 done: passiveRatio >= 0.5,
                 progress: min(1, passiveRatio / 0.5),
-                detail: "当前 \(pct)% / 50%",
+                detail: "当前 \(pct) / 50%",
                 hint: "提高被动收入或降低日均消费"),
             FreedomCheckItem(
                 id: 8, title: "被动收入覆盖日常消费 (≥100%)", shortTitle: "被动覆盖 100%",
                 done: passiveRatio >= 1.0,
                 progress: min(1, passiveRatio),
-                detail: "当前 \(pct)% / 100%",
+                detail: "当前 \(pct) / 100%",
                 hint: "被动收入覆盖全部日常消费即财务自由"),
         ]
 
@@ -625,10 +695,10 @@ enum FreedomChecklist {
         // 下一站: 优先 freedom-day 里程碑(180 → 365), 都达成则指向下一个未达成项, 全达成 nil
         let nextStopTitle: String?
         let remainText: String?
-        if fFinite && fInt < 180 {
+        if let fInt, fInt < 180 {
             nextStopTitle = "自由天数 180 天"
             remainText = "还差 \(180 - fInt) 天"
-        } else if fFinite && fInt < 365 {
+        } else if let fInt, fInt < 365 {
             nextStopTitle = "自由天数 365 天"
             remainText = "还差 \(365 - fInt) 天"
         } else if let nextUnmet = items.first(where: { !$0.done }) {

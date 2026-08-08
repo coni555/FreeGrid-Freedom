@@ -14,27 +14,10 @@ import SwiftData
 
 struct FreeGridTests {
 
-    /// 每个测试一个独立的内存库
-    private func makeContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Expense.self, Income.self, Device.self, PassiveSource.self, UserAssets.self,
-            configurations: config
-        )
-        return ModelContext(container)
-    }
-
-    private func day(_ s: String) -> Date {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        return f.date(from: s)!
-    }
-
     @Test func dedupByIDWhenPresent() throws {
-        let context = try makeContext()
+        let context = try TestSupport.makeContext()
         let existingID = UUID()
-        let exp = Expense(amount: 25.5, category: "午餐", note: "", date: day("2026-01-15"))
+        let exp = Expense(amount: 25.5, category: "午餐", note: "", date: TestSupport.day("2026-01-15"))
         exp.id = existingID
         context.insert(exp)
 
@@ -56,8 +39,8 @@ struct FreeGridTests {
     }
 
     @Test func dedupFallsBackToFingerprintWithoutID() throws {
-        let context = try makeContext()
-        context.insert(Expense(amount: 30, category: "晚餐", note: "聚餐", date: day("2026-02-01")))
+        let context = try TestSupport.makeContext()
+        context.insert(Expense(amount: 30, category: "晚餐", note: "聚餐", date: TestSupport.day("2026-02-01")))
 
         // 旧文件: 无 schema_version 无 id, 解码必须容忍(视为 v0)
         let json = """
@@ -77,7 +60,7 @@ struct FreeGridTests {
 
     @Test func replaceRestoresDualBucketsAndFallsBackForLegacyFiles() throws {
         // schema v1 文件: locked_assets / cash 原样还原
-        let v1Context = try makeContext()
+        let v1Context = try TestSupport.makeContext()
         let v1JSON = """
         {"schema_version": 1, "assets": {"total": 500, "locked_assets": 300, "cash": 200}}
         """
@@ -88,7 +71,7 @@ struct FreeGridTests {
         #expect(v1Assets.cash == 200)
 
         // 旧文件只有 total: 退回现有行为 lockedAssets=0, cash=total
-        let oldContext = try makeContext()
+        let oldContext = try TestSupport.makeContext()
         let oldJSON = """
         {"assets": {"total": 500}}
         """

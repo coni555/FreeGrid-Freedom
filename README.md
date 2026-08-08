@@ -59,9 +59,19 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS / macOS 记账 Ap
 | **Dashboard** | 自由天数大数字 + 自由网格 + 12 周趋势 + 当日消费对比；顶部 5 秒撤销 |
 | **Assets** | 双桶净值（资产 / 现金）+ 被动收入源 + 桶间调拨 + CSV/JSON 导入导出 |
 | **History** | 流水按支出/收入分段 + 分类汇总筛选 + 行内撤销 + 月度汇总 |
-| **Check** | 8 项「财富自由」自检，全部从你的记录自动反推 |
+| **Settings** | 财富自由自检 + 外观设置 + 隐私政策、版本与支持入口 |
 
 外加 **模拟决策**（下单前预演这笔支出对自由天数 / 格子的冲击）、**数据导入**（已有账本导出 JSON 直接导入）、**双主题 Silverline**（浅色冷白银 / 深色天文台冷蓝紫，随系统切换）。
+
+### 1.2.1 · Trust Repair
+
+这一版集中修复数据可信度，不增加花哨功能：
+
+- **完整备份 v2**：支出、收入、资产设备、被动收入源和双桶净值可完整 JSON 往返；仍兼容旧版 v0 / v1 备份。
+- **导入先验证再落库**：金额、日期、UUID、记录数和文本长度全部经过边界校验；先预览最终结果，确认后再原子写入，失败会整体回滚。
+- **更安全的导出**：JSON 导出后会自检可回导；CSV 遵循标准转义，并中和表格公式注入。
+- **异常数据不再拖垮界面**：自由天数明确区分“数据不足”“被动收入已覆盖”“有限天数”和“数据异常”。
+- **本地数据库可恢复启动**：数据库暂时打不开时不再直接崩溃，也不会自动删库；可重试并分享不含金额、备注、路径或备份内容的诊断文本。
 
 ## 不止 iOS——四端，一套引擎
 
@@ -69,8 +79,8 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS / macOS 记账 Ap
 
 | 平台 | 怎么获取 | 备注 |
 |---|---|---|
-| 🍎 **iOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/v1.1) `.ipa` | 自签安装（方法见 release 说明） |
-| 💻 **macOS** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/v1.1) `.dmg` | 原生 SwiftUI，右键打开放行 |
+| 🍎 **iOS** | [App Store 下载](https://apps.apple.com/app/id6781104287) | 官方签名，直接安装与更新 |
+| 💻 **macOS** | [App Store 下载](https://apps.apple.com/app/id6781104287) | 与 iOS 共用原生 SwiftUI 代码与备份格式 |
 | 🤖 **Android** | [本仓库 Releases](https://github.com/coni555/FreeGrid-Freedom/releases/tag/android-v1.0.0) `.apk` | 原生 Flutter，零联网 ｜ 源码在 [FreeGrid-Android](https://github.com/coni555/FreeGrid-Android) |
 | 🪟 **Windows** | [FreeGrid-Web Releases](https://github.com/coni555/FreeGrid-Web/releases/latest) `.exe` | 网页内核 + Tauri，自带自动更新 ｜ 源码在 [FreeGrid-Web](https://github.com/coni555/FreeGrid-Web) |
 
@@ -95,7 +105,7 @@ FreeGrid 最早只是我自己想用的记账工具。我用 iPhone，所以从 
 
 说实话我是个**编程新手**——这个 App 几乎全程是我和 Claude Code「vibe coding」一起做出来的，过程里学到了非常多。所以如果你是大佬，**特别欢迎一起共创维护**：PR / issue / discussion 都欢迎。
 
-**为什么没上 App Store？** 苹果开发者账号 ¥688/年，对我个人来说太贵了，所以原生版需要你自签安装（方法见 release）。要是大家对这个项目有热情、支持得多，我就开个开发者账号，把它正式上架，让大家装得更省心。
+原生 iOS / macOS 版现已上架 App Store。开发者本人日常使用的也是同一份公开生产版本；这个仓库就是对应的公开源码，不维护隐藏的私人功能分支。
 
 ## 给开发者：构建 & 技术栈
 
@@ -114,7 +124,8 @@ Xcode 16+，选 iOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing 
 ## 后续计划
 
 - ~~**安卓**：暂时搁置~~ → **已发布！** 原生 Flutter 版 [android-v1.0.0](https://github.com/coni555/FreeGrid-Freedom/releases/tag/android-v1.0.0)，零联网、与 iOS 数据互通，源码在 [FreeGrid-Android](https://github.com/coni555/FreeGrid-Android)。
-- **代码签名 / App Store 上架**——视大家的支持情况。
+- **1.3 Decision Lens**：继续强化“一个财务动作 = ±N 天自由”的决策表达。
+- **1.4 Financial Model Foundation**：为负债、历史净值和更完整的财务模型打底。
 - 想法 / bug 欢迎 issue / discussion。
 
 ## 许可

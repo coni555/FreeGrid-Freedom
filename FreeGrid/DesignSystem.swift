@@ -472,14 +472,17 @@ struct Sparkline: View {
 
     /// 把 values 映射到 view 坐标点
     private func points(in size: CGSize) -> [CGPoint] {
-        guard !values.isEmpty else { return [] }
-        let minV = values.min() ?? 0
-        let maxV = values.max() ?? 1
+        let safeValues = values
+            .filter { $0.isFinite && $0 >= 0 }
+            .map { min($0, 365.25 * 99) }
+        guard !safeValues.isEmpty else { return [] }
+        let minV = safeValues.min() ?? 0
+        let maxV = safeValues.max() ?? 1
         let range = max(maxV - minV, 1)   // 避免除零
-        let stepX = values.count > 1 ? size.width / CGFloat(values.count - 1) : 0
+        let stepX = safeValues.count > 1 ? size.width / CGFloat(safeValues.count - 1) : 0
         let pad: CGFloat = 4              // 上下留 4pt 让线不贴边
 
-        return values.enumerated().map { (i, v) in
+        return safeValues.enumerated().map { (i, v) in
             let x = CGFloat(i) * stepX
             let normalized = (v - minV) / range    // 0...1
             let y = size.height - pad - CGFloat(normalized) * (size.height - 2 * pad)
