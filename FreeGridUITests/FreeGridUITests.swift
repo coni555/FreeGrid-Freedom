@@ -20,6 +20,8 @@ final class FreeGridUITests: XCTestCase {
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DECISION LENS"].exists)
+        XCTAssertTrue(app.buttons["记下第一笔支出"].exists)
 
         for title in ["Assets", "History", "Settings"] {
             app.tabBars.buttons[title].tap()

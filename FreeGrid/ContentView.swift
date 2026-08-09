@@ -318,11 +318,12 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
                     topBar           // 圆点 + FreeGrid + 副标
-                    heroSection      // Freedom Days 巨大数字 hero
-                    gridSection      // 1825 格,占整个 mid 区
-                    statsRow         // 3 个 stat 卡片横向
-                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
-                    simulateRow      // 模拟决策
+                    heroSection      // 当前自由状态
+                    decisionLensSection // 最近动作解释 + 模拟主入口
+                    actionRow        // 真实记账仍是紧邻主入口的次级动作
+                    statsRow         // 日均 / 被动覆盖 / 追踪天数
+                    gridSection      // 品牌可视化下移为解释层
+                    estimatedTrendSection // 明示为估算,不冒充历史快照
                     todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
                 }
                 .padding(.horizontal, Spacing.lg)
@@ -506,17 +507,9 @@ struct DashboardView: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
-    /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
+    /// Hero 只回答“我现在有多少自由”。变化解释和下一步动作拆到紧随其后的
+    /// Decision Lens 卡，避免大 Hero + Grid 把主动作挤到折叠线以下。
     private var heroSection: some View {
-        let history = FreedomMath.freedomDaysHistory(
-            expenses: expenses,
-            incomes: incomes,
-            currentNetWorth: netWorth,
-            firstRecordDate: firstRecordDate,
-            dailyPassive: dailyPassive
-        )
-        let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
 
         // 内联 VaultCard 写法 — 为了在 paper 底之上、content 之下叠暗色流星层。
@@ -527,34 +520,14 @@ struct DashboardView: View {
             HStack(alignment: .firstTextBaseline) {
                 KickerLabel(text: heroKickerText)
                 Spacer()
-                if let d = delta {
-                    trendBadge(delta: d.delta, weeks: history.count - 1)
-                } else {
-                    Text("(资产 + 净储蓄) ÷ 日均消费")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Color.inkGhost)
-                }
+                Text(heroContextText)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkGhost)
             }
 
             // ─── 中部: 根据 heroLayout 偏好切换 ───
             heroBody(deplete: deplete)
 
-            // ─── 底部: 趋势 caption + sparkline ───
-            if let d = delta, history.count >= 3 {
-                Hairline().padding(.top, Spacing.xs)
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(history.count - 1) 周以来的自由天数")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer()
-                    Text("\(d.start) → \(d.end)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Color.ink)
-                }
-                Sparkline(values: history.map { $0.freedomDays })
-                    .frame(height: 36)
-                    .padding(.top, 2)
-            }
         }
         .padding(Spacing.xl)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -573,6 +546,247 @@ struct DashboardView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color.hairline, lineWidth: 1)
         )
+    }
+
+    /// Hero 右上角只陈述当前数字的口径，不再把反推曲线冒充成真实历史。
+    private var heroContextText: String {
+        switch freedomState {
+        case .insufficientData: return "等待消费样本"
+        case .invalidData: return "需要检查数据"
+        case .covered: return "被动覆盖 ≥ 100%"
+        case .finite: return "净值 ÷ 当前净日耗"
+        }
+    }
+
+    // ============================================================================
+    // MARK: - Decision Lens 主动作
+    // ============================================================================
+
+    /// 首屏第二层：用一条真实、可解释的最近动作翻译出自由天数影响，
+    /// 再把“模拟一个决定”提升为全宽主入口。
+    private var decisionLensSection: some View {
+        VaultCard(emphasis: .high, padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Decision Lens")
+                    Spacer()
+                    Text(decisionScopeLabel)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                }
+
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    Image(systemName: decisionSymbol)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(decisionColor)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(decisionColor.opacity(0.10)))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(decisionHeadline)
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(decisionDetail)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                VaultButton(
+                    title: primaryDecisionTitle,
+                    icon: primaryDecisionIcon,
+                    style: .primary,
+                    action: primaryDecisionAction
+                )
+            }
+        }
+    }
+
+    private enum RecentAction {
+        case expense(Expense)
+        case income(Income)
+
+        var date: Date {
+            switch self {
+            case .expense(let value): return value.date
+            case .income(let value): return value.date
+            }
+        }
+
+        var createdAt: Date {
+            switch self {
+            case .expense(let value): return value.createdAt
+            case .income(let value): return value.createdAt
+            }
+        }
+    }
+
+    private var latestAction: RecentAction? {
+        let latestExpense = expenses.max { lhs, rhs in
+            lhs.date == rhs.date ? lhs.createdAt < rhs.createdAt : lhs.date < rhs.date
+        }.map(RecentAction.expense)
+        let latestIncome = incomes.max { lhs, rhs in
+            lhs.date == rhs.date ? lhs.createdAt < rhs.createdAt : lhs.date < rhs.date
+        }.map(RecentAction.income)
+
+        switch (latestExpense, latestIncome) {
+        case (.none, .none): return nil
+        case (.some(let action), .none), (.none, .some(let action)): return action
+        case (.some(let expense), .some(let income)):
+            if expense.date == income.date {
+                return expense.createdAt >= income.createdAt ? expense : income
+            }
+            return expense.date >= income.date ? expense : income
+        }
+    }
+
+    private var decisionScopeLabel: String {
+        switch freedomState {
+        case .finite: return "当前口径估算"
+        case .covered: return "当前状态"
+        case .insufficientData: return "建立基线"
+        case .invalidData: return "需要处理"
+        }
+    }
+
+    private var decisionSymbol: String {
+        switch freedomState {
+        case .finite:
+            if case .income = latestAction { return "arrow.up.right" }
+            return "arrow.down.right"
+        case .covered: return "checkmark.seal"
+        case .insufficientData: return "scope"
+        case .invalidData: return "exclamationmark.triangle"
+        }
+    }
+
+    private var decisionColor: Color {
+        switch freedomState {
+        case .finite:
+            if case .income = latestAction { return .skyDeep }
+            return .flame
+        case .covered: return .mossGreen
+        case .insufficientData: return .skyDeep
+        case .invalidData: return .flame
+        }
+    }
+
+    private var decisionHeadline: String {
+        switch freedomState {
+        case .insufficientData:
+            return netWorth > 0 ? "下一步：记下第一笔支出" : "下一步：建立你的财务基线"
+        case .invalidData:
+            return "有一笔数据暂时无法参与计算"
+        case .covered:
+            return "被动收入已经覆盖当前日常消费"
+        case .finite:
+            guard let latestAction else { return "模拟下一笔决定会改变多少自由" }
+            let impact = currentImpactLabel(for: latestAction)
+            switch latestAction {
+            case .expense: return "最近一笔支出，约换走 \(impact)"
+            case .income: return "最近一笔收入，约换回 \(impact)"
+            }
+        }
+    }
+
+    private var decisionDetail: String {
+        switch freedomState {
+        case .insufficientData:
+            return netWorth > 0
+                ? "FreeGrid 需要消费样本，才能把决定换算成自由天数。"
+                : "先录入现金或资产，再用第一笔支出建立消费样本。"
+        case .invalidData:
+            return "检查金额后再模拟决定；异常数据不会被包装成自由天数。"
+        case .covered:
+            return "当前净日耗为 0；模拟仍可查看一笔支出是否改变覆盖状态。"
+        case .finite:
+            guard let latestAction else { return "输入金额后，第一结果直接显示 ±N 天自由。" }
+            switch latestAction {
+            case .expense(let expense):
+                return "\(expense.category) · ¥\(moneyText(expense.amount)) · 按当前净日耗估算"
+            case .income(let income):
+                return "\(income.source) · ¥\(moneyText(income.amount)) · 按当前净日耗估算"
+            }
+        }
+    }
+
+    private var primaryDecisionTitle: String {
+        if case .insufficientData = freedomState { return "记下第一笔支出" }
+        return "模拟一个决定"
+    }
+
+    private var primaryDecisionIcon: String {
+        if case .insufficientData = freedomState { return "minus" }
+        return "wand.and.stars"
+    }
+
+    private var primaryDecisionAction: () -> Void {
+        if case .insufficientData = freedomState {
+            return { showingAddExpense = true }
+        }
+        return { showingSimulate = true }
+    }
+
+    private func currentImpactLabel(for action: RecentAction) -> String {
+        let amount: Double
+        switch action {
+        case .expense(let value): amount = value.amount
+        case .income(let value): amount = value.amount
+        }
+        guard let impact = FreedomMath.currentImpactDays(
+            amount: amount,
+            dailyBurn: dailyBurn,
+            dailyPassive: dailyPassive
+        ), let rounded = FinancialFormatting.integer(
+            impact,
+            rounded: .toNearestOrAwayFromZero
+        ) else {
+            return "—"
+        }
+        return rounded == 0 ? "不足 1 天自由" : "\(rounded) 天自由"
+    }
+
+    private func moneyText(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)))
+    }
+
+    /// 原 Hero 中的反推趋势下移，并把估算边界写在卡面上。
+    @ViewBuilder
+    private var estimatedTrendSection: some View {
+        let history = FreedomMath.freedomDaysHistory(
+            expenses: expenses,
+            incomes: incomes,
+            currentNetWorth: netWorth,
+            firstRecordDate: firstRecordDate,
+            dailyPassive: dailyPassive
+        )
+        if let delta = FreedomMath.deltaSummary(history: history), history.count >= 3 {
+            VaultCard(padding: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(alignment: .firstTextBaseline) {
+                        KickerLabel(text: "Estimated Trend")
+                        Spacer()
+                        trendBadge(delta: delta.delta, weeks: history.count - 1)
+                    }
+                    Text("按今天的净值与被动收入反推，不是历史快照")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(history.count - 1) 周估算")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                        Spacer()
+                        Text("\(delta.start) → \(delta.end) 天")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.ink)
+                    }
+                    Sparkline(values: history.map(\.freedomDays))
+                        .frame(height: 42)
+                }
+            }
+        }
     }
 
     /// Hero 中部 body: 按 heroLayout 偏好切换 2 个 variant
@@ -692,7 +906,7 @@ struct DashboardView: View {
         return HStack(spacing: 4) {
             Image(systemName: symbol)
                 .font(.system(size: 8))
-            Text("\(sign)\(delta) d · \(weeks)w")
+            Text("估算 \(sign)\(delta) d · \(weeks)w")
                 .font(.system(.caption2, design: .monospaced))
                 .tracking(0.3)
         }
@@ -962,19 +1176,6 @@ struct DashboardView: View {
                 showingAddIncome = true
             }
         }
-    }
-
-    /// 模拟决策:ghost button,放在主按钮下方
-    private var simulateRow: some View {
-        HStack {
-            Spacer()
-            GhostButton(title: "模拟一笔 · 看决策影响",
-                        icon: "wand.and.stars") {
-                showingSimulate = true
-            }
-            Spacer()
-        }
-        .padding(.top, Spacing.xs)
     }
 
     // ============================================================================
