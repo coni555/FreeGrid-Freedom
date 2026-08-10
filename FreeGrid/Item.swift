@@ -285,26 +285,6 @@ enum FreedomMath {
         return days.isFinite ? days : .nan
     }
 
-    /// 单笔金额按“当前净日耗”折算为多少天自由。
-    /// 这是当前口径的即时解释，不代表交易发生当日的历史真值。
-    /// 数据不足、异常或被动收入已覆盖支出时返回 nil，调用方应展示语义状态，
-    /// 不伪造一个整数天数。
-    static func currentImpactDays(
-        amount: Double,
-        dailyBurn: Double,
-        dailyPassive: Double = 0
-    ) -> Double? {
-        guard amount.isFinite, amount >= 0,
-              dailyBurn.isFinite, dailyBurn > 0,
-              dailyPassive.isFinite, dailyPassive >= 0 else {
-            return nil
-        }
-        let netBurn = dailyBurn - dailyPassive
-        guard netBurn > 0 else { return nil }
-        let days = amount / netBurn
-        return days.isFinite ? days : nil
-    }
-
     /// 自由天数格式化:三档无后缀(单位由 hero KickerLabel 承载)
     static func freedomDaysDisplay(_ state: FreedomState) -> String {
         switch state {
@@ -738,4 +718,3 @@ enum FreedomChecklist {
             remainText: remainText)
     }
 }
-

@@ -142,30 +142,4 @@ struct FreedomMathTests {
             hasExpenses: true
         ) == .finite(days: 1))
     }
-
-    @Test func currentImpactUsesNetDailyBurnAndRejectsUnavailableStates() {
-        #expect(FreedomMath.currentImpactDays(
-            amount: 900,
-            dailyBurn: 100,
-            dailyPassive: 10
-        ) == 10)
-
-        #expect(FreedomMath.currentImpactDays(
-            amount: 900,
-            dailyBurn: 100,
-            dailyPassive: 100
-        ) == nil)
-
-        #expect(FreedomMath.currentImpactDays(
-            amount: 900,
-            dailyBurn: .nan,
-            dailyPassive: 0
-        ) == nil)
-
-        #expect(FreedomMath.currentImpactDays(
-            amount: .infinity,
-            dailyBurn: 100,
-            dailyPassive: 0
-        ) == nil)
-    }
 }

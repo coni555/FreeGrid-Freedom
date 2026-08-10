@@ -20,8 +20,30 @@ final class FreeGridUITests: XCTestCase {
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["DECISION LENS"].exists)
-        XCTAssertTrue(app.buttons["记下第一笔支出"].exists)
+
+        let savingsPrompt = app.buttons["先记录存款"]
+        XCTAssertTrue(savingsPrompt.exists)
+        savingsPrompt.tap()
+
+        let savingsField = app.textFields["0"]
+        XCTAssertTrue(savingsField.waitForExistence(timeout: 3))
+        savingsField.typeText("10000")
+        app.buttons["保存"].tap()
+
+        XCTAssertTrue(savingsPrompt.waitForNonExistence(timeout: 3))
+
+        let expensePrompt = app.buttons["再记一笔支出"]
+        XCTAssertTrue(expensePrompt.waitForExistence(timeout: 3))
+        expensePrompt.tap()
+
+        let amountField = app.textFields["0.00"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 3))
+        amountField.tap()
+        amountField.typeText("100")
+        app.buttons["保存"].tap()
+
+        XCTAssertTrue(expensePrompt.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["99 天"].waitForExistence(timeout: 3))
 
         for title in ["Assets", "History", "Settings"] {
             app.tabBars.buttons[title].tap()
