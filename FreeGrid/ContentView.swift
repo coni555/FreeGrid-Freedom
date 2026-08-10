@@ -223,9 +223,17 @@ private struct Meteor: View {
 // MARK: - ContentView (Tab 主框架)
 // ============================================================================
 
+private enum AppTab: Hashable {
+    case dashboard
+    case assets
+    case history
+    case settings
+}
+
 struct ContentView: View {
     /// 跨启动持久化主题选择
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    @State private var selectedTab: AppTab = .dashboard
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -248,26 +256,32 @@ struct ContentView: View {
     }
 
     private var tabView: some View {
-        TabView {
-            DashboardView()
+        TabView(selection: $selectedTab) {
+            DashboardView(onOpenAssets: {
+                selectedTab = .assets
+            })
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
                 }
+                .tag(AppTab.dashboard)
 
             AssetsView()
                 .tabItem {
                     Label("Assets", systemImage: "banknote")
                 }
+                .tag(AppTab.assets)
 
             HistoryView()
                 .tabItem {
                     Label("History", systemImage: "clock.arrow.circlepath")
                 }
+                .tag(AppTab.history)
 
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
+                .tag(AppTab.settings)
         }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
@@ -284,6 +298,8 @@ struct ContentView: View {
 
 struct DashboardView: View {
 
+    let onOpenAssets: () -> Void
+
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -296,7 +312,6 @@ struct DashboardView: View {
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
-    @State private var showingSetSavings = false
 
     // ===== 撤销 Toast(刚刚记的一笔有 5 秒撤销窗口) =====
     /// 待撤销交易 ID, nil = 不显示 toast
@@ -354,13 +369,6 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingSimulate) {
                 SimulateSheet()
-            }
-            .sheet(isPresented: $showingSetSavings) {
-                EditBucketSheet(
-                    bucket: .cash,
-                    currentAmount: cashAmount,
-                    onSave: setSavings
-                )
             }
         }
     }
@@ -978,7 +986,7 @@ struct DashboardView: View {
     private var onboardingPrompt: some View {
         Button {
             if needsSavings {
-                showingSetSavings = true
+                onOpenAssets()
             } else {
                 showingAddExpense = true
             }
@@ -1008,7 +1016,7 @@ struct DashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(onboardingTitle)
-        .accessibilityHint(needsSavings ? "打开存款记录表单" : "打开支出记录表单")
+        .accessibilityHint(needsSavings ? "前往资产页面，选择资产或现金录入" : "打开支出记录表单")
     }
 
     private var needsSavings: Bool {
@@ -1033,18 +1041,6 @@ struct DashboardView: View {
                 : "已有支出，再补上存款，格子就能点亮"
         }
         return "已有存款，再建立日均消费，格子就能点亮"
-    }
-
-    private func setSavings(_ amount: Double) {
-        let assets: UserAssets
-        if let existing = assetsArr.first {
-            assets = existing
-        } else {
-            assets = UserAssets(total: 0)
-            modelContext.insert(assets)
-        }
-        assets.cash = amount
-        assets.updatedAt = .now
     }
 
     /// 收支双按钮:filled prominent
@@ -1407,30 +1403,32 @@ struct AssetsView: View {
     }
 
     private func bucketCard(bucket: EditBucketSheet.Bucket, kicker: String, amount: Double, color: Color, icon: String) -> some View {
-        VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack(spacing: 4) {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
-                        .foregroundStyle(color)
-                    KickerLabel(text: kicker)
-                    Spacer()
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.inkFaint)
-                }
-                Text("¥" + amount.formatted(.number))
-                    .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
+        Button {
             editingBucket = bucket
+        } label: {
+            VaultCard {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    HStack(spacing: 4) {
+                        Image(systemName: icon)
+                            .font(.system(size: 11))
+                            .foregroundStyle(color)
+                        KickerLabel(text: kicker)
+                        Spacer()
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                    Text("¥" + amount.formatted(.number))
+                        .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("编辑\(kicker)")
     }
 
     // MARK: - 空态提示
@@ -1921,6 +1919,7 @@ struct EditBucketSheet: View {
                                 .foregroundStyle(Color.inkFaint)
                             TextField("0", text: $amount)
                                 .decimalKeyboard()
+                                .accessibilityIdentifier("bucket-amount-field")
                                 .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.ink)
                                 .focused($fieldFocused)

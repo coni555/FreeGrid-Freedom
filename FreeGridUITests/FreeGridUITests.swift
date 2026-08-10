@@ -25,11 +25,15 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(savingsPrompt.exists)
         savingsPrompt.tap()
 
-        let savingsField = app.textFields["0"]
+        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
+        app.buttons["编辑现金"].tap()
+
+        let savingsField = app.textFields["bucket-amount-field"]
         XCTAssertTrue(savingsField.waitForExistence(timeout: 3))
         savingsField.typeText("10000")
         app.buttons["保存"].tap()
 
+        app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(savingsPrompt.waitForNonExistence(timeout: 3))
 
         let expensePrompt = app.buttons["再记一笔支出"]
