@@ -56,6 +56,17 @@ struct ImportValidationTests {
         }
     }
 
+    @Test func acceptsLegacyAndV3SignedExpenses() throws {
+        let legacy = Data(#"{"schema_version":1,"expenses":[{"amount":-310,"category":"其他","date":"2026-01-01"}]}"#.utf8)
+        let legacyValidated = try ImportValidator.validate(data: legacy)
+        #expect(legacyValidated.expenses.map(\.amount) == [-310])
+
+        let signed = Data(#"{"schema_version":3,"expenses":[{"amount":-310,"category":"其他","date":"2026-01-01"},{"amount":0,"category":"无消费","date":"2026-01-02"}]}"#.utf8)
+        let signedValidated = try ImportValidator.validate(data: signed)
+        #expect(signedValidated.expenses.map(\.amount) == [-310, 0])
+        #expect(signedValidated.legacyZeroExpensesSkipped == 0)
+    }
+
     @Test func rejectsFutureSchemaAndInvalidUUID() {
         expectError(Data(#"{"schema_version":99}"#.utf8)) {
             if case .unsupportedSchema(99) = $0 { return true }
@@ -80,7 +91,7 @@ struct ImportValidationTests {
             return false
         }
 
-        let negative = Data(#"{"expenses":[{"amount":-1,"category":"午餐","date":"2026-01-01"}]}"#.utf8)
+        let negative = Data(#"{"schema_version":2,"expenses":[{"amount":-1,"category":"午餐","date":"2026-01-01"}]}"#.utf8)
         expectError(negative) {
             if case .amountOutOfRange = $0 { return true }
             return false

@@ -140,6 +140,44 @@ struct BackupRoundTripTests {
         #expect(csv.contains("'-10"))
     }
 
+    @Test func signedStoredExpensesExportAsV3AndRoundTrip() throws {
+        let sourceContext = try TestSupport.makeContext()
+        sourceContext.insert(Expense(
+            amount: -310,
+            category: "其他",
+            note: "退款",
+            date: TestSupport.day("2026-01-01")
+        ))
+        sourceContext.insert(Expense(
+            amount: 0,
+            category: "无消费",
+            date: TestSupport.day("2026-01-02")
+        ))
+        try sourceContext.save()
+
+        let data = try DataIO.exportJSON(context: sourceContext)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        #expect(envelope.schemaVersion == 3)
+        #expect(envelope.expenses?.map(\.amount) == [-310, 0])
+
+        let csv = String(decoding: try DataIO.exportCSV(context: sourceContext), as: UTF8.self)
+        #expect(csv.contains("支出,其他,-310,退款"))
+        #expect(csv.contains("支出,无消费,0,"))
+
+        let targetContext = try TestSupport.makeContext()
+        let preview = try DataIO.previewJSON(data: data, context: targetContext)
+        #expect(preview.schemaVersion == 3)
+        #expect(preview.expensesNew.map(\.amount) == [-310, 0])
+        _ = try DataIO.commitImport(preview: preview, strategy: .skipAssets, context: targetContext)
+
+        let restored = try targetContext.fetch(FetchDescriptor<Expense>(
+            sortBy: [SortDescriptor(\.date)]
+        ))
+        #expect(restored.map(\.amount) == [-310, 0])
+    }
+
     @Test func exportsRejectInvalidStoredAmounts() throws {
         let jsonContext = try TestSupport.makeContext()
         jsonContext.insert(Expense(

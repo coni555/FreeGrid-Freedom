@@ -156,7 +156,10 @@ struct ValidatedImport: Sendable {
 }
 
 enum ImportValidator {
-    static let latestSchemaVersion = 2
+    /// v2 保持新账严格正金额；v3 只在需要无损承接旧版退款/冲正记录时使用。
+    static let strictPositiveExpenseSchemaVersion = 2
+    static let signedExpenseSchemaVersion = 3
+    static let latestSchemaVersion = signedExpenseSchemaVersion
 
     static func loadData(from url: URL, policy: ImportPolicy = .default) throws -> Data {
         let values = try url.resourceValues(forKeys: [.fileSizeKey])
@@ -257,15 +260,31 @@ enum ImportValidator {
         var expenses: [ValidatedImport.ExpenseRecord] = []
         for raw in envelope.expenses ?? [] {
             // 旧版导入器会把“当天无消费”保存成 0 元支出。它没有财务影响，
-            // 但不能让真实的 v0/v1 备份因此整份失效；v2 仍保持严格边界。
-            if raw.amount == 0, schemaVersion < latestSchemaVersion {
+            // 但不能让真实的 v0/v1 备份因此整份失效；v2 仍保持严格正金额。
+            // v3 专门用于无损回写本地旧数据，因此保留 0 元及负数冲正记录。
+            if raw.amount == 0, schemaVersion < strictPositiveExpenseSchemaVersion {
                 legacyZeroExpensesSkipped += 1
                 continue
+            }
+            let validatedAmount: Double
+            if schemaVersion == strictPositiveExpenseSchemaVersion {
+                validatedAmount = try amount(
+                    raw.amount,
+                    field: "支出",
+                    allowsZero: false,
+                    policy: policy
+                )
+            } else {
+                validatedAmount = try signedAmount(
+                    raw.amount,
+                    field: "支出",
+                    maximum: policy.maximumAmount
+                )
             }
             expenses.append(
                 ValidatedImport.ExpenseRecord(
                     id: try identifier(raw.id, field: "支出"),
-                    amount: try amount(raw.amount, field: "支出", allowsZero: false, policy: policy),
+                    amount: validatedAmount,
                     category: try text(raw.category, field: "支出分类", maximum: policy.maxNameCharacters),
                     date: try day(raw.date, field: "支出日期", now: now),
                     note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),

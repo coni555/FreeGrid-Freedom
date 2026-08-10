@@ -140,9 +140,12 @@ enum DataIO {
         ))
         let assets = try context.fetch(FetchDescriptor<UserAssets>()).first
         let firstExpenseDate = expenses.map(\.date).min()
+        let schemaVersion = expenses.contains { $0.amount <= 0 }
+            ? ImportValidator.signedExpenseSchemaVersion
+            : ImportValidator.strictPositiveExpenseSchemaVersion
 
         let dump = BackupEnvelope(
-            schemaVersion: ImportValidator.latestSchemaVersion,
+            schemaVersion: schemaVersion,
             assets: assets.map {
                 BackupEnvelope.AssetsJSON(
                     total: $0.netWorth,
@@ -215,15 +218,16 @@ enum DataIO {
             let label: String
             let amount: Double
             let note: String
+            let allowsSignedAmount: Bool
         }
         var rows: [Row] = []
         rows += expenses.map {
             Row(date: day.string(from: $0.date), kind: "支出", label: $0.category,
-                amount: $0.amount, note: $0.note)
+                amount: $0.amount, note: $0.note, allowsSignedAmount: true)
         }
         rows += incomes.map {
             Row(date: day.string(from: $0.date), kind: "收入", label: $0.source,
-                amount: $0.amount, note: $0.note)
+                amount: $0.amount, note: $0.note, allowsSignedAmount: false)
         }
         rows.sort { $0.date < $1.date }
 
@@ -242,8 +246,11 @@ enum DataIO {
             }
             return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
         }
-        func amount(_ value: Double, field: String) throws -> String {
-            guard value.isFinite, value > 0, value <= FinancialLimits.maximumAmount else {
+        func amount(_ value: Double, field: String, allowsSigned: Bool) throws -> String {
+            let isValid = value.isFinite
+                && abs(value) <= FinancialLimits.maximumAmount
+                && (allowsSigned || value > 0)
+            guard isValid else {
                 throw DataIOError.invalidStoredValue(field)
             }
             return value.formatted(.number.grouping(.never).precision(.fractionLength(0...2)))
@@ -252,7 +259,11 @@ enum DataIO {
         var csv = "\u{FEFF}"
         csv += "日期,类型,类别/来源,金额,备注\n"
         for row in rows {
-            let formattedAmount = try amount(row.amount, field: row.kind + "金额")
+            let formattedAmount = try amount(
+                row.amount,
+                field: row.kind + "金额",
+                allowsSigned: row.allowsSignedAmount
+            )
             csv += "\(row.date),\(row.kind),\(escape(row.label)),"
             csv += "\(formattedAmount),\(escape(row.note))\n"
         }
