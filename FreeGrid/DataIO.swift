@@ -58,7 +58,6 @@ enum DataIO {
     struct ImportPreview {
         let schemaVersion: Int
         let expensesNew: [ValidatedImport.ExpenseRecord]
-        let legacyZeroExpensesSkipped: Int
         let expenseDuplicates: DuplicateCount
         let incomesNew: [ValidatedImport.IncomeRecord]
         let incomeDuplicates: DuplicateCount
@@ -203,7 +202,14 @@ enum DataIO {
         encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
         let data = try encoder.encode(dump)
-        _ = try ImportValidator.validate(data: data)
+        // now 传 .distantFuture 是为了关掉"未来日期"检查:设备时钟曾经快过、
+        // 或用户跨时区旅行后,本地合法记录会相对此刻落在未来。那是导入外来文件时
+        // 才需要警惕的信号,不该反过来堵死本人的导出。
+        _ = try ImportValidator.validate(
+            data: data,
+            policy: .exportSelfCheck,
+            now: .distantFuture
+        )
         return data
     }
 
@@ -253,7 +259,14 @@ enum DataIO {
             guard isValid else {
                 throw DataIOError.invalidStoredValue(field)
             }
-            return value.formatted(.number.grouping(.never).precision(.fractionLength(0...2)))
+            // 必须锁死 POSIX locale:跟随系统 locale 时,逗号小数区(en_DE / fr 等)
+            // 会把 1234.5 写成 "1234,5",而金额列不加引号,整行会多出一列。
+            return value.formatted(
+                .number
+                    .grouping(.never)
+                    .precision(.fractionLength(0...2))
+                    .locale(Locale(identifier: "en_US_POSIX"))
+            )
         }
 
         var csv = "\u{FEFF}"
@@ -476,7 +489,6 @@ enum DataIO {
         return ImportPreview(
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
-            legacyZeroExpensesSkipped: validated.legacyZeroExpensesSkipped,
             expenseDuplicates: DuplicateCount(
                 existing: expenseExistingDuplicates,
                 inFile: expenseFileDuplicates
@@ -521,6 +533,11 @@ enum DataIO {
                 note = note.isEmpty
                     ? "原分类·\(rawCategory)"
                     : "\(note) · 原分类·\(rawCategory)"
+                // 拼接后必须重新落回备注上限:否则这条记录写进库就再也导不出去
+                // (导出自校验会抛 textTooLong,整份导出被阻断)。
+                if note.count > FinancialLimits.noteCharacters {
+                    note = String(note.prefix(FinancialLimits.noteCharacters))
+                }
             }
             return ImportPlan.ExpenseRecord(
                 id: record.id,

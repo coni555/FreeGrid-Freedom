@@ -33,7 +33,9 @@ struct ImportValidationTests {
         #expect(try ImportValidator.validate(data: v1).schemaVersion == 1)
     }
 
-    @Test func skipsLegacyZeroExpensesButKeepsV2Strict() throws {
+    @Test func keepsLegacyZeroExpensesButKeepsV2Strict() throws {
+        // 0 元占位一律保留:最早的那条常常就是 0 元,丢掉会把追踪基线往后挪,
+        // 记录天数变少 → 日均变高 → 自由天数变少,而用户看不出数字为何变了。
         let legacy = Data("""
         {
           "schema_version": 1,
@@ -46,8 +48,8 @@ struct ImportValidationTests {
         """.utf8)
         let validated = try ImportValidator.validate(data: legacy)
 
-        #expect(validated.expenses.count == 1)
-        #expect(validated.legacyZeroExpensesSkipped == 2)
+        #expect(validated.expenses.map(\.amount) == [0, 30, 0])
+        #expect(validated.firstRecordDate == nil)
 
         let current = Data(#"{"schema_version":2,"expenses":[{"amount":0,"category":"午餐","date":"2026-02-01"}]}"#.utf8)
         expectError(current) {
@@ -64,7 +66,6 @@ struct ImportValidationTests {
         let signed = Data(#"{"schema_version":3,"expenses":[{"amount":-310,"category":"其他","date":"2026-01-01"},{"amount":0,"category":"无消费","date":"2026-01-02"}]}"#.utf8)
         let signedValidated = try ImportValidator.validate(data: signed)
         #expect(signedValidated.expenses.map(\.amount) == [-310, 0])
-        #expect(signedValidated.legacyZeroExpensesSkipped == 0)
     }
 
     @Test func rejectsFutureSchemaAndInvalidUUID() {

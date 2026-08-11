@@ -21,6 +21,17 @@ enum FinancialLimits {
 struct ImportPolicy: Sendable {
     static let `default` = ImportPolicy()
 
+    /// 导出自校验专用。本地数据是可信的,这里只该验证"编码是否正确"——能解码、
+    /// UUID/日期格式合法、金额有界——而不该套用防御外部文件的输入限额。
+    /// 套用输入限额的后果就是 1.2.1 那次事故:本地数据一旦越过任何一条为
+    /// 外来文件设的红线,用户就再也导不出自己的账本,而导出是唯一的逃生舱。
+    static let exportSelfCheck = ImportPolicy(
+        maxFileBytes: .max,
+        maxLedgerRecords: .max,
+        maxDeviceRecords: .max,
+        maxPassiveSourceRecords: .max
+    )
+
     let maxFileBytes: Int
     let maxLedgerRecords: Int
     let maxDeviceRecords: Int
@@ -148,7 +159,6 @@ struct ValidatedImport: Sendable {
     let schemaVersion: Int
     let assets: Assets?
     let expenses: [ExpenseRecord]
-    let legacyZeroExpensesSkipped: Int
     let incomes: [IncomeRecord]
     let devices: [DeviceRecord]
     let passiveSources: [PassiveSourceRecord]
@@ -256,16 +266,12 @@ enum ImportValidator {
             )
         }
 
-        var legacyZeroExpensesSkipped = 0
         var expenses: [ValidatedImport.ExpenseRecord] = []
         for raw in envelope.expenses ?? [] {
-            // 旧版导入器会把“当天无消费”保存成 0 元支出。它没有财务影响，
-            // 但不能让真实的 v0/v1 备份因此整份失效；v2 仍保持严格正金额。
-            // v3 专门用于无损回写本地旧数据，因此保留 0 元及负数冲正记录。
-            if raw.amount == 0, schemaVersion < strictPositiveExpenseSchemaVersion {
-                legacyZeroExpensesSkipped += 1
-                continue
-            }
+            // 旧版导入器会把“当天无消费”保存成 0 元支出。这类记录一律保留：
+            // 它没有财务影响，但可能是账本里最早的一条，丢掉会把追踪基线往后挪，
+            // 于是记录天数变少、日均消费变高、自由天数变少——用户看不出数字为何变了。
+            // v2 例外，那是 1.2.1 之后才产生的备份，本来就不可能含 0 元支出。
             let validatedAmount: Double
             if schemaVersion == strictPositiveExpenseSchemaVersion {
                 validatedAmount = try amount(
@@ -361,7 +367,6 @@ enum ImportValidator {
             schemaVersion: schemaVersion,
             assets: assets,
             expenses: expenses,
-            legacyZeroExpensesSkipped: legacyZeroExpensesSkipped,
             incomes: incomes,
             devices: devices,
             passiveSources: passiveSources,

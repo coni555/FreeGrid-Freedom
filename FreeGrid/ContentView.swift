@@ -1665,9 +1665,6 @@ struct AssetsView: View {
             let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap, context: modelContext)
             var lines: [String] = ["✓ 导入完成"]
             lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
-            if preview.legacyZeroExpensesSkipped > 0 {
-                lines.append("旧版 0 元支出 \(preview.legacyZeroExpensesSkipped) 条未导入")
-            }
             lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
             if result.devicesAdded > 0 {
                 lines.append("设备 +\(result.devicesAdded)")
@@ -3523,9 +3520,6 @@ struct ImportReviewSheet: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 KickerLabel(text: "导入预览")
                 summaryRow("新增支出", "\(preview.expensesNew.count) 笔")
-                if preview.legacyZeroExpensesSkipped > 0 {
-                    summaryRow("旧版 0 元支出", "\(preview.legacyZeroExpensesSkipped) 条未导入")
-                }
                 summaryRow("新增收入", "\(preview.incomesNew.count) 笔")
                 if preview.devicesNew.count > 0 {
                     summaryRow("新增设备", "\(preview.devicesNew.count) 个")

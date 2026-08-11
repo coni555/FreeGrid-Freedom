@@ -178,6 +178,37 @@ struct BackupRoundTripTests {
         #expect(restored.map(\.amount) == [-310, 0])
     }
 
+    @Test func exportSurvivesClockSkewedLocalRecords() throws {
+        // 设备时钟曾经快过 / 用户跨时区旅行:本地记录相对此刻落在未来。
+        // 导出是唯一的逃生舱,不能因为这种本地状态被整份堵死。
+        let context = try TestSupport.makeContext()
+        let future = Date.now.addingTimeInterval(3 * 24 * 3600)
+        let expense = Expense(amount: 10, category: "午餐", date: TestSupport.day("2026-01-01"))
+        expense.date = future
+        expense.createdAt = future
+        context.insert(expense)
+        try context.save()
+
+        #expect(throws: Never.self) { _ = try DataIO.exportJSON(context: context) }
+        #expect(throws: Never.self) { _ = try DataIO.exportCSV(context: context) }
+    }
+
+    @Test func categoryRemapKeepsNoteExportable() throws {
+        // 长备注 + 非 canonical 分类:映射时会往备注尾部追加"原分类·X",
+        // 一旦撑破上限,这条记录写进库后所有导出都会被自校验拦死。
+        let longNote = String(repeating: "记", count: FinancialLimits.noteCharacters)
+        let json = """
+        {"schema_version":2,"expenses":[{"amount":10,"category":"订阅","date":"2026-01-01","note":"\(longNote)"}]}
+        """
+        let context = try TestSupport.makeContext()
+        let preview = try DataIO.previewJSON(data: Data(json.utf8), context: context)
+        _ = try DataIO.commitImport(preview: preview, strategy: .skipAssets, context: context)
+
+        let stored = try #require(try context.fetch(FetchDescriptor<Expense>()).first)
+        #expect(stored.note.count <= FinancialLimits.noteCharacters)
+        #expect(throws: Never.self) { _ = try DataIO.exportJSON(context: context) }
+    }
+
     @Test func exportsRejectInvalidStoredAmounts() throws {
         let jsonContext = try TestSupport.makeContext()
         jsonContext.insert(Expense(
