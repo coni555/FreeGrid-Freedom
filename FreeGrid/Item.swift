@@ -505,8 +505,10 @@ enum FreedomMath {
               currentNetWorth.isFinite,
               dailyPassive.isFinite,
               dailyPassive >= 0,
-              expenses.allSatisfy({ $0.amount.isFinite && $0.amount >= 0 }),
-              incomes.allSatisfy({ $0.amount.isFinite && $0.amount >= 0 }) else { return [] }
+              // 只挡非有限数。旧账本的退款/冲正是合法负数支出(schema v3 会原样承接),
+              // 用 >= 0 挡会让这类用户的走势图整块消失,而不是显示净额趋势。
+              expenses.allSatisfy({ $0.amount.isFinite }),
+              incomes.allSatisfy({ $0.amount.isFinite }) else { return [] }
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)
         let trackedDays = cal.dateComponents([.day], from: firstDate, to: today).day ?? 0
@@ -718,3 +720,5 @@ enum FreedomChecklist {
             remainText: remainText)
     }
 }
+
+

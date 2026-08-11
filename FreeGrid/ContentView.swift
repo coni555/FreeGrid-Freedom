@@ -329,6 +329,9 @@ struct DashboardView: View {
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
+    /// 首次引导的一次性闸门:存款与支出齐备过一次即永久落闸
+    @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -370,7 +373,14 @@ struct DashboardView: View {
             .sheet(isPresented: $showingSimulate) {
                 SimulateSheet()
             }
+            .onAppear { latchOnboardingIfSatisfied() }
+            .onChange(of: onboardingSatisfied) { _, _ in latchOnboardingIfSatisfied() }
         }
+    }
+
+    /// 只单向落闸,不会再打开——净值以后跌回 0 以下也不重新弹引导。
+    private func latchOnboardingIfSatisfied() {
+        if onboardingSatisfied { onboardingCompleted = true }
     }
 
     // ============================================================================
@@ -621,12 +631,12 @@ struct DashboardView: View {
                         .padding(.top, 4)
                 case .insufficientData:
                     if needsSavings {
-                        emphasized("先记", "一笔存款", "", size: 18)
+                        emphasized("先记下", "你有多少钱", "", size: 18)
                     } else {
                         emphasized("再记", "一笔支出", "", size: 18)
                     }
                     Text(needsSavings
-                         ? "有存款后，再记录支出点亮自由格"
+                         ? "资产或现金都算，记完再记一笔支出"
                          : "建立日均消费后开始计算自由天数")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
@@ -684,12 +694,12 @@ struct DashboardView: View {
                     .padding(.top, 2)
             case .insufficientData:
                 if needsSavings {
-                    emphasized("先记", "一笔存款", "", size: 18)
+                    emphasized("先记下", "你有多少钱", "", size: 18)
                 } else {
                     emphasized("再记", "一笔支出", "", size: 18)
                 }
                 Text(needsSavings
-                     ? "有存款后，再记录支出点亮自由格"
+                     ? "资产或现金都算，记完再记一笔支出"
                      : "建立日均消费后开始计算自由天数")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
@@ -847,6 +857,11 @@ struct DashboardView: View {
         if todaySpending == 0 {
             return "今日尚未消费"
         }
+        // 当天净额为负(退款/冲正大于消费)时,"低于日均 N%" 会算出 100% 以上的
+        // 荒唐数字。这种日子本来就不是"省钱",单独说清楚。
+        if todaySpending < 0 {
+            return "今日净退款 ¥\(String(format: "%.1f", -todaySpending))"
+        }
         let diffPct = FinancialFormatting.clampedInteger(
             abs((1 - todayPercent) * 100),
             range: 0...9_999
@@ -886,6 +901,9 @@ struct DashboardView: View {
         let avgText = FinancialFormatting.wholeNumber(avg)
         if today == 0 {
             return "今日尚未消费 · 日均 ¥\(avgText)"
+        }
+        if today < 0 {
+            return "今日净退款 ¥\(FinancialFormatting.wholeNumber(-today)) · 日均 ¥\(avgText)"
         }
         let diff = today - avg
         let pct = FinancialFormatting.wholeNumber(abs(diff) / avg * 100)
@@ -975,7 +993,7 @@ struct DashboardView: View {
         case .invalidData: return "数据异常, 检查金额后再生成网格"
         case .insufficientData:
             return needsSavings
-                ? "先记录存款，再记一笔支出，网格开始点亮"
+                ? "先记下你有多少钱，再记一笔支出，网格开始点亮"
                 : "记录第一笔支出后, 网格开始点亮"
         case .finite, .covered: return "当前净值还没有可点亮的自由格"
         }
@@ -1023,13 +1041,23 @@ struct DashboardView: View {
         netWorth <= 0
     }
 
-    private var needsOnboarding: Bool {
-        needsSavings || expenses.isEmpty
+    /// 存款 + 支出同时齐备过一次,引导就算走完。
+    private var onboardingSatisfied: Bool {
+        !needsSavings && !expenses.isEmpty
     }
 
+    /// 引导是一次性的:走完就永久关掉。
+    /// 不能只看 `needsSavings`——记支出会把现金扣成负数(cash 无下限),
+    /// 老用户净值跌到 0 以下时这张卡会重新常驻,那正是被否决过的常驻卡形态。
+    private var needsOnboarding: Bool {
+        !onboardingCompleted && !onboardingSatisfied
+    }
+
+    /// 文案刻意不用"存款":点进去是 Assets 页,资产和现金都能填,
+    /// 说"存款"会让用户以为只收现金。
     private var onboardingTitle: String {
         if needsSavings {
-            return expenses.isEmpty ? "先记录存款" : "再记录存款"
+            return expenses.isEmpty ? "先记下你有多少钱" : "还差一步:记下你有多少钱"
         }
         return "再记一笔支出"
     }
@@ -1037,10 +1065,10 @@ struct DashboardView: View {
     private var onboardingDetail: String {
         if needsSavings {
             return expenses.isEmpty
-                ? "先建立净值，再记一笔支出，格子才会点亮"
-                : "已有支出，再补上存款，格子就能点亮"
+                ? "定期、股票、现金都算，记完再记一笔支出，格子就会点亮"
+                : "已经有支出了，补上手里的钱，格子就能点亮"
         }
-        return "已有存款，再建立日均消费，格子就能点亮"
+        return "已经知道你有多少钱了，再建立日均消费，格子就能点亮"
     }
 
     /// 收支双按钮:filled prominent
@@ -1429,6 +1457,9 @@ struct AssetsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("编辑\(kicker)")
+        // Button 会把 label 里的 Text 合并成一个元素,再被 accessibilityLabel 整体顶掉;
+        // 金额得单独挂回 value,否则 VoiceOver 只念"编辑现金",听不到余额。
+        .accessibilityValue("¥" + amount.formatted(.number))
     }
 
     // MARK: - 空态提示
@@ -4311,7 +4342,9 @@ struct SimulateSheet: View {
             impactRow(label: "KILL 2 日均",
                       from: formatYuan(o.currentAvg, precision: 1),
                       to: formatYuan(o.newAvg, precision: 2),
-                      delta: "+\(formatYuan(o.newAvg - o.currentAvg, precision: 2))",
+                      delta: o.currentAvg.isFinite
+                          ? "+\(formatYuan(o.newAvg - o.currentAvg, precision: 2))"
+                          : "—",
                       color: Color.vermillion)
 
             // from/to 智能档, delta 固定天
@@ -4372,6 +4405,8 @@ struct SimulateSheet: View {
 
     /// 格式化金额(和 AddExpenseSheet/AddIncomeSheet 一致,允许局部重复)
     private func formatYuan(_ value: Double, precision: Int? = nil) -> String {
+        // 零支出账本打开"模拟一笔"时 currentAvg 是 NaN,不挡会渲染成 "¥NaN"。
+        guard value.isFinite else { return "—" }
         let f = NumberFormatter()
         f.numberStyle = .decimal
         // 默认档(precision=nil): 整数干净显示, 有小数才补到最多 2 位 —— 与流水列表口径一致,

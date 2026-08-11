@@ -15,14 +15,18 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
+        // 引导闸门存在 UserDefaults 里,跨次运行会残留;必须显式压回 NO,
+        // 否则第二次跑这条用例时引导卡不再出现。无值的 -UseInMemoryStore 会吞掉
+        // 紧随其后的参数,所以它必须排在最后。
+        app.launchArguments.append(contentsOf: ["-onboardingCompleted", "NO"])
         app.launchArguments.append("-UseInMemoryStore")
         app.launch()
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
 
-        let savingsPrompt = app.buttons["先记录存款"]
-        XCTAssertTrue(savingsPrompt.exists)
+        let savingsPrompt = app.buttons["先记下你有多少钱"]
+        XCTAssertTrue(savingsPrompt.waitForExistence(timeout: 3))
         savingsPrompt.tap()
 
         XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
