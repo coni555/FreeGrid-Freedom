@@ -103,7 +103,7 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS / macOS 记账 Ap
 
 FreeGrid 最早只是我自己想用的记账工具。我用 iPhone，所以从 iOS 原生写起，后来才慢慢延伸到 macOS 和 Windows。
 
-说实话我是个**编程新手**——这个 App 几乎全程是我和 Claude Code「vibe coding」一起做出来的，过程里学到了非常多。所以如果你是大佬，**特别欢迎一起共创维护**：PR / issue / discussion 都欢迎。
+说实话我是个**编程新手**——这个 App 是我和 AI 编程伙伴一起迭代出来的：前期主要由 Claude Code 协作，后续也由 [OpenAI Codex](https://github.com/codex) 参与代码审查、测试与发布维护，过程里学到了非常多。所以如果你是大佬，**特别欢迎一起共创维护**：PR / issue / discussion 都欢迎。
 
 原生 iOS / macOS 版现已上架 App Store。开发者本人日常使用的也是同一份公开生产版本；这个仓库就是对应的公开源码，不维护隐藏的私人功能分支。
 
