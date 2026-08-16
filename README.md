@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>简体中文</strong> · <a href="README_EN.md">English</a>
+</p>
+
 # FreeGrid · 通往财富自由之路
 
 > 别的记账软件告诉你**花了多少**。FreeGrid 让你看见**代价**——把「财富自由」折算成一个你每天看得见的数字：**自由天数**。
