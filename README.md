@@ -1,3 +1,5 @@
+
+
 <p align="right">
   <strong>简体中文</strong> · <a href="README_EN.md">English</a>
 </p>
@@ -118,7 +120,7 @@ git clone https://github.com/coni555/FreeGrid-Freedom.git
 cd FreeGrid-Freedom && open FreeGrid.xcodeproj
 ```
 
-Xcode 16+，选 iOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing & Capabilities** 里选你自己的 Team（仓库里的 `DEVELOPMENT_TEAM` 已抹空）。无需任何依赖安装——纯系统框架，开箱即跑。
+Xcode 16+，选 iOS / macOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing & Capabilities** 里选你自己的 Team（仓库里的 `DEVELOPMENT_TEAM` 已抹空）。无需任何依赖安装——纯系统框架，开箱即跑。
 
 - **SwiftUI + SwiftData**（iOS 17.6+ / macOS 15.6+，单 target 多平台、非 Catalyst）
 - Swift 5，**零第三方依赖**——纯 Apple 系统框架
