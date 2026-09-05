@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct BackupEnvelope: Codable {
+nonisolated struct BackupEnvelope: Codable {
     struct AssetsJSON: Codable {
         let total: Double
         let lockedAssets: Double?
@@ -130,6 +130,3 @@ struct BackupEnvelope: Codable {
         self.firstRecordDate = firstRecordDate
     }
 }
-
-// 保留现有调用点名称；后续统一改名不应与安全修复绑在同一批。
-typealias BackupJSON = BackupEnvelope

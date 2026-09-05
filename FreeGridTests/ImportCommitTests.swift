@@ -10,6 +10,7 @@ import SwiftData
 import Testing
 @testable import FreeGrid
 
+@MainActor
 struct ImportCommitTests {
     @Test func deduplicatesRecordsInsideOneFile() throws {
         let context = try TestSupport.makeContext()
@@ -150,6 +151,9 @@ struct ImportCommitTests {
             // 预期失败。
         }
 
+        #expect(existingAssets.cash == 20)
+        #expect(existingAssets.lockedAssets == 80)
+        #expect(!context.hasChanges)
         #expect(try context.fetchCount(FetchDescriptor<Expense>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<Income>()) == 0)
         let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)

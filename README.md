@@ -113,12 +113,14 @@ FreeGrid 最早只是我自己想用的记账工具。我用 iPhone，所以从 
 
 ## 给开发者：构建 & 技术栈
 
+想先看懂项目？从[代码阅读地图](CODE_GUIDE.md)开始，按“一笔支出从输入到保存”的路径阅读。
+
 ```bash
 git clone https://github.com/coni555/FreeGrid-Freedom.git
 cd FreeGrid-Freedom && open FreeGrid.xcodeproj
 ```
 
-Xcode 16+，选 iOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing & Capabilities** 里选你自己的 Team（仓库里的 `DEVELOPMENT_TEAM` 已抹空）。无需任何依赖安装——纯系统框架，开箱即跑。
+本轮验证使用 Xcode 26.6，选 iOS 模拟器或真机 `Cmd + R`；真机运行需在 **Signing & Capabilities** 里选你自己的 Team（仓库里的 `DEVELOPMENT_TEAM` 已抹空）。无需任何依赖安装——纯系统框架，开箱即跑。
 
 - **SwiftUI + SwiftData**（iOS 17.6+ / macOS 15.6+，单 target 多平台、非 Catalyst）
 - Swift 5，**零第三方依赖**——纯 Apple 系统框架

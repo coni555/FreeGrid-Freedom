@@ -25,19 +25,6 @@ import AppKit
 // 切换 .preferredColorScheme(.light/.dark) 时所有 dynamic color 自动 resolve。
 
 extension Color {
-    /// 创建一个根据 colorScheme 自动切换的 Color
-    static func dyn(light: Color, dark: Color) -> Color {
-        #if canImport(UIKit)
-        Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
-        })
-        #elseif canImport(AppKit)
-        Color(nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
-        })
-        #endif
-    }
-
     /// 直接用 RGB 三元组创建 dynamic (避免嵌套 Color)
     static func dyn(
         lightRGB: (Double, Double, Double),
@@ -126,11 +113,6 @@ extension Color {
         lightRGB: (0.28, 0.52, 0.78),
         darkRGB:  (0.65, 0.85, 1.00)   // 暗底上反而要更亮才显眼
     )
-    /// 浅 sky soft
-    static let skySoft = Color.dyn(
-        lightRGB: (0.78, 0.88, 0.96),
-        darkRGB:  (0.28, 0.40, 0.55)
-    )
     /// 极淡 sky wash (banner 底)
     static let skyFaint = Color.dyn(
         lightRGB: (0.93, 0.96, 0.99),
@@ -138,15 +120,15 @@ extension Color {
     )
 
     // ===== 业务语义色 =====
-    /// LifeGrid 资产蓝 = 主天空蓝
-    static let assetBlue = Color.dyn(
+    /// 现金桶和现金格子使用蓝色
+    static let cashBlue = Color.dyn(
         lightRGB: (0.45, 0.72, 0.92),
         darkRGB:  (0.52, 0.78, 0.97)
     )
-    /// LifeGrid 现金色:暖金
+    /// 资产桶和资产格子使用暖金
     /// light: 旧 (0.85,0.72,0.38) 是欠饱和 mustard, 在冷白底上发脏发弱、跟 sky 蓝不对等。
     ///        提到更饱和、略偏橙的琥珀金 —— gold 在白底需要饱和度才显贵, 不靠暗度。
-    static let incomeGold = Color.dyn(
+    static let assetGold = Color.dyn(
         lightRGB: (0.90, 0.65, 0.22),
         darkRGB:  (0.92, 0.80, 0.45)
     )
@@ -155,7 +137,7 @@ extension Color {
         lightRGB: (0.82, 0.40, 0.32),
         darkRGB:  (0.95, 0.55, 0.42)
     )
-    /// 收入森绿 (被动标签)
+    /// 被动覆盖与达成状态使用绿色
     static let mossGreen = Color.dyn(
         lightRGB: (0.36, 0.62, 0.42),
         darkRGB:  (0.55, 0.82, 0.62)
@@ -168,18 +150,6 @@ extension Color {
         darkRGB:  (0.040, 0.045, 0.075)
     )
 
-    // ===== V1/V2 alias =====
-    static let midnight   = Color.paper
-    static let surface    = Color.mist
-    static let honey      = Color.ink
-    static let honeyDim   = Color.inkMuted
-    static let ink2       = Color.inkMuted
-    static let ink3       = Color.inkFaint
-    static let vermillion = Color.flame
-    static let forestGreen = Color.mossGreen
-    static let rule       = Color.hairline
-    static let ruleSoft   = Color.hairlineSoft
-    static let paper2     = Color.mist
 }
 
 // ============================================================================
@@ -190,30 +160,9 @@ extension Color {
 // 中文自动 fallback PingFang SC,thin 字重映射合理。
 
 extension Font {
-    /// Hero 自由天数:96pt rounded ultraLight,跟 mockup Geist 100 视觉等价
-    static func heroNumber(_ size: CGFloat = 96) -> Font {
-        .system(size: size, weight: .ultraLight, design: .rounded).monospacedDigit()
-    }
-
-    /// 中等数字:stats 用,32pt thin
-    static func bigNumber(_ size: CGFloat = 32) -> Font {
-        .system(size: size, weight: .thin, design: .rounded).monospacedDigit()
-    }
-
-    /// 三联指标内部数字
-    static func statNumber(_ size: CGFloat = 28) -> Font {
-        .system(size: size, weight: .thin, design: .rounded).monospacedDigit()
-    }
-
     /// kicker / label:mono uppercase tracking
     static let kicker = Font.system(.caption2, design: .monospaced).weight(.regular)
 
-    /// 副标 body rounded
-    static let bodyRounded = Font.system(.body, design: .rounded)
-
-    // ===== V1/V2 alias =====
-    static func mediumNumber(_ size: CGFloat = 28) -> Font { bigNumber(size) }
-    static let monoKicker = kicker
 }
 
 // ============================================================================
@@ -245,7 +194,7 @@ struct Hairline: View {
 }
 
 /// 卡片容器:Silverline 风
-/// emphasis = .high 用 paper 纯白(更亮一档);.normal 用 mist 雾银
+/// .high 使用 surfaceHi，.normal 使用 mist；每个颜色都适配深浅主题。
 /// 设计动机:hairline 描边为主,无阴影,极简
 struct VaultCard<Content: View>: View {
     enum Emphasis { case normal, high }
@@ -269,9 +218,7 @@ struct VaultCard<Content: View>: View {
 }
 
 /// 主操作按钮 — hairline 描边 pill 风
-/// .primary = 实心 ink 底 paper 字
-/// .secondary = 透明 + ink 描边
-/// .destructive = 透明 + flame 描边 + flame 字
+/// 全部使用描边：primary 蓝色，secondary 墨色，destructive 支出红。
 struct VaultButton: View {
     enum Style { case primary, secondary, destructive }
     let title: String
@@ -279,10 +226,6 @@ struct VaultButton: View {
     var style: Style = .primary
     let action: () -> Void
 
-    private var bg: Color {
-        // 所有 style 都不填色,统一 outline 风
-        return .clear
-    }
     private var fg: Color {
         switch style {
         case .primary: return .skyDeep   // 深天空蓝字 (跟 flame destructive 对称)
@@ -290,14 +233,6 @@ struct VaultButton: View {
         case .destructive: return .flame
         }
     }
-    private var stroke: Color {
-        switch style {
-        case .primary: return .skyDeep   // 深天空蓝描边
-        case .secondary: return .ink
-        case .destructive: return .flame
-        }
-    }
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -311,11 +246,8 @@ struct VaultButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .foregroundStyle(fg)
-            .background(
-                Capsule().fill(bg)
-            )
             .overlay(
-                Capsule().stroke(stroke, lineWidth: 1)
+                Capsule().stroke(fg, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -352,46 +284,6 @@ struct GhostButton: View {
             )
         }
         .buttonStyle(.plain)
-    }
-}
-
-// ============================================================================
-// MARK: - V1 组件 alias (年鉴风 + 暗色金库时期遗留)
-// ============================================================================
-
-struct SectionMark: View {
-    let text: String
-    var color: Color = .inkFaint
-    var body: some View {
-        KickerLabel(text: text, color: color)
-    }
-}
-
-struct ChapterRule: View {
-    var body: some View { Hairline() }
-}
-
-struct PillButton: View {
-    enum Emphasis { case primary, secondary }
-    let title: String
-    var icon: String? = nil
-    var emphasis: Emphasis = .secondary
-    var tint: Color = .ink
-    let action: () -> Void
-
-    var body: some View {
-        let style: VaultButton.Style = (tint == .flame || tint == .vermillion) ? .destructive : .primary
-        VaultButton(title: title, icon: icon, style: style, action: action)
-    }
-}
-
-struct UnderlineLink: View {
-    let title: String
-    var icon: String? = nil
-    let action: () -> Void
-
-    var body: some View {
-        GhostButton(title: title, icon: icon, action: action)
     }
 }
 

@@ -12,6 +12,7 @@ import Foundation
 import SwiftData
 @testable import FreeGrid
 
+@MainActor
 struct FreeGridTests {
 
     @Test func dedupByIDWhenPresent() throws {

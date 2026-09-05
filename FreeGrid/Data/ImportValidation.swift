@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum FinancialLimits {
+nonisolated enum FinancialLimits {
     static let fileBytes = 10 * 1024 * 1024
     static let ledgerRecords = 50_000
     static let deviceRecords = 10_000
@@ -18,7 +18,7 @@ enum FinancialLimits {
     static let assetChecksumTolerance = 0.01
 }
 
-struct ImportPolicy: Sendable {
+nonisolated struct ImportPolicy: Sendable {
     static let `default` = ImportPolicy()
 
     /// 导出自校验专用。本地数据是可信的,这里只该验证"编码是否正确"——能解码、
@@ -59,7 +59,7 @@ struct ImportPolicy: Sendable {
     }
 }
 
-enum ImportValidationError: Error, Equatable, LocalizedError {
+nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case fileTooLarge(actual: Int, maximum: Int)
     case malformedJSON
     case unsupportedSchema(Int)
@@ -109,7 +109,7 @@ enum ImportValidationError: Error, Equatable, LocalizedError {
     }
 }
 
-struct ValidatedImport: Sendable {
+nonisolated struct ValidatedImport: Sendable {
     struct Assets: Sendable {
         let total: Double
         let lockedAssets: Double?
@@ -165,7 +165,7 @@ struct ValidatedImport: Sendable {
     let firstRecordDate: Date?
 }
 
-enum ImportValidator {
+nonisolated enum ImportValidator {
     /// v2 保持新账严格正金额；v3 只在需要无损承接旧版退款/冲正记录时使用。
     static let strictPositiveExpenseSchemaVersion = 2
     static let signedExpenseSchemaVersion = 3

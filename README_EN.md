@@ -112,12 +112,14 @@ The native iOS and macOS app is available on the App Store. I use the same publi
 
 ## For Developers · Build and Tech Stack
 
+Start with the [code reading guide (Chinese)](CODE_GUIDE.md) to follow an expense from input to persistence.
+
 ```bash
 git clone https://github.com/coni555/FreeGrid-Freedom.git
 cd FreeGrid-Freedom && open FreeGrid.xcodeproj
 ```
 
-Use Xcode 16 or later, select an iOS simulator or device, and press `Cmd + R`. For a physical device, choose your own Team under **Signing & Capabilities** (`DEVELOPMENT_TEAM` is intentionally blank in the repository). There are no dependencies to install — the project uses Apple system frameworks only.
+This revision was validated with Xcode 26.6. Select an iOS simulator or device and press `Cmd + R`. For a physical device, choose your own Team under **Signing & Capabilities** (`DEVELOPMENT_TEAM` is intentionally blank in the repository). There are no dependencies to install — the project uses Apple system frameworks only.
 
 - **SwiftUI + SwiftData** (iOS 17.6+ / macOS 15.6+, one multiplatform target, not Catalyst)
 - Swift 5 with **zero third-party dependencies**

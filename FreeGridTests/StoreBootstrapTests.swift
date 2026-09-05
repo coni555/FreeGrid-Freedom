@@ -10,6 +10,7 @@ import SwiftData
 import Testing
 @testable import FreeGrid
 
+@MainActor
 struct StoreBootstrapTests {
     private enum TestFailure: Error {
         case failed(String)
@@ -17,9 +18,10 @@ struct StoreBootstrapTests {
 
     @MainActor
     @Test func factoryFailureEntersRecoveryAndRetryCanBecomeReady() throws {
-        var shouldFail = true
+        final class FactoryState { var shouldFail = true }
+        let state = FactoryState()
         let bootstrap = StoreBootstrap {
-            if shouldFail {
+            if state.shouldFail {
                 throw TestFailure.failed("/Users/private/backup.json · balance 123456")
             }
             return try StoreBootstrap.makeContainer(isStoredInMemoryOnly: true)
@@ -34,7 +36,7 @@ struct StoreBootstrapTests {
         #expect(!failure.diagnosticText.contains("123456"))
         #expect(!bootstrap.isReady)
 
-        shouldFail = false
+        state.shouldFail = false
         bootstrap.retry()
 
         guard case .ready(let container) = bootstrap.state else {

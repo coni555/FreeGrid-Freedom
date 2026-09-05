@@ -9,6 +9,7 @@ import Foundation
 import Testing
 @testable import FreeGrid
 
+@MainActor
 struct FreedomMathTests {
     @Test func distinguishesInsufficientCoveredFiniteAndInvalidStates() {
         #expect(FreedomMath.freedomState(
@@ -70,14 +71,14 @@ struct FreedomMathTests {
     }
 
     @Test func gridCountsAndAssetRatiosAreClampedBeforeIntegerConversion() {
-        let allBlue = FreedomMath.gridState(
+        let allAssets = FreedomMath.gridState(
             lockedAssets: 200,
             cash: -100,
             dailyBurn: 1
         )
-        #expect(allBlue.count == 100)
-        #expect(allBlue.blueDays == 100)
-        #expect(allBlue.yellowDays == 0)
+        #expect(allAssets.count == 100)
+        #expect(allAssets.assetCells == 100)
+        #expect(allAssets.cashCells == 0)
 
         let allCash = FreedomMath.gridState(
             lockedAssets: -100,
@@ -85,8 +86,8 @@ struct FreedomMathTests {
             dailyBurn: 1
         )
         #expect(allCash.count == 100)
-        #expect(allCash.blueDays == 0)
-        #expect(allCash.yellowDays == 100)
+        #expect(allCash.assetCells == 0)
+        #expect(allCash.cashCells == 100)
 
         let covered = FreedomMath.gridState(
             lockedAssets: 100,
@@ -96,7 +97,7 @@ struct FreedomMathTests {
         )
         #expect(covered.unit == .year)
         #expect(covered.count == 99)
-        #expect(covered.blueDays == 99)
+        #expect(covered.assetCells == 99)
 
         let invalid = FreedomMath.gridState(
             lockedAssets: .infinity,

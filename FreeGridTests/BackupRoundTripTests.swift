@@ -10,6 +10,7 @@ import SwiftData
 import Testing
 @testable import FreeGrid
 
+@MainActor
 struct BackupRoundTripTests {
     @Test func v2RoundTripPreservesAllBusinessFields() throws {
         let sourceContext = try TestSupport.makeContext()

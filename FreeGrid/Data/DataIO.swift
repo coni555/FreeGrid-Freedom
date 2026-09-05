@@ -341,7 +341,7 @@ enum DataIO {
                     continue
                 }
             } else {
-                if existingExpenseKeys.contains(key) {
+                if existingExpenseKeys.contains(key) || storedExpenseKeys(for: record).contains(where: existingExpenseKeys.contains) {
                     expenseExistingDuplicates += 1
                     continue
                 }
@@ -528,17 +528,7 @@ enum DataIO {
         let expenses = preview.expensesNew.map { record in
             let rawCategory = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
             let mappedCategory = categoryMap[rawCategory] ?? ExpenseCategory.suggest(rawCategory).canonical
-            var note = record.note
-            if mappedCategory != rawCategory {
-                note = note.isEmpty
-                    ? "原分类·\(rawCategory)"
-                    : "\(note) · 原分类·\(rawCategory)"
-                // 拼接后必须重新落回备注上限:否则这条记录写进库就再也导不出去
-                // (导出自校验会抛 textTooLong,整份导出被阻断)。
-                if note.count > FinancialLimits.noteCharacters {
-                    note = String(note.prefix(FinancialLimits.noteCharacters))
-                }
-            }
+            let note = mappedExpenseNote(rawCategory: rawCategory, mappedCategory: mappedCategory, note: record.note)
             return ImportPlan.ExpenseRecord(
                 id: record.id,
                 amount: record.amount,
@@ -589,85 +579,70 @@ enum DataIO {
         save: SaveAction = { try $0.save() }
     ) throws -> ImportResult {
         var firstRecordDate: Date?
-        do {
-            try context.transaction {
-                for record in plan.expenses {
-                    let expense = Expense(
-                        amount: record.amount,
-                        category: record.category,
-                        note: record.note,
-                        date: record.date
-                    )
-                    if let id = record.id { expense.id = id }
-                    if let createdAt = record.createdAt { expense.createdAt = createdAt }
-                    context.insert(expense)
-                }
-
-                for record in plan.incomes {
-                    let income = Income(
-                        amount: record.amount,
-                        source: record.source,
-                        isPassive: record.isPassive,
-                        note: record.note,
-                        date: record.date
-                    )
-                    if let id = record.id { income.id = id }
-                    if let createdAt = record.createdAt { income.createdAt = createdAt }
-                    context.insert(income)
-                }
-
-                for record in plan.devices {
-                    let device = Device(
-                        name: record.name,
-                        category: record.category,
-                        price: record.price,
-                        purchaseDate: record.purchaseDate,
-                        note: record.note
-                    )
-                    if let id = record.id { device.id = id }
-                    device.status = record.status
-                    device.soldPrice = record.soldPrice
-                    device.soldDate = record.soldDate
-                    if let createdAt = record.createdAt { device.createdAt = createdAt }
-                    context.insert(device)
-                }
-
-                for record in plan.passiveSources {
-                    let source = PassiveSource(name: record.name, monthlyAmount: record.monthlyAmount)
-                    if let id = record.id { source.id = id }
-                    if let createdAt = record.createdAt { source.createdAt = createdAt }
-                    context.insert(source)
-                }
-
-                let existingAssets = try context.fetch(FetchDescriptor<UserAssets>()).first
-                let userAssets: UserAssets
-                if let existingAssets {
-                    userAssets = existingAssets
-                } else {
-                    userAssets = UserAssets(total: 0)
-                    context.insert(userAssets)
-                }
-
-                switch plan.assetsAction {
-                case .replace(let snapshot):
-                    userAssets.lockedAssets = snapshot.lockedAssets
-                    userAssets.cash = snapshot.cash
-                    userAssets.updatedAt = snapshot.updatedAt ?? .now
-                case .addToCash(let amount):
-                    userAssets.cash += amount
-                    userAssets.updatedAt = .now
-                case .skip:
-                    break
-                }
-
-                let allExpenses = try context.fetch(FetchDescriptor<Expense>())
-                firstRecordDate = allExpenses.map(\.date).min()
-                userAssets.firstRecordDate = firstRecordDate
-                try save(context)
+        try LedgerStore.updateAssets(in: context, save: save) { userAssets in
+            for record in plan.expenses {
+                let expense = Expense(
+                    amount: record.amount,
+                    category: record.category,
+                    note: record.note,
+                    date: record.date
+                )
+                if let id = record.id { expense.id = id }
+                if let createdAt = record.createdAt { expense.createdAt = createdAt }
+                context.insert(expense)
             }
-        } catch {
-            context.rollback()
-            throw error
+
+            for record in plan.incomes {
+                let income = Income(
+                    amount: record.amount,
+                    source: record.source,
+                    isPassive: record.isPassive,
+                    note: record.note,
+                    date: record.date
+                )
+                if let id = record.id { income.id = id }
+                if let createdAt = record.createdAt { income.createdAt = createdAt }
+                context.insert(income)
+            }
+
+            for record in plan.devices {
+                let device = Device(
+                    name: record.name,
+                    category: record.category,
+                    price: record.price,
+                    purchaseDate: record.purchaseDate,
+                    note: record.note
+                )
+                if let id = record.id { device.id = id }
+                device.status = record.status
+                device.soldPrice = record.soldPrice
+                device.soldDate = record.soldDate
+                if let createdAt = record.createdAt { device.createdAt = createdAt }
+                context.insert(device)
+            }
+
+            for record in plan.passiveSources {
+                let source = PassiveSource(name: record.name, monthlyAmount: record.monthlyAmount)
+                if let id = record.id { source.id = id }
+                if let createdAt = record.createdAt { source.createdAt = createdAt }
+                context.insert(source)
+            }
+
+            switch plan.assetsAction {
+            case .replace(let snapshot):
+                userAssets.lockedAssets = snapshot.lockedAssets
+                userAssets.cash = snapshot.cash
+                userAssets.updatedAt = snapshot.updatedAt ?? .now
+            case .addToCash(let amount):
+                userAssets.cash += amount
+                userAssets.updatedAt = .now
+            case .skip:
+                break
+            }
+
+            let allExpenses = try context.fetch(FetchDescriptor<Expense>())
+            firstRecordDate = allExpenses.map(\.date).min()
+            userAssets.firstRecordDate = firstRecordDate
         }
 
         return ImportResult(
@@ -680,12 +655,31 @@ enum DataIO {
         )
     }
 
-    static func purgeAll(context: ModelContext) throws {
-        try context.delete(model: Expense.self)
-        try context.delete(model: Income.self)
-        try context.delete(model: Device.self)
-        try context.delete(model: PassiveSource.self)
-        try context.delete(model: UserAssets.self)
+    static func purgeAll(context: ModelContext, save: SaveAction = { try $0.save() }) throws {
+        try LedgerStore.perform(in: context, save: save) {
+            for record in try context.fetch(FetchDescriptor<Expense>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<Income>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<Device>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<PassiveSource>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<UserAssets>()) { context.delete(record) }
+        }
+    }
+
+    /// 无 ID 的旧备份只能按内容识别。分类映射会改变分类和备注，因此同时检查可能的落库形态。
+    /// 这些候选只与已有账本比较；同一文件内仍按原记录去重，避免提前合并不同原分类。
+    private static func storedExpenseKeys(for record: ValidatedImport.ExpenseRecord) -> [String] {
+        let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let categories = ExpenseCategory.canonical.contains(raw) ? [raw] : ExpenseCategory.canonical
+        return categories.map { category in
+            expenseKey(amount: record.amount, date: record.date, category: category,
+                       note: mappedExpenseNote(rawCategory: raw, mappedCategory: category, note: record.note))
+        }
+    }
+
+    private static func mappedExpenseNote(rawCategory: String, mappedCategory: String, note: String) -> String {
+        guard rawCategory != mappedCategory else { return note }
+        let annotated = note.isEmpty ? "原分类·\(rawCategory)" : "\(note) · 原分类·\(rawCategory)"
+        return String(annotated.prefix(FinancialLimits.noteCharacters))
     }
 
     private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> String {

@@ -9,6 +9,7 @@ import Foundation
 import Testing
 @testable import FreeGrid
 
+@MainActor
 struct ImportValidationTests {
     @Test func acceptsLegacyV0AndCurrentV1() throws {
         let v0 = Data("""

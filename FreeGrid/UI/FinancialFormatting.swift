@@ -8,6 +8,29 @@
 import Foundation
 
 enum FinancialFormatting {
+    /// 金额的共用显示入口；非法数值不显示成 ¥NaN / ¥∞。
+    static func yuan(_ value: Double, precision: Int? = nil) -> String {
+        guard value.isFinite else { return "—" }
+        let digits = precision.map { $0...$0 } ?? 0...2
+        return "¥" + value.formatted(.number.precision(.fractionLength(digits)))
+    }
+
+    static func signedYuan(_ value: Double, precision: Int? = nil) -> String {
+        guard value.isFinite else { return "—" }
+        let sign = value > 0 ? "+" : value < 0 ? "−" : ""
+        return sign + yuan(abs(value), precision: precision)
+    }
+
+    /// 增减量一直用天，不随首页的日/月/年档切换，也不显示 −0 天。
+    static func daysChange(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "—" }
+        if value == 0 { return "0 天" }
+        let sign = value > 0 ? "+" : "−"
+        let rounded = abs(value).rounded()
+        if rounded == 0 { return "\(sign)不足 1 天" }
+        return "\(sign)\(wholeNumber(rounded)) 天"
+    }
+
     static func validAmount(_ value: Double, allowsZero: Bool = false) -> Bool {
         guard value.isFinite, value <= FinancialLimits.maximumAmount else { return false }
         return allowsZero ? value >= 0 : value > 0
@@ -57,16 +80,16 @@ enum FinancialFormatting {
         return clampedInteger(days / divisor, range: 0...maximum)
     }
 
-    static func assetCellSplit(count: Int, lockedAssets: Double, netWorth: Double) -> (blue: Int, gold: Int) {
+    static func assetCellSplit(count: Int, lockedAssets: Double, netWorth: Double) -> (assets: Int, cash: Int) {
         guard count > 0, lockedAssets.isFinite, netWorth.isFinite, netWorth > 0 else {
             return (0, max(0, count))
         }
         let ratio = min(max(max(0, lockedAssets) / netWorth, 0), 1)
-        let blue = clampedInteger(
+        let assets = clampedInteger(
             Double(count) * ratio,
             range: 0...count,
             rounded: .toNearestOrAwayFromZero
         )
-        return (blue, count - blue)
+        return (assets, count - assets)
     }
 }
