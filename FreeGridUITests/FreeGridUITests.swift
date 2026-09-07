@@ -105,6 +105,38 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-onboardingCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Assets"].tap()
+        for label in ["编辑现金", "编辑资产"] {
+            app.buttons[label].tap()
+            let field = app.textFields["bucket-amount-field"]
+            XCTAssertTrue(field.waitForExistence(timeout: 3))
+            field.typeText("1000000000000")
+            app.buttons["保存"].tap()
+        }
+        let cashBefore = app.buttons["编辑现金"].value as? String
+        let assetsBefore = app.buttons["编辑资产"].value as? String
+        app.swipeUp()
+        let amount = app.textFields["0"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("1")
+        let transfer = app.buttons["确认调拨"]
+        if !transfer.isHittable { app.swipeUp() }
+        transfer.tap()
+        XCTAssertTrue(app.alerts["保存失败"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["资产桶金额无效或超出允许范围"].exists)
+        app.alerts.buttons["好"].tap()
+        app.swipeDown()
+        XCTAssertEqual(app.buttons["编辑现金"].value as? String, cashBefore)
+        XCTAssertEqual(app.buttons["编辑资产"].value as? String, assetsBefore)
+    }
+
+    @MainActor
     func testStoreRecoveryViewAppearsWhenBootstrapFails() throws {
         let app = XCUIApplication()
         app.launchArguments.append(contentsOf: [

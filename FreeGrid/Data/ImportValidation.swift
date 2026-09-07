@@ -32,6 +32,17 @@ nonisolated struct ImportPolicy: Sendable {
         maxPassiveSourceRecords: .max
     )
 
+    /// 用户确认大备份后，只放宽数量；读取仍受本次确认的文件字节数约束。
+    /// 不依据 JSON 自称的来源信任它，所有字段、日期、金额仍走相同校验。
+    static func confirmedBackup(fileBytes: Int) -> ImportPolicy {
+        ImportPolicy(
+            maxFileBytes: fileBytes,
+            maxLedgerRecords: .max,
+            maxDeviceRecords: .max,
+            maxPassiveSourceRecords: .max
+        )
+    }
+
     let maxFileBytes: Int
     let maxLedgerRecords: Int
     let maxDeviceRecords: Int
@@ -74,6 +85,13 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case assetChecksumMismatch
     case invalidDeviceStatus
     case inconsistentDeviceState
+
+    var isResourceLimit: Bool {
+        switch self {
+        case .fileTooLarge, .tooManyRecords: return true
+        default: return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -372,6 +390,12 @@ nonisolated enum ImportValidator {
             passiveSources: passiveSources,
             firstRecordDate: firstRecordDate
         )
+    }
+
+    /// 保存后的双桶必须与备份校验使用同一金额规则，现金允许为负。
+    static func validateBalances(lockedAssets: Double, cash: Double) throws {
+        _ = try amount(lockedAssets, field: "资产桶", allowsZero: true, policy: .default)
+        _ = try signedAmount(cash, field: "现金桶", maximum: FinancialLimits.maximumAmount)
     }
 
     private static func validateSize(_ count: Int, policy: ImportPolicy) throws {

@@ -58,6 +58,8 @@ enum DataIO {
     struct ImportPreview {
         let schemaVersion: Int
         let expensesNew: [ValidatedImport.ExpenseRecord]
+        /// expensesNew 中待用户判断的下标；默认保留，不计入确定重复。
+        let suspectedExpenseIndices: [Int]
         let expenseDuplicates: DuplicateCount
         let incomesNew: [ValidatedImport.IncomeRecord]
         let incomeDuplicates: DuplicateCount
@@ -322,6 +324,7 @@ enum DataIO {
         var seenPassiveIDs = existingPassiveIDs
 
         var expensesNew: [ValidatedImport.ExpenseRecord] = []
+        var suspectedExpenseIndices: [Int] = []
         var expenseExistingDuplicates = 0
         var expenseFileDuplicates = 0
         for record in validated.expenses {
@@ -341,7 +344,11 @@ enum DataIO {
                     continue
                 }
             } else {
-                if existingExpenseKeys.contains(key) || storedExpenseKeys(for: record).contains(where: existingExpenseKeys.contains) {
+                let mappedMatch = storedExpenseKeys(for: record).contains(where: existingExpenseKeys.contains)
+                let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
+                let annotation = annotatedExpenseNote(rawCategory: raw, note: record.note)
+                let annotationIsComplete = annotation.count <= FinancialLimits.noteCharacters
+                if existingExpenseKeys.contains(key) || (mappedMatch && annotationIsComplete) {
                     expenseExistingDuplicates += 1
                     continue
                 }
@@ -349,6 +356,7 @@ enum DataIO {
                     expenseFileDuplicates += 1
                     continue
                 }
+                if mappedMatch { suspectedExpenseIndices.append(expensesNew.count) }
             }
             seenExpenseKeys.insert(key)
             expensesNew.append(record)
@@ -489,6 +497,7 @@ enum DataIO {
         return ImportPreview(
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
+            suspectedExpenseIndices: suspectedExpenseIndices,
             expenseDuplicates: DuplicateCount(
                 existing: expenseExistingDuplicates,
                 inFile: expenseFileDuplicates
@@ -519,13 +528,16 @@ enum DataIO {
     static func makeImportPlan(
         preview: ImportPreview,
         strategy: AssetsImportStrategy,
-        categoryMap: [String: String] = [:]
+        categoryMap: [String: String] = [:],
+        skippingSuspectedExpenses: Set<Int> = []
     ) throws -> ImportPlan {
         for target in categoryMap.values where !ExpenseCategory.canonical.contains(target) {
             throw DataIOError.invalidCategoryMapping(target)
         }
 
-        let expenses = preview.expensesNew.map { record in
+        let skipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices)
+        let expenses = preview.expensesNew.enumerated().compactMap { index, record -> ImportPlan.ExpenseRecord? in
+            guard !skipped.contains(index) else { return nil }
             let rawCategory = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
             let mappedCategory = categoryMap[rawCategory] ?? ExpenseCategory.suggest(rawCategory).canonical
             let note = mappedExpenseNote(rawCategory: rawCategory, mappedCategory: mappedCategory, note: record.note)
@@ -563,12 +575,14 @@ enum DataIO {
         preview: ImportPreview,
         strategy: AssetsImportStrategy,
         categoryMap: [String: String] = [:],
+        skippingSuspectedExpenses: Set<Int> = [],
         context: ModelContext
     ) throws -> ImportResult {
         let plan = try makeImportPlan(
             preview: preview,
             strategy: strategy,
-            categoryMap: categoryMap
+            categoryMap: categoryMap,
+            skippingSuspectedExpenses: skippingSuspectedExpenses
         )
         return try commitImport(plan: plan, context: context)
     }
@@ -666,7 +680,7 @@ enum DataIO {
     }
 
     /// 无 ID 的旧备份只能按内容识别。分类映射会改变分类和备注，因此同时检查可能的落库形态。
-    /// 这些候选只与已有账本比较；同一文件内仍按原记录去重，避免提前合并不同原分类。
+    /// 截断后失去完整分类来源的匹配只算疑似重复，由预览页让用户选择。
     private static func storedExpenseKeys(for record: ValidatedImport.ExpenseRecord) -> [String] {
         let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
         let categories = ExpenseCategory.canonical.contains(raw) ? [raw] : ExpenseCategory.canonical
@@ -678,8 +692,11 @@ enum DataIO {
 
     private static func mappedExpenseNote(rawCategory: String, mappedCategory: String, note: String) -> String {
         guard rawCategory != mappedCategory else { return note }
-        let annotated = note.isEmpty ? "原分类·\(rawCategory)" : "\(note) · 原分类·\(rawCategory)"
-        return String(annotated.prefix(FinancialLimits.noteCharacters))
+        return String(annotatedExpenseNote(rawCategory: rawCategory, note: note).prefix(FinancialLimits.noteCharacters))
+    }
+
+    private static func annotatedExpenseNote(rawCategory: String, note: String) -> String {
+        note.isEmpty ? "原分类·\(rawCategory)" : "\(note) · 原分类·\(rawCategory)"
     }
 
     private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> String {

@@ -7,6 +7,14 @@ import SwiftData
 enum LedgerStore {
     typealias SaveAction = (ModelContext) throws -> Void
 
+    enum StoreError: Error, LocalizedError {
+        case pendingChanges
+
+        var errorDescription: String? {
+            "还有尚未保存的修改，请先完成当前编辑，再重试。"
+        }
+    }
+
     /// 页面只在成功返回后关闭表单或显示成功。整个操作同步执行，不在中途让出执行权。
     static func perform(
         in context: ModelContext,
@@ -14,6 +22,8 @@ enum LedgerStore {
         restore: () -> Void = {},
         changes: () throws -> Void
     ) throws {
+        // rollback 作用于整个上下文。开始前拒绝混入其他操作，且不要回滚它们。
+        guard !context.hasChanges else { throw StoreError.pendingChanges }
         do {
             try changes()
             try save(context)
@@ -31,18 +41,15 @@ enum LedgerStore {
         save: SaveAction = { try $0.save() },
         changes: (UserAssets) throws -> Void
     ) throws {
-        let assets: UserAssets
-        if let existing = try context.fetch(FetchDescriptor<UserAssets>()).first {
-            assets = existing
-        } else {
-            assets = UserAssets(total: 0)
-            context.insert(assets)
-        }
+        let existing = try context.fetch(FetchDescriptor<UserAssets>()).first
+        let assets = existing ?? UserAssets(total: 0)
         let previous = (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate)
         try perform(in: context, save: save, restore: {
             (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate) = previous
         }) {
+            if existing == nil { context.insert(assets) }
             try changes(assets)
+            try ImportValidator.validateBalances(lockedAssets: assets.lockedAssets, cash: assets.cash)
         }
     }
 

@@ -23,7 +23,7 @@ struct LegacyImportIdentityTests {
     }
 
     @Test(arguments: [0, 1991, 1992, 1999, 2000])
-    func truncationAndHistoricalRandomUUIDRemainRecognizable(noteLength: Int) throws {
+    func truncatedProvenanceNeedsUserDecision(noteLength: Int) throws {
         let context = try TestSupport.makeContext()
         let note = String(repeating: "记", count: noteLength)
         let json = try data([.init(amount: 30, category: "外卖", date: "2026-01-01", note: note)])
@@ -32,8 +32,48 @@ struct LegacyImportIdentityTests {
         context.insert(Expense(amount: 30, category: "晚餐", note: storedNote, date: TestSupport.day("2026-01-01")))
         try context.save()
         let preview = try DataIO.previewJSON(data: json, context: context)
-        #expect(preview.expensesNew.isEmpty)
-        #expect(preview.expenseDuplicates.existing == 1)
+        if noteLength <= 1991 {
+            #expect(preview.expensesNew.isEmpty)
+            #expect(preview.expenseDuplicates.existing == 1)
+        } else {
+            #expect(preview.expensesNew.count == 1)
+            #expect(preview.suspectedExpenseIndices == [0])
+            #expect(preview.expensesSkipped == 0)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func unrelatedStoredLunchDoesNotSilentlyDiscardTaxi(skip: Bool) throws {
+        let context = try TestSupport.makeContext()
+        let note = String(repeating: "记", count: 2000)
+        context.insert(Expense(amount: 30, category: "午餐", note: note, date: TestSupport.day("2026-01-01")))
+        try context.save()
+        let json = try data([.init(amount: 30, category: "taxi", date: "2026-01-01", note: note)])
+        let preview = try DataIO.previewJSON(data: json, context: context)
+        #expect(preview.expensesNew.count == 1)
+        #expect(preview.suspectedExpenseIndices == [0])
+        #expect(preview.expensesSkipped == 0)
+        let result = try DataIO.commitImport(preview: preview, strategy: .skipAssets,
+            skippingSuspectedExpenses: skip ? [0] : [], context: context)
+        #expect(result.expensesAdded == (skip ? 0 : 1))
+        let records = try context.fetch(FetchDescriptor<Expense>())
+        #expect(records.count == (skip ? 1 : 2))
+        #expect(records.reduce(0) { $0 + $1.amount } == (skip ? 30 : 60))
+    }
+
+    @Test(arguments: [1992, 1999, 2000])
+    func differentFilesWithPartlyOrFullyTruncatedCategoriesNeedReview(noteLength: Int) throws {
+        let context = try TestSupport.makeContext()
+        let note = String(repeating: "记", count: noteLength)
+        for raw in ["taxi", "transport"] {
+            let json = try data([.init(amount: 30, category: raw, date: "2026-01-01", note: note)])
+            let preview = try DataIO.previewJSON(data: json, context: context)
+            #expect(preview.expensesNew.count == 1)
+            #expect(preview.expensesSkipped == 0)
+            #expect(preview.suspectedExpenseIndices == (raw == "taxi" ? [] : [0]))
+            _ = try DataIO.commitImport(preview: preview, strategy: .skipAssets, categoryMap: [raw: "交通"], context: context)
+        }
+        #expect(try context.fetchCount(FetchDescriptor<Expense>()) == 2)
     }
 
     @Test func distinctCanonicalCategoriesAndExplicitIDsAreNotMerged() throws {

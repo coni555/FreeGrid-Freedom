@@ -83,7 +83,7 @@ flowchart TD
 3. 页面用现有记录建立 `FinancialSnapshot`，再交给 `TransactionImpact` 算“如果保存”的结果。
 4. [TransactionImpactView](FreeGrid/UI/TransactionImpactView.swift) 把结果画出来。支出表单、收入表单、模拟页共用它。
 5. 点击保存后，`save()` 创建一条 `Expense`，调用 `LedgerStore.add(.expense(expense), in: modelContext)`。
-6. `LedgerStore` 插入支出、现金减去 30、更新最早支出日期，并明确调用数据库保存。任何一步失败都会回滚，表单显示错误并保留输入。
+6. `LedgerStore` 插入支出、现金减去 30、更新最早支出日期，检查最终双桶余额后明确调用数据库保存。失败会还原本次操作，表单显示错误并保留输入。若数据库入口已有其他未保存修改，则先拒绝新操作，避免一起回滚它们。
 7. 成功后才调用 `onSaved` 通知首页，再 `dismiss()` 关闭表单。
 8. 首页的 `@Query` 读到新记录，重新生成摘要并绘制页面；撤销按钮调用 `LedgerStore.undo` 删除记录并反向调整现金。
 
@@ -146,6 +146,13 @@ flowchart TD
 
 无 UUID 的旧文件有固有歧义：两笔真实记录若内容完全相同，无法仅靠内容断定是不是同一笔；备注截断或导入后被改写也会限制识别。新备份保留 UUID。此次没有为了消除歧义而改变已有数据库字段或备份格式。
 
+导入相关的两个分支需要特别理解：
+
+- **疑似重复**：旧文件的分类来源被长备注截断后，匹配已有记录也不能确定是同一笔。`DataIO.ImportPreview.suspectedExpenseIndices` 标记这些记录；`ImportReviewSheet` 默认保留，用户可逐笔关闭保留开关；`makeImportPlan` 只跳过用户明确选择的疑似记录。这与按 UUID 确认的重复不同。
+- **大备份恢复**：普通导入仍有 10 MiB / 50,000 条收支限制。超过文件或数量限额时，`AssetsView.readImport` 显示文件大小并让用户确认。确认后使用 `ImportPolicy.confirmedBackup`，以本次确认的字节数为读取上限，放宽记录数量，但继续检查每条记录的金额、日期、UUID、文本长度和资产合计。解析通过仍需预览确认，才会写入。文件变大需重新选择确认；大文件的实际处理能力受设备内存限制。
+
+余额校验有两层：表单检查输入是否合理；`LedgerStore.updateAssets` 检查**运算后的结果**是否合理。例如现金已到上限，撤销 1 元支出会使余额越界，所以必须拒绝本次撤销并保留记录，不能等到备份时才报错。
+
 给 AI 报 Bug 时，可以直接写：
 
 > 我在【页面】做了【操作】。输入和已有数据是【具体值】，期待【结果】，实际看到【结果】。先定位到负责这条规则的文件，给出原因和能复现的测试，再做最小修改。
@@ -167,6 +174,9 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [TransactionImpactTests](FreeGridTests/TransactionImpactTests.swift)：单位切换、补录、首次记账、被动覆盖、退款和小于一格的变化。
 - [LedgerStoreTests](FreeGridTests/LedgerStoreTests.swift)：保存失败、撤销失败、重复撤销、退款撤销和五模型清空回滚。
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
+- [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
+- [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
+- [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
 
 构建和模拟器测试不能替代真机体验。发布之前仍需用真机确认输入、键盘、布局和真实备份恢复。
 

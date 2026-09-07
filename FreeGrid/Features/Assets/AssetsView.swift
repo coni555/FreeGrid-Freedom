@@ -35,6 +35,14 @@ struct AssetsView: View {
     @State private var importStatus: String? = nil
     @State private var pendingImport: DataIO.ImportPreview? = nil
     @State private var showingImportReview = false
+    @State private var isReadingImport = false
+    @State private var largeBackupRequest: LargeBackupRequest?
+
+    private struct LargeBackupRequest {
+        let url: URL
+        let bytes: Int
+        let reason: String
+    }
 
     // --- 数据导出 (按需: 点按钮才序列化 + 弹分享, 平时切页面不碰) ---
     @State private var shareItem: ExportShareItem? = nil
@@ -78,12 +86,27 @@ struct AssetsView: View {
             }
             .sheet(isPresented: $showingImportReview) {
                 if let p = pendingImport {
-                    ImportReviewSheet(preview: p) { strategy, categoryMap in
-                        commitImport(strategy: strategy, categoryMap: categoryMap)
+                    ImportReviewSheet(preview: p) { strategy, categoryMap, skipped in
+                        commitImport(strategy: strategy, categoryMap: categoryMap, skippingSuspectedExpenses: skipped)
                     } onCancel: {
                         pendingImport = nil
                     }
                 }
+            }
+            .alert("恢复大备份？", isPresented: Binding(
+                get: { largeBackupRequest != nil },
+                set: { if !$0 { largeBackupRequest = nil } }
+            ), presenting: largeBackupRequest) { request in
+                Button("取消", role: .cancel) {
+                    largeBackupRequest = nil
+                    importStatus = "已取消导入"
+                }
+                Button("继续检查") {
+                    largeBackupRequest = nil
+                    readImport(request.url, policy: .confirmedBackup(fileBytes: request.bytes), allowLargeRetry: false)
+                }
+            } message: { request in
+                Text("\(request.reason)\n\n文件大小：\(ByteCountFormatter.string(fromByteCount: Int64(request.bytes), countStyle: .file))。可继续恢复，但需要更多内存和时间。请确认这是你要恢复的备份；检查通过后还会显示导入预览。")
             }
             .sheet(item: $editingBucket) { bucket in
                 EditBucketSheet(
@@ -427,6 +450,7 @@ struct AssetsView: View {
                 compactDataButton("从 JSON 导入", icon: "square.and.arrow.down") {
                     showingFileImporter = true
                 }
+                .disabled(isReadingImport)
 
                 if let status = importStatus {
                     Text(status)
@@ -505,38 +529,57 @@ struct AssetsView: View {
                 importStatus = "未选择文件"
                 return
             }
-            Task {
-                guard url.startAccessingSecurityScopedResource() else {
-                    importStatus = "无法访问该文件"
-                    return
-                }
-                defer { url.stopAccessingSecurityScopedResource() }
-
-                do {
-                    let validated = try await Task.detached(priority: .userInitiated) {
-                        let data = try ImportValidator.loadData(from: url)
-                        return try ImportValidator.validate(data: data)
-                    }.value
-                    let preview = try DataIO.preview(validated: validated, context: modelContext)
-                    pendingImport = preview
-                    importStatus = nil
-                    showingImportReview = true
-                } catch {
-                    importStatus = "✗ 解析失败: \(error.localizedDescription)"
-                }
-            }
+            readImport(url)
         case .failure(let error):
             importStatus = "✗ 文件读取失败: \(error.localizedDescription)"
         }
     }
 
-    private func commitImport(strategy: DataIO.AssetsImportStrategy, categoryMap: [String: String] = [:]) {
+    private func readImport(_ url: URL, policy: ImportPolicy = .default, allowLargeRetry: Bool = true) {
+        guard !isReadingImport else { return }
+        isReadingImport = true
+        importStatus = "正在检查备份…"
+        Task {
+            defer { isReadingImport = false }
+            guard url.startAccessingSecurityScopedResource() else {
+                importStatus = "无法访问该文件"
+                return
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            do {
+                let validated = try await Task.detached(priority: .userInitiated) {
+                    let data = try ImportValidator.loadData(from: url, policy: policy)
+                    return try ImportValidator.validate(data: data, policy: policy)
+                }.value
+                let preview = try DataIO.preview(validated: validated, context: modelContext)
+                pendingImport = preview
+                importStatus = nil
+                showingImportReview = true
+            } catch let error as ImportValidationError where error.isResourceLimit && allowLargeRetry {
+                if let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                    largeBackupRequest = LargeBackupRequest(url: url, bytes: bytes, reason: error.localizedDescription)
+                    importStatus = "备份超过常规导入限额，等待确认恢复。"
+                } else {
+                    importStatus = "无法确认备份大小，请重新选择文件。"
+                }
+            } catch {
+                importStatus = "✗ 解析失败: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func commitImport(strategy: DataIO.AssetsImportStrategy, categoryMap: [String: String] = [:],
+                              skippingSuspectedExpenses: Set<Int> = []) {
         guard let preview = pendingImport else { return }
         do {
-            let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap, context: modelContext)
+            let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap,
+                                                 skippingSuspectedExpenses: skippingSuspectedExpenses, context: modelContext)
             var lines: [String] = ["✓ 导入完成"]
             lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
             lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
+            let manuallySkipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices).count
+            if manuallySkipped > 0 { lines.append("疑似重复支出：手动跳过 \(manuallySkipped) 笔") }
             if result.devicesAdded > 0 {
                 lines.append("设备 +\(result.devicesAdded)")
             }

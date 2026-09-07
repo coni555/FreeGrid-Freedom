@@ -4,15 +4,16 @@ import SwiftUI
 
 struct ImportReviewSheet: View {
     let preview: DataIO.ImportPreview
-    let onCommit: (DataIO.AssetsImportStrategy, [String: String]) -> Void
+    let onCommit: (DataIO.AssetsImportStrategy, [String: String], Set<Int>) -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var entries: [DataIO.CategoryMapEntry]
     @State private var strategy: DataIO.AssetsImportStrategy = .skipAssets
+    @State private var skippedSuspectedExpenses: Set<Int> = []
 
     init(preview: DataIO.ImportPreview,
-         onCommit: @escaping (DataIO.AssetsImportStrategy, [String: String]) -> Void,
+         onCommit: @escaping (DataIO.AssetsImportStrategy, [String: String], Set<Int>) -> Void,
          onCancel: @escaping () -> Void) {
         self.preview = preview
         self.onCommit = onCommit
@@ -27,6 +28,7 @@ struct ImportReviewSheet: View {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
                     summaryCard
+                    if !preview.suspectedExpenseIndices.isEmpty { suspectedDuplicatesCard }
                     if !entries.isEmpty { categoryCard }
                     strategyCard
                 }
@@ -44,7 +46,7 @@ struct ImportReviewSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("导入") {
                         let map = Dictionary(uniqueKeysWithValues: entries.map { ($0.raw, $0.canonical) })
-                        onCommit(strategy, map)
+                        onCommit(strategy, map, skippedSuspectedExpenses)
                         dismiss()
                     }
                     .fontWeight(.medium)
@@ -59,7 +61,7 @@ struct ImportReviewSheet: View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 KickerLabel(text: "导入预览")
-                summaryRow("新增支出", "\(preview.expensesNew.count) 笔")
+                summaryRow("新增支出", "\(preview.expensesNew.count - skippedSuspectedExpenses.count) 笔")
                 summaryRow("新增收入", "\(preview.incomesNew.count) 笔")
                 if preview.devicesNew.count > 0 {
                     summaryRow("新增设备", "\(preview.devicesNew.count) 个")
@@ -81,6 +83,36 @@ struct ImportReviewSheet: View {
                 if fileDuplicates > 0 {
                     summaryRow("文件内重复", "\(fileDuplicates) 条")
                 }
+            }
+        }
+    }
+
+    private var suspectedDuplicatesCard: some View {
+        VaultCard {
+            LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "疑似重复 · 请核对")
+                Text("这些旧记录的备注较长，分类来源信息可能不完整，无法确定是否已导入。默认保留；确认是同一笔后，可关闭该笔的保留开关。")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                ForEach(preview.suspectedExpenseIndices, id: \.self) { index in
+                    let record = preview.expensesNew[index]
+                    Toggle(isOn: Binding(
+                        get: { !skippedSuspectedExpenses.contains(index) },
+                        set: { keep in
+                            if keep { skippedSuspectedExpenses.remove(index) }
+                            else { skippedSuspectedExpenses.insert(index) }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("保留 · \(record.category) · ¥\(money(record.amount))")
+                            Text(record.date, format: .dateTime.year().month().day())
+                            Text(record.note).lineLimit(2)
+                        }
+                        .font(.system(.caption, design: .rounded))
+                    }
+                    .accessibilityIdentifier("keep-suspected-expense-\(index)")
+                }
+                summaryRow("手动跳过", "\(skippedSuspectedExpenses.count) 笔")
             }
         }
     }
