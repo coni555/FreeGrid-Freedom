@@ -76,6 +76,10 @@ flowchart TD
 
 因此 `—` 和 `∞` 意思不同，不能互相替代。旧账里的退款、零元记录仍然保留；若净支出导致日均无法计算，应显示无法计算的状态。
 
+首页趋势的实现放在 [FreedomHistory](FreeGrid/Logic/FreedomHistory.swift)，仍是 `FreedomMath` 的一部分。它与摘要共用自然日口径，`now` 可由测试传入；中午录入的最早支出也不会少算一天。每笔交易只归入一次周区间，再用累计值计算最多 13 个周点，避免大账本被反复扫描。
+
+趋势点保存 `FreedomState`。只有有限天数的起终点才相减；“已覆盖”不会再变成 1825 天。当区间内含覆盖、数据不足或异常状态时，界面显示真实状态、不画数值折线。趋势仍按**当前**被动收入与账目反推，是估算，不是历史资产快照。
+
 ## 4. 跟着一笔“午餐 30 元”走完整条路
 
 1. [AddExpenseSheet](FreeGrid/Features/Transactions/AddExpenseSheet.swift) 的 `@State amount` 保存输入框里的文字。此时还没有记账。
@@ -127,10 +131,12 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Logic/ExpenseCategory.swift` |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
+| 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
 | 历史列表筛选、行样式 | `Features/History/HistoryView.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
+| 预览后账本改变，拒绝旧计划 | `Data/ImportLedgerSnapshot.swift` → `DataIO.commitImport` |
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
 
 颜色名字已与实际意义一致：`assetGold` 是资产金色，`cashBlue` 是现金蓝色。`assetCells` 是资产格数。
@@ -145,6 +151,10 @@ flowchart TD
 - **启动后出现恢复页**：看 `StoreBootstrap` 的诊断码。恢复页用于保留账本，不应通过直接删除数据库来“解决”。
 
 无 UUID 的旧文件有固有歧义：两笔真实记录若内容完全相同，无法仅靠内容断定是不是同一笔；备注截断或导入后被改写也会限制识别。新备份保留 UUID。此次没有为了消除歧义而改变已有数据库字段或备份格式。
+
+旧文件的内容指纹采用独立字段的 `Hashable` 值比较；分类、来源和备注中包含 `|` 也不会破坏字段边界。它不改变金额精度，也不能消除内容完全相同的旧记录本身的歧义。
+
+预览会用 [ImportLedgerSnapshot](FreeGrid/Data/ImportLedgerSnapshot.swift) 保存当前五种模型的字段值与数据库身份。它只在本次预览的内存中存在，不增加模型字段，也不写进备份。提交前同步重新核对，另一窗口增删记录、改备注或调余额后，旧计划会被拒绝，要求取消并重新导入核对。拒绝发生在写入之前，不能撤销其他窗口已经保存的内容。保存失败时预览页保留分类与疑似重复选择，不假装导入成功或直接关闭。
 
 导入相关的两个分支需要特别理解：
 
@@ -177,6 +187,9 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
+- [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
+- [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
+- [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 
 构建和模拟器测试不能替代真机体验。发布之前仍需用真机确认输入、键盘、布局和真实备份恢复。
 

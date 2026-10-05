@@ -4,16 +4,17 @@ import SwiftUI
 
 struct ImportReviewSheet: View {
     let preview: DataIO.ImportPreview
-    let onCommit: (DataIO.AssetsImportStrategy, [String: String], Set<Int>) -> Void
+    let onCommit: (DataIO.AssetsImportStrategy, [String: String], Set<Int>) throws -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var saveError: String?
     @State private var entries: [DataIO.CategoryMapEntry]
     @State private var strategy: DataIO.AssetsImportStrategy = .skipAssets
     @State private var skippedSuspectedExpenses: Set<Int> = []
 
     init(preview: DataIO.ImportPreview,
-         onCommit: @escaping (DataIO.AssetsImportStrategy, [String: String], Set<Int>) -> Void,
+         onCommit: @escaping (DataIO.AssetsImportStrategy, [String: String], Set<Int>) throws -> Void,
          onCancel: @escaping () -> Void) {
         self.preview = preview
         self.onCommit = onCommit
@@ -38,6 +39,7 @@ struct ImportReviewSheet: View {
             .background(Color.paper)
             .navigationTitle("导入预览")
             .inlineNavTitle()
+            .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { onCancel(); dismiss() }
@@ -46,8 +48,12 @@ struct ImportReviewSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("导入") {
                         let map = Dictionary(uniqueKeysWithValues: entries.map { ($0.raw, $0.canonical) })
-                        onCommit(strategy, map, skippedSuspectedExpenses)
-                        dismiss()
+                        do {
+                            try onCommit(strategy, map, skippedSuspectedExpenses)
+                            dismiss()
+                        } catch {
+                            saveError = error.localizedDescription
+                        }
                     }
                     .fontWeight(.medium)
                     .foregroundStyle(Color.skyDeep)

@@ -9,12 +9,15 @@ import Foundation
 import SwiftData
 
 enum DataIO {
-    enum DataIOError: Error, LocalizedError {
+    enum DataIOError: Error, LocalizedError, Equatable {
         case invalidCategoryMapping(String)
         case invalidStoredValue(String)
+        case stalePreview
 
         var errorDescription: String? {
             switch self {
+            case .stalePreview:
+                return "账本已在预览后发生变化。请取消并重新选择备份，核对新的预览后再导入。"
             case .invalidCategoryMapping(let category):
                 return "导入分类映射无效：\(category)"
             case .invalidStoredValue(let field):
@@ -56,6 +59,7 @@ enum DataIO {
 
     /// 预览只保留已验证的强类型值；BackupEnvelope 的原始字符串不能越过这里。
     struct ImportPreview {
+        let ledgerSnapshot: ImportLedgerSnapshot
         let schemaVersion: Int
         let expensesNew: [ValidatedImport.ExpenseRecord]
         /// expensesNew 中待用户判断的下标；默认保留，不计入确定重复。
@@ -105,6 +109,7 @@ enum DataIO {
             case skip
         }
 
+        let ledgerSnapshot: ImportLedgerSnapshot
         let expenses: [ExpenseRecord]
         let incomes: [ValidatedImport.IncomeRecord]
         let devices: [ValidatedImport.DeviceRecord]
@@ -451,7 +456,8 @@ enum DataIO {
             passiveSourcesNew.append(record)
         }
 
-        let existingAssets = try context.fetch(FetchDescriptor<UserAssets>()).first
+        let allAssets = try context.fetch(FetchDescriptor<UserAssets>())
+        let existingAssets = allAssets.first
 
         var categoryTotals: [String: (count: Int, total: Double)] = [:]
         for expense in expensesNew {
@@ -495,6 +501,8 @@ enum DataIO {
         }
 
         return ImportPreview(
+            ledgerSnapshot: ImportLedgerSnapshot(expenses: existingExpenses, incomes: existingIncomes,
+                devices: existingDevices, passiveSources: existingPassives, assets: allAssets),
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
             suspectedExpenseIndices: suspectedExpenseIndices,
@@ -562,6 +570,7 @@ enum DataIO {
         }
 
         return ImportPlan(
+            ledgerSnapshot: preview.ledgerSnapshot,
             expenses: expenses,
             incomes: preview.incomesNew,
             devices: preview.devicesNew,
@@ -592,6 +601,11 @@ enum DataIO {
         context: ModelContext,
         save: SaveAction = { try $0.save() }
     ) throws -> ImportResult {
+        // 核对和写入在同一个 MainActor 调用中完成，中途不让出执行权。
+        guard !context.hasChanges else { throw LedgerStore.StoreError.pendingChanges }
+        guard try ImportLedgerSnapshot.capture(in: context) == plan.ledgerSnapshot else {
+            throw DataIOError.stalePreview
+        }
         var firstRecordDate: Date?
         try LedgerStore.updateAssets(in: context, save: save) { userAssets in
             for record in plan.expenses {
@@ -681,7 +695,7 @@ enum DataIO {
 
     /// 无 ID 的旧备份只能按内容识别。分类映射会改变分类和备注，因此同时检查可能的落库形态。
     /// 截断后失去完整分类来源的匹配只算疑似重复，由预览页让用户选择。
-    private static func storedExpenseKeys(for record: ValidatedImport.ExpenseRecord) -> [String] {
+    private static func storedExpenseKeys(for record: ValidatedImport.ExpenseRecord) -> [TransactionKey] {
         let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
         let categories = ExpenseCategory.canonical.contains(raw) ? [raw] : ExpenseCategory.canonical
         return categories.map { category in
@@ -699,22 +713,38 @@ enum DataIO {
         note.isEmpty ? "原分类·\(rawCategory)" : "\(note) · 原分类·\(rawCategory)"
     }
 
-    private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> String {
-        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
-        return "\(day)|\(amount)|\(category)|\(note)"
+    // 文本可以包含任意分隔符，字段边界必须由类型保留。
+    private struct TransactionKey: Hashable {
+        let day: Date
+        let amount: Double
+        let label: String
+        let note: String
     }
 
-    private static func incomeKey(amount: Double, date: Date, source: String, note: String) -> String {
-        let day = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
-        return "\(day)|\(amount)|\(source)|\(note)"
+    private struct DeviceKey: Hashable {
+        let day: Date
+        let price: Double
+        let name: String
     }
 
-    private static func deviceKey(name: String, price: Double, purchaseDate: Date) -> String {
-        let day = Int(Calendar.current.startOfDay(for: purchaseDate).timeIntervalSince1970)
-        return "\(day)|\(price)|\(name)"
+    private struct PassiveKey: Hashable {
+        let name: String
+        let monthlyAmount: Double
     }
 
-    private static func passiveKey(name: String, monthlyAmount: Double) -> String {
-        "\(name)|\(monthlyAmount)"
+    private static func expenseKey(amount: Double, date: Date, category: String, note: String) -> TransactionKey {
+        TransactionKey(day: Calendar.current.startOfDay(for: date), amount: amount, label: category, note: note)
+    }
+
+    private static func incomeKey(amount: Double, date: Date, source: String, note: String) -> TransactionKey {
+        TransactionKey(day: Calendar.current.startOfDay(for: date), amount: amount, label: source, note: note)
+    }
+
+    private static func deviceKey(name: String, price: Double, purchaseDate: Date) -> DeviceKey {
+        DeviceKey(day: Calendar.current.startOfDay(for: purchaseDate), price: price, name: name)
+    }
+
+    private static func passiveKey(name: String, monthlyAmount: Double) -> PassiveKey {
+        PassiveKey(name: name, monthlyAmount: monthlyAmount)
     }
 }

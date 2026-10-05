@@ -124,8 +124,8 @@ struct FreedomMathTests {
         #expect(history.isEmpty)
 
         let invalidDelta = FreedomMath.deltaSummary(history: [
-            .init(date: firstDate, freedomDays: 10),
-            .init(date: .now, freedomDays: .infinity),
+            .init(date: firstDate, state: .finite(days: 10)),
+            .init(date: .now, state: .covered),
         ])
         #expect(invalidDelta == nil)
         #expect(FreedomMath.depleteDate(freedomDays: .infinity) == nil)

@@ -24,9 +24,8 @@ enum FreedomMath {
     }
 
     /// 记录天数 = 今天 − 最早支出日期 + 1。没有支出或基线在未来时返回 0。
-    static func trackDays(firstRecordDate: Date?, now: Date = .now) -> Int {
+    static func trackDays(firstRecordDate: Date?, now: Date = .now, calendar: Calendar = .current) -> Int {
         guard let firstDate = firstRecordDate else { return 0 }
-        let calendar = Calendar.current
         let start = calendar.startOfDay(for: firstDate)
         let end = calendar.startOfDay(for: now)
         guard let days = calendar.dateComponents([.day], from: start, to: end).day,
@@ -194,111 +193,6 @@ enum FreedomMath {
         let split = FinancialFormatting.assetCellSplit(count: count, lockedAssets: lockedAssets, netWorth: netWorth)
         return GridState(unit: unit, count: count, assetCells: split.assets,
                          cashCells: split.cash, isOverflow: overflow)
-    }
-
-    // ============================================================================
-    // MARK: - 历史趋势 (sparkline + delta + 见底日期)
-    // ============================================================================
-    // 设计动机: hero card 里展示"过去 12 周自由天数走势"——一条 sparkline +
-    // delta badge (▲ +22d) + 见底日期。让用户看到自己是在"赎回自由"
-    // 还是"消耗自由",而不只看今天的数字。
-    //
-    // 数据反推:
-    // - 当前没有存 freedomDays 的历史 snapshot。
-    // - 反向计算: 取每周末日期,反推那时的 expenses / incomes / assets
-    //   (assets 用 current + 后续 net 变动反推, 假设 dataset 完整且 user
-    //    没手动调过 assets baseline——足够 sparkline 视觉趋势准确)
-    //
-    // 边界:
-    // - 如果 trackDays < 14 天,数据不够,返回空
-    // - 如果 trackDays 在 14~84 天之间,返回 trackDays/7 个点
-    // - 如果 ≥ 84 天 (12 周),返回 12 个点
-
-    /// 单个历史 snapshot
-    struct HistoryPoint {
-        let date: Date
-        let freedomDays: Double
-    }
-
-    /// 反推过去 N 周末日的 freedomDays
-    /// currentNetWorth = lockedAssets + cash
-    /// dailyPassive: 当前被动收入日均。历史快照都用当前值近似 — PassiveSource 没存历史
-    /// 时间戳, 简化模型 "假设当时也有这些被动"。被动覆盖时 sparkline 都会显示 0 或满,
-    /// 反而把"净值是否在涨"暴露得更直观。
-    static func freedomDaysHistory(
-        expenses: [Expense],
-        incomes: [Income],
-        currentNetWorth: Double,
-        firstRecordDate: Date?,
-        dailyPassive: Double = 0,
-        weeks: Int = 12
-    ) -> [HistoryPoint] {
-        guard let firstDate = firstRecordDate,
-              currentNetWorth.isFinite,
-              dailyPassive.isFinite,
-              dailyPassive >= 0,
-              // 只挡非有限数。旧账本的退款/冲正是合法负数支出(schema v3 会原样承接),
-              // 用 >= 0 挡会让这类用户的走势图整块消失,而不是显示净额趋势。
-              expenses.allSatisfy({ $0.amount.isFinite }),
-              incomes.allSatisfy({ $0.amount.isFinite }) else { return [] }
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: .now)
-        let trackedDays = cal.dateComponents([.day], from: firstDate, to: today).day ?? 0
-        guard trackedDays >= 14 else { return [] }
-
-        let availableWeeks = min(weeks, trackedDays / 7)
-        var snapshots: [HistoryPoint] = []
-
-        for i in (0...availableWeeks).reversed() {
-            guard let weekEnd = cal.date(byAdding: .day, value: -7 * i, to: today) else { continue }
-            if weekEnd < firstDate { continue }
-
-            // +1 跟 Hero 的 trackDays(today − first + 1)同口径 —— 含端点当天,
-            // 否则分母少 1 天、dailyBurn 微高, sparkline 终点会比 Hero 大数字少 1。
-            let trackDays_i = max(1, (cal.dateComponents([.day], from: firstDate, to: weekEnd).day ?? 1) + 1)
-
-            // 关键:交易按"自然日"归属, 不看具体时间戳。
-            // weekEnd 是某天的 00:00;若用裸 date 比较, 当天白天发生的交易(时间戳 > 00:00)
-            // 会被误判成"weekEnd 之后", 在终点(weekEnd = 今天)那步, 今天到账的收入被当成
-            // "今天之后"从 incAfter 减掉 → 终点净值塌陷, sparkline 终点 ≠ Hero 大数字。
-            // 用 startOfDay 比较, 把"今天"完整算进 expUntil/此刻净值, 终点就跟 Hero 对齐。
-            let dayOf: (Date) -> Date = { cal.startOfDay(for: $0) }
-            let expUntil = expenses.filter { dayOf($0.date) <= weekEnd }.reduce(0) { $0 + $1.amount }
-            let dailyBurn_i = expUntil / Double(trackDays_i)
-
-            // 反推那时的净值 = 当前净值 + 之后支出 - 之后收入(均按自然日)
-            let expAfter = expenses.filter { dayOf($0.date) > weekEnd }.reduce(0) { $0 + $1.amount }
-            let incAfter = incomes.filter { dayOf($0.date) > weekEnd }.reduce(0) { $0 + $1.amount }
-            let netWorth_i = currentNetWorth + expAfter - incAfter
-
-            let netBurn_i = max(0, dailyBurn_i - dailyPassive)
-            let days_i: Double
-            if netBurn_i > 0 {
-                days_i = max(0, netWorth_i) / netBurn_i
-            } else if dailyBurn_i > 0 {
-                // 被动覆盖, 显示 cap 数字让 sparkline 不爆掉(用 1825 = 5 年作 upper bound)
-                days_i = 1825
-            } else {
-                days_i = 0
-            }
-
-            snapshots.append(HistoryPoint(date: weekEnd, freedomDays: days_i))
-        }
-
-        return snapshots
-    }
-
-    /// 给定 history,算 12-week-ago vs 当前的 delta
-    /// 返回 (起点天数, 终点天数, delta 天数)
-    static func deltaSummary(history: [HistoryPoint]) -> (start: Int, end: Int, delta: Int)? {
-        guard let first = history.first, let last = history.last,
-              history.count >= 2 else { return nil }
-        // 向下取整, 跟 Hero freedomDaysDisplay / Grid 一致(避免 sparkline 起终点又四舍五入裂开)
-        guard let s = FinancialFormatting.integer(first.freedomDays.rounded(.down)),
-              let e = FinancialFormatting.integer(last.freedomDays.rounded(.down)) else {
-            return nil
-        }
-        return (s, e, e - s)
     }
 
     /// 当前自由耗尽的预计日期 (今天 + freedomDays 天)

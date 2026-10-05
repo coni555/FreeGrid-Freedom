@@ -18,7 +18,8 @@ struct DashboardHero: View {
             incomes: incomes,
             currentNetWorth: snapshot.netWorth,
             firstRecordDate: snapshot.firstExpenseDate,
-            dailyPassive: snapshot.dailyPassive
+            dailyPassive: snapshot.dailyPassive,
+            now: snapshot.now
         )
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
@@ -33,8 +34,17 @@ struct DashboardHero: View {
                 Spacer()
                 if let d = delta {
                     trendBadge(delta: d.delta, weeks: history.count - 1)
+                } else if history.last?.state == .covered {
+                    Text("被动已覆盖")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.mossGreen)
+                } else if history.first?.state == .covered,
+                          case .finite = history.last?.state {
+                    Text("覆盖已中断")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.flame)
                 } else {
-                    Text("(资产 + 净储蓄) ÷ 日均消费")
+                    Text("净值 ÷ 每日净消耗")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Color.inkGhost)
                 }
@@ -44,20 +54,25 @@ struct DashboardHero: View {
             heroBody(deplete: deplete)
 
             // ─── 底部: 趋势 caption + sparkline ───
-            if let d = delta, history.count >= 3 {
+            if let first = history.first, let last = history.last, history.count >= 3 {
                 Hairline().padding(.top, Spacing.xs)
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(history.count - 1) 周以来的自由天数")
+                    Text("\(history.count - 1) 周自由趋势 · 估算")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                     Spacer()
-                    Text("\(d.start) → \(d.end)")
+                    Text("\(first.description) → \(last.description)")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Color.ink)
                 }
-                Sparkline(values: history.map { $0.freedomDays })
-                    .frame(height: 36)
-                    .padding(.top, 2)
+                if let values = FreedomMath.historyPlotValues(history) {
+                    Sparkline(values: values)
+                        .frame(height: 36)
+                        .padding(.top, 2)
+                }
+                Text("按当前被动收入与账目反推；已覆盖不折算为固定天数。")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
             }
         }
         .padding(Spacing.xl)

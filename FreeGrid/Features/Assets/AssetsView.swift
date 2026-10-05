@@ -87,7 +87,7 @@ struct AssetsView: View {
             .sheet(isPresented: $showingImportReview) {
                 if let p = pendingImport {
                     ImportReviewSheet(preview: p) { strategy, categoryMap, skipped in
-                        commitImport(strategy: strategy, categoryMap: categoryMap, skippingSuspectedExpenses: skipped)
+                        try commitImport(strategy: strategy, categoryMap: categoryMap, skippingSuspectedExpenses: skipped)
                     } onCancel: {
                         pendingImport = nil
                     }
@@ -570,34 +570,30 @@ struct AssetsView: View {
     }
 
     private func commitImport(strategy: DataIO.AssetsImportStrategy, categoryMap: [String: String] = [:],
-                              skippingSuspectedExpenses: Set<Int> = []) {
+                              skippingSuspectedExpenses: Set<Int> = []) throws {
         guard let preview = pendingImport else { return }
-        do {
-            let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap,
-                                                 skippingSuspectedExpenses: skippingSuspectedExpenses, context: modelContext)
-            var lines: [String] = ["✓ 导入完成"]
-            lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
-            lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
-            let manuallySkipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices).count
-            if manuallySkipped > 0 { lines.append("疑似重复支出：手动跳过 \(manuallySkipped) 笔") }
-            if result.devicesAdded > 0 {
-                lines.append("设备 +\(result.devicesAdded)")
-            }
-            if result.passiveSourcesAdded > 0 {
-                lines.append("被动源 +\(result.passiveSourcesAdded)")
-            }
-            switch strategy {
-            case .replace:
-                lines.append("净值已替换为 ¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
-            case .addToCash:
-                lines.append("现金 +¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
-            case .skipAssets:
-                lines.append("净值未变动")
-            }
-            importStatus = lines.joined(separator: "\n")
-        } catch {
-            importStatus = "✗ 写入失败: \(error.localizedDescription)"
+        let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap,
+                                             skippingSuspectedExpenses: skippingSuspectedExpenses, context: modelContext)
+        var lines: [String] = ["✓ 导入完成"]
+        lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
+        lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
+        let manuallySkipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices).count
+        if manuallySkipped > 0 { lines.append("疑似重复支出：手动跳过 \(manuallySkipped) 笔") }
+        if result.devicesAdded > 0 {
+            lines.append("设备 +\(result.devicesAdded)")
         }
+        if result.passiveSourcesAdded > 0 {
+            lines.append("被动源 +\(result.passiveSourcesAdded)")
+        }
+        switch strategy {
+        case .replace:
+            lines.append("净值已替换为 ¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
+        case .addToCash:
+            lines.append("现金 +¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
+        case .skipAssets:
+            lines.append("净值未变动")
+        }
+        importStatus = lines.joined(separator: "\n")
         pendingImport = nil
     }
 
