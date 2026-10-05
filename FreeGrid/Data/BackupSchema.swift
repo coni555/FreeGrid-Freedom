@@ -111,6 +111,7 @@ nonisolated struct BackupEnvelope: Codable {
     let devices: [DeviceJSON]?
     let passiveSources: [PassiveSourceJSON]?
     let firstRecordDate: String?
+    let observations: [ObservationValue]?
 
     init(
         schemaVersion: Int? = nil,
@@ -119,7 +120,8 @@ nonisolated struct BackupEnvelope: Codable {
         incomes: [IncomeJSON]? = nil,
         devices: [DeviceJSON]? = nil,
         passiveSources: [PassiveSourceJSON]? = nil,
-        firstRecordDate: String? = nil
+        firstRecordDate: String? = nil,
+        observations: [ObservationValue]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -128,5 +130,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.devices = devices
         self.passiveSources = passiveSources
         self.firstRecordDate = firstRecordDate
+        self.observations = observations
     }
 }

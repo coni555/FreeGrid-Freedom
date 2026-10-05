@@ -82,7 +82,7 @@ struct AssetsView: View {
                 Button("取消", role: .cancel) {}
                 Button("清空", role: .destructive) { purgeData() }
             } message: {
-                Text("将删除所有支出、收入、被动收入源、设备记录和资产数据。此操作不可撤销。")
+                Text("将删除所有支出、收入、被动收入源、设备记录、资产数据和变化记录。此操作不可撤销。")
             }
             .sheet(isPresented: $showingImportReview) {
                 if let p = pendingImport {
@@ -137,7 +137,7 @@ struct AssetsView: View {
             ) { src in
                 Button("删除", role: .destructive) {
                     do {
-                        try LedgerStore.perform(in: modelContext) { modelContext.delete(src) }
+                        try LedgerStore.perform(in: modelContext, reason: .passiveChange) { modelContext.delete(src) }
                         pendingDeletePassive = nil
                     } catch {
                         saveError = error.localizedDescription
@@ -442,7 +442,7 @@ struct AssetsView: View {
                     compactDataButton("导出 CSV", icon: "tablecells") { exportNow(.csv) }
                     compactDataButton("导出 JSON", icon: "curlybraces") { exportNow(.json) }
                 }
-                Text("CSV 用 Excel / Numbers 打开,JSON 可回导备份")
+                Text("CSV 用 Excel / Numbers 打开。JSON 包含变化记录，需支持新格式的 FreeGrid 恢复，旧版 App 无法读取。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
 
@@ -633,7 +633,7 @@ struct AssetsView: View {
               assets.cash.isFinite, assets.lockedAssets.isFinite else { return }
 
         do {
-            try LedgerStore.updateAssets(in: modelContext) { assets in
+            try LedgerStore.updateAssets(in: modelContext, reason: .transfer) { assets in
                 switch transferDirection {
                 case .cashToAssets:
                     let actual = min(amt, max(0, assets.cash))

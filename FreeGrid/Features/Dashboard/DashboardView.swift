@@ -5,9 +5,11 @@ import SwiftData
 
 struct DashboardView: View {
 
+    var now: Date = .now
     let onOpenAssets: () -> Void
 
     // ===== SwiftData 反应式查询 =====
+    @Query(filter: #Predicate<FreedomObservation> { !$0.isImported }, sort: \FreedomObservation.sequence) private var observations: [FreedomObservation]
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
@@ -15,8 +17,8 @@ struct DashboardView: View {
 
     var body: some View {
         DashboardContent(
-            expenses: expenses, incomes: incomes,
-            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first),
+            expenses: expenses, incomes: incomes, observations: observations.map(\.value),
+            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first, now: now),
             todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount },
             onOpenAssets: onOpenAssets
         )
@@ -26,6 +28,7 @@ struct DashboardView: View {
 private struct DashboardContent: View {
     let expenses: [Expense]
     let incomes: [Income]
+    let observations: [ObservationValue]
     let snapshot: FinancialSnapshot
     let todaySpending: Double
     let onOpenAssets: () -> Void
@@ -63,7 +66,8 @@ private struct DashboardContent: View {
                 VStack(spacing: Spacing.lg) {
                     topBar           // 圆点 + FreeGrid + 副标
                     DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
-                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
+                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings, hasObservations: !observations.isEmpty)
+                    FreedomHistoryLink(values: observations)
                     if needsOnboarding {
                         onboardingPrompt // 存款与支出齐备后自动消失
                     }

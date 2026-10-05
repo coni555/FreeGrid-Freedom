@@ -20,12 +20,19 @@ enum LedgerStore {
         in context: ModelContext,
         save: SaveAction = { try $0.save() },
         restore: () -> Void = {},
+        reason: ObservationReason? = nil,
+        effectiveDate: Date? = nil,
+        now: Date = .now,
         changes: () throws -> Void
     ) throws {
         // rollback 作用于整个上下文。开始前拒绝混入其他操作，且不要回滚它们。
         guard !context.hasChanges else { throw StoreError.pendingChanges }
         do {
+            let previous = try reason.map { _ in try ObservationStore.begin(in: context, now: now) }
             try changes()
+            if let reason, let previous {
+                try ObservationStore.append(in: context, previous: previous, reason: reason, effectiveDate: effectiveDate, now: now)
+            }
             try save(context)
         } catch {
             // 先恢复页面持有对象的字段；单独 rollback 在部分修改路径中会留下旧引用的新值。
@@ -39,6 +46,8 @@ enum LedgerStore {
     static func updateAssets(
         in context: ModelContext,
         save: SaveAction = { try $0.save() },
+        reason: ObservationReason = .assetAdjustment,
+        effectiveDate: Date? = nil,
         changes: (UserAssets) throws -> Void
     ) throws {
         let existing = try context.fetch(FetchDescriptor<UserAssets>()).first
@@ -46,7 +55,7 @@ enum LedgerStore {
         let previous = (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate)
         try perform(in: context, save: save, restore: {
             (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate) = previous
-        }) {
+        }, reason: reason, effectiveDate: effectiveDate) {
             if existing == nil { context.insert(assets) }
             try changes(assets)
             try ImportValidator.validateBalances(lockedAssets: assets.lockedAssets, cash: assets.cash)
@@ -62,7 +71,7 @@ enum LedgerStore {
         let previous = (source.name, source.monthlyAmount)
         try perform(in: context, save: save, restore: {
             (source.name, source.monthlyAmount) = previous
-        }) {
+        }, reason: .passiveChange) {
             if existing == nil { context.insert(source) }
             source.name = name
             source.monthlyAmount = monthlyAmount
@@ -74,7 +83,10 @@ enum LedgerStore {
         in context: ModelContext,
         save: SaveAction = { try $0.save() }
     ) throws {
-        try updateAssets(in: context, save: save) { assets in
+        let isBackfill = Calendar.current.startOfDay(for: transaction.date) < Calendar.current.startOfDay(for: .now)
+        let reason: ObservationReason = transaction.kind == .expense
+            ? (isBackfill ? .backfillExpense : .expense) : (isBackfill ? .backfillIncome : .income)
+        try updateAssets(in: context, save: save, reason: reason, effectiveDate: transaction.date) { assets in
             switch transaction {
             case .expense(let expense):
                 context.insert(expense)
@@ -107,7 +119,7 @@ enum LedgerStore {
             guard let income = incomes.first(where: { $0.id == id }) else { return }
             transaction = .income(income)
         }
-        try updateAssets(in: context, save: save) { assets in
+        try updateAssets(in: context, save: save, reason: .undo, effectiveDate: transaction.date) { assets in
             assets.cash -= transaction.cashChange
             switch transaction {
             case .expense(let expense):

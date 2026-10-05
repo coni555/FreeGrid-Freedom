@@ -62,6 +62,48 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testFreedomHistoryShowsSavedStateAndNetWorth() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-onboardingCompleted", "NO", "-heroLayout", "leading", "-UseInMemoryStore"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["编辑现金"].tap()
+        let field = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.tap()
+        field.typeText("10000")
+        let save = app.buttons["保存"]
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true AND hittable == true"), object: save)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
+        save.tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        app.tabBars.buttons["Dashboard"].tap()
+        let link = app.descendants(matching: .any).matching(identifier: "freedom-history-link").firstMatch
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        if !link.isHittable { app.swipeUp() }
+        link.tap()
+        XCTAssertTrue(app.staticTexts["逐次变化 · 点选查看当时状态"].waitForExistence(timeout: 5))
+        app.buttons["账本净值"].tap()
+        XCTAssertTrue(app.staticTexts["这段记录之间的净值变化"].waitForExistence(timeout: 3))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "自由变化记录-净值"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        app.swipeUp()
+        let adjustment = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "资产调整")).firstMatch
+        XCTAssertTrue(adjustment.waitForExistence(timeout: 3))
+        adjustment.tap()
+        XCTAssertTrue(app.staticTexts["记录天数增长也会改变日均消费与自由天数，不等于财富增加。"].waitForExistence(timeout: 3))
+        let detail = XCTAttachment(screenshot: app.screenshot())
+        detail.name = "自由变化记录-展开"
+        detail.lifetime = .keepAlways
+        add(detail)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(link.waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testOnboardingCardIsTappableInVerticalLayout() {
         let app = XCUIApplication()
         app.launchArguments = [

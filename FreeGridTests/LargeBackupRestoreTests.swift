@@ -98,6 +98,9 @@ struct LargeBackupRestoreTests {
             let records = try #require(json[key] as? [[String: Any]])
             json[key] = records.sorted { ($0["id"] as? String ?? "") < ($1["id"] as? String ?? "") }
         }
+        // 新版恢复会另外记录本机的导入起点；原五模型字段仍逐字段完整比较。
+        json.removeValue(forKey: "observations")
+        json.removeValue(forKey: "schema_version")
         return NSDictionary(dictionary: json)
     }
 }

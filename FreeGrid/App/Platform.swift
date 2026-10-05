@@ -47,6 +47,15 @@ extension View {
         #endif
     }
 
+    /// 详情从隐藏导航栏的首页进入时，恢复返回按钮。
+    func showNavBar() -> some View {
+        #if os(iOS)
+        navigationBarHidden(false)
+        #else
+        self
+        #endif
+    }
+
     /// iOS 滚动内容时可下拉收起键盘(兜底);macOS no-op。
     func dismissKeyboardOnScroll() -> some View {
         #if os(iOS)

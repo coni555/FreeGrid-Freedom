@@ -72,6 +72,7 @@ nonisolated struct ImportPolicy: Sendable {
 
 nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case fileTooLarge(actual: Int, maximum: Int)
+    case invalidObservation
     case malformedJSON
     case unsupportedSchema(Int)
     case tooManyRecords(kind: String, count: Int, maximum: Int)
@@ -97,6 +98,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
         switch self {
         case .fileTooLarge(let actual, let maximum):
             return "备份文件过大（\(actual) 字节，上限 \(maximum) 字节）"
+        case .invalidObservation:
+            return "变化记录无效、版本不支持，或与已有历史冲突"
         case .malformedJSON:
             return "备份文件不是可识别的 FreeGrid JSON"
         case .unsupportedSchema(let version):
@@ -181,13 +184,14 @@ nonisolated struct ValidatedImport: Sendable {
     let devices: [DeviceRecord]
     let passiveSources: [PassiveSourceRecord]
     let firstRecordDate: Date?
+    let observations: [ObservationValue]
 }
 
 nonisolated enum ImportValidator {
     /// v2 保持新账严格正金额；v3 只在需要无损承接旧版退款/冲正记录时使用。
     static let strictPositiveExpenseSchemaVersion = 2
     static let signedExpenseSchemaVersion = 3
-    static let latestSchemaVersion = signedExpenseSchemaVersion
+    static let latestSchemaVersion = 4
 
     static func loadData(from url: URL, policy: ImportPolicy = .default) throws -> Data {
         let values = try url.resourceValues(forKeys: [.fileSizeKey])
@@ -219,6 +223,10 @@ nonisolated enum ImportValidator {
         guard (0...latestSchemaVersion).contains(schemaVersion) else {
             throw ImportValidationError.unsupportedSchema(schemaVersion)
         }
+
+        let observations = envelope.observations ?? []
+        guard observations.isEmpty || schemaVersion == 4 else { throw ImportValidationError.invalidObservation }
+        try ObservationValidation.validate(observations, maximum: policy.maxLedgerRecords, now: now)
 
         let expenseCount = envelope.expenses?.count ?? 0
         let incomeCount = envelope.incomes?.count ?? 0
@@ -388,7 +396,8 @@ nonisolated enum ImportValidator {
             incomes: incomes,
             devices: devices,
             passiveSources: passiveSources,
-            firstRecordDate: firstRecordDate
+            firstRecordDate: firstRecordDate,
+            observations: observations
         )
     }
 
