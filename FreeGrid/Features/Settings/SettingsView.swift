@@ -38,6 +38,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: Spacing.xl) {
                     checkCard
+                    expenseCategoriesSection
                     appearanceSection
                     aboutSupportSection
                 }
@@ -103,6 +104,24 @@ struct SettingsView: View {
     }
 
     // MARK: - 分组
+    private var expenseCategoriesSection: some View {
+        settingsSection("记账") {
+            NavigationLink {
+                ExpenseCategoriesView()
+            } label: {
+                settingsRow(icon: "list.bullet", title: "支出分类") {
+                    Text("PRO")
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(2)
+                        .foregroundStyle(Color.skyDeep)
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("expense-categories-settings")
+        }
+    }
+
     private var appearanceSection: some View {
         settingsSection("外观") {
             settingsRow(icon: "moon", title: "主题") {

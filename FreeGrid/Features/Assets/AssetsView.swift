@@ -12,6 +12,7 @@ struct AssetsView: View {
 
     // --- 双桶编辑 (sheet 模式) ---
     @State private var saveError: String?
+    @AppStorage(ExpenseCategoryStorage.key) private var encodedCategoryOptions = ""
     @State private var editingBucket: EditBucketSheet.Bucket? = nil
 
     // --- 调拨 ---
@@ -552,7 +553,8 @@ struct AssetsView: View {
                     let data = try ImportValidator.loadData(from: url, policy: policy)
                     return try ImportValidator.validate(data: data, policy: policy)
                 }.value
-                let preview = try DataIO.preview(validated: validated, context: modelContext)
+                let preview = try DataIO.preview(validated: validated, context: modelContext,
+                    categoryNames: ExpenseCategoryStorage.decode(encodedCategoryOptions).allNames)
                 pendingImport = preview
                 importStatus = nil
                 showingImportReview = true

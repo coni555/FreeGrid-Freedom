@@ -1,9 +1,9 @@
-// 支出分类的唯一词表，供手动输入和导入共用。
+// 免费默认分类及旧备份别名；Pro 自定义选项由 ExpenseCategoryOptions 管理。
 
 import Foundation
 
 enum ExpenseCategory {
-    /// 权威分类(记账 Picker + 一切分析口径的唯一标准)
+    /// 免费默认分类。历史统计仍按每笔账目实际保存的名称分组。
     static let canonical = ["早餐", "午餐", "晚餐", "购物", "交通", "娱乐",
                             "成长投资", "医疗", "其他"]
 

@@ -129,7 +129,7 @@ flowchart TD
 | 首页卡片顺序、记账入口、首次引导 | `Features/Dashboard/DashboardView.swift` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
-| 支出分类 | `Logic/ExpenseCategory.swift` |
+| 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
@@ -140,6 +140,12 @@ flowchart TD
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
 
 颜色名字已与实际意义一致：`assetGold` 是资产金色，`cashBlue` 是现金蓝色。`assetCells` 是资产格数。
+
+自定义分类沿这条路径工作：设置中的 `ExpenseCategoriesView` 调用 `ExpenseCategoryOptions` 校验名称、调整顺序和隐藏，再通过 `ExpenseCategoryStorage` 编码到 `@AppStorage`。`AddExpenseSheet` 读取可见选项，仍把名称写入原 `Expense.category` 字段；历史和月度统计继续按这个字段分组，隐藏不会修改旧账。
+
+账本里的已用名称也会补入选项，因此换设备恢复后能找回自定义分类。排序、隐藏和未使用的自定义项是本机偏好，不写入原 v0–v3 账本备份。带 UUID 的 v2/v3 支出默认原样恢复名称；旧无 ID 文件保留别名建议和分类对齐，也可明确选择保留原名。映射后的旧账去重按日期、金额和备注建立索引，避免分类增多后逐条遍历全部名称。
+
+`App/ProFeatures.swift` 暂时仅在 Debug 提供开发预览，Release 不授予分类管理权益；后续在这里连接经过验证的 StoreKit 权益。当前没有购买流程。界面测试通过 `-ResetExpenseCategories` 和 `-UseInMemoryStore` 在测试设备重置分类偏好；该重置仅在 Debug 且两个参数同时存在时生效。
 
 ## 7. 出 Bug 时怎样缩小范围
 
@@ -184,6 +190,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [TransactionImpactTests](FreeGridTests/TransactionImpactTests.swift)：单位切换、补录、首次记账、被动覆盖、退款和小于一格的变化。
 - [LedgerStoreTests](FreeGridTests/LedgerStoreTests.swift)：保存失败、撤销失败、重复撤销、退款撤销和五模型清空回滚。
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
+- [ExpenseCategoryTests](FreeGridTests/ExpenseCategoryTests.swift)：名称校验、顺序与可见性持久化、至少一个选项、自定义名称备份恢复及旧分类去重；UI 测试覆盖实际记账、隐藏后历史保留及 Pro 闸门。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。

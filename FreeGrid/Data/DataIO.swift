@@ -76,6 +76,7 @@ enum DataIO {
         let currentCash: Double
         let currentLockedAssets: Double
         let categoryEntries: [CategoryMapEntry]
+        let categoryNames: [String]
 
         var expensesSkipped: Int { expenseDuplicates.total }
         var incomesSkipped: Int { incomeDuplicates.total }
@@ -290,17 +291,30 @@ enum DataIO {
         return Data(csv.utf8)
     }
 
-    static func previewJSON(data: Data, context: ModelContext) throws -> ImportPreview {
+    static func previewJSON(data: Data, context: ModelContext,
+                            categoryNames: [String] = ExpenseCategory.canonical) throws -> ImportPreview {
         let validated = try ImportValidator.validate(data: data)
-        return try preview(validated: validated, context: context)
+        return try preview(validated: validated, context: context, categoryNames: categoryNames)
     }
 
-    static func preview(validated: ValidatedImport, context: ModelContext) throws -> ImportPreview {
+    static func preview(validated: ValidatedImport, context: ModelContext,
+                        categoryNames: [String] = ExpenseCategory.canonical) throws -> ImportPreview {
         let existingExpenses = try context.fetch(FetchDescriptor<Expense>())
+        let knownCategories = Array(Set(ExpenseCategory.canonical + categoryNames
+            + existingExpenses.map(\.category))).filter {
+                !$0.isEmpty && $0.count <= FinancialLimits.nameCharacters
+                    && $0 == $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }.sorted()
         let existingExpenseKeys = Set(existingExpenses.map {
             expenseKey(amount: $0.amount, date: $0.date, category: $0.category, note: $0.note)
         })
         let existingExpenseIDs = Set(existingExpenses.map(\.id))
+        // 分类不限数量后，不逐条遍历全部分类。按日期、金额和映射后的备注索引旧记录。
+        var existingProvenance: [TransactionKey: Set<String>] = [:]
+        for expense in existingExpenses {
+            let key = expenseKey(amount: expense.amount, date: expense.date, category: "", note: expense.note)
+            existingProvenance[key, default: []].insert(expense.category)
+        }
         var seenExpenseKeys = existingExpenseKeys
         var seenExpenseIDs = existingExpenseIDs
 
@@ -349,9 +363,14 @@ enum DataIO {
                     continue
                 }
             } else {
-                let mappedMatch = storedExpenseKeys(for: record).contains(where: existingExpenseKeys.contains)
                 let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
                 let annotation = annotatedExpenseNote(rawCategory: raw, note: record.note)
+                let provenanceKey = expenseKey(amount: record.amount, date: record.date, category: "",
+                    note: String(annotation.prefix(FinancialLimits.noteCharacters)))
+                let normalizedMatch = existingExpenseKeys.contains(expenseKey(
+                    amount: record.amount, date: record.date, category: raw, note: record.note))
+                let mappedMatch = normalizedMatch || (!ExpenseCategory.canonical.contains(raw)
+                    && (existingProvenance[provenanceKey]?.contains { $0 != raw } ?? false))
                 let annotationIsComplete = annotation.count <= FinancialLimits.noteCharacters
                 if existingExpenseKeys.contains(key) || (mappedMatch && annotationIsComplete) {
                     expenseExistingDuplicates += 1
@@ -466,15 +485,19 @@ enum DataIO {
             let previous = categoryTotals[raw] ?? (0, 0)
             categoryTotals[raw] = (previous.count + 1, previous.total + expense.amount)
         }
+        // 带 UUID 的 v2/v3 账本备份原样恢复名称；旧无 ID 数据仍保留分类对齐。
+        let restorableCategories = Set(expensesNew.filter { validated.schemaVersion >= 2 && $0.id != nil }
+            .map { $0.category.trimmingCharacters(in: .whitespacesAndNewlines) })
         let categoryEntries = categoryTotals
             .map { raw, aggregate in
                 let suggestion = ExpenseCategory.suggest(raw)
+                let preserve = knownCategories.contains(raw) || restorableCategories.contains(raw)
                 return CategoryMapEntry(
                     raw: raw,
                     count: aggregate.count,
                     total: aggregate.total,
-                    canonical: suggestion.canonical,
-                    needsReview: !suggestion.known
+                    canonical: preserve ? raw : suggestion.canonical,
+                    needsReview: !preserve && !suggestion.known
                 )
             }
             .sorted { $0.total > $1.total }
@@ -529,7 +552,8 @@ enum DataIO {
             jsonFirstRecordDate: validated.firstRecordDate,
             currentCash: existingAssets?.cash ?? 0,
             currentLockedAssets: existingAssets?.lockedAssets ?? 0,
-            categoryEntries: categoryEntries
+            categoryEntries: categoryEntries,
+            categoryNames: knownCategories
         )
     }
 
@@ -539,15 +563,20 @@ enum DataIO {
         categoryMap: [String: String] = [:],
         skippingSuspectedExpenses: Set<Int> = []
     ) throws -> ImportPlan {
-        for target in categoryMap.values where !ExpenseCategory.canonical.contains(target) {
-            throw DataIOError.invalidCategoryMapping(target)
+        let rawCategories = Set(preview.categoryEntries.map(\.raw))
+        for (raw, target) in categoryMap {
+            guard preview.categoryNames.contains(target) || (raw == target && rawCategories.contains(raw)) else {
+                throw DataIOError.invalidCategoryMapping(target)
+            }
         }
 
+        let suggestedCategories = Dictionary(uniqueKeysWithValues: preview.categoryEntries.map { ($0.raw, $0.canonical) })
         let skipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices)
         let expenses = preview.expensesNew.enumerated().compactMap { index, record -> ImportPlan.ExpenseRecord? in
             guard !skipped.contains(index) else { return nil }
             let rawCategory = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
-            let mappedCategory = categoryMap[rawCategory] ?? ExpenseCategory.suggest(rawCategory).canonical
+            let mappedCategory = categoryMap[rawCategory] ?? suggestedCategories[rawCategory]
+                ?? ExpenseCategory.suggest(rawCategory).canonical
             let note = mappedExpenseNote(rawCategory: rawCategory, mappedCategory: mappedCategory, note: record.note)
             return ImportPlan.ExpenseRecord(
                 id: record.id,
@@ -690,17 +719,6 @@ enum DataIO {
             for record in try context.fetch(FetchDescriptor<Device>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<PassiveSource>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<UserAssets>()) { context.delete(record) }
-        }
-    }
-
-    /// 无 ID 的旧备份只能按内容识别。分类映射会改变分类和备注，因此同时检查可能的落库形态。
-    /// 截断后失去完整分类来源的匹配只算疑似重复，由预览页让用户选择。
-    private static func storedExpenseKeys(for record: ValidatedImport.ExpenseRecord) -> [TransactionKey] {
-        let raw = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
-        let categories = ExpenseCategory.canonical.contains(raw) ? [raw] : ExpenseCategory.canonical
-        return categories.map { category in
-            expenseKey(amount: record.amount, date: record.date, category: category,
-                       note: mappedExpenseNote(rawCategory: raw, mappedCategory: category, note: record.note))
         }
     }
 

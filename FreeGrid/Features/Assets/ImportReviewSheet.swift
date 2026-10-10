@@ -148,7 +148,7 @@ struct ImportReviewSheet: View {
                             .foregroundStyle(Color.flame)
                     }
                 }
-                Text("这些分类不在你的标准分类里(导入数据带来的)。已自动归类的可改,标橙的请确认。")
+                Text("备份中的自定义分类可以保留原名，也可以归入已有分类。标橙的旧分类请确认。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
 
@@ -180,7 +180,10 @@ struct ImportReviewSheet: View {
                 .font(.system(size: 11))
                 .foregroundStyle(Color.inkGhost)
             Picker("", selection: entry.canonical) {
-                ForEach(ExpenseCategory.canonical, id: \.self) { c in
+                if !preview.categoryNames.contains(entry.wrappedValue.raw) {
+                    Text("保留：\(entry.wrappedValue.raw)").tag(entry.wrappedValue.raw)
+                }
+                ForEach(preview.categoryNames, id: \.self) { c in
                     Text(c).tag(c)
                 }
             }

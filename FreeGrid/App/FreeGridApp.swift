@@ -19,6 +19,15 @@ final class MenuActions {
 
 @main
 struct FreeGridApp: App {
+    init() {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-UseInMemoryStore"), arguments.contains("-ResetExpenseCategories") {
+            UserDefaults.standard.removeObject(forKey: ExpenseCategoryStorage.key)
+        }
+        #endif
+    }
+
     @State private var storeBootstrap = StoreBootstrap()
 
     #if os(macOS)

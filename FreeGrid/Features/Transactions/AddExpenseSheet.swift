@@ -18,13 +18,16 @@ struct AddExpenseSheet: View {
 
     @State private var saveError: String?
     @State private var amount: String = ""
-    @State private var category: String = "早餐"
+    @State private var category: String = ""
     @State private var note: String = ""
     @State private var date: Date = .now
 
-    /// 分类清单 = 权威 canonical(单一来源 ExpenseCategory.canonical)。
-    /// "人情"/"日用" 已不在清单(2026-05 移除);旧记录仍能在 History 正常显示。
-    private let categories = ExpenseCategory.canonical
+    @AppStorage(ExpenseCategoryStorage.key) private var encodedOptions = ""
+    private var categories: [String] {
+        guard ProFeatures.canCustomizeExpenseCategories else { return ExpenseCategory.canonical }
+        return ExpenseCategoryStorage.decode(encodedOptions)
+            .including(expenses.map(\.category)).visibleNames
+    }
 
     var body: some View {
         NavigationStack {
@@ -40,6 +43,9 @@ struct AddExpenseSheet: View {
                             Text(c).tag(c)
                         }
                     }
+                    .accessibilityIdentifier("expense-category-picker")
+                    NavigationLink("管理支出分类 · Pro") { ExpenseCategoriesView() }
+                        .foregroundStyle(Color.skyDeep)
                 }
                 Section("日期") {
                     DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
@@ -68,6 +74,9 @@ struct AddExpenseSheet: View {
             .navigationTitle("添加支出")
             .inlineNavTitle()
             .saveErrorAlert($saveError)
+            .onChange(of: categories, initial: true) { _, names in
+                if !names.contains(category) { category = names.first ?? ExpenseCategory.fallback }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -89,6 +98,7 @@ struct AddExpenseSheet: View {
 
     private var isAmountValid: Bool {
         guard let value = Double(amount),
+              categories.contains(category),
               FinancialFormatting.validAmount(value),
               note.count <= FinancialLimits.noteCharacters,
               Calendar.current.startOfDay(for: date) <= Calendar.current.startOfDay(for: .now) else {

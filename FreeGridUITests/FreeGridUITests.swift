@@ -13,6 +13,76 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testCustomExpenseCategoryCanBeUsedAndHiddenWithoutChangingHistory() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-ResetExpenseCategories", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["expense-categories-settings"].tap()
+        let name = app.textFields["new-expense-category"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("咖啡")
+        app.buttons["add-expense-category"].tap()
+        let moveUp = app.buttons["move-up-咖啡"]
+        for _ in 0..<6 {
+            if moveUp.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(moveUp.isHittable)
+        moveUp.tap()
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "自定义分类-浅色"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        // 重启后仍用已保存的顺序与自定义项；只在首次启动重置偏好。
+        app.terminate()
+        app.launchArguments = ["-isDarkMode", "NO", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let picker = app.buttons["expense-category-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        app.buttons["咖啡"].firstMatch.tap()
+        let amount = app.textFields["0.00"]
+        amount.tap()
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["expense-categories-settings"].tap()
+        let hide = app.buttons["visibility-咖啡"]
+        for _ in 0..<6 {
+            if hide.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(hide.isHittable)
+        hide.tap()
+        XCTAssertEqual(hide.label, "显示咖啡")
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        app.buttons["expense-category-picker"].tap()
+        XCTAssertFalse(app.buttons["咖啡"].exists)
+        app.tap() // 收起分类菜单
+        app.buttons["取消"].tap()
+        app.tabBars.buttons["History"].tap()
+        XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testCategoryManagementRequiresProAccessOutsidePreview() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-disableProPreview", "YES", "-ResetExpenseCategories", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["expense-categories-settings"].tap()
+        XCTAssertTrue(app.staticTexts["自定义支出分类是 Pro 功能，正式上线后可购买解锁。"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["new-expense-category"].exists)
+    }
+
+    @MainActor
     func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
         // 引导闸门存在 UserDefaults 里,跨次运行会残留;必须显式压回 NO,
@@ -81,8 +151,11 @@ final class FreeGridUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-UseInMemoryStore"]
         app.launch()
+        XCTAssertTrue(app.navigationBars["FreeGrid"].waitForExistence(timeout: 5)
+                      || app.buttons["记支出"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Assets"].tap()
+        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 5))
         app.buttons["编辑现金"].tap()
         let cash = app.textFields["bucket-amount-field"]
         XCTAssertTrue(cash.waitForExistence(timeout: 3))
