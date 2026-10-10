@@ -194,10 +194,6 @@ struct ImportReviewSheet: View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 KickerLabel(text: "净值处理")
-                if !preview.observations.isEmpty {
-                    Text("备份含 \(preview.observations.count) 条变化记录，将独立保留为备份历史，不与本机趋势拼接。已有相同记录不会重复添加。")
-                        .font(.caption).foregroundStyle(Color.inkMuted)
-                }
                 summaryRow("备份资产桶", "¥\(money(preview.importedAssets.lockedAssets))")
                 summaryRow("备份现金桶", "¥\(money(preview.importedAssets.cash))")
                 summaryRow("备份净值", "¥\(money(preview.importedAssets.total))")

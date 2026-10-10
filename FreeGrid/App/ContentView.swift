@@ -11,11 +11,6 @@ private enum AppTab: Hashable {
 }
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var observationError: String?
-    @State private var refreshDate = Date.now
-
     /// 跨启动持久化主题选择
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @State private var selectedTab: AppTab = .dashboard
@@ -42,7 +37,7 @@ struct ContentView: View {
 
     private var tabView: some View {
         TabView(selection: $selectedTab) {
-            DashboardView(now: refreshDate, onOpenAssets: {
+            DashboardView(onOpenAssets: {
                 selectedTab = .assets
             })
                 .tabItem {
@@ -72,19 +67,6 @@ struct ContentView: View {
         .tint(Color.sky)
         // 用户在 topBar 切换 dark/light,全 app 自动重绘
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .saveErrorAlert($observationError)
-        .task(id: scenePhase) {
-            guard scenePhase == .active else { return }
-            while !Task.isCancelled {
-                refreshDate = .now
-                do { try ObservationStore.observe(in: modelContext, now: refreshDate) }
-                catch { observationError = "变化记录未保存：\(error.localizedDescription)"; return }
-                let nextDay = Calendar.current.startOfDay(for: refreshDate).addingTimeInterval(36 * 3600)
-                let midnight = Calendar.current.startOfDay(for: nextDay)
-                do { try await Task.sleep(for: .seconds(max(1, midnight.timeIntervalSinceNow))) }
-                catch { return }
-            }
-        }
     }
 }
 

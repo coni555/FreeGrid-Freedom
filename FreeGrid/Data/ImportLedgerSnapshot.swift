@@ -98,15 +98,13 @@ struct ImportLedgerSnapshot: Equatable {
         }
     }
 
-    private let observations: [PersistentIdentifier: ObservationValue]
     private let expenses: [PersistentIdentifier: ExpenseValue]
     private let incomes: [PersistentIdentifier: IncomeValue]
     private let devices: [PersistentIdentifier: DeviceValue]
     private let passiveSources: [PersistentIdentifier: PassiveSourceValue]
     private let assets: [PersistentIdentifier: UserAssetsValue]
 
-    init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource], assets: [UserAssets], observations: [FreedomObservation] = []) {
-        self.observations = Dictionary(uniqueKeysWithValues: observations.map { ($0.persistentModelID, $0.value) })
+    init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource], assets: [UserAssets]) {
         self.expenses = Dictionary(uniqueKeysWithValues: expenses.map { ($0.persistentModelID, ExpenseValue($0)) })
         self.incomes = Dictionary(uniqueKeysWithValues: incomes.map { ($0.persistentModelID, IncomeValue($0)) })
         self.devices = Dictionary(uniqueKeysWithValues: devices.map { ($0.persistentModelID, DeviceValue($0)) })
@@ -120,8 +118,7 @@ struct ImportLedgerSnapshot: Equatable {
             incomes: context.fetch(FetchDescriptor<Income>()),
             devices: context.fetch(FetchDescriptor<Device>()),
             passiveSources: context.fetch(FetchDescriptor<PassiveSource>()),
-            assets: context.fetch(FetchDescriptor<UserAssets>()),
-            observations: context.fetch(FetchDescriptor<FreedomObservation>())
+            assets: context.fetch(FetchDescriptor<UserAssets>())
         )
     }
 }

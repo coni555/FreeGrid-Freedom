@@ -59,7 +59,6 @@ enum DataIO {
 
     /// 预览只保留已验证的强类型值；BackupEnvelope 的原始字符串不能越过这里。
     struct ImportPreview {
-        let observations: [ObservationValue]
         let ledgerSnapshot: ImportLedgerSnapshot
         let schemaVersion: Int
         let expensesNew: [ValidatedImport.ExpenseRecord]
@@ -110,7 +109,6 @@ enum DataIO {
             case skip
         }
 
-        let observations: [ObservationValue]
         let ledgerSnapshot: ImportLedgerSnapshot
         let expenses: [ExpenseRecord]
         let incomes: [ValidatedImport.IncomeRecord]
@@ -148,12 +146,7 @@ enum DataIO {
         ))
         let assets = try context.fetch(FetchDescriptor<UserAssets>()).first
         let firstExpenseDate = expenses.map(\.date).min()
-        let observationRows = try context.fetch(FetchDescriptor<FreedomObservation>())
-        let observations: [ObservationValue] = observationRows.map { $0.value }.sorted { left, right in
-            if left.seriesID == right.seriesID { return left.sequence < right.sequence }
-            return left.seriesID.uuidString < right.seriesID.uuidString
-        }
-        let schemaVersion = !observations.isEmpty ? 4 : expenses.contains { $0.amount <= 0 }
+        let schemaVersion = expenses.contains { $0.amount <= 0 }
             ? ImportValidator.signedExpenseSchemaVersion
             : ImportValidator.strictPositiveExpenseSchemaVersion
 
@@ -210,8 +203,7 @@ enum DataIO {
                     createdAt: iso.string(from: $0.createdAt)
                 )
             },
-            firstRecordDate: firstExpenseDate.map { day.string(from: $0) },
-            observations: observations.isEmpty ? nil : observations
+            firstRecordDate: firstExpenseDate.map { day.string(from: $0) }
         )
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -508,12 +500,9 @@ enum DataIO {
             importedAssets = AssetSnapshot(lockedAssets: 0, cash: 0, total: 0, updatedAt: nil)
         }
 
-        try ObservationStore.validateMerge(validated.observations, in: context)
         return ImportPreview(
-            observations: validated.observations,
             ledgerSnapshot: ImportLedgerSnapshot(expenses: existingExpenses, incomes: existingIncomes,
-                devices: existingDevices, passiveSources: existingPassives, assets: allAssets,
-                observations: try context.fetch(FetchDescriptor<FreedomObservation>())),
+                devices: existingDevices, passiveSources: existingPassives, assets: allAssets),
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
             suspectedExpenseIndices: suspectedExpenseIndices,
@@ -581,7 +570,6 @@ enum DataIO {
         }
 
         return ImportPlan(
-            observations: preview.observations,
             ledgerSnapshot: preview.ledgerSnapshot,
             expenses: expenses,
             incomes: preview.incomesNew,
@@ -619,8 +607,7 @@ enum DataIO {
             throw DataIOError.stalePreview
         }
         var firstRecordDate: Date?
-        try LedgerStore.updateAssets(in: context, save: save, reason: .backupImport) { userAssets in
-            try ObservationStore.importArchive(plan.observations, in: context)
+        try LedgerStore.updateAssets(in: context, save: save) { userAssets in
             for record in plan.expenses {
                 let expense = Expense(
                     amount: record.amount,
@@ -703,7 +690,6 @@ enum DataIO {
             for record in try context.fetch(FetchDescriptor<Device>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<PassiveSource>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<UserAssets>()) { context.delete(record) }
-            for record in try context.fetch(FetchDescriptor<FreedomObservation>()) { context.delete(record) }
         }
     }
 

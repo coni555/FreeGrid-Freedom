@@ -79,7 +79,6 @@ final class StoreBootstrap {
             Device.self,
             PassiveSource.self,
             UserAssets.self,
-            FreedomObservation.self,
         ])
     }
 

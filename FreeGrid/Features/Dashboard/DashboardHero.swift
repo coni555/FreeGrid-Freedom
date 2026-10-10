@@ -9,12 +9,11 @@ struct DashboardHero: View {
     let isDarkMode: Bool
     let heroLayout: String
     let needsSavings: Bool
-    var hasObservations = false
 
     /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
     /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
     var body: some View {
-        let history: [FreedomMath.HistoryPoint] = hasObservations ? [] : FreedomMath.freedomDaysHistory(
+        let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
             currentNetWorth: snapshot.netWorth,
@@ -33,9 +32,7 @@ struct DashboardHero: View {
             HStack(alignment: .firstTextBaseline) {
                 KickerLabel(text: heroKickerText)
                 Spacer()
-                if hasObservations {
-                    Text("变化已记录").font(.caption2).foregroundStyle(Color.inkFaint)
-                } else if let d = delta {
+                if let d = delta {
                     trendBadge(delta: d.delta, weeks: history.count - 1)
                 } else if history.last?.state == .covered {
                     Text("被动已覆盖")
@@ -57,7 +54,7 @@ struct DashboardHero: View {
             heroBody(deplete: deplete)
 
             // ─── 底部: 趋势 caption + sparkline ───
-            if !hasObservations, let first = history.first, let last = history.last, history.count >= 3 {
+            if let first = history.first, let last = history.last, history.count >= 3 {
                 Hairline().padding(.top, Spacing.xs)
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(history.count - 1) 周自由趋势 · 估算")
