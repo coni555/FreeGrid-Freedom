@@ -1,4 +1,4 @@
-// 历史记录：筛选、分类汇总与撤销。
+// 历史记录：按月查看、按天分组，支持分类筛选、搜索与撤销。
 
 import SwiftUI
 import SwiftData
@@ -10,67 +10,47 @@ struct HistoryView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    /// 筛选状态: "all" / "expense" / "income"
     @State private var saveError: String?
-    @State private var filter: FilterKind = .all
 
-    /// 分类二级筛选: nil 表示全部分类。仅在 filter == .expense 时有意义,
-    /// 切到 .all / .income 时自动清空。
+    /// 当前查看的时间范围，默认本月
+    @State private var scope: HistoryScope = .month(HistoryMonth(containing: .now))
+    @State private var kind: HistoryKindFilter = .all
+
+    /// 分类筛选: nil 表示全部分类。换月后该分类没有记录时自动视为未选。
     @State private var selectedCategory: String? = nil
 
-    /// 撤销 confirm: 点行右侧 × 时 set, alert 触发, 取消/确认后清空
+    /// 搜索时跨全部月份，不受当前月份限制
+    @State private var searchText = ""
+    @State private var showingMonths = false
+
+    /// 撤销 confirm: 左滑点撤销时 set, alert 触发, 取消/确认后清空
     @State private var pendingDelete: LedgerTransaction? = nil
 
-    enum FilterKind: String, CaseIterable, Identifiable {
-        case all = "全部"
-        case expense = "支出"
-        case income = "收入"
-        var id: String { rawValue }
-    }
-
     var body: some View {
-        let transactions = filteredTransactions
-        let categories = expenseCategoryTotals
         NavigationStack {
-            VStack(spacing: 0) {
-                // ===== 顶部 segmented 筛选器 =====
-                Picker("筛选", selection: $filter) {
-                    ForEach(FilterKind.allCases) { f in
-                        Text(f.rawValue).tag(f)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.top)
-                .padding(.bottom, Spacing.sm)
-                .onChange(of: filter) { _, newValue in
-                    // 切出支出 tab 时清掉分类二级筛选
-                    if newValue != .expense { selectedCategory = nil }
-                }
-
-                // ===== 分类汇总条 (仅支出 tab) =====
-                if filter == .expense && !categories.isEmpty {
-                    categoryChipRow(categories)
-                        .padding(.bottom, Spacing.sm)
-                }
-
-                if transactions.isEmpty {
+            Group {
+                if expenses.isEmpty && incomes.isEmpty {
                     emptyState
                 } else {
-                    transactionList(transactions)
+                    ledgerList
                 }
             }
             .background(Color.paper)
             .navigationTitle("History")
+            .navigationDestination(isPresented: $showingMonths) {
+                MonthlySummaryView { scope = $0 }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    NavigationLink {
-                        MonthlySummaryView()
+                    Button {
+                        showingMonths = true
                     } label: {
                         Image(systemName: "calendar")
                     }
+                    .accessibilityLabel("月度汇总")
                 }
             }
+            .searchable(text: $searchText, prompt: "搜索分类、备注或金额")
             .saveErrorAlert($saveError)
             .alert(
                 "撤销这笔记录?",
@@ -89,17 +69,190 @@ struct HistoryView: View {
     }
 
     // ============================================================================
+    // MARK: - 列表
+    // ============================================================================
+
+    private var ledgerList: some View {
+        let isSearching = !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        let scoped = HistoryLedger.transactions(
+            expenses: expenses, incomes: incomes, scope: isSearching ? .allTime : scope
+        )
+        let categories = isSearching ? [] : HistoryLedger.categoryTotals(scoped)
+        let category = categories.contains { $0.category == selectedCategory } ? selectedCategory : nil
+        let visible = HistoryLedger.search(
+            HistoryLedger.filter(scoped, kind: kind, category: category), query: searchText
+        )
+        let days = HistoryLedger.days(visible)
+
+        return List {
+            Section {
+                if isSearching {
+                    searchSummary(visible)
+                } else {
+                    scopeCard(HistoryLedger.summary(scoped))
+                }
+
+                Picker("筛选", selection: $kind) {
+                    ForEach(HistoryKindFilter.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: kind) { _, newValue in
+                    // 收入没有分类
+                    if newValue == .income { selectedCategory = nil }
+                }
+
+                if kind != .income && !categories.isEmpty {
+                    categoryChipRow(categories, selected: category)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                }
+
+                if days.isEmpty {
+                    Text(isSearching ? "没有匹配的记录" : "这里还没有记录")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.xxl)
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.paper)
+
+            ForEach(days) { day in
+                Section {
+                    ForEach(day.transactions) { tx in
+                        transactionRow(tx)
+                            .listRowBackground(Color.paper)
+                            .listRowSeparatorTint(Color.hairlineSoft)
+                    }
+                } header: {
+                    dayHeader(day)
+                        .listRowInsets(EdgeInsets(top: Spacing.md, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 40)
+        .environment(\.defaultMinListHeaderHeight, 28)
+    }
+
+    // ============================================================================
+    // MARK: - 时间范围卡片
+    // ============================================================================
+
+    private func scopeCard(_ summary: HistorySummary) -> some View {
+        let range = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
+        return VaultCard(padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: Spacing.sm) {
+                    Text(scopeLabel)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                    Spacer()
+                    if case .month(let month) = scope {
+                        monthStepButton("chevron.left", label: "上个月", enabled: month > range.lowerBound) {
+                            scope = .month(month.shifted(by: -1))
+                        }
+                        monthStepButton("chevron.right", label: "下个月", enabled: month < range.upperBound) {
+                            scope = .month(month.shifted(by: 1))
+                        }
+                    } else {
+                        Button("回到本月") {
+                            scope = .month(HistoryMonth(containing: .now))
+                        }
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.skyDeep)
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
+                    Text(FinancialFormatting.yuan(summary.expense))
+                        .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    KickerLabel(text: "支出")
+                }
+
+                Hairline(color: .hairlineSoft)
+
+                HStack(spacing: Spacing.lg) {
+                    scopeStat("收入", FinancialFormatting.yuan(summary.income))
+                    scopeStat("净", FinancialFormatting.signedYuan(summary.net))
+                    Spacer()
+                    Text("\(summary.count) 笔")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                }
+            }
+        }
+        .listRowInsets(EdgeInsets(top: Spacing.xs, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
+    }
+
+    private var scopeLabel: String {
+        switch scope {
+        case .month(let month): return month.label
+        case .allTime: return "全部时间"
+        }
+    }
+
+    private func scopeStat(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Color.inkFaint)
+            Text(value)
+                .font(.system(.footnote, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.ink)
+        }
+    }
+
+    /// 切月按钮: hairline 描边圆; 到头时变淡并禁用
+    private func monthStepButton(
+        _ icon: String, label: String, enabled: Bool, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(enabled ? Color.inkMuted : Color.inkGhost)
+                .frame(width: 30, height: 30)
+                .background(Circle().stroke(Color.hairline, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+
+    private func searchSummary(_ transactions: [LedgerTransaction]) -> some View {
+        let net = transactions.reduce(0) { $0 + $1.cashChange }
+        return HStack {
+            Text("找到 \(transactions.count) 笔")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+            Spacer()
+            Text("净 \(FinancialFormatting.signedYuan(net))")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(Color.ink)
+        }
+    }
+
+    // ============================================================================
     // MARK: - 分类汇总条
     // ============================================================================
 
-    /// 横滑 chip 列表: 首"全部"chip + 各分类 chip, 每 chip 显示分类名 + 总额
-    private func categoryChipRow(_ categories: [(category: String, total: Double)]) -> some View {
+    /// 横滑 chip 列表: 首"全部"chip + 当前范围内各分类 chip, 每 chip 显示分类名 + 合计
+    private func categoryChipRow(
+        _ categories: [(category: String, total: Double)], selected: String?
+    ) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 categoryChip(
                     label: "全部",
                     amount: categories.reduce(0) { $0 + $1.total },
-                    selected: selectedCategory == nil
+                    selected: selected == nil
                 ) {
                     selectedCategory = nil
                 }
@@ -107,14 +260,14 @@ struct HistoryView: View {
                     categoryChip(
                         label: item.category,
                         amount: item.total,
-                        selected: selectedCategory == item.category
+                        selected: selected == item.category
                     ) {
                         // 二次点击同一 chip = 取消选中
-                        selectedCategory = (selectedCategory == item.category) ? nil : item.category
+                        selectedCategory = (selected == item.category) ? nil : item.category
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
     }
 
@@ -125,7 +278,7 @@ struct HistoryView: View {
                     .font(.system(.caption2, design: .monospaced))
                     .tracking(0.5)
                     .foregroundStyle(selected ? Color.paper : Color.inkMuted)
-                Text("¥" + amount.formatted(.number.precision(.fractionLength(0...2))))
+                Text(FinancialFormatting.yuan(amount))
                     .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
                     .foregroundStyle(selected ? Color.paper : Color.ink)
             }
@@ -141,90 +294,56 @@ struct HistoryView: View {
             )
         }
         .buttonStyle(.plain)
-    }
-
-    /// 各支出分类总额,降序排列
-    private var expenseCategoryTotals: [(category: String, total: Double)] {
-        let grouped = Dictionary(grouping: expenses, by: { $0.category })
-        return grouped
-            .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
-            .sorted { $0.total > $1.total }
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // ============================================================================
-    // MARK: - 列表渲染
+    // MARK: - 按天分组的记录
     // ============================================================================
 
-    private func transactionList(_ transactions: [LedgerTransaction]) -> some View {
-        let net = transactions.reduce(0) { $0 + $1.cashChange }
-        return List {
-            Section {
-                HStack {
-                    Text("共 \(transactions.count) 笔")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer()
-                    Text("净 \(FinancialFormatting.signedYuan(net))")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Color.ink)
-                        .monospacedDigit()
-                }
-                .listRowBackground(Color.paper)
-            }
-
-            Section {
-                ForEach(transactions) { tx in
-                    transactionRow(tx)
-                        .listRowBackground(Color.paper)
-                        .listRowSeparatorTint(Color.hairlineSoft)
-                }
-            }
+    private func dayHeader(_ day: HistoryDay) -> some View {
+        HStack {
+            Text(HistoryLedger.dayLabel(day.id))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+            Spacer()
+            Text(FinancialFormatting.signedYuan(day.net))
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(Color.inkFaint)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.paper)
-        .listStyle(.plain)
+        .textCase(nil)
     }
 
     private func transactionRow(_ tx: LedgerTransaction) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(tx.title)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.ink)
-                if !tx.note.isEmpty {
-                    Text(tx.note)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .lineLimit(1)
-                }
-                Text(tx.date, format: .dateTime.year().month().day())
-                    .font(.system(.caption2, design: .monospaced))
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+            Text(tx.title)
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .layoutPriority(1)
+            if !tx.note.isEmpty {
+                Text(tx.note)
+                    .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
+                    .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: Spacing.sm)
             Text(FinancialFormatting.signedYuan(tx.cashChange))
                 .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
                 .foregroundStyle(tx.cashChange < 0 ? Color.flame : Color.skyDeep)
-            deleteButton(for: tx)
+                .layoutPriority(2)
         }
-        .padding(.vertical, 4)
-    }
-
-    /// 行右侧 × 撤销按钮: silverline outline 圆, 点击 set pendingDelete 触发 alert
-    private func deleteButton(for tx: LedgerTransaction) -> some View {
-        Button {
-            pendingDelete = tx
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Color.inkFaint)
-                .frame(width: 22, height: 22)
-                .background(
-                    Circle().stroke(Color.hairlineSoft, lineWidth: 1)
-                )
+        .padding(.vertical, 2)
+        // 不用 destructive role: 它会在确认前就把行滑走
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("撤销") { pendingDelete = tx }
+                .tint(Color.flame)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("撤销这笔")
+        .contextMenu {
+            Button("撤销这笔", systemImage: "arrow.uturn.backward", role: .destructive) {
+                pendingDelete = tx
+            }
+        }
     }
 
     /// 空状态:silverline 风简洁提示
@@ -249,21 +368,6 @@ struct HistoryView: View {
     // ============================================================================
     // MARK: - 业务逻辑
     // ============================================================================
-
-    /// 根据筛选返回排好序的交易列表
-    private var filteredTransactions: [LedgerTransaction] {
-        var all: [LedgerTransaction] = []
-        if filter == .all || filter == .expense {
-            // selectedCategory != nil 时仅取该分类的支出(只可能在 filter == .expense 时发生)
-            let exps = selectedCategory.map { cat in expenses.filter { $0.category == cat } } ?? expenses
-            all.append(contentsOf: exps.map { .expense($0) })
-        }
-        if filter == .all || filter == .income {
-            all.append(contentsOf: incomes.map { .income($0) })
-        }
-        // 按日期降序,新的在上
-        return all.sorted { $0.date > $1.date }
-    }
 
     private func confirmDelete(_ tx: LedgerTransaction) {
         do {
