@@ -10,6 +10,8 @@
 
 2026-10-10 用户授权预览 Pro 自定义支出分类：新增、排序、隐藏；隐藏不改写旧账。分类配置先作为本机偏好保存，不更改原模型字段或 v0–v3 备份格式；恢复账本保留自定义名称。StoreKit 尚未接入，仅 Debug 开放功能预览，Release 不授予分类管理权益。
 
+2026-10-11 用户要求 main 保持 1.3.1 (8)，Pro 自定义支出分类仅在 `codex/pro-expense-categories` 独立 worktree 开发与预览；本任务不自动合入 main，后续合并须用户明确提出。
+
 - 不新增第三方依赖，不改变已有 SwiftData 模型字段、备份格式或 iOS/macOS 支持范围。
 - 界面按功能放在 `Features/`；`Models/` 保存事实；`Logic/` 计算结果；`Data/` 管理持久化和导入导出；`UI/` 提供共用显示；`App/` 装配入口。
 - 先用已有类型划分文件；简单页面不要求额外 ViewModel、Repository 或协议。
