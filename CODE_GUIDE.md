@@ -134,7 +134,9 @@ flowchart TD
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
-| 历史列表筛选、行样式 | `Features/History/HistoryView.swift` |
+| 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
+| 历史页按月取数、分类筛选、搜索、按天分组的规则 | `Logic/HistoryLedger.swift` |
+| 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
 | 预览后账本改变，拒绝旧计划 | `Data/ImportLedgerSnapshot.swift` → `DataIO.commitImport` |
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
@@ -191,6 +193,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [LedgerStoreTests](FreeGridTests/LedgerStoreTests.swift)：保存失败、撤销失败、重复撤销、退款撤销和五模型清空回滚。
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
 - [ExpenseCategoryTests](FreeGridTests/ExpenseCategoryTests.swift)：名称校验、顺序与可见性持久化、至少一个选项、自定义名称备份恢复及旧分类去重；UI 测试覆盖实际记账、隐藏后历史保留及 Pro 闸门。
+- [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。

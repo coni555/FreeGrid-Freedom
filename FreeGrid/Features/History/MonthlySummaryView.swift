@@ -1,4 +1,4 @@
-// 按月汇总收入、支出与分类。
+// 按月汇总收入、支出与分类；从历史页进入时可选一个月回去看明细。
 
 import SwiftUI
 import SwiftData
@@ -7,10 +7,15 @@ struct MonthlySummaryView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
     @State private var expanded: Set<String> = []
+    @Environment(\.dismiss) private var dismiss
+
+    /// 选定时间范围后回到历史页; nil 时不显示跳转入口
+    var onSelect: ((HistoryScope) -> Void)? = nil
 
     struct MonthlyStat: Identifiable {
         let id: String          // "2026-05"
-        let label: String       // "2026年5月"
+        let month: HistoryMonth
+        var label: String { month.label }
         let totalExpense: Double
         let totalIncome: Double
         var net: Double { totalIncome - totalExpense }
@@ -33,6 +38,10 @@ struct MonthlySummaryView: View {
                 .padding(.top, 100)
             } else {
                 LazyVStack(spacing: Spacing.md) {
+                    if onSelect != nil {
+                        GhostButton(title: "查看全部时间的明细") { select(.allTime) }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     ForEach(months) { monthCard($0) }
                 }
                 .padding()
@@ -74,6 +83,11 @@ struct MonthlySummaryView: View {
                 }
                 .buttonStyle(.plain)
 
+                if onSelect != nil {
+                    GhostButton(title: "查看这个月的明细") { select(.month(stat.month)) }
+                        .accessibilityIdentifier("open-month-\(stat.id)")
+                }
+
                 if isExpanded && !stat.categories.isEmpty {
                     Rectangle().fill(Color.hairlineSoft).frame(height: 1)
                     let maxCat = stat.categories.first?.total ?? 1
@@ -85,6 +99,11 @@ struct MonthlySummaryView: View {
                 }
             }
         }
+    }
+
+    private func select(_ scope: HistoryScope) {
+        onSelect?(scope)
+        dismiss()
     }
 
     private func amountStat(_ label: String, _ amount: Double, _ color: Color) -> some View {
@@ -143,9 +162,8 @@ struct MonthlySummaryView: View {
                 .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
                 .sorted { $0.total > $1.total }
             let parts = k.split(separator: "-")
-            let label = "\(parts[0])年\(Int(parts[1]) ?? 0)月"
             return MonthlyStat(
-                id: k, label: label,
+                id: k, month: HistoryMonth(year: Int(parts[0]) ?? 0, month: Int(parts[1]) ?? 1),
                 totalExpense: exps.reduce(0) { $0 + $1.amount },
                 totalIncome: incByMonth[k] ?? 0,
                 categories: cats
