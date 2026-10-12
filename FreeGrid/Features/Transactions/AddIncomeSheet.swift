@@ -24,37 +24,22 @@ struct AddIncomeSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("金额 (元)") {
-                    TextField("0.00", text: $amount)
-                        .decimalKeyboard()
-                        .font(.system(.body, design: .rounded).monospacedDigit())
-                }
-                Section("来源") {
-                    TextField("工资 / 投资 / 副业 / ...", text: $source)
-                        .font(.system(.body, design: .rounded))
-                }
-                Section("日期") {
-                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
-                }
-                Section("备注 (可选)") {
-                    TextField("备注", text: $note)
-                        .font(.system(.body, design: .rounded))
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    TransactionFormFields(mode: .income, amount: $amount, title: $source,
+                                          note: $note, date: $date)
 
-                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
-                    Section {
-                        TransactionImpactView(impact: TransactionImpact(
-                            snapshot: snapshot, kind: .income, amount: amt, date: date
-                        ))
-                    } header: {
-                        Text("自由增长预览")
-                    } footer: {
-                        Text("这笔收入对自由天数的回血效应。")
-                            .font(.system(.caption2, design: .rounded))
+                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
+                        impactCard(title: "自由增长预览", note: "这笔收入对自由天数的回血效应。") {
+                            TransactionImpactView(impact: TransactionImpact(
+                                snapshot: snapshot, kind: .income, amount: amt, date: date
+                            ))
+                        }
                     }
                 }
+                .padding(Spacing.lg)
             }
+            .dismissKeyboardOnScroll()
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加收入")

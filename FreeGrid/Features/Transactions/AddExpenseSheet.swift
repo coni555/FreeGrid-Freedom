@@ -28,41 +28,23 @@ struct AddExpenseSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("金额 (元)") {
-                    TextField("0.00", text: $amount)
-                        .decimalKeyboard()
-                        .font(.system(.body, design: .rounded).monospacedDigit())
-                }
-                Section("分类") {
-                    Picker("分类", selection: $category) {
-                        ForEach(categories, id: \.self) { c in
-                            Text(c).tag(c)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    TransactionFormFields(mode: .expense, amount: $amount, title: $category,
+                                          note: $note, date: $date, categories: categories)
+
+                    // ===== 戴维斯三杀实时预览: 金额有效才出现, 还没保存 =====
+                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
+                        impactCard(title: "戴维斯三杀预览", note: "这笔消费对自由天数的传导效应。还没保存，只是看看。") {
+                            TransactionImpactView(impact: TransactionImpact(
+                                snapshot: snapshot, kind: .expense, amount: amt, date: date
+                            ))
                         }
                     }
                 }
-                Section("日期") {
-                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
-                }
-                Section("备注 (可选)") {
-                    TextField("备注", text: $note)
-                        .font(.system(.body, design: .rounded))
-                }
-
-                // ===== 戴维斯三杀实时预览 =====
-                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
-                    Section {
-                        TransactionImpactView(impact: TransactionImpact(
-                            snapshot: snapshot, kind: .expense, amount: amt, date: date
-                        ))
-                    } header: {
-                        Text("戴维斯三杀预览")
-                    } footer: {
-                        Text("这笔消费对自由天数的传导效应。还没保存,只是看看。")
-                            .font(.system(.caption2, design: .rounded))
-                    }
-                }
+                .padding(Spacing.lg)
             }
+            .dismissKeyboardOnScroll()
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加支出")
