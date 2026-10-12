@@ -76,6 +76,9 @@ private struct DashboardContent: View {
                     if snapshot.hasExpenses {
                         statsRow     // 净值 ÷ 日均 = 上面的大数字, 再加今天; 一笔支出都没有时不显示
                     }
+                    if snapshot.dailyPassive > 0 {
+                        passiveSection // 被动收入盖住了多少开销; 没有被动收入时不显示
+                    }
                     FreedomTrendCard(history: history, hasPassiveIncome: snapshot.dailyPassive > 0,
                                      trackDays: snapshot.trackDays)
                 }
@@ -208,7 +211,7 @@ private struct DashboardContent: View {
     // ============================================================================
 
     /// 三张卡连起来是大数字的算式: 净值 ÷ 日均 = 自由天数, 第三张是今天花了多少。
-    /// 追踪天数挪到趋势卡的说明里; 被动覆盖率没有被动收入时不出现。
+    /// 追踪天数挪到趋势卡的说明里; 被动收入有自己的一张卡 (passiveSection)。
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
             statCard(label: "Net",
@@ -216,14 +219,69 @@ private struct DashboardContent: View {
                      unit: "元净值")
             statCard(label: "Daily",
                      value: snapshot.dailyBurn.isFinite ? String(format: "%.1f", snapshot.dailyBurn) : "—",
-                     unit: snapshot.dailyPassive > 0
-                        ? "元/天 · 被动 \(FinancialFormatting.percentage(snapshot.passiveRatio))"
-                        : "元/天")
+                     unit: "元/天")
             statCard(label: "Today",
                      value: todaySpending.isFinite ? String(format: "%.1f", todaySpending) : "—",
                      unit: todayUnitText,
                      valueColor: todaySpending > snapshot.dailyBurn && snapshot.dailyBurn > 0 ? .flame : .ink)
         }
+    }
+
+    /// 被动覆盖: 一根走向 100% 的进度条, 走满就是财富自由。
+    /// 左边是覆盖率, 右边是每月被动收入, 下面一句话说清这个百分比是什么。
+    private var passiveSection: some View {
+        let ratio = snapshot.passiveRatio
+        let covered = ratio >= 1
+        let accent: Color = covered ? .mossGreen : .skyDeep
+        return VaultCard(padding: Spacing.lg) {
+            VStack(spacing: Spacing.md) {
+                HStack(alignment: .center, spacing: Spacing.md) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(FinancialFormatting.percentage(ratio))
+                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(covered ? Color.mossGreen : Color.ink)
+                        KickerLabel(text: "Passive")
+                    }
+                    .frame(minWidth: 60, alignment: .leading)
+
+                    GeometryReader { geo in
+                        let pct = max(0.02, min(ratio, 1.0))
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.mist2)
+                                .frame(height: 2)
+                            Rectangle()
+                                .fill(covered ? Color.mossGreen : Color.sky)
+                                .frame(width: geo.size.width * CGFloat(pct), height: 2)
+                            Rectangle()
+                                .fill(accent)
+                                .frame(width: 1.5, height: 10)
+                                .offset(x: geo.size.width * CGFloat(pct) - 0.75)
+                        }
+                        .frame(maxHeight: .infinity)
+                    }
+                    .frame(height: 10)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(FinancialFormatting.yuan(snapshot.dailyPassive * 30, precision: 0))
+                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkMuted)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                        KickerLabel(text: "/ month")
+                    }
+                    .frame(minWidth: 60, alignment: .trailing)
+                }
+
+                Text(covered
+                     ? "被动收入已经盖住全部日常开销"
+                     : "被动收入盖住了 \(FinancialFormatting.percentage(ratio)) 的日常开销，到 100% 就是财富自由")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// 今日卡的小字: 和日均比多了还是少了
