@@ -61,7 +61,10 @@ struct ContentView: View {
                 }
                 .tag(AppTab.history)
 
-            SettingsView()
+            SettingsView(onReplayHistoryGuide: {
+                historyGuide.replayRequests += 1
+                selectedTab = .history
+            })
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }

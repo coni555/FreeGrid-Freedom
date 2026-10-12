@@ -27,6 +27,8 @@ final class HistoryGuide {
     var frames: [Target: CGRect] = [:]
     /// nil 表示没有在指引
     var index: Int?
+    /// 设置页「使用指引」每点一次加一，History 页据此重放
+    var replayRequests = 0
 
     /// 当前屏幕上找不到位置的步骤直接跳过，例如这个月还没有记录时没有「行」。
     var availableSteps: [Step] { Self.steps.filter { frames[$0.target] != nil } }
@@ -49,6 +51,11 @@ final class HistoryGuide {
         }
         self.index = nil
         return true
+    }
+
+    /// 目标从屏幕上消失后丢掉旧位置，免得圈在空白处
+    func forget(_ target: Target) {
+        frames[target] = nil
     }
 
     func report(_ target: Target, _ frame: CGRect) {

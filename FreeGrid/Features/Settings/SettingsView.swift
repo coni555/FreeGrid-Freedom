@@ -9,10 +9,14 @@ import AppKit
 #endif
 
 struct SettingsView: View {
+    /// 点「使用指引」：切到 History 并重放指引，由 ContentView 接手
+    var onReplayHistoryGuide: () -> Void = {}
+
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
     @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
 
@@ -134,6 +138,8 @@ struct SettingsView: View {
     /// 后续加新功能时也按"入口行 → push 子页"这套模式往这里 / 新卡里加。
     private var aboutSupportSection: some View {
         settingsSection("") {
+            guideRow
+            rowDivider
             NavigationLink {
                 aboutPage
             } label: {
@@ -151,6 +157,23 @@ struct SettingsView: View {
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
+    /// 指引要圈出 History 里的记录，账本为空时没有可圈的位置
+    @ViewBuilder
+    private var guideRow: some View {
+        if expenses.isEmpty && incomes.isEmpty {
+            settingsRow(icon: "questionmark.circle", title: "使用指引",
+                        iconColor: .inkGhost, titleColor: .inkFaint) {
+                Text("记一笔后可看")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+            }
+        } else {
+            settingsRow(icon: "questionmark.circle", title: "使用指引",
+                        action: onReplayHistoryGuide) { chevron }
+                .accessibilityIdentifier("replay-history-guide")
+        }
+    }
+
     private var aboutPage: some View {
         ScrollView {
             VStack(spacing: Spacing.lg) {

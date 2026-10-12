@@ -37,6 +37,8 @@ struct HistoryView: View {
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
     @State private var toolFrames: [Int: CGRect] = [:]
     @AppStorage("historyGuideCompleted") private var guideCompleted = false
+    /// 重放指引前让列表回到顶部，每次加一
+    @State private var scrollToTop = 0
 
     /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
     private enum Selection: Equatable {
@@ -94,6 +96,13 @@ struct HistoryView: View {
                 guard !guideCompleted, !isSearching, editing == nil else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start() }
             }
+            .task(id: guide.replayRequests) {
+                // 从设置页重放：先回到本月、收起搜索和筛选，圈的位置才和首次进来时一样
+                guard guide.replayRequests > 0, !(expenses.isEmpty && incomes.isEmpty) else { return }
+                resetForGuide()
+                try? await Task.sleep(for: .milliseconds(600))
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start() }
+            }
             .saveErrorAlert($saveError)
             .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
             .alert(
@@ -112,6 +121,16 @@ struct HistoryView: View {
         }
     }
 
+    private func resetForGuide() {
+        showingMonths = false
+        isSearching = false
+        searchText = ""
+        showingFilters = false
+        selection = .all
+        scope = .month(HistoryMonth(containing: .now))
+        scrollToTop += 1
+    }
+
     // ============================================================================
     // MARK: - 列表
     // ============================================================================
@@ -127,13 +146,15 @@ struct HistoryView: View {
         let visible = HistoryLedger.search(filtered(scoped, by: active), query: searchText)
         let days = HistoryLedger.days(visible)
 
-        return List {
+        return ScrollViewReader { proxy in
+        List {
             Section {
                 if isSearching {
                     searchField
                     searchSummary(visible)
                 } else {
                     scopeCard(summary)
+                        .id(Self.topID)
                     if showingFilters && (!categories.isEmpty || summary.income != 0) {
                         chipRow(categories, income: summary.income, active: active)
                             .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
@@ -146,6 +167,7 @@ struct HistoryView: View {
                         .foregroundStyle(Color.inkFaint)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.xxl)
+                        .onAppear { guide.forget(.row) }
                 }
             }
             .listRowSeparator(.hidden)
@@ -176,7 +198,11 @@ struct HistoryView: View {
         .environment(\.defaultMinListRowHeight, 40)
         .environment(\.defaultMinListHeaderHeight, 28)
         .dismissKeyboardOnScroll()
+        .onChange(of: scrollToTop) { proxy.scrollTo(Self.topID, anchor: .top) }
+        }
     }
+
+    private static let topID = "history-top"
 
     /// 选中的项在当前范围里已经没有记录时，退回「全部」
     private func activeSelection(

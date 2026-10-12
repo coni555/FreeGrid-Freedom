@@ -49,6 +49,34 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsReplaysHistoryGuideOnceLedgerHasARecord() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        // 空账本没有可圈的位置，入口只说明原因
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.staticTexts["记一笔后可看"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["replay-history-guide"].exists)
+
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        amount.tap()
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["replay-history-guide"].tap()
+        // 跳到 History 并从第一步重放，四步走完后消失
+        let next = app.buttons["history-guide-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["History"].exists)
+        for _ in 0..<4 { next.tap() }
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+    }
+
+    @MainActor
     func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
         // 引导闸门存在 UserDefaults 里,跨次运行会残留;必须显式压回 NO,
