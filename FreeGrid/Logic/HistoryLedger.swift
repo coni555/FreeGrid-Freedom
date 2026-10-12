@@ -184,6 +184,18 @@ enum HistoryLedger {
         return (calendar.dateComponents([.day], from: interval.start, to: calendar.startOfDay(for: end)).day ?? 0) + 1
     }
 
+    /// 这笔钱按长期日均折合成多少天；日均不可用时为 nil。
+    static func equivalentDays(expense: Double, dailyBurn: Double) -> Double? {
+        guard expense.isFinite, dailyBurn.isFinite, dailyBurn > 0, expense > 0 else { return nil }
+        return expense / dailyBurn
+    }
+
+    /// 不足 10 天保留一位小数，其余取整。
+    static func equivalentDaysLabel(_ days: Double) -> String {
+        let digits = days < 10 ? 0...1 : 0...0
+        return "相当于 " + days.formatted(.number.precision(.fractionLength(digits))) + " 天"
+    }
+
     /// 段头用的日期：今天、昨天直接说，不在今年的带上年份。
     static func dayLabel(_ day: Date, now: Date = .now, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day, .weekday], from: day)

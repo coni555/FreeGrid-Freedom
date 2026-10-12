@@ -97,6 +97,17 @@ struct HistoryLedgerTests {
         #expect(HistoryLedger.elapsedDays(in: october, now: TestSupport.day("2026-10-31")) == 31)
     }
 
+    @Test func equivalentDaysUsesTheLongRunDailyBurn() throws {
+        // 日均 83.8：7 月花 8181.23 相当于约 98 天，10 月花 633.64 相当于 7.6 天
+        let july = try #require(HistoryLedger.equivalentDays(expense: 8181.23, dailyBurn: 83.8))
+        #expect(HistoryLedger.equivalentDaysLabel(july) == "相当于 98 天")
+        let october = try #require(HistoryLedger.equivalentDays(expense: 633.64, dailyBurn: 83.8))
+        #expect(HistoryLedger.equivalentDaysLabel(october) == "相当于 7.6 天")
+        #expect(HistoryLedger.equivalentDays(expense: 100, dailyBurn: 0) == nil)
+        #expect(HistoryLedger.equivalentDays(expense: 0, dailyBurn: 83.8) == nil)
+        #expect(HistoryLedger.equivalentDays(expense: -30, dailyBurn: 83.8) == nil)
+    }
+
     @Test func dayLabelNamesTodayYesterdayAndOtherYears() {
         let now = TestSupport.day("2026-10-11")
         #expect(HistoryLedger.dayLabel(TestSupport.day("2026-10-11"), now: now) == "今天 · 10月11日 周日")

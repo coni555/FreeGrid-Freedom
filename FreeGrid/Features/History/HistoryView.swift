@@ -29,6 +29,9 @@ struct HistoryView: View {
     /// 撤销 confirm: 左滑点撤销时 set, alert 触发, 取消/确认后清空
     @State private var pendingDelete: LedgerTransaction? = nil
 
+    /// 点一行打开修改表单
+    @State private var editing: LedgerTransaction? = nil
+
     /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
     private enum Selection: Equatable {
         case all
@@ -73,6 +76,7 @@ struct HistoryView: View {
                 }
             }
             .saveErrorAlert($saveError)
+            .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
             .alert(
                 "撤销这笔记录?",
                 isPresented: Binding(
@@ -222,6 +226,13 @@ struct HistoryView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     KickerLabel(text: "支出")
+                    if let days = equivalentDays(summary) {
+                        // 首页的日均是尺子: 这个月花掉的钱相当于平时多少天的开销
+                        Text("· " + HistoryLedger.equivalentDaysLabel(days))
+                            .font(.kicker)
+                            .foregroundStyle(Color.inkFaint)
+                            .lineLimit(1)
+                    }
                 }
 
                 HStack(spacing: Spacing.lg) {
@@ -247,6 +258,17 @@ struct HistoryView: View {
         guard case .month(let month) = scope else { return nil }
         let days = HistoryLedger.elapsedDays(in: month)
         return days > 0 ? summary.expense / Double(days) : nil
+    }
+
+    /// 只在按月查看时折算；全部时间折出来就是追踪天数，没有信息
+    private func equivalentDays(_ summary: HistorySummary) -> Double? {
+        guard case .month = scope else { return nil }
+        let firstDate = FreedomMath.earliestExpenseDate(expenses)
+        let dailyBurn = FreedomMath.dailyBurn(
+            totalExpenses: expenses.reduce(0) { $0 + $1.amount },
+            trackDays: FreedomMath.trackDays(firstRecordDate: firstDate)
+        )
+        return HistoryLedger.equivalentDays(expense: summary.expense, dailyBurn: dailyBurn)
     }
 
     private var scopeLabel: String {
@@ -387,14 +409,14 @@ struct HistoryView: View {
                     Text(label)
                         .font(.system(.caption2, design: .monospaced))
                         .tracking(0.5)
-                        .foregroundStyle(selected ? Color.paper : Color.inkMuted)
+                        .foregroundStyle(selected ? Color.ink : Color.inkFaint)
                     Text(FinancialFormatting.yuan(amount))
                         .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
-                        .foregroundStyle(selected ? Color.paper : Color.ink)
+                        .foregroundStyle(selected ? Color.ink : Color.inkMuted)
                 } else {
                     Text(label)
                         .font(.system(.callout, design: .rounded).weight(.medium))
-                        .foregroundStyle(selected ? Color.paper : Color.ink)
+                        .foregroundStyle(selected ? Color.ink : Color.inkMuted)
                 }
             }
             .padding(.horizontal, 12)
@@ -402,11 +424,12 @@ struct HistoryView: View {
             .frame(maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(selected ? Color.ink : Color.mist)
+                    .fill(Color.mist)
             )
+            // 选中只加深描边和文字，不填实心块
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.hairlineSoft, lineWidth: selected ? 0 : 1)
+                    .stroke(selected ? Color.ink : Color.hairlineSoft, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -439,35 +462,55 @@ struct HistoryView: View {
     }
 
     private func transactionRow(_ tx: LedgerTransaction) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-            Text(tx.title)
-                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                .foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .layoutPriority(1)
-            if !tx.note.isEmpty {
-                Text(tx.note)
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
+        // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实
+        let noteLeads = tx.kind == .expense && !tx.note.isEmpty
+        return Button {
+            editing = tx
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Text(noteLeads ? tx.note : tx.title)
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
                     .lineLimit(1)
+                    .layoutPriority(1)
+                if noteLeads {
+                    Text(tx.title)
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.inkFaint)
+                        .lineLimit(1)
+                } else if !tx.note.isEmpty {
+                    Text(tx.note)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: Spacing.sm)
+                Text(FinancialFormatting.signedYuan(tx.cashChange))
+                    .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
+                    .foregroundStyle(amountColor(tx))
+                    .layoutPriority(2)
             }
-            Spacer(minLength: Spacing.sm)
-            Text(FinancialFormatting.signedYuan(tx.cashChange))
-                .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
-                .foregroundStyle(tx.cashChange < 0 ? Color.flame : Color.skyDeep)
-                .layoutPriority(2)
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
+        .accessibilityHint("修改这笔记录")
         // 不用 destructive role: 它会在确认前就把行滑走
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("撤销") { pendingDelete = tx }
                 .tint(Color.flame)
         }
         .contextMenu {
+            Button("修改", systemImage: "pencil") { editing = tx }
             Button("撤销这笔", systemImage: "arrow.uturn.backward", role: .destructive) {
                 pendingDelete = tx
             }
         }
+    }
+
+    private func amountColor(_ tx: LedgerTransaction) -> Color {
+        tx.cashChange < 0 ? Color.flame : Color.skyDeep
     }
 
     /// 空状态:silverline 风简洁提示

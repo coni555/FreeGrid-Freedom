@@ -41,6 +41,14 @@ enum LedgerTransaction: Identifiable {
         }
     }
 
+    /// 记录里保存的金额，不带方向。
+    var amount: Double {
+        switch self {
+        case .expense(let expense): return expense.amount
+        case .income(let income): return income.amount
+        }
+    }
+
     /// 正数代表现金增加，负数代表现金减少。负数支出（退款）自然显示为增加。
     var cashChange: Double {
         switch self {

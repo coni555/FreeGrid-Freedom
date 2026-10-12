@@ -72,6 +72,37 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testHistoryRowOpensEditAndSavedNoteLeadsTheRow() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-ResetExpenseCategories", "-UseInMemoryStore"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        amount.tap()
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+
+        app.tabBars.buttons["History"].tap()
+        let row = app.staticTexts["早餐"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        let note = app.textFields["edit-note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        note.typeText("豆浆")
+        let editAmount = app.textFields["edit-amount"]
+        editAmount.tap()
+        editAmount.typeText("5")   // 12 → 125
+        app.buttons["保存"].tap()
+
+        // 有备注后备注做主，分类退成小标签；卡片合计跟着新金额走
+        XCTAssertTrue(app.staticTexts["豆浆"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["早餐"].exists)
+        XCTAssertTrue(app.staticTexts["−¥125"].firstMatch.exists)
+    }
+
+    @MainActor
     func testCategoryManagementRequiresProAccessOutsidePreview() {
         let app = XCUIApplication()
         app.launchArguments = ["-disableProPreview", "YES", "-ResetExpenseCategories", "-UseInMemoryStore"]
