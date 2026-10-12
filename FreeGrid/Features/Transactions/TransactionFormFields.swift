@@ -67,36 +67,64 @@ struct TransactionFormFields: View {
         }
     }
 
-    // MARK: - 分类: 全部摊开, 点一下就选中, 不用再进菜单
+    // MARK: - 分类: 一行, 点右边的胶囊弹出菜单选 (不把选项全摊在页面上)
     private var categoryChips: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        HStack(spacing: Spacing.sm) {
             KickerLabel(text: "分类")
-            FlowLayout(spacing: Spacing.sm) {
-                ForEach(categories, id: \.self) { name in
-                    choiceChip(name, selected: title == name) { title = name }
+            Spacer()
+            Menu {
+                Picker("分类", selection: $title) {
+                    ForEach(categories, id: \.self) { Text($0).tag($0) }
                 }
+            } label: {
+                menuCapsule(title.isEmpty ? "选择" : title)
             }
-            .accessibilityIdentifier("category-chips")
+            .accessibilityIdentifier("category-menu")
         }
     }
 
-    // MARK: - 来源: 自己填, 常用的几个可以直接点
+    // MARK: - 来源: 自己填; 右边的小箭头弹出常用的几个
     private var sourceField: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             KickerLabel(text: "来源")
             UnderlinedField(isFocused: focus == .title) {
-                TextField("这笔钱从哪来", text: $title)
-                    .font(.system(.title3, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                    .focused($focus, equals: .title)
-                    .accessibilityIdentifier("income-source-field")
-            }
-            FlowLayout(spacing: Spacing.sm) {
-                ForEach(Self.incomeSources, id: \.self) { name in
-                    choiceChip(name, selected: title == name) { title = name }
+                HStack(spacing: Spacing.sm) {
+                    TextField("这笔钱从哪来", text: $title)
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                        .focused($focus, equals: .title)
+                        .accessibilityIdentifier("income-source-field")
+                    Menu {
+                        ForEach(Self.incomeSources, id: \.self) { name in
+                            Button(name) { title = name }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.inkFaint)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("常用来源")
                 }
             }
         }
+    }
+
+    /// 弹出菜单的入口: 描边胶囊里写当前选中的, 右边上下箭头
+    private func menuCapsule(_ label: String) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.ink)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Color.inkFaint)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+        .contentShape(Capsule())
     }
 
     // MARK: - 日期: 今天和昨天一点就到, 别的日子用右边的选择器
@@ -157,43 +185,5 @@ func impactCard<Content: View>(title: String, note: String, @ViewBuilder content
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
         }
-    }
-}
-
-/// 一行放不下就换行的排布, 给分类这种数量不定的小块用
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(subviews, width: proposal.width ?? .infinity)
-        return CGSize(width: proposal.width ?? rows.width, height: rows.height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let rows = arrange(subviews, width: bounds.width)
-        for (index, origin) in rows.origins.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
-                proposal: .unspecified
-            )
-        }
-    }
-
-    private func arrange(_ subviews: Subviews, width: CGFloat) -> (origins: [CGPoint], width: CGFloat, height: CGFloat) {
-        var origins: [CGPoint] = []
-        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxWidth: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            origins.append(CGPoint(x: x, y: y))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-            maxWidth = max(maxWidth, x - spacing)
-        }
-        return (origins, maxWidth, y + rowHeight)
     }
 }
