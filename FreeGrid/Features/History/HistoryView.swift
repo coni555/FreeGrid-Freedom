@@ -14,6 +14,9 @@ struct HistoryView: View {
 
     /// 当前查看的时间范围，默认本月
     @State private var scope: HistoryScope = .month(HistoryMonth(containing: .now))
+    /// 分类条默认收起，点右上角筛选图标才出现；收起时一并清掉筛选，避免列表被看不见的条件过滤
+    @State private var showingFilters = false
+
     /// 分类条上选中的一项。换月后该项没有记录时自动视为「全部」。
     @State private var selection: Selection = .all
 
@@ -57,6 +60,17 @@ struct HistoryView: View {
                     }
                     .accessibilityLabel("搜索")
                     Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showingFilters.toggle()
+                            if !showingFilters { selection = .all }
+                        }
+                    } label: {
+                        Image(systemName: showingFilters
+                              ? "line.3.horizontal.decrease.circle.fill"
+                              : "line.3.horizontal.decrease.circle")
+                    }
+                    .accessibilityLabel(showingFilters ? "收起筛选" : "按分类筛选")
+                    Button {
                         showingMonths = true
                     } label: {
                         Image(systemName: "calendar")
@@ -91,7 +105,8 @@ struct HistoryView: View {
         )
         let summary = HistoryLedger.summary(scoped)
         let categories = isSearching ? [] : HistoryLedger.categoryTotals(scoped)
-        let active = isSearching ? .all : activeSelection(categories: categories, income: summary.income)
+        let active = isSearching || !showingFilters
+            ? .all : activeSelection(categories: categories, income: summary.income)
         let visible = HistoryLedger.search(filtered(scoped, by: active), query: searchText)
         let days = HistoryLedger.days(visible)
 
@@ -102,7 +117,7 @@ struct HistoryView: View {
                     searchSummary(visible)
                 } else {
                     scopeCard(summary)
-                    if !categories.isEmpty || summary.income != 0 {
+                    if showingFilters && (!categories.isEmpty || summary.income != 0) {
                         chipRow(categories, income: summary.income, active: active)
                             .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
                     }
@@ -128,7 +143,7 @@ struct HistoryView: View {
                     }
                 } header: {
                     dayHeader(day)
-                        .listRowInsets(EdgeInsets(top: Spacing.xl, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
+                        .listRowInsets(EdgeInsets(top: Spacing.lg, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
                 }
             }
         }
@@ -165,11 +180,11 @@ struct HistoryView: View {
 
     private func scopeCard(_ summary: HistorySummary) -> some View {
         let range = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
-        return VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
+        return VaultCard(padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: Spacing.sm) {
                     Text(scopeLabel)
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.system(.footnote, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                     Spacer()
                     if case .month(let month) = scope {
@@ -191,14 +206,12 @@ struct HistoryView: View {
 
                 HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                     Text(FinancialFormatting.yuan(summary.expense))
-                        .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .font(.system(size: 30, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     KickerLabel(text: "支出")
                 }
-
-                Hairline(color: .hairlineSoft)
 
                 HStack(spacing: Spacing.lg) {
                     scopeStat("收入", FinancialFormatting.yuan(summary.income))
@@ -210,7 +223,7 @@ struct HistoryView: View {
                 }
             }
         }
-        .listRowInsets(EdgeInsets(top: Spacing.sm, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
+        .listRowInsets(EdgeInsets(top: Spacing.xs, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
     }
 
     private var scopeLabel: String {
@@ -226,7 +239,7 @@ struct HistoryView: View {
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(Color.inkFaint)
             Text(value)
-                .font(.system(.footnote, design: .rounded).monospacedDigit())
+                .font(.system(.caption, design: .rounded).monospacedDigit())
                 .foregroundStyle(Color.ink)
         }
     }
@@ -239,7 +252,7 @@ struct HistoryView: View {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(enabled ? Color.inkMuted : Color.inkGhost)
-                .frame(width: 30, height: 30)
+                .frame(width: 26, height: 26)
                 .background(Circle().stroke(Color.hairline, lineWidth: 1))
                 .contentShape(Circle())
         }
