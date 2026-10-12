@@ -1,10 +1,9 @@
-// 首页主数字、趋势和两种布局。输入是同一份财务摘要。
+// 首页主数字和两种布局，以及单独成卡的 12 周趋势。输入是同一份财务摘要。
 
 import SwiftUI
 
 struct DashboardHero: View {
-    let expenses: [Expense]
-    let incomes: [Income]
+    let history: [FreedomMath.HistoryPoint]
     let snapshot: FinancialSnapshot
     let isDarkMode: Bool
     let heroLayout: String
@@ -13,17 +12,9 @@ struct DashboardHero: View {
     /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
     /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
     var body: some View {
-        let history = FreedomMath.freedomDaysHistory(
-            expenses: expenses,
-            incomes: incomes,
-            currentNetWorth: snapshot.netWorth,
-            firstRecordDate: snapshot.firstExpenseDate,
-            dailyPassive: snapshot.dailyPassive,
-            now: snapshot.now
-        )
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
-        let showsTrend = history.count >= 3
+        let showsTrend = FreedomTrendCard.isAvailable(history)
 
         // 内联 VaultCard 写法 — 为了在 paper 底之上、content 之下叠暗色流星层。
         // 普通 VaultCard 的 background fill 是 opaque, 没法在外面再叠装饰层。
@@ -34,7 +25,7 @@ struct DashboardHero: View {
                 KickerLabel(text: heroKickerText)
                 Spacer()
                 if let d = delta {
-                    // 下面的趋势行已经写了「69 天 → 27 天」, 有它时不再重复变化量
+                    // 趋势卡已经写了「69 天 → 27 天」, 有它时不再重复变化量
                     if !showsTrend {
                         trendBadge(delta: d.delta, weeks: history.count - 1)
                     }
@@ -57,27 +48,6 @@ struct DashboardHero: View {
             // ─── 中部: 根据 heroLayout 偏好切换 ───
             heroBody(deplete: deplete)
 
-            // ─── 底部: 趋势 caption + sparkline ───
-            if let first = history.first, let last = history.last, showsTrend {
-                Hairline().padding(.top, Spacing.xs)
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(history.count - 1) 周自由趋势")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer()
-                    Text("\(first.description) → \(last.description)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Color.ink)
-                }
-                if let values = FreedomMath.historyPlotValues(history) {
-                    Sparkline(values: values)
-                        .frame(height: 36)
-                        .padding(.top, 2)
-                }
-                Text(snapshot.dailyPassive > 0 ? "根据账目和现在的被动收入估算" : "根据账目估算")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-            }
         }
         .padding(Spacing.xl)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -281,6 +251,40 @@ struct DashboardHero: View {
             case .day: return "Freedom Days"
             case .month: return "Freedom Months"
             case .year: return "Freedom Years"
+            }
+        }
+    }
+}
+
+/// 12 周趋势是回顾, 不是现在: 从大数字卡里拆出来, 让数字和格子挨在一起。
+struct FreedomTrendCard: View {
+    let history: [FreedomMath.HistoryPoint]
+    let hasPassiveIncome: Bool
+
+    static func isAvailable(_ history: [FreedomMath.HistoryPoint]) -> Bool { history.count >= 3 }
+
+    var body: some View {
+        if let first = history.first, let last = history.last, Self.isAvailable(history) {
+            VaultCard(padding: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(history.count - 1) 周自由趋势")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                        Spacer()
+                        Text("\(first.description) → \(last.description)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.ink)
+                    }
+                    if let values = FreedomMath.historyPlotValues(history) {
+                        Sparkline(values: values)
+                            .frame(height: 36)
+                            .padding(.top, 2)
+                    }
+                    Text(hasPassiveIncome ? "根据账目和现在的被动收入估算" : "根据账目估算")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                }
             }
         }
     }

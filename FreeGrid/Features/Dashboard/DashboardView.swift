@@ -51,20 +51,31 @@ private struct DashboardContent: View {
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
     var body: some View {
-        NavigationStack {
+        // 大数字卡和趋势卡共用同一份历史, 只算一次
+        let history = FreedomMath.freedomDaysHistory(
+            expenses: expenses,
+            incomes: incomes,
+            currentNetWorth: snapshot.netWorth,
+            firstRecordDate: snapshot.firstExpenseDate,
+            dailyPassive: snapshot.dailyPassive,
+            now: snapshot.now
+        )
+        return NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    topBar           // 圆点 + FreeGrid + 副标
-                    DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
+                    // 首屏: 结论(数字) → 它的图(格子) → 动作(记账、模拟); 回顾类的往下放
+                    topBar           // 一行 wordmark
+                    DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
                     gridSection      // 按天、月或年显示自由网格
+                    actionRow        // 支出 + 收入
+                    simulateRow      // 模拟决策
+                    FreedomTrendCard(history: history, hasPassiveIncome: snapshot.dailyPassive > 0)
                     if snapshot.hasExpenses {
                         statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
                     }
-                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
-                    simulateRow      // 模拟决策
                     if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均 (推到最底,是 review 信息); 还没有日均时没有可比的东西
+                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
                     }
                 }
                 .padding(.horizontal, Spacing.lg)
@@ -172,31 +183,23 @@ private struct DashboardContent: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部 brand bar: 靶心 mark + 品牌名 + 副标。主题和首页布局在 Settings 的「外观」里改。
+    /// 顶部只留一行小 wordmark: 首屏的高度让给数字、格子和记账。
     private var topBar: some View {
-        HStack(spacing: Spacing.sm) {
+        HStack(spacing: 6) {
             ZStack {
                 Circle()
                     .stroke(Color.ink, lineWidth: 1)
-                    .frame(width: 22, height: 22)
+                    .frame(width: 14, height: 14)
                 Circle()
                     .fill(Color.sky)
-                    .frame(width: 9, height: 9)
+                    .frame(width: 6, height: 6)
             }
             .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("FreeGrid")
-                    .font(.system(.title3, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.ink)
-                Text("通往财富自由之路")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-            }
-
+            Text("FreeGrid")
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.ink)
             Spacer()
         }
-        .padding(.bottom, Spacing.xs)
     }
 
     // ============================================================================
@@ -348,15 +351,17 @@ private struct DashboardContent: View {
                         .foregroundStyle(Color.inkFaint)
                 }
 
-                if state.count == 0 {
+                if state.count == 0 && state.partial == 0 {
                     emptyGridHint
                 } else {
                     LifeGrid(unit: state.unit, count: state.count,
-                             assetCells: state.assetCells)
+                             assetCells: state.assetCells,
+                             partial: state.partial,
+                             partialIsCash: state.cashCells > 0 || state.assetCells == 0)
                         .padding(.vertical, Spacing.sm)
                 }
 
-                if state.count > 0 {
+                if state.count > 0 || state.partial > 0 {
                 HStack(spacing: Spacing.lg) {
                     legendDot(color: .assetGold, label: "资产")
                     legendDot(color: .cashBlue, label: "现金")

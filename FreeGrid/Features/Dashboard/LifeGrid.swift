@@ -1,4 +1,4 @@
-// 把自由天数画成资产与现金格子，最后一格持续呼吸。
+// 把自由天数画成资产与现金格子；最后是一格正在消耗的「水位格」，持续呼吸。
 
 import SwiftUI
 
@@ -6,6 +6,13 @@ struct LifeGrid: View {
     let unit: FreedomMath.GridUnit
     let count: Int
     let assetCells: Int
+    /// 整格之后不足一格的部分 (0 ..< 1)。大于 0 时多画一格描边的水位格: 每记一笔支出水位就降一点,
+    /// 降到底整格熄灭。没有它, 一笔不到一天花销的支出在首页上什么都不会变。
+    var partial: Double = 0
+    /// 水位格跟最后一段的颜色: 有现金格时是蓝, 全是资产时是金
+    var partialIsCash: Bool = true
+
+    private var showsPartial: Bool { partial >= 0.02 }
 
     @Environment(\.colorScheme) private var scheme
 
@@ -32,12 +39,47 @@ struct LifeGrid: View {
                 spacing: unit.spacing
             ) {
                 ForEach(0..<count, id: \.self) { i in
-                    let isCurrent = (i == count - 1)
+                    // 有水位格时它才是「正在过的这一天」, 整格都不呼吸
+                    let isCurrent = !showsPartial && (i == count - 1)
                     let isCash = i >= assetCells
                     cell(isCurrent: isCurrent, isCash: isCash, breath: b)
                 }
+                if showsPartial {
+                    waterCell(breath: b)
+                }
             }
         }
+    }
+
+    /// 描边方框 + 从底部往上的填充; 比普通格大一点, 9pt 里的水位差才看得清
+    private func waterCell(breath: CGFloat) -> some View {
+        let isDark = scheme == .dark
+        let color: Color = isDark
+            ? (partialIsCash
+                ? Color(red: 0.83, green: 0.92, blue: 1.00)
+                : Color(red: 1.00, green: 0.92, blue: 0.65))
+            : (partialIsCash
+                ? Color(red: 0.20, green: 0.50, blue: 0.78)
+                : Color(red: 0.72, green: 0.58, blue: 0.20))
+        let size = unit.cellSize
+        let radius = size * 0.17
+        let glow = (isDark ? 0.35 : 0.22) + 0.12 * Double(breath)
+        return ZStack(alignment: .bottom) {
+            Rectangle()
+                .fill(color)
+                .frame(width: size, height: max(1, size * CGFloat(partial)))
+                .animation(.easeInOut(duration: 0.6), value: partial)
+        }
+        .frame(width: size, height: size, alignment: .bottom)
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .stroke(color, lineWidth: 1)
+        )
+        .shadow(color: color.opacity(glow), radius: 4 + 3 * breath)
+        .scaleEffect(1.45)
+        .zIndex(1)
+        .accessibilityLabel("正在消耗的一格，还剩 \(Int((partial * 100).rounded()))%")
     }
 
     @ViewBuilder
