@@ -9,10 +9,22 @@ enum LedgerStore {
 
     enum StoreError: Error, LocalizedError {
         case pendingChanges
+        case missingRecord
 
         var errorDescription: String? {
-            "还有尚未保存的修改，请先完成当前编辑，再重试。"
+            switch self {
+            case .pendingChanges: return "还有尚未保存的修改，请先完成当前编辑，再重试。"
+            case .missingRecord: return "这笔记录已经不在账本里，可能刚被撤销。"
+            }
         }
+    }
+
+    /// 修改一笔已有记录时可以改的内容。title 对支出是分类，对收入是来源。
+    struct TransactionEdit: Equatable {
+        var amount: Double
+        var title: String
+        var note: String
+        var date: Date
     }
 
     /// 页面只在成功返回后关闭表单或显示成功。整个操作同步执行，不在中途让出执行权。
@@ -39,6 +51,7 @@ enum LedgerStore {
     static func updateAssets(
         in context: ModelContext,
         save: SaveAction = { try $0.save() },
+        restore: () -> Void = {},
         changes: (UserAssets) throws -> Void
     ) throws {
         let existing = try context.fetch(FetchDescriptor<UserAssets>()).first
@@ -46,6 +59,7 @@ enum LedgerStore {
         let previous = (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate)
         try perform(in: context, save: save, restore: {
             (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate) = previous
+            restore()
         }) {
             if existing == nil { context.insert(assets) }
             try changes(assets)
@@ -118,6 +132,44 @@ enum LedgerStore {
                 context.delete(income)
             }
             assets.updatedAt = .now
+        }
+    }
+
+    /// 修改已有记录：现金只补上新旧金额的差额，支出改日期后重算统计起点。
+    /// 失败时记录的字段和现金一起回到修改前。
+    static func edit(
+        id: UUID,
+        kind: TransactionKind,
+        in context: ModelContext,
+        to edit: TransactionEdit,
+        save: SaveAction = { try $0.save() }
+    ) throws {
+        switch kind {
+        case .expense:
+            let expenses = try context.fetch(FetchDescriptor<Expense>())
+            guard let expense = expenses.first(where: { $0.id == id }) else { throw StoreError.missingRecord }
+            let previous = (expense.amount, expense.category, expense.note, expense.date)
+            try updateAssets(in: context, save: save, restore: {
+                (expense.amount, expense.category, expense.note, expense.date) = previous
+            }) { assets in
+                assets.cash += expense.amount - edit.amount
+                (expense.amount, expense.category, expense.note, expense.date)
+                    = (edit.amount, edit.title, edit.note, edit.date)
+                assets.firstRecordDate = FreedomMath.earliestExpenseDate(expenses)
+                assets.updatedAt = .now
+            }
+        case .income:
+            let incomes = try context.fetch(FetchDescriptor<Income>())
+            guard let income = incomes.first(where: { $0.id == id }) else { throw StoreError.missingRecord }
+            let previous = (income.amount, income.source, income.note, income.date)
+            try updateAssets(in: context, save: save, restore: {
+                (income.amount, income.source, income.note, income.date) = previous
+            }) { assets in
+                assets.cash += edit.amount - income.amount
+                (income.amount, income.source, income.note, income.date)
+                    = (edit.amount, edit.title, edit.note, edit.date)
+                assets.updatedAt = .now
+            }
         }
     }
 }

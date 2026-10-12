@@ -145,4 +145,98 @@ struct LedgerStoreTests {
         #expect(try context.fetchCount(FetchDescriptor<PassiveSource>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<UserAssets>()) == 0)
     }
+
+    @Test func editingAnExpenseMovesCashByTheDifferenceAndRecomputesTrackingStart() throws {
+        let context = try TestSupport.makeContext()
+        let rent = Expense(amount: 3_700, category: "其他", note: "租房", date: TestSupport.day("2026-07-30"))
+        let lunch = Expense(amount: 15, category: "午餐", date: TestSupport.day("2026-07-01"))
+        try LedgerStore.add(.expense(rent), in: context)
+        try LedgerStore.add(.expense(lunch), in: context)
+        let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)
+        #expect(assets.cash == -3_715)
+
+        // 只改分类：现金不动
+        try LedgerStore.edit(id: rent.id, kind: .expense, in: context,
+                             to: .init(amount: 3_700, title: "房租", note: "租房", date: rent.date))
+        #expect(rent.category == "房租")
+        #expect(assets.cash == -3_715)
+
+        // 金额 3700 → 3500，日期提前到 6 月：现金多回 200，统计起点跟着提前
+        try LedgerStore.edit(id: rent.id, kind: .expense, in: context,
+                             to: .init(amount: 3_500, title: "房租", note: "", date: TestSupport.day("2026-06-15")))
+        #expect(rent.amount == 3_500)
+        #expect(rent.note == "")
+        #expect(assets.cash == -3_515)
+        #expect(assets.firstRecordDate == TestSupport.day("2026-06-15"))
+    }
+
+    @Test func editingAnIncomeMovesCashTheOtherWay() throws {
+        let context = try TestSupport.makeContext()
+        let income = Income(amount: 1_000, source: "工资", date: TestSupport.day("2026-07-01"))
+        try LedgerStore.add(.income(income), in: context)
+        try LedgerStore.edit(id: income.id, kind: .income, in: context,
+                             to: .init(amount: 1_900, title: "工资 7 月", note: "补发", date: income.date))
+        let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)
+        #expect(assets.cash == 1_900)
+        #expect(income.source == "工资 7 月")
+        #expect(income.note == "补发")
+        #expect(assets.firstRecordDate == nil)
+    }
+
+    @Test func failedEditRestoresRecordFieldsAndCash() throws {
+        let context = try TestSupport.makeContext()
+        let expense = Expense(amount: 50, category: "午餐", note: "面", date: TestSupport.day("2026-01-10"))
+        try LedgerStore.add(.expense(expense), in: context)
+        #expect(throws: Failure.self) {
+            try LedgerStore.edit(id: expense.id, kind: .expense, in: context,
+                                 to: .init(amount: 80, title: "晚餐", note: "", date: TestSupport.day("2026-01-01"))) { _ in
+                throw Failure.save
+            }
+        }
+        let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)
+        #expect(expense.amount == 50)
+        #expect(expense.category == "午餐")
+        #expect(expense.note == "面")
+        #expect(expense.date == TestSupport.day("2026-01-10"))
+        #expect(assets.cash == -50)
+        #expect(assets.firstRecordDate == TestSupport.day("2026-01-10"))
+        #expect(!context.hasChanges)
+    }
+
+    @Test func editingAMissingRecordThrowsAndWritesNothing() throws {
+        let context = try TestSupport.makeContext()
+        #expect(throws: LedgerStore.StoreError.self) {
+            try LedgerStore.edit(id: UUID(), kind: .expense, in: context,
+                                 to: .init(amount: 1, title: "午餐", note: "", date: .now))
+        }
+        #expect(try context.fetchCount(FetchDescriptor<UserAssets>()) == 0)
+    }
+
+    @Test func editRejectsAnAmountThatPushesCashPastTheLimit() throws {
+        let context = try TestSupport.makeContext()
+        let income = Income(amount: 1_000, source: "工资")
+        try LedgerStore.add(.income(income), in: context)
+        #expect(throws: (any Error).self) {
+            try LedgerStore.edit(id: income.id, kind: .income, in: context,
+                                 to: .init(amount: FinancialLimits.maximumAmount * 2, title: "工资", note: "", date: income.date))
+        }
+        let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)
+        #expect(income.amount == 1_000)
+        #expect(assets.cash == 1_000)
+    }
+
+    @Test func editFormKeepsUntouchedRefundAmountAndOriginalTimeOfDay() {
+        let noon = TestSupport.day("2026-03-05").addingTimeInterval(12 * 3600)
+        let refund = LedgerTransaction.expense(Expense(amount: -30, category: "购物", note: "退款", date: noon))
+        // 只改分类：负数金额和具体时刻原样保留
+        let recategorized = EditTransactionSheet.edit(
+            for: refund, amountText: "-30", title: " 退货 ", note: "退款", date: TestSupport.day("2026-03-05"))
+        #expect(recategorized == .init(amount: -30, title: "退货", note: "退款", date: noon))
+        // 动了金额就按新增的规则校验：负数、零、非数字都不行
+        for text in ["-20", "0", "abc", ""] {
+            #expect(EditTransactionSheet.edit(for: refund, amountText: text, title: "购物", note: "", date: noon) == nil)
+        }
+        #expect(EditTransactionSheet.edit(for: refund, amountText: "12.5", title: "购物", note: "", date: noon)?.amount == 12.5)
+        #expect(EditTransactionSheet.edit(for: refund, amountText: "-30", title: "  ", note: "", date: noon) == nil)
+    }
 }
