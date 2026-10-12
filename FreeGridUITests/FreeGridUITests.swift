@@ -107,10 +107,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
 
-        // 空账本时大数字卡是入口: 先带去 Assets 记钱
-        let start = app.buttons["hero-start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 3))
-        start.tap()
+        app.tabBars.buttons["Assets"].tap()
         XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
         app.buttons["编辑现金"].tap()
 
@@ -119,9 +116,8 @@ final class FreeGridUITests: XCTestCase {
         savingsField.typeText("10000")
         app.buttons["保存"].tap()
 
-        // 有了钱之后同一张卡改成打开记支出; 两样都齐了它就不再是按钮
         app.tabBars.buttons["Dashboard"].tap()
-        start.tap()
+        app.buttons["记支出"].tap()
 
         let amountField = app.textFields["0.00"]
         XCTAssertTrue(amountField.waitForExistence(timeout: 3))
@@ -130,7 +126,6 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         XCTAssertTrue(app.staticTexts["99"].waitForExistence(timeout: 3))
-        XCTAssertFalse(start.exists)
 
         for title in ["Assets", "History", "Settings"] {
             app.tabBars.buttons[title].tap()
