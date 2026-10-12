@@ -13,7 +13,7 @@ FreeGrid/
 ├── Features/     按功能组织的页面和弹窗
 │   ├── Dashboard/    首页、主数字、自由网格、流星装饰
 │   ├── Assets/       双桶、调拨、被动收入、导入确认
-│   ├── Transactions/ 支出、收入、修改记录三个表单；输入区共用 TransactionFormFields
+│   ├── Transactions/ 支出、收入、修改记录三个表单；日期行共用 TransactionDateRow
 │   ├── Simulation/   模拟决策及格子动画
 │   ├── History/      历史记录和月度汇总
 │   └── Settings/     设置、数据管理（导出/导入/清空）和财富自由自检

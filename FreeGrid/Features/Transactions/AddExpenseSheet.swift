@@ -21,6 +21,8 @@ struct AddExpenseSheet: View {
     @State private var category: String = "早餐"
     @State private var note: String = ""
     @State private var date: Date = .now
+    /// 打开表单就弹键盘, 少点一下
+    @FocusState private var amountFocused: Bool
 
     /// 分类清单 = 权威 canonical(单一来源 ExpenseCategory.canonical)。
     /// "人情"/"日用" 已不在清单(2026-05 移除);旧记录仍能在 History 正常显示。
@@ -28,27 +30,47 @@ struct AddExpenseSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
-                    TransactionFormFields(mode: .expense, amount: $amount, title: $category,
-                                          note: $note, date: $date, categories: categories)
-
-                    // ===== 戴维斯三杀实时预览: 金额有效才出现, 还没保存 =====
-                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
-                        impactCard(title: "戴维斯三杀预览", note: "这笔消费对自由天数的传导效应。还没保存，只是看看。") {
-                            TransactionImpactView(impact: TransactionImpact(
-                                snapshot: snapshot, kind: .expense, amount: amt, date: date
-                            ))
+            Form {
+                Section("金额 (元)") {
+                    TextField("0.00", text: $amount)
+                        .decimalKeyboard()
+                        .font(.system(.body, design: .rounded).monospacedDigit())
+                        .focused($amountFocused)
+                }
+                Section("分类") {
+                    Picker("分类", selection: $category) {
+                        ForEach(categories, id: \.self) { c in
+                            Text(c).tag(c)
                         }
                     }
                 }
-                .padding(Spacing.lg)
+                Section("日期") {
+                    TransactionDateRow(date: $date)
+                }
+                Section("备注 (可选)") {
+                    TextField("备注", text: $note)
+                        .font(.system(.body, design: .rounded))
+                }
+
+                // ===== 戴维斯三杀实时预览 =====
+                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
+                    Section {
+                        TransactionImpactView(impact: TransactionImpact(
+                            snapshot: snapshot, kind: .expense, amount: amt, date: date
+                        ))
+                    } header: {
+                        Text("戴维斯三杀预览")
+                    } footer: {
+                        Text("这笔消费对自由天数的传导效应。还没保存,只是看看。")
+                            .font(.system(.caption2, design: .rounded))
+                    }
+                }
             }
-            .dismissKeyboardOnScroll()
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加支出")
             .inlineNavTitle()
+            .onAppear { amountFocused = true }
             .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

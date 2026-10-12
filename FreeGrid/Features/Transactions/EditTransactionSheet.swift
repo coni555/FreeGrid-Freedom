@@ -31,19 +31,36 @@ struct EditTransactionSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                TransactionFormFields(
-                    mode: transaction.kind == .expense ? .expense : .income,
-                    amount: $amount, title: $title, note: $note, date: $date,
-                    categories: categories,
-                    latestDate: max(Date.now, transaction.date),
-                    focusesAmountOnAppear: false,
-                    amountIdentifier: "edit-amount",
-                    noteIdentifier: "edit-note"
-                )
-                .padding(Spacing.lg)
+            Form {
+                Section("金额 (元)") {
+                    TextField("0.00", text: $amount)
+                        .decimalKeyboard()
+                        .font(.system(.body, design: .rounded).monospacedDigit())
+                        .accessibilityIdentifier("edit-amount")
+                }
+                switch transaction.kind {
+                case .expense:
+                    Section("分类") {
+                        Picker("分类", selection: $title) {
+                            ForEach(categories, id: \.self) { Text($0).tag($0) }
+                        }
+                        .accessibilityIdentifier("edit-category-picker")
+                    }
+                case .income:
+                    Section("来源") {
+                        TextField("工资 / 投资 / 副业 / ...", text: $title)
+                            .font(.system(.body, design: .rounded))
+                    }
+                }
+                Section("日期") {
+                    TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
+                }
+                Section("备注 (可选)") {
+                    TextField("备注", text: $note)
+                        .font(.system(.body, design: .rounded))
+                        .accessibilityIdentifier("edit-note")
+                }
             }
-            .dismissKeyboardOnScroll()
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle(transaction.kind == .expense ? "修改支出" : "修改收入")

@@ -21,29 +21,48 @@ struct AddIncomeSheet: View {
     @State private var source: String = ""
     @State private var note: String = ""
     @State private var date: Date = .now
+    /// 打开表单就弹键盘, 少点一下
+    @FocusState private var amountFocused: Bool
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
-                    TransactionFormFields(mode: .income, amount: $amount, title: $source,
-                                          note: $note, date: $date)
+            Form {
+                Section("金额 (元)") {
+                    TextField("0.00", text: $amount)
+                        .decimalKeyboard()
+                        .font(.system(.body, design: .rounded).monospacedDigit())
+                        .focused($amountFocused)
+                }
+                Section("来源") {
+                    TextField("工资 / 投资 / 副业 / ...", text: $source)
+                        .font(.system(.body, design: .rounded))
+                }
+                Section("日期") {
+                    TransactionDateRow(date: $date)
+                }
+                Section("备注 (可选)") {
+                    TextField("备注", text: $note)
+                        .font(.system(.body, design: .rounded))
+                }
 
-                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
-                        impactCard(title: "自由增长预览", note: "这笔收入对自由天数的回血效应。") {
-                            TransactionImpactView(impact: TransactionImpact(
-                                snapshot: snapshot, kind: .income, amount: amt, date: date
-                            ))
-                        }
+                if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
+                    Section {
+                        TransactionImpactView(impact: TransactionImpact(
+                            snapshot: snapshot, kind: .income, amount: amt, date: date
+                        ))
+                    } header: {
+                        Text("自由增长预览")
+                    } footer: {
+                        Text("这笔收入对自由天数的回血效应。")
+                            .font(.system(.caption2, design: .rounded))
                     }
                 }
-                .padding(Spacing.lg)
             }
-            .dismissKeyboardOnScroll()
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("添加收入")
             .inlineNavTitle()
+            .onAppear { amountFocused = true }
             .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
