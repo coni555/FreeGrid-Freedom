@@ -77,7 +77,7 @@ struct MonthlySummaryView: View {
                         }
                         HStack(spacing: Spacing.xl) {
                             amountStat("支出", stat.totalExpense, Color.ink)
-                            amountStat("收入", stat.totalIncome, Color.assetGold)
+                            amountStat("收入", stat.totalIncome, Color.skyDeep)
                         }
                     }
                 }
