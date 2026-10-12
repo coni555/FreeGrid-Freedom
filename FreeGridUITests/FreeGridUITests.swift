@@ -95,6 +95,41 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testGuideListReplaysAssetsAndSettingsTours() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+
+        let next = app.buttons["guide-next"]
+        // Assets 讲四处：净值、调拨、两张卡、被动收入
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["guide-list"].tap()
+        app.buttons["replay-assets-guide"].tap()
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Assets"].exists)
+        finishGuide(next)
+
+        // Settings 讲三处；讲之前指引列表那一页要先退回去
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["guide-list"].tap()
+        app.buttons["replay-settings-guide"].tap()
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Settings"].exists)
+        for _ in 0..<2 { next.tap() }
+        expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
+        waitForExpectations(timeout: 3)
+        Thread.sleep(forTimeInterval: 0.4)
+        next.tap()
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+    }
+
+    @MainActor
     func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
         // 无值的 -UseInMemoryStore 会吞掉紧随其后的参数,所以它必须排在最后。

@@ -9,7 +9,7 @@ import SwiftUI
 final class AppGuide {
     /// 看着学的讲解，各属于一个页面
     enum Tour: Hashable {
-        case dashboard, history
+        case dashboard, assets, history, settings
     }
 
     enum Target: Hashable {
@@ -17,6 +17,10 @@ final class AppGuide {
         case month, row, tools
         // 首页
         case number, grid, simulate, trend
+        // Assets
+        case netWorth, transfer, buckets, passive
+        // Settings
+        case check, appearance, data
         // 起步引导里要用户真的去点的两处
         case cashCard, expenseButton
     }
@@ -36,6 +40,19 @@ final class AppGuide {
                 Step(target: .grid, text: "一格是一天。金色来自资产，蓝色来自现金。\n钱花掉，格子就会少。"),
                 Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
                 Step(target: .trend, text: "点这一行，展开或收起最近几周的变化。"),
+            ]
+        case .assets:
+            return [
+                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线是两者各占多少。"),
+                Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
+                Step(target: .buckets, text: "点一张卡修改金额。\n资产是定期、股票这类锁定的钱，现金是随时能花的。"),
+                Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它盖住全部开销时，就是财富自由。"),
+            ]
+        case .settings:
+            return [
+                Step(target: .check, text: "八个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项。"),
+                Step(target: .appearance, text: "深色还是浅色、首页大数字靠右还是居中，在这里改。"),
+                Step(target: .data, text: "导出备份、从备份恢复、清空数据都在这里。\n换手机前先导出一份 JSON。"),
             ]
         case .history:
             return [

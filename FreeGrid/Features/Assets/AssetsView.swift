@@ -37,18 +37,34 @@ struct AssetsView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: 16) {
                     heroCard
+                        .id(Self.topID)
                     bucketCards
+                        .guideTarget(.buckets, in: guide)
                     if showEmptyHint { emptyHintCard }
                     passiveCard
+                        .guideTarget(.passive, in: guide)
                 }
                 .padding()
                 // 点击卡片之外的空白处收起调拨键盘(decimalPad 无 return 键)。
                 // contentShape 让空白区也可命中; 子控件(按钮/Picker/输入框)优先级更高, 不受影响。
                 .contentShape(Rectangle())
                 .onTapGesture { transferFocused = false }
+            }
+            // 「Assets 怎么用」: 收起展开的东西、回到顶部, 等位置排好再开始
+            .task(id: guide.replays(of: .assets)) {
+                guard guide.replays(of: .assets) > 0 else { return }
+                transferExpanded = false
+                showingExplain = false
+                transferFocused = false
+                scroller.scrollTo(Self.topID, anchor: .top)
+                try? await Task.sleep(for: .milliseconds(600))
+                guard editingBucket == nil, !showingAddPassive, editingPassiveSource == nil else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.assets) }
+            }
             }
             .scrollContentBackground(.hidden)
             .dismissKeyboardOnScroll()
@@ -97,6 +113,8 @@ struct AssetsView: View {
         }
     }
 
+    private static let topID = "assets-top"
+
     // MARK: - Hero: 净值总览
     private var heroCard: some View {
         VaultCard(emphasis: .high, padding: Spacing.xl) {
@@ -120,13 +138,17 @@ struct AssetsView: View {
                     .accessibilityValue(showingExplain ? "已展开" : "已收起")
                 }
 
-                Text("¥" + currentNetWorth.formatted(.number))
-                    .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("¥" + currentNetWorth.formatted(.number))
+                        .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
 
-                bucketRatioBar
+                    bucketRatioBar
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .guideTarget(.netWorth, in: guide)
 
                 if let updated = assetsArr.first?.updatedAt, currentNetWorth > 0 {
                     Text("上次更新 · \(Self.relativeFormatter.localizedString(for: updated, relativeTo: .now))")
@@ -404,6 +426,7 @@ struct AssetsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .guideTarget(.transfer, in: guide)
         .accessibilityIdentifier("transfer-toggle")
         .accessibilityLabel("调拨，在资产和现金之间移动")
         .accessibilityValue(transferExpanded ? "已展开" : "已收起")

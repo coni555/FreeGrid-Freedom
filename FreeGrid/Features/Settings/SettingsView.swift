@@ -23,6 +23,8 @@ struct SettingsView: View {
     @Query private var assetsArr: [UserAssets]
 
     @Environment(\.openURL) private var openURL
+    /// 「Settings 怎么用」要圈出这一页上的位置
+    @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
 
     private let icpNumber = "浙ICP备2026045014号-1A"
@@ -44,8 +46,11 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: Spacing.xl) {
                     checkCard
+                        .guideTarget(.check, in: guide)
                     appearanceSection
+                        .guideTarget(.appearance, in: guide)
                     dataSection
+                        .guideTarget(.data, in: guide)
                     aboutSupportSection
                 }
                 .padding()
@@ -53,6 +58,12 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
+            // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
+            .task(id: guide.replays(of: .settings)) {
+                guard guide.replays(of: .settings) > 0 else { return }
+                try? await Task.sleep(for: .milliseconds(800))
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.settings) }
+            }
         }
     }
 
@@ -203,41 +214,13 @@ struct SettingsView: View {
             }
         } else {
             NavigationLink {
-                guideListPage
+                GuideListPage(onReplay: onReplayGuide)
             } label: {
                 settingsRow(icon: "questionmark.circle", title: "使用指引") { chevron }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("guide-list")
         }
-    }
-
-    /// 点哪一个就跳到那一页从头讲一遍
-    private var guideListPage: some View {
-        ScrollView {
-            VStack(spacing: Spacing.lg) {
-                settingsSection("") {
-                    settingsRow(icon: "chart.line.uptrend.xyaxis", title: "认识首页",
-                                action: { onReplayGuide(.dashboard) }) { playMark }
-                        .accessibilityIdentifier("replay-dashboard-guide")
-                    rowDivider
-                    settingsRow(icon: "clock.arrow.circlepath", title: "History 怎么用",
-                                action: { onReplayGuide(.history) }) { playMark }
-                        .accessibilityIdentifier("replay-history-guide")
-                }
-            }
-            .padding()
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.paper)
-        .navigationTitle("使用指引")
-        .inlineNavTitle()
-    }
-
-    private var playMark: some View {
-        Image(systemName: "play")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(Color.inkGhost)
     }
 
     private var aboutPage: some View {
@@ -369,5 +352,62 @@ struct SettingsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation { icpCopied = false }
         }
+    }
+}
+
+/// 「使用指引」列表：点哪一个就跳到那一页从头讲一遍。
+/// 单独成一个视图是为了拿到这一页自己的 dismiss：先退回 Settings 首页再开始讲，
+/// 否则「Settings 怎么用」要圈的东西被这一页盖着。
+private struct GuideListPage: View {
+    let onReplay: (AppGuide.Tour) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private let items: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] = [
+        (.dashboard, "chart.line.uptrend.xyaxis", "认识首页", "replay-dashboard-guide"),
+        (.assets, "banknote", "Assets 怎么用", "replay-assets-guide"),
+        (.history, "clock.arrow.circlepath", "History 怎么用", "replay-history-guide"),
+        (.settings, "gearshape", "Settings 里有什么", "replay-settings-guide"),
+    ]
+
+    var body: some View {
+        ScrollView {
+            VaultCard(padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        if index > 0 {
+                            Hairline().padding(.leading, Spacing.lg + 26 + Spacing.md)
+                        }
+                        Button {
+                            dismiss()
+                            onReplay(item.tour)
+                        } label: {
+                            HStack(spacing: Spacing.md) {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Color.inkMuted)
+                                    .frame(width: 26, alignment: .center)
+                                Text(item.title)
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(Color.ink)
+                                Spacer(minLength: Spacing.sm)
+                                Image(systemName: "play")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color.inkGhost)
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier(item.id)
+                    }
+                }
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .navigationTitle("使用指引")
+        .inlineNavTitle()
     }
 }

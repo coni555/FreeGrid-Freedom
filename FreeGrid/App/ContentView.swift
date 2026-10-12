@@ -67,7 +67,7 @@ struct ContentView: View {
 
             SettingsView(onReplayGuide: { tour in
                 guide.requestReplay(tour)
-                selectedTab = tour == .dashboard ? .dashboard : .history
+                selectedTab = tab(for: tour)
             })
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
@@ -104,7 +104,12 @@ struct ContentView: View {
 
 extension ContentView {
     private func tab(for tour: AppGuide.Tour) -> AppTab {
-        tour == .dashboard ? .dashboard : .history
+        switch tour {
+        case .dashboard: return .dashboard
+        case .assets: return .assets
+        case .history: return .history
+        case .settings: return .settings
+        }
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
