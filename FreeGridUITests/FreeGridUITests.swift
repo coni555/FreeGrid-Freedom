@@ -12,6 +12,18 @@ final class FreeGridUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// 走完四步。卡片换位置时有动画，点偏了落在空白处：前三步照样前进，
+    /// 最后一步只有按钮能关，所以等卡片停稳再点「知道了」。
+    @MainActor
+    private func finishGuide(_ next: XCUIElement) {
+        for _ in 0..<3 { next.tap() }
+        expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
+        waitForExpectations(timeout: 3)
+        Thread.sleep(forTimeInterval: 0.4)
+        next.tap()
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+    }
+
     @MainActor
     func testHistoryGuideRunsOnceThenRowOpensEditAndSavedNoteLeadsTheRow() {
         let app = XCUIApplication()
@@ -28,8 +40,7 @@ final class FreeGridUITests: XCTestCase {
         // 第一次进来先走完指引：月份、点行、左滑、工具栏，共四步
         let next = app.buttons["history-guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
-        for _ in 0..<4 { next.tap() }
-        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+        finishGuide(next)
         let row = app.staticTexts["早餐"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
@@ -72,8 +83,14 @@ final class FreeGridUITests: XCTestCase {
         let next = app.buttons["history-guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["History"].exists)
-        for _ in 0..<4 { next.tap() }
-        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+        // 第一步没有上一步；走到第二步后可以退回来
+        let back = app.buttons["history-guide-back"]
+        XCTAssertFalse(back.exists)
+        next.tap()
+        XCTAssertTrue(back.waitForExistence(timeout: 3))
+        back.tap()
+        XCTAssertTrue(back.waitForNonExistence(timeout: 3))
+        finishGuide(next)
     }
 
     @MainActor

@@ -54,6 +54,10 @@ final class HistoryGuide {
     }
 
     /// 目标从屏幕上消失后丢掉旧位置，免得圈在空白处
+    func back() {
+        if let index, index > 0 { self.index = index - 1 }
+    }
+
     func forget(_ target: Target) {
         frames[target] = nil
     }
@@ -123,7 +127,8 @@ struct HistoryGuideOverlay: View {
                         .position(bubbleCenter(hole: hole, in: proxy.size))
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { next() }
+                // 点空白处只往下走；最后一步要点「知道了」才关，误触不会直接结束
+                .onTapGesture { if number < total { next() } }
             }
             .ignoresSafeArea()
             .transition(.opacity)
@@ -144,14 +149,24 @@ struct HistoryGuideOverlay: View {
                     Text("\(number) / \(total)")
                         .font(.kicker)
                         .foregroundStyle(Color.inkFaint)
-                    Spacer()
                     if number < total {
                         Button("跳过") { finish() }
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .buttonStyle(.plain)
-                            .padding(.trailing, Spacing.md)
+                            .padding(.leading, Spacing.sm)
                             .accessibilityIdentifier("history-guide-skip")
+                    }
+                    Spacer()
+                    if number > 1 {
+                        Button("上一步") {
+                            withAnimation(.easeInOut(duration: 0.25)) { guide.back() }
+                        }
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .buttonStyle(.plain)
+                        .padding(.trailing, Spacing.md)
+                        .accessibilityIdentifier("history-guide-back")
                     }
                     Button { next() } label: {
                         Text(number < total ? "下一步" : "知道了")
