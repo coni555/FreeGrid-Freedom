@@ -105,6 +105,7 @@ struct DashboardHero: View {
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 4)
+                    startHint
                 case .invalidData:
                     emphasized("检查", "财务数据", "", size: 18)
                     Text("存在无法计算的金额, 请检查记录")
@@ -112,16 +113,11 @@ struct DashboardHero: View {
                         .foregroundStyle(Color.flame)
                         .padding(.top, 4)
                 case .finite:
+                    // 见底日期比「这么多天」更有体感, 和「你的自由」同一级
                     emphasized("你的", "自由", "", size: 18)
-                    Text("还能撑这么多\(heroSubUnit)")
+                    Text(deplete.map { "能撑到 \(depleteDateString($0))" } ?? "还能撑这么多\(heroSubUnit)")
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    if let d = deplete {
-                        Text("约 \(depleteDateString(d)) 见底")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkFaint)
-                            .padding(.top, 4)
-                    }
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -168,6 +164,7 @@ struct DashboardHero: View {
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .padding(.top, 2)
+                startHint
             case .invalidData:
                 emphasized("检查", "财务数据", "", size: 18)
                 Text("存在无法计算的金额, 请检查记录")
@@ -175,16 +172,23 @@ struct DashboardHero: View {
                     .foregroundStyle(Color.flame)
                     .padding(.top, 2)
             case .finite:
-                emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
-                if let d = deplete {
-                    Text("约 \(depleteDateString(d)) 见底")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .padding(.top, 2)
-                }
+                emphasized("你的", "自由",
+                           deplete.map { " 能撑到 \(depleteDateString($0))" } ?? " 还能撑这么多\(heroSubUnit)",
+                           size: 18)
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// 空账本时整张卡可点 (见 DashboardView.heroCard), 这行告诉用户点了去哪
+    private var startHint: some View {
+        HStack(spacing: 4) {
+            Text(needsSavings ? "去 Assets 记下" : "记一笔支出")
+            Image(systemName: "arrow.right")
+        }
+        .font(.system(.caption, design: .rounded))
+        .foregroundStyle(Color.skyDeep)
+        .padding(.top, Spacing.sm)
     }
 
     /// trend badge: ▲ +N d / Nw 或 ▼ -N d / Nw
@@ -213,7 +217,9 @@ struct DashboardHero: View {
     private func depleteDateString(_ d: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M 月 d 日"
+        // 跨年的日期带上年份, 否则「3 月 2 日」分不清是哪一年
+        let sameYear = Calendar.current.isDate(d, equalTo: snapshot.now, toGranularity: .year)
+        f.dateFormat = sameYear ? "M 月 d 日" : "yyyy 年 M 月"
         return f.string(from: d)
     }
 
@@ -260,6 +266,7 @@ struct DashboardHero: View {
 struct FreedomTrendCard: View {
     let history: [FreedomMath.HistoryPoint]
     let hasPassiveIncome: Bool
+    let trackDays: Int
 
     static func isAvailable(_ history: [FreedomMath.HistoryPoint]) -> Bool { history.count >= 3 }
 
@@ -281,7 +288,9 @@ struct FreedomTrendCard: View {
                             .frame(height: 36)
                             .padding(.top, 2)
                     }
-                    Text(hasPassiveIncome ? "根据账目和现在的被动收入估算" : "根据账目估算")
+                    Text(hasPassiveIncome
+                         ? "根据 \(trackDays) 天的账目和现在的被动收入估算"
+                         : "根据 \(trackDays) 天的账目估算")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }

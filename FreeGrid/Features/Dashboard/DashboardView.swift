@@ -5,6 +5,8 @@ import SwiftData
 
 struct DashboardView: View {
 
+    let onOpenAssets: () -> Void
+
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -15,7 +17,8 @@ struct DashboardView: View {
         DashboardContent(
             expenses: expenses, incomes: incomes,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first),
-            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount }
+            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount },
+            onOpenAssets: onOpenAssets
         )
     }
 }
@@ -25,6 +28,7 @@ private struct DashboardContent: View {
     let incomes: [Income]
     let snapshot: FinancialSnapshot
     let todaySpending: Double
+    let onOpenAssets: () -> Void
 
     @Environment(\.modelContext) private var modelContext
 
@@ -65,18 +69,15 @@ private struct DashboardContent: View {
                 VStack(spacing: Spacing.lg) {
                     // 首屏: 结论(数字) → 它的图(格子) → 动作(记账、模拟); 回顾类的往下放
                     topBar           // 一行 wordmark
-                    DashboardHero(history: history, snapshot: snapshot,
-                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
+                    heroCard(history: history)
                     gridSection      // 按天、月或年显示自由网格
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    FreedomTrendCard(history: history, hasPassiveIncome: snapshot.dailyPassive > 0)
                     if snapshot.hasExpenses {
-                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                        statsRow     // 净值 ÷ 日均 = 上面的大数字, 再加今天; 一笔支出都没有时不显示
                     }
-                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    }
+                    FreedomTrendCard(history: history, hasPassiveIncome: snapshot.dailyPassive > 0,
+                                     trackDays: snapshot.trackDays)
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -206,31 +207,64 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
+    /// 三张卡连起来是大数字的算式: 净值 ÷ 日均 = 自由天数, 第三张是今天花了多少。
+    /// 追踪天数挪到趋势卡的说明里; 被动覆盖率没有被动收入时不出现。
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
+            statCard(label: "Net",
+                     value: FinancialFormatting.wholeNumber(snapshot.netWorth),
+                     unit: "元净值")
             statCard(label: "Daily",
                      value: snapshot.dailyBurn.isFinite ? String(format: "%.1f", snapshot.dailyBurn) : "—",
-                     unit: "元/天")
-            // 没有被动收入时这张卡永远是 0%, 不占位置
-            if snapshot.dailyPassive > 0 {
-                statCard(label: "Passive",
-                         value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                         unit: "被动覆盖")
+                     unit: snapshot.dailyPassive > 0
+                        ? "元/天 · 被动 \(FinancialFormatting.percentage(snapshot.passiveRatio))"
+                        : "元/天")
+            statCard(label: "Today",
+                     value: todaySpending.isFinite ? String(format: "%.1f", todaySpending) : "—",
+                     unit: todayUnitText,
+                     valueColor: todaySpending > snapshot.dailyBurn && snapshot.dailyBurn > 0 ? .flame : .ink)
+        }
+    }
+
+    /// 今日卡的小字: 和日均比多了还是少了
+    private var todayUnitText: String {
+        guard snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0, todaySpending.isFinite else { return "元今日" }
+        if todaySpending == 0 { return "今日未消费" }
+        if todaySpending < 0 { return "今日净退款" }
+        let diff = FinancialFormatting.clampedInteger(abs(todaySpending - snapshot.dailyBurn), range: 0...999_999,
+                                                      rounded: .toNearestOrAwayFromZero)
+        return todaySpending > snapshot.dailyBurn ? "比日均多 \(diff)" : "比日均少 \(diff)"
+    }
+
+    /// 空账本时整张大数字卡是一扇门: 没记过钱就去 Assets, 记过钱就打开记支出
+    @ViewBuilder
+    private func heroCard(history: [FreedomMath.HistoryPoint]) -> some View {
+        let hero = DashboardHero(history: history, snapshot: snapshot,
+                                 isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
+        if case .insufficientData = snapshot.freedom {
+            Button {
+                if needsSavings { onOpenAssets() } else { showingAddExpense = true }
+            } label: {
+                hero.contentShape(Rectangle())
             }
-            statCard(label: "Track",
-                     value: "\(snapshot.trackDays)",
-                     unit: "天追踪")
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("hero-start")
+            .accessibilityHint(needsSavings ? "前往资产页面，选择资产或现金录入" : "打开支出记录表单")
+        } else {
+            hero
         }
     }
 
     /// 单个 stat 卡片:数字 / hairline / kicker / sub label 四层(silverline)
-    private func statCard(label: String, value: String, unit: String) -> some View {
+    private func statCard(label: String, value: String, unit: String, valueColor: Color = .ink) -> some View {
         VaultCard(padding: Spacing.md) {
             VStack(alignment: .leading, spacing: 6) {
                 // 大 thin 数字(silverline 风格)
                 Text(value)
                     .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.ink)
+                    .foregroundStyle(valueColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 // 短 hairline 短横线
                 Rectangle()
                     .fill(Color.inkGhost)
@@ -244,96 +278,6 @@ private struct DashboardContent: View {
                     .foregroundStyle(Color.inkFaint)
             }
         }
-    }
-
-    /// Today: Silverline 版 — 单行 bar 设计
-    /// 左 ¥5 (today) — bar with marker — 右 ¥72 (avg)
-    /// 下方 delta caption 居中
-    private var todaySection: some View {
-        VaultCard(padding: Spacing.lg) {
-            VStack(spacing: Spacing.md) {
-                HStack(alignment: .center, spacing: Spacing.md) {
-                    // 左:今日金额
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(todaySpending.isFinite ? String(format: "¥%.1f", todaySpending) : "¥—")
-                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.ink)
-                        KickerLabel(text: "Today")
-                    }
-                    .frame(minWidth: 60, alignment: .leading)
-
-                    // 中:bar with sky fill + marker
-                    GeometryReader { geo in
-                        // 花了一点点也至少画出一小段; 一分没花就是空的
-                        let pct = todayPercent > 0 ? max(0.04, min(todayPercent, 1.0)) : 0
-                        ZStack(alignment: .leading) {
-                            // mist 底 bar
-                            Rectangle()
-                                .fill(Color.mist2)
-                                .frame(height: 2)
-                            // sky fill
-                            Rectangle()
-                                .fill(Color.sky)
-                                .frame(width: geo.size.width * CGFloat(pct), height: 2)
-                            // sky-deep marker (短竖线在 fill 末端)
-                            Rectangle()
-                                .fill(Color.skyDeep)
-                                .frame(width: 1.5, height: 10)
-                                .offset(x: geo.size.width * CGFloat(pct) - 0.75)
-                        }
-                    }
-                    .frame(height: 10)
-
-                    // 右:日均金额
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(snapshot.dailyBurn.isFinite ? String(format: "¥%.1f", snapshot.dailyBurn) : "¥—")
-                            .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.inkMuted)
-                        KickerLabel(text: "avg")
-                    }
-                    .frame(minWidth: 60, alignment: .trailing)
-                }
-
-                // delta caption (居中)
-                if snapshot.dailyBurn > 0 {
-                    Text(todayDeltaText)
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                }
-            }
-        }
-    }
-
-    /// today bar 下方的 delta 文案
-    private var todayDeltaText: String {
-        guard snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0, todaySpending.isFinite else {
-            return "等待有效日均数据"
-        }
-        if todaySpending == 0 {
-            return "今日尚未消费"
-        }
-        // 当天净额为负(退款/冲正大于消费)时,"低于日均 N%" 会算出 100% 以上的
-        // 荒唐数字。这种日子本来就不是"省钱",单独说清楚。
-        if todaySpending < 0 {
-            return "今日净退款 ¥\(String(format: "%.1f", -todaySpending))"
-        }
-        let diffPct = FinancialFormatting.clampedInteger(
-            abs((1 - todayPercent) * 100),
-            range: 0...9_999
-        )
-        if todaySpending > snapshot.dailyBurn {
-            let over = todaySpending - snapshot.dailyBurn
-            return "高于日均 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
-        } else {
-            let savings = snapshot.dailyBurn - todaySpending
-            return "低于日均 \(diffPct)% · 节省 ¥\(String(format: "%.1f", savings))"
-        }
-    }
-
-    /// 今日花费占日均的百分比(用于颜色判断)
-    private var todayPercent: Double {
-        guard snapshot.dailyBurn > 0 else { return 0 }
-        return todaySpending / snapshot.dailyBurn
     }
 
     // MARK: - 自由网格
@@ -351,17 +295,15 @@ private struct DashboardContent: View {
                         .foregroundStyle(Color.inkFaint)
                 }
 
-                if state.count == 0 && state.partial == 0 {
+                if state.count == 0 {
                     emptyGridHint
                 } else {
                     LifeGrid(unit: state.unit, count: state.count,
-                             assetCells: state.assetCells,
-                             partial: state.partial,
-                             partialIsCash: state.cashCells > 0 || state.assetCells == 0)
+                             assetCells: state.assetCells)
                         .padding(.vertical, Spacing.sm)
                 }
 
-                if state.count > 0 || state.partial > 0 {
+                if state.count > 0 {
                 HStack(spacing: Spacing.lg) {
                     legendDot(color: .assetGold, label: "资产")
                     legendDot(color: .cashBlue, label: "现金")
@@ -423,18 +365,25 @@ private struct DashboardContent: View {
 
     /// 收支入口：支出使用 flame，收入使用 skyDeep。
     private var actionRow: some View {
-        HStack(spacing: Spacing.md) {
-            VaultButton(title: "记支出",
-                        icon: "minus",
-                        style: .destructive) {
-                showingAddExpense = true
-            }
-            VaultButton(title: "记收入",
-                        icon: "plus",
-                        style: .primary) {
-                showingAddIncome = true
+        // 账本里几乎全是支出: 记支出占两份宽, 记收入占一份
+        GeometryReader { geo in
+            let unit = (geo.size.width - Spacing.md) / 3
+            HStack(spacing: Spacing.md) {
+                VaultButton(title: "记支出",
+                            icon: "minus",
+                            style: .destructive) {
+                    showingAddExpense = true
+                }
+                .frame(width: unit * 2)
+                VaultButton(title: "记收入",
+                            icon: "plus",
+                            style: .primary) {
+                    showingAddIncome = true
+                }
+                .frame(width: unit)
             }
         }
+        .frame(height: 52)
     }
 
     /// 模拟决策:ghost button,放在主按钮下方

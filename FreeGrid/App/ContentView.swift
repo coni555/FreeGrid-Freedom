@@ -41,7 +41,9 @@ struct ContentView: View {
 
     private var tabView: some View {
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(onOpenAssets: {
+                selectedTab = .assets
+            })
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
                 }

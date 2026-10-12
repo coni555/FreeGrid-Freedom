@@ -107,27 +107,6 @@ struct FreedomMathTests {
         #expect(invalid.count == 0)
     }
 
-    @Test func gridKeepsTheUnfinishedDayAsAPartialCell() {
-        // 274 元、日均 10 元 = 27.4 天：27 个整格，最后一格剩 0.4
-        let state = FreedomMath.gridState(lockedAssets: 0, cash: 274, dailyBurn: 10)
-        #expect(state.count == 27)
-        #expect(abs(state.partial - 0.4) < 0.0001)
-
-        // 记一笔 3 元：27.1 天，整格不变，水位降到 0.1
-        let afterSmallExpense = FreedomMath.gridState(lockedAssets: 0, cash: 271, dailyBurn: 10)
-        #expect(afterSmallExpense.count == 27)
-        #expect(abs(afterSmallExpense.partial - 0.1) < 0.0001)
-
-        // 正好整数天没有半格；不足一天时只有半格
-        #expect(FreedomMath.gridState(lockedAssets: 0, cash: 270, dailyBurn: 10).partial == 0)
-        let underOneDay = FreedomMath.gridState(lockedAssets: 0, cash: 4, dailyBurn: 10)
-        #expect(underOneDay.count == 0)
-        #expect(abs(underOneDay.partial - 0.4) < 0.0001)
-
-        // 画不下和已覆盖时没有半格
-        #expect(FreedomMath.gridState(lockedAssets: 100, cash: 0, dailyBurn: 10, dailyPassive: 10).partial == 0)
-    }
-
     @Test func historyAndDeltaDropNonFiniteFinancialValues() {
         let firstDate = Calendar.current.date(byAdding: .day, value: -30, to: .now)!
         let invalidExpense = Expense(

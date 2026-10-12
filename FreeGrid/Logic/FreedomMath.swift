@@ -156,8 +156,6 @@ enum FreedomMath {
         /// 现金格子数（蓝色）
         let cashCells: Int
         let isOverflow: Bool
-        /// 整格之外不足一格的部分，0 ..< 1。27.4 天是 27 个整格加 0.4 格；画不下或无数据时为 0。
-        var partial: Double = 0
     }
 
     static func gridUnit(for state: FreedomState) -> GridUnit {
@@ -181,7 +179,6 @@ enum FreedomMath {
         let unit = fixedUnit ?? gridUnit(for: state)
         let count: Int
         let overflow: Bool
-        var partial = 0.0
         switch state {
         case .covered:
             count = unit.maxCells
@@ -189,17 +186,13 @@ enum FreedomMath {
         case .finite(let days):
             count = FinancialFormatting.gridCount(days: days, divisor: unit.daysPerCell, maximum: unit.maxCells)
             overflow = days / unit.daysPerCell > Double(unit.maxCells)
-            let cells = days / unit.daysPerCell
-            if cells.isFinite, cells > 0, count < unit.maxCells {
-                partial = min(max(cells - Double(count), 0), 0.999)
-            }
         case .insufficientData, .invalidData:
             count = 0
             overflow = false
         }
         let split = FinancialFormatting.assetCellSplit(count: count, lockedAssets: lockedAssets, netWorth: netWorth)
         return GridState(unit: unit, count: count, assetCells: split.assets,
-                         cashCells: split.cash, isOverflow: overflow, partial: partial)
+                         cashCells: split.cash, isOverflow: overflow)
     }
 
     /// 当前自由耗尽的预计日期 (今天 + freedomDays 天)
