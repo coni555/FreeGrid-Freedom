@@ -10,6 +10,8 @@
 
 2026-10-11 用户要求 main 保持 1.3.1 (8)，Pro 自定义支出分类仅在 `codex/pro-expense-categories` 独立 worktree 开发与预览；本任务不自动合入 main，后续合并须用户明确提出。
 
+2026-10-12 用户要求把新 History 页（按月查看、按天分组、搜索、点行修改记录）先合入 main，作为下一个免费版本发布；Pro 收费功能留在 Pro 分支，放之后的版本。Pro 自定义分类及其入口仍不进 main：Release 里买不了的付费入口不能发出去。版本号仍是 1.3.1 (8)，发布前再定新版本号。
+
 - 不新增第三方依赖，不改变已有 SwiftData 模型字段、备份格式或 iOS/macOS 支持范围。
 - 界面按功能放在 `Features/`；`Models/` 保存事实；`Logic/` 计算结果；`Data/` 管理持久化和导入导出；`UI/` 提供共用显示；`App/` 装配入口。
 - 先用已有类型划分文件；简单页面不要求额外 ViewModel、Repository 或协议。
