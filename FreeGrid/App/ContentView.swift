@@ -15,6 +15,10 @@ struct ContentView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @State private var selectedTab: AppTab = .dashboard
 
+    /// History 页的首次指引；遮罩要盖住导航栏和 Tab 栏，所以由这里持有
+    @State private var historyGuide = HistoryGuide()
+    @AppStorage("historyGuideCompleted") private var historyGuideCompleted = false
+
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
     #endif
@@ -62,6 +66,12 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .tag(AppTab.settings)
+        }
+        .environment(historyGuide)
+        .overlay {
+            if selectedTab == .history {
+                HistoryGuideOverlay(guide: historyGuide) { historyGuideCompleted = true }
+            }
         }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)

@@ -13,9 +13,9 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
-    func testHistoryRowOpensEditAndSavedNoteLeadsTheRow() {
+    func testHistoryGuideRunsOnceThenRowOpensEditAndSavedNoteLeadsTheRow() {
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "NO", "-UseInMemoryStore"]
         app.launch()
         app.buttons["记支出"].tap()
         let amount = app.textFields["0.00"]
@@ -25,6 +25,11 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["History"].tap()
+        // 第一次进来先走完指引：月份、点行、左滑、工具栏，共四步
+        let next = app.buttons["history-guide-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        for _ in 0..<4 { next.tap() }
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
         let row = app.staticTexts["早餐"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
@@ -51,6 +56,7 @@ final class FreeGridUITests: XCTestCase {
         // 紧随其后的参数,所以它必须排在最后。
         app.launchArguments.append(contentsOf: [
             "-onboardingCompleted", "NO", "-heroLayout", "leading", "-isDarkMode", "NO",
+            "-historyGuideCompleted", "YES",   // 这条只测导航，不让指引遮住 Tab 栏
         ])
         app.launchArguments.append("-UseInMemoryStore")
         app.launch()
