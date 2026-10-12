@@ -23,6 +23,7 @@ struct DashboardHero: View {
         )
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
+        let showsTrend = history.count >= 3
 
         // 内联 VaultCard 写法 — 为了在 paper 底之上、content 之下叠暗色流星层。
         // 普通 VaultCard 的 background fill 是 opaque, 没法在外面再叠装饰层。
@@ -33,7 +34,10 @@ struct DashboardHero: View {
                 KickerLabel(text: heroKickerText)
                 Spacer()
                 if let d = delta {
-                    trendBadge(delta: d.delta, weeks: history.count - 1)
+                    // 下面的趋势行已经写了「69 天 → 27 天」, 有它时不再重复变化量
+                    if !showsTrend {
+                        trendBadge(delta: d.delta, weeks: history.count - 1)
+                    }
                 } else if history.last?.state == .covered {
                     Text("被动已覆盖")
                         .font(.system(.caption2, design: .rounded))
@@ -54,10 +58,10 @@ struct DashboardHero: View {
             heroBody(deplete: deplete)
 
             // ─── 底部: 趋势 caption + sparkline ───
-            if let first = history.first, let last = history.last, history.count >= 3 {
+            if let first = history.first, let last = history.last, showsTrend {
                 Hairline().padding(.top, Spacing.xs)
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(history.count - 1) 周自由趋势 · 估算")
+                    Text("\(history.count - 1) 周自由趋势")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                     Spacer()
@@ -70,7 +74,7 @@ struct DashboardHero: View {
                         .frame(height: 36)
                         .padding(.top, 2)
                 }
-                Text("按当前被动收入与账目反推；已覆盖不折算为固定天数。")
+                Text("根据账目和现在的被动收入估算")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }

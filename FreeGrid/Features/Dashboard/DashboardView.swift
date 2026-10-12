@@ -68,10 +68,12 @@ private struct DashboardContent: View {
                         onboardingPrompt // 存款与支出齐备后自动消失
                     }
                     gridSection      // 按天、月或年显示自由网格
-                    statsRow         // 3 个 stat 卡片横向
+                    statsRow         // stat 卡片横向
                     actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
                     simulateRow      // 模拟决策
-                    todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
+                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+                        todaySection // 今日 vs 日均 (推到最底,是 review 信息); 还没有日均时没有可比的东西
+                    }
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -182,34 +184,18 @@ private struct DashboardContent: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部 brand bar:靶心 mark(同时是 dark/light 切换按钮) + 品牌名 + VOL 标识
-    /// mark 内部:light mode = sky 实心点(太阳),dark mode = moon icon
+    /// 顶部 brand bar: 靶心 mark + 品牌名 + 副标。主题和首页布局在 Settings 的「外观」里改。
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
-            // 主题切换按钮:外圈 outline + 内 sun/moon
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isDarkMode.toggle()
-                }
-            }) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.ink, lineWidth: 1)
-                        .frame(width: 22, height: 22)
-                    if isDarkMode {
-                        Image(systemName: "moon.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.sky)
-                    } else {
-                        Circle()
-                            .fill(Color.sky)
-                            .frame(width: 9, height: 9)
-                    }
-                }
-                .contentShape(Rectangle())   // 扩大点击区
+            ZStack {
+                Circle()
+                    .stroke(Color.ink, lineWidth: 1)
+                    .frame(width: 22, height: 22)
+                Circle()
+                    .fill(Color.sky)
+                    .frame(width: 9, height: 9)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("FreeGrid")
@@ -221,28 +207,6 @@ private struct DashboardContent: View {
             }
 
             Spacer()
-
-            // Hero 布局切换 toggle (leading 副标左数字右 ↔ vertical 居中堆叠)
-            // 放在右侧 utility 区,跟左侧 dark mode toggle 形成两端 cluster
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    heroLayout = (heroLayout == "leading") ? "vertical" : "leading"
-                }
-            }) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.ink, lineWidth: 1)
-                        .frame(width: 22, height: 22)
-                    Image(systemName: heroLayout == "vertical"
-                          ? "rectangle.split.1x2"
-                          : "rectangle.split.2x1")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.sky)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(heroLayout == "vertical" ? "切换左右布局" : "切换居中堆叠布局")
         }
         .padding(.bottom, Spacing.xs)
     }
@@ -256,9 +220,12 @@ private struct DashboardContent: View {
             statCard(label: "Daily",
                      value: snapshot.dailyBurn.isFinite ? String(format: "%.1f", snapshot.dailyBurn) : "—",
                      unit: "元/天")
-            statCard(label: "Passive",
-                     value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                     unit: "被动覆盖")
+            // 没有被动收入时这张卡永远是 0%, 不占位置
+            if snapshot.dailyPassive > 0 {
+                statCard(label: "Passive",
+                         value: FinancialFormatting.percentage(snapshot.passiveRatio),
+                         unit: "被动覆盖")
+            }
             statCard(label: "Track",
                      value: "\(snapshot.trackDays)",
                      unit: "天追踪")
@@ -426,12 +393,9 @@ private struct DashboardContent: View {
         }
     }
 
-    /// 网格右上角文案:按档位显示当前格数 + 单位
-    /// 日档 "127 天" / 月档 "16 月" / 年档 "34 年" / 溢出 "99+ 年"
+    /// 网格右上角文案: 格数和上面的大数字是同一个数, 只在格子画不下时说明 ("99+ 年")
     private func gridSummary(state: FreedomMath.GridState) -> String {
-        if state.count == 0 { return "等待数据" }
-        if state.isOverflow { return "\(state.count)+ \(state.unit.label)" }
-        return "\(state.count) \(state.unit.label)"
+        state.isOverflow ? "\(state.count)+ \(state.unit.label)" : ""
     }
 
     /// 空网格时的提示:暗色 SF symbol + 文案

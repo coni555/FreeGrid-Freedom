@@ -135,7 +135,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         XCTAssertTrue(expensePrompt.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["99 天"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["99"].waitForExistence(timeout: 3))
 
         for title in ["Assets", "History", "Settings"] {
             app.tabBars.buttons[title].tap()
