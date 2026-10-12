@@ -14,6 +14,8 @@
 
 2026-10-12 用户要求新开分支做「UI 和 UX 重构」：在 `claude/ui-ux-refactor`（worktree `/Users/coni/Desktop/FreeGrid-ui-ux`）逐页优化，过完一遍后再合入 main 一起发布。1.3 的首页首次引导卡用户已作废并删除；新的新手引导等各页 UI 定下来后再做，Settings 的「使用指引」是它的复习入口。
 
+2026-10-12 用户要求：分支上的改动只装到该分支自己的模拟器给他看，他满意后再合入 main；**FG-Main 模拟器只装 main 的版本**。UI/UX 重构分支 `claude/ui-ux-refactor` 用 FG-UI，Pro 分支用 FG-Pro。
+
 - 不新增第三方依赖，不改变已有 SwiftData 模型字段、备份格式或 iOS/macOS 支持范围。
 - 界面按功能放在 `Features/`；`Models/` 保存事实；`Logic/` 计算结果；`Data/` 管理持久化和导入导出；`UI/` 提供共用显示；`App/` 装配入口。
 - 先用已有类型划分文件；简单页面不要求额外 ViewModel、Repository 或协议。
