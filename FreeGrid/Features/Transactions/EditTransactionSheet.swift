@@ -38,22 +38,24 @@ struct EditTransactionSheet: View {
                         .font(.system(.body, design: .rounded).monospacedDigit())
                         .accessibilityIdentifier("edit-amount")
                 }
+                // 和记一笔时同一种排法: 支出的分类和日期合成一组, 不加重复的小标题
                 switch transaction.kind {
                 case .expense:
-                    Section("分类") {
+                    Section {
                         Picker("分类", selection: $title) {
                             ForEach(categories, id: \.self) { Text($0).tag($0) }
                         }
                         .accessibilityIdentifier("edit-category-picker")
+                        TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
                     }
                 case .income:
                     Section("来源") {
                         TextField("工资 / 投资 / 副业 / ...", text: $title)
                             .font(.system(.body, design: .rounded))
                     }
-                }
-                Section("日期") {
-                    TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
+                    Section {
+                        TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
+                    }
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
