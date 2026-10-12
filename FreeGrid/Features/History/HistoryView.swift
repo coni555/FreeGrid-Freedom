@@ -32,6 +32,9 @@ struct HistoryView: View {
     /// 点一行打开修改表单
     @State private var editing: LedgerTransaction? = nil
 
+    /// 新页面的操作提示只出现一次，点「知道了」后不再显示
+    @AppStorage("historyTipsDismissed") private var tipsDismissed = false
+
     /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
     private enum Selection: Equatable {
         case all
@@ -115,6 +118,7 @@ struct HistoryView: View {
                     searchSummary(visible)
                 } else {
                     scopeCard(summary)
+                    if !tipsDismissed { tipsCard }
                     if showingFilters && (!categories.isEmpty || summary.income != 0) {
                         chipRow(categories, income: summary.income, active: active)
                             .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
@@ -269,6 +273,44 @@ struct HistoryView: View {
             trackDays: FreedomMath.trackDays(firstRecordDate: firstDate)
         )
         return HistoryLedger.equivalentDays(expense: summary.expense, dailyBurn: dailyBurn)
+    }
+
+    /// 三个不看就不知道的操作；筛选和搜索有图标，不用教
+    private var tipsCard: some View {
+        VaultCard(emphasis: .high, padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: "这一页可以这样用")
+                tipLine("hand.tap", "点一行，修改金额、分类、日期或备注")
+                tipLine("arrow.left", "向左滑一行，撤销这笔")
+                tipLine("calendar", "点上面的月份，跳到任意一个月")
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { tipsDismissed = true }
+                } label: {
+                    Text("知道了")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.skyDeep)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, 6)
+                        .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("history-tips-dismiss")
+            }
+        }
+        .listRowInsets(EdgeInsets(top: Spacing.xs, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
+    }
+
+    private func tipLine(_ icon: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .light))
+                .foregroundStyle(Color.skyDeep)
+                .frame(width: 18)
+            Text(text)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.ink)
+        }
     }
 
     private var scopeLabel: String {
