@@ -96,11 +96,9 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testNormalLaunchAndPrimaryNavigation() throws {
         let app = XCUIApplication()
-        // 引导闸门存在 UserDefaults 里,跨次运行会残留;必须显式压回 NO,
-        // 否则第二次跑这条用例时引导卡不再出现。无值的 -UseInMemoryStore 会吞掉
-        // 紧随其后的参数,所以它必须排在最后。
+        // 无值的 -UseInMemoryStore 会吞掉紧随其后的参数,所以它必须排在最后。
         app.launchArguments.append(contentsOf: [
-            "-onboardingCompleted", "NO", "-heroLayout", "leading", "-isDarkMode", "NO",
+            "-heroLayout", "leading", "-isDarkMode", "NO",
             "-historyGuideCompleted", "YES",   // 这条只测导航，不让指引遮住 Tab 栏
         ])
         app.launchArguments.append("-UseInMemoryStore")
@@ -109,10 +107,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].waitForExistence(timeout: 5))
 
-        let savingsPrompt = app.buttons["先记下你有多少钱"]
-        XCTAssertTrue(savingsPrompt.waitForExistence(timeout: 3))
-        savingsPrompt.tap()
-
+        app.tabBars.buttons["Assets"].tap()
         XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
         app.buttons["编辑现金"].tap()
 
@@ -122,11 +117,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["Dashboard"].tap()
-        XCTAssertTrue(savingsPrompt.waitForNonExistence(timeout: 3))
-
-        let expensePrompt = app.buttons["再记一笔支出"]
-        XCTAssertTrue(expensePrompt.waitForExistence(timeout: 3))
-        expensePrompt.tap()
+        app.buttons["记支出"].tap()
 
         let amountField = app.textFields["0.00"]
         XCTAssertTrue(amountField.waitForExistence(timeout: 3))
@@ -134,28 +125,12 @@ final class FreeGridUITests: XCTestCase {
         amountField.typeText("100")
         app.buttons["保存"].tap()
 
-        XCTAssertTrue(expensePrompt.waitForNonExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["99 天"].waitForExistence(timeout: 3))
 
         for title in ["Assets", "History", "Settings"] {
             app.tabBars.buttons[title].tap()
             XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
         }
-    }
-
-    @MainActor
-    func testOnboardingCardIsTappableInVerticalLayout() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-onboardingCompleted", "NO", "-heroLayout", "vertical", "-isDarkMode", "YES",
-            "-UseInMemoryStore",
-        ]
-        app.launch()
-        let prompt = app.buttons["onboarding-prompt"]
-        XCTAssertTrue(prompt.waitForExistence(timeout: 5))
-        // 卡片的空白边缘也应可点，不能只有文字有响应。
-        prompt.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.15)).tap()
-        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -189,7 +164,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboardingCompleted", "YES", "-UseInMemoryStore"]
+        app.launchArguments = ["-UseInMemoryStore"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Assets"].tap()

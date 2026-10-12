@@ -126,7 +126,7 @@ flowchart TD
 |---|---|
 | 页面顺序、Tab 名称 | `App/ContentView.swift` |
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
-| 首页卡片顺序、记账入口、首次引导 | `Features/Dashboard/DashboardView.swift` |
+| 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Logic/ExpenseCategory.swift` |

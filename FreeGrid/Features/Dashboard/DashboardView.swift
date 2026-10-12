@@ -5,8 +5,6 @@ import SwiftData
 
 struct DashboardView: View {
 
-    let onOpenAssets: () -> Void
-
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -17,8 +15,7 @@ struct DashboardView: View {
         DashboardContent(
             expenses: expenses, incomes: incomes,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first),
-            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount },
-            onOpenAssets: onOpenAssets
+            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount }
         )
     }
 }
@@ -28,7 +25,6 @@ private struct DashboardContent: View {
     let incomes: [Income]
     let snapshot: FinancialSnapshot
     let todaySpending: Double
-    let onOpenAssets: () -> Void
 
     @Environment(\.modelContext) private var modelContext
 
@@ -54,9 +50,6 @@ private struct DashboardContent: View {
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
-    /// 首次引导的一次性闸门:存款与支出齐备过一次即永久落闸
-    @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -64,9 +57,6 @@ private struct DashboardContent: View {
                     topBar           // 圆点 + FreeGrid + 副标
                     DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
-                    if needsOnboarding {
-                        onboardingPrompt // 存款与支出齐备后自动消失
-                    }
                     gridSection      // 按天、月或年显示自由网格
                     statsRow         // 3 个 stat 卡片横向
                     actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
@@ -100,14 +90,7 @@ private struct DashboardContent: View {
                 SimulateSheet()
             }
             .saveErrorAlert($saveError)
-            .onAppear { latchOnboardingIfSatisfied() }
-            .onChange(of: onboardingSatisfied) { _, _ in latchOnboardingIfSatisfied() }
         }
-    }
-
-    /// 只单向落闸,不会再打开——净值以后跌回 0 以下也不重新弹引导。
-    private func latchOnboardingIfSatisfied() {
-        if onboardingSatisfied { onboardingCompleted = true }
     }
 
     // ============================================================================
@@ -459,78 +442,8 @@ private struct DashboardContent: View {
         }
     }
 
-    /// 首次使用的两步引导：先建立存款净值，再用第一笔支出建立日均消费。
-    /// 两类数据齐备后 @Query 自动更新，入口随即消失，不长期挤占品牌主视觉。
-    private var onboardingPrompt: some View {
-        Button {
-            if needsSavings {
-                onOpenAssets()
-            } else {
-                showingAddExpense = true
-            }
-        } label: {
-            VaultCard(emphasis: .high, padding: Spacing.md) {
-                HStack(spacing: Spacing.md) {
-                    Image(systemName: needsSavings ? "banknote.fill" : "minus.circle.fill")
-                        .font(.system(size: 26, weight: .light))
-                        .foregroundStyle(needsSavings ? Color.cashBlue : Color.flame)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(onboardingTitle)
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        Text(onboardingDetail)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                    }
-
-                    Spacer(minLength: Spacing.xs)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.inkFaint)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("onboarding-prompt")
-        .accessibilityLabel(onboardingTitle)
-        .accessibilityHint(needsSavings ? "前往资产页面，选择资产或现金录入" : "打开支出记录表单")
-    }
-
     private var needsSavings: Bool {
         snapshot.netWorth <= 0
-    }
-
-    /// 存款 + 支出同时齐备过一次,引导就算走完。
-    private var onboardingSatisfied: Bool {
-        !needsSavings && !expenses.isEmpty
-    }
-
-    /// 引导是一次性的:走完就永久关掉。
-    /// 不能只看 `needsSavings`——记支出会把现金扣成负数(cash 无下限),
-    /// 老用户净值跌到 0 以下时这张卡会重新常驻,那正是被否决过的常驻卡形态。
-    private var needsOnboarding: Bool {
-        !onboardingCompleted && !onboardingSatisfied
-    }
-
-    /// 文案刻意不用"存款":点进去是 Assets 页,资产和现金都能填,
-    /// 说"存款"会让用户以为只收现金。
-    private var onboardingTitle: String {
-        if needsSavings {
-            return expenses.isEmpty ? "先记下你有多少钱" : "还差一步:记下你有多少钱"
-        }
-        return "再记一笔支出"
-    }
-
-    private var onboardingDetail: String {
-        if needsSavings {
-            return expenses.isEmpty
-                ? "定期、股票、现金都算，记完再记一笔支出，格子就会点亮"
-                : "已经有支出了，补上手里的钱，格子就能点亮"
-        }
-        return "已经知道你有多少钱了，再建立日均消费，格子就能点亮"
     }
 
     /// 收支入口：支出使用 flame，收入使用 skyDeep。
