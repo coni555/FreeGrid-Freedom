@@ -74,7 +74,7 @@ struct DashboardHero: View {
                         .frame(height: 36)
                         .padding(.top, 2)
                 }
-                Text("根据账目和现在的被动收入估算")
+                Text(snapshot.dailyPassive > 0 ? "根据账目和现在的被动收入估算" : "根据账目估算")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }

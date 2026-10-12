@@ -58,7 +58,9 @@ private struct DashboardContent: View {
                     DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
                     gridSection      // 按天、月或年显示自由网格
-                    statsRow         // stat 卡片横向
+                    if snapshot.hasExpenses {
+                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                    }
                     actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
                     simulateRow      // 模拟决策
                     if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
@@ -70,6 +72,9 @@ private struct DashboardContent: View {
                 .padding(.bottom, Spacing.xxl)
             }
             .scrollContentBackground(.hidden)
+            // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
+            // 让出 1pt 它就只在安全区内裁剪, 数字不再压到时间和电量上
+            .padding(.top, 1)
             .background(Color.paper.ignoresSafeArea())
             .hideNavBar()
             .safeAreaInset(edge: .top) {
@@ -256,7 +261,8 @@ private struct DashboardContent: View {
 
                     // 中:bar with sky fill + marker
                     GeometryReader { geo in
-                        let pct = max(0.04, min(todayPercent, 1.0))
+                        // 花了一点点也至少画出一小段; 一分没花就是空的
+                        let pct = todayPercent > 0 ? max(0.04, min(todayPercent, 1.0)) : 0
                         ZStack(alignment: .leading) {
                             // mist 底 bar
                             Rectangle()
@@ -350,6 +356,7 @@ private struct DashboardContent: View {
                         .padding(.vertical, Spacing.sm)
                 }
 
+                if state.count > 0 {
                 HStack(spacing: Spacing.lg) {
                     legendDot(color: .assetGold, label: "资产")
                     legendDot(color: .cashBlue, label: "现金")
@@ -359,6 +366,7 @@ private struct DashboardContent: View {
                         .foregroundStyle(Color.inkFaint)
                 }
                 .padding(.top, Spacing.xs)
+                }
             }
         }
     }
@@ -398,10 +406,8 @@ private struct DashboardContent: View {
     private var gridEmptyText: String {
         switch snapshot.freedom {
         case .invalidData: return "数据异常, 检查金额后再生成网格"
-        case .insufficientData:
-            return needsSavings
-                ? "先记下你有多少钱，再记一笔支出，网格开始点亮"
-                : "记录第一笔支出后, 网格开始点亮"
+        // 该先做什么上面的大数字卡已经说了, 这里只解释格子是什么
+        case .insufficientData: return "每一格是一天自由，有了数据后在这里点亮"
         case .finite, .covered: return "当前净值还没有可点亮的自由格"
         }
     }
