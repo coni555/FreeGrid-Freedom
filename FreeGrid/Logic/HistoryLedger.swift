@@ -56,6 +56,10 @@ struct HistoryDay: Identifiable {
 
     /// 当天这些记录合计的现金变化
     var net: Double { transactions.reduce(0) { $0 + $1.cashChange } }
+
+    /// 当天花掉的钱；段头显示它而不是净额，否则有收入的日子会把大额支出盖住
+    var expense: Double { HistoryLedger.summary(transactions).expense }
+    var income: Double { HistoryLedger.summary(transactions).income }
 }
 
 struct HistorySummary: Equatable {
@@ -170,6 +174,14 @@ enum HistoryLedger {
         let first = HistoryMonth(containing: earliest, calendar: calendar)
         let last = HistoryMonth(containing: latest, calendar: calendar)
         return min(first, current)...max(last, current)
+    }
+
+    /// 算月内日均用的天数：过去的月份按整月，本月算到今天，还没到的月份为 0。
+    static func elapsedDays(in month: HistoryMonth, now: Date = .now, calendar: Calendar = .current) -> Int {
+        guard let interval = month.interval(calendar: calendar) else { return 0 }
+        if now < interval.start { return 0 }
+        let end = min(now, interval.end.addingTimeInterval(-1))
+        return (calendar.dateComponents([.day], from: interval.start, to: calendar.startOfDay(for: end)).day ?? 0) + 1
     }
 
     /// 段头用的日期：今天、昨天直接说，不在今年的带上年份。

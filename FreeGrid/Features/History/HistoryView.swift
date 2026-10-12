@@ -70,12 +70,6 @@ struct HistoryView: View {
                               : "line.3.horizontal.decrease.circle")
                     }
                     .accessibilityLabel(showingFilters ? "收起筛选" : "按分类筛选")
-                    Button {
-                        showingMonths = true
-                    } label: {
-                        Image(systemName: "calendar")
-                    }
-                    .accessibilityLabel("月度汇总")
                 }
             }
             .saveErrorAlert($saveError)
@@ -182,10 +176,24 @@ struct HistoryView: View {
         let range = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: Spacing.sm) {
-                    Text(scopeLabel)
-                        .font(.system(.footnote, design: .rounded))
+                HStack(spacing: 0) {
+                    // 点月份进月度汇总，在那里可以跳到任意一个月
+                    Button {
+                        showingMonths = true
+                    } label: {
+                        HStack(spacing: Spacing.xs) {
+                            Text(scopeLabel)
+                                .font(.system(.footnote, design: .rounded))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .medium))
+                        }
                         .foregroundStyle(Color.inkMuted)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(scopeLabel)，月度汇总")
+                    .accessibilityIdentifier("history-scope-title")
                     Spacer()
                     if case .month(let month) = scope {
                         monthStepButton("chevron.left", label: "上个月", enabled: month > range.lowerBound) {
@@ -203,9 +211,12 @@ struct HistoryView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                // 点击区是 44pt，视觉上仍按 26pt 的一行排
+                .padding(.vertical, -9)
 
                 HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
-                    Text(FinancialFormatting.yuan(summary.expense))
+                    // 大数字只到元，零头留给下面的明细
+                    Text(FinancialFormatting.yuan(summary.expense, precision: 0))
                         .font(.system(size: 30, weight: .ultraLight, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
@@ -214,8 +225,13 @@ struct HistoryView: View {
                 }
 
                 HStack(spacing: Spacing.lg) {
-                    scopeStat("收入", FinancialFormatting.yuan(summary.income))
-                    scopeStat("净", FinancialFormatting.signedYuan(summary.net))
+                    if summary.income != 0 {
+                        scopeStat("收入", FinancialFormatting.yuan(summary.income))
+                        scopeStat("净", FinancialFormatting.signedYuan(summary.net))
+                    } else if let average = dailyAverage(summary) {
+                        // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
+                        scopeStat("日均", FinancialFormatting.yuan(average))
+                    }
                     Spacer()
                     Text("\(summary.count) 笔")
                         .font(.system(.caption2, design: .monospaced))
@@ -224,6 +240,13 @@ struct HistoryView: View {
             }
         }
         .listRowInsets(EdgeInsets(top: Spacing.xs, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
+    }
+
+    /// 当前月份的日均支出；全部时间或还没到的月份不显示
+    private func dailyAverage(_ summary: HistorySummary) -> Double? {
+        guard case .month(let month) = scope else { return nil }
+        let days = HistoryLedger.elapsedDays(in: month)
+        return days > 0 ? summary.expense / Double(days) : nil
     }
 
     private var scopeLabel: String {
@@ -254,7 +277,8 @@ struct HistoryView: View {
                 .foregroundStyle(enabled ? Color.inkMuted : Color.inkGhost)
                 .frame(width: 26, height: 26)
                 .background(Circle().stroke(Color.hairline, lineWidth: 1))
-                .contentShape(Circle())
+                .frame(width: 36, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -304,16 +328,24 @@ struct HistoryView: View {
         }
     }
 
+    /// 搜索跨全部时间，所以这里回答的是「这样东西一共花了多少」
     private func searchSummary(_ transactions: [LedgerTransaction]) -> some View {
-        let net = transactions.reduce(0) { $0 + $1.cashChange }
-        return HStack {
-            Text("找到 \(transactions.count) 笔")
+        let summary = HistoryLedger.summary(transactions)
+        return HStack(spacing: Spacing.md) {
+            Text("找到 \(summary.count) 笔")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
             Spacer()
-            Text("净 \(FinancialFormatting.signedYuan(net))")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(Color.ink)
+            if summary.income != 0 {
+                Text("收入 \(FinancialFormatting.yuan(summary.income))")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Color.skyDeep)
+            }
+            if summary.expense != 0 || summary.income == 0 {
+                Text("支出 \(FinancialFormatting.yuan(summary.expense))")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Color.ink)
+            }
         }
     }
 
@@ -386,14 +418,22 @@ struct HistoryView: View {
     // ============================================================================
 
     private func dayHeader(_ day: HistoryDay) -> some View {
-        HStack {
+        HStack(spacing: Spacing.sm) {
             Text(HistoryLedger.dayLabel(day.id))
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
             Spacer()
-            Text(FinancialFormatting.signedYuan(day.net))
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(Color.inkFaint)
+            // 支出和收入分开写: 合成净额的话, 交房租又收到转账的那天会像个普通日子
+            if day.income != 0 {
+                Text(FinancialFormatting.signedYuan(day.income))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Color.skyDeep)
+            }
+            if day.expense != 0 {
+                Text(FinancialFormatting.signedYuan(-day.expense))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
+            }
         }
         .textCase(nil)
     }

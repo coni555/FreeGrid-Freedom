@@ -69,6 +69,11 @@ struct HistoryLedgerTests {
         #expect(abs(days[0].net + 38.3) < 0.0001)
         #expect(days[1].net == 1987)
         #expect(days[2].net == 30)   // 退款增加现金
+        // 段头分开写支出和收入：9 日花 13、收 2000，不能合成 +1987 把支出盖住
+        #expect(days[1].expense == 13)
+        #expect(days[1].income == 2000)
+        #expect(abs(days[0].expense - 38.3) < 0.0001)
+        #expect(days[0].income == 0)
     }
 
     @Test func monthRangeCoversRecordsAndTheCurrentMonth() {
@@ -80,6 +85,16 @@ struct HistoryLedgerTests {
         let future = [Expense(amount: 1, category: "其他", date: TestSupport.day("2026-12-01"))]
         #expect(HistoryLedger.monthRange(expenses: future, incomes: [], now: now).upperBound
                 == HistoryMonth(year: 2026, month: 12))
+    }
+
+    @Test func elapsedDaysCountsWholePastMonthsAndTheCurrentMonthToToday() {
+        let now = TestSupport.day("2026-10-11")
+        #expect(HistoryLedger.elapsedDays(in: october, now: now) == 11)
+        #expect(HistoryLedger.elapsedDays(in: HistoryMonth(year: 2026, month: 9), now: now) == 30)
+        #expect(HistoryLedger.elapsedDays(in: HistoryMonth(year: 2024, month: 2), now: now) == 29)
+        #expect(HistoryLedger.elapsedDays(in: HistoryMonth(year: 2026, month: 11), now: now) == 0)
+        #expect(HistoryLedger.elapsedDays(in: october, now: TestSupport.day("2026-10-01")) == 1)
+        #expect(HistoryLedger.elapsedDays(in: october, now: TestSupport.day("2026-10-31")) == 31)
     }
 
     @Test func dayLabelNamesTodayYesterdayAndOtherYears() {
