@@ -1,4 +1,4 @@
-// 首页主数字和两种布局，以及单独成卡的 12 周趋势。输入是同一份财务摘要。
+// 首页主数字、可收起的 12 周趋势和两种布局。输入是同一份财务摘要。
 
 import SwiftUI
 
@@ -9,12 +9,15 @@ struct DashboardHero: View {
     let heroLayout: String
     let needsSavings: Bool
 
+    /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
+    @AppStorage("heroTrendExpanded") private var trendExpanded = true
+
     /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
     /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
     var body: some View {
         let delta = FreedomMath.deltaSummary(history: history)
         let deplete = FreedomMath.depleteDate(freedomDays: freedomDays)
-        let showsTrend = FreedomTrendCard.isAvailable(history)
+        let showsTrend = history.count >= 3
 
         // 内联 VaultCard 写法 — 为了在 paper 底之上、content 之下叠暗色流星层。
         // 普通 VaultCard 的 background fill 是 opaque, 没法在外面再叠装饰层。
@@ -25,7 +28,7 @@ struct DashboardHero: View {
                 KickerLabel(text: heroKickerText)
                 Spacer()
                 if let d = delta {
-                    // 趋势卡已经写了「69 天 → 27 天」, 有它时不再重复变化量
+                    // 下面的趋势行已经写了「69 天 → 27 天」, 有它时不再重复变化量
                     if !showsTrend {
                         trendBadge(delta: d.delta, weeks: history.count - 1)
                     }
@@ -47,6 +50,12 @@ struct DashboardHero: View {
 
             // ─── 中部: 根据 heroLayout 偏好切换 ───
             heroBody(deplete: deplete)
+
+            // ─── 底部: 趋势。一行摘要常驻, 点它展开或收起折线 ───
+            if let first = history.first, let last = history.last, showsTrend {
+                Hairline().padding(.top, Spacing.xs)
+                trendSection(first: first, last: last)
+            }
 
         }
         .padding(Spacing.xl)
@@ -187,6 +196,49 @@ struct DashboardHero: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// 摘要行是开关: 箭头朝下表示可以展开, 展开后转成朝上。
+    /// 折线淡入淡出, 卡片高度和下面的内容跟着一起滑动, 不跳。
+    @ViewBuilder
+    private func trendSection(first: FreedomMath.HistoryPoint, last: FreedomMath.HistoryPoint) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.32)) { trendExpanded.toggle() }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(history.count - 1) 周自由趋势")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                Spacer()
+                Text("\(first.description) → \(last.description)")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.ink)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.inkFaint)
+                    .rotationEffect(.degrees(trendExpanded ? 180 : 0))
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("hero-trend-toggle")
+        .accessibilityLabel("\(history.count - 1) 周自由趋势，\(first.description) 到 \(last.description)")
+        .accessibilityValue(trendExpanded ? "已展开" : "已收起")
+        .accessibilityHint(trendExpanded ? "收起折线" : "展开折线")
+
+        if trendExpanded {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if let values = FreedomMath.historyPlotValues(history) {
+                    Sparkline(values: values)
+                        .frame(height: 36)
+                }
+                Text(snapshot.dailyPassive > 0 ? "根据账目和现在的被动收入估算" : "根据账目估算")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+        }
+    }
+
     /// trend badge: ▲ +N d / Nw 或 ▼ -N d / Nw
     /// 增加用 skyDeep,减少用 flame
     private func trendBadge(delta: Int, weeks: Int) -> some View {
@@ -251,40 +303,6 @@ struct DashboardHero: View {
             case .day: return "Freedom Days"
             case .month: return "Freedom Months"
             case .year: return "Freedom Years"
-            }
-        }
-    }
-}
-
-/// 12 周趋势是回顾, 不是现在: 从大数字卡里拆出来, 让数字和格子挨在一起。
-struct FreedomTrendCard: View {
-    let history: [FreedomMath.HistoryPoint]
-    let hasPassiveIncome: Bool
-
-    static func isAvailable(_ history: [FreedomMath.HistoryPoint]) -> Bool { history.count >= 3 }
-
-    var body: some View {
-        if let first = history.first, let last = history.last, Self.isAvailable(history) {
-            VaultCard(padding: Spacing.lg) {
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("\(history.count - 1) 周自由趋势")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkFaint)
-                        Spacer()
-                        Text("\(first.description) → \(last.description)")
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(Color.ink)
-                    }
-                    if let values = FreedomMath.historyPlotValues(history) {
-                        Sparkline(values: values)
-                            .frame(height: 36)
-                            .padding(.top, 2)
-                    }
-                    Text(hasPassiveIncome ? "根据账目和现在的被动收入估算" : "根据账目估算")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                }
             }
         }
     }

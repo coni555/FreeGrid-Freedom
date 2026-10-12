@@ -51,7 +51,6 @@ private struct DashboardContent: View {
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
     var body: some View {
-        // 大数字卡和趋势卡共用同一份历史, 只算一次
         let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
@@ -63,14 +62,13 @@ private struct DashboardContent: View {
         return NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    // 首屏: 结论(数字) → 它的图(格子) → 动作(记账、模拟); 回顾类的往下放
+                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
                     topBar           // 一行 wordmark
                     DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
                     gridSection      // 按天、月或年显示自由网格
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    FreedomTrendCard(history: history, hasPassiveIncome: snapshot.dailyPassive > 0)
                     if snapshot.hasExpenses {
                         statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
                     }
