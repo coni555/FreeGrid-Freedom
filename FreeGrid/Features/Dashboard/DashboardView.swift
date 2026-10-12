@@ -183,22 +183,59 @@ private struct DashboardContent: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部只留一行小 wordmark: 首屏的高度让给数字、格子和记账。
+    /// 顶部一行: 左边的靶心是深浅色开关, 右边切换大数字布局。
+    /// 两个开关 Settings 的「外观」里也有; 首页这两个留给已经用惯的老用户。
     private var topBar: some View {
-        HStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(Color.ink, lineWidth: 1)
-                    .frame(width: 14, height: 14)
-                Circle()
-                    .fill(Color.sky)
-                    .frame(width: 6, height: 6)
+        HStack(spacing: Spacing.sm) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isDarkMode.toggle()
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.ink, lineWidth: 1)
+                        .frame(width: 22, height: 22)
+                    if isDarkMode {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.sky)
+                    } else {
+                        Circle()
+                            .fill(Color.sky)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+                .contentShape(Rectangle())   // 扩大点击区
             }
-            .accessibilityHidden(true)
+            .buttonStyle(.plain)
+            .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
+
             Text("FreeGrid")
                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                 .foregroundStyle(Color.ink)
+
             Spacer()
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    heroLayout = (heroLayout == "leading") ? "vertical" : "leading"
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.ink, lineWidth: 1)
+                        .frame(width: 22, height: 22)
+                    Image(systemName: heroLayout == "vertical"
+                          ? "rectangle.split.1x2"
+                          : "rectangle.split.2x1")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.sky)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(heroLayout == "vertical" ? "切换左右布局" : "切换居中堆叠布局")
         }
     }
 
