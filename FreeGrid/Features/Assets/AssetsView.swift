@@ -41,7 +41,6 @@ struct AssetsView: View {
                     bucketCards
                     if showEmptyHint { emptyHintCard }
                     passiveCard
-                    transferCard
                 }
                 .padding()
                 // 点击卡片之外的空白处收起调拨键盘(decimalPad 无 return 键)。
@@ -148,6 +147,11 @@ struct AssetsView: View {
                     }
                     .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
                 }
+
+                // 调拨是在资产和现金之间挪钱, 净值不变: 收在净值卡底部,
+                // 和首页大数字卡里的趋势行是同一种交互 (一行摘要常驻, 点整行展开)
+                Hairline().padding(.top, Spacing.xs)
+                transferSection
             }
         }
     }
@@ -373,68 +377,109 @@ struct AssetsView: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: - 调拨
-    /// 调拨是偶尔才做的事: 平时只有一行, 点了才展开表单, 调完自己收起。
-    private var transferCard: some View {
-        VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
+    // MARK: - 调拨 (净值卡底部, 默认收起)
+    @ViewBuilder
+    private var transferSection: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.32)) { transferExpanded.toggle() }
+            if !transferExpanded { transferFocused = false }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("调拨")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                Spacer()
+                Text("资产 ⇄ 现金")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.ink)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.inkFaint)
+                    .rotationEffect(.degrees(transferExpanded ? 180 : 0))
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("transfer-toggle")
+        .accessibilityLabel("调拨，在资产和现金之间移动")
+        .accessibilityValue(transferExpanded ? "已展开" : "已收起")
+
+        if transferExpanded {
+            transferForm
+                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+        }
+    }
+
+    /// 从哪一桶到哪一桶 (右边的圆钮对调方向) → 金额 → 确认
+    private var transferForm: some View {
+        let fromCash = transferDirection == .cashToAssets
+        let available = max(0, fromCash ? cashAmount : lockedAssetsAmount)
+        let entered = Double(transferAmount) ?? 0
+        return VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                transferBucketLabel(isCash: fromCash)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundStyle(Color.inkFaint)
+                transferBucketLabel(isCash: !fromCash)
+                Spacer()
                 Button {
-                    withAnimation(.snappy(duration: 0.32)) { transferExpanded.toggle() }
-                    if !transferExpanded { transferFocused = false }
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        KickerLabel(text: "调拨")
-                        Spacer()
-                        Text("资产 ⇄ 现金")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkFaint)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Color.inkFaint)
-                            .rotationEffect(.degrees(transferExpanded ? 180 : 0))
+                    withAnimation(.snappy(duration: 0.25)) {
+                        transferDirection = fromCash ? .assetsToCash : .cashToAssets
                     }
-                    .contentShape(Rectangle())
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.skyDeep)
+                        .frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(Color.hairline, lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("transfer-toggle")
-                .accessibilityLabel("调拨，在资产和现金之间移动")
-                .accessibilityValue(transferExpanded ? "已展开" : "已收起")
+                .accessibilityIdentifier("transfer-swap")
+                .accessibilityLabel("对调方向")
+                .accessibilityValue(transferDirection.rawValue)
+            }
 
-                if transferExpanded {
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        Picker("方向", selection: $transferDirection) {
-                            ForEach(TransferDirection.allCases, id: \.self) { d in
-                                Text(d.rawValue).tag(d)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        HStack(spacing: 6) {
-                            Text("¥")
-                                .font(.system(.title3, design: .rounded))
-                                .foregroundStyle(Color.inkFaint)
-                            TextField("0", text: $transferAmount)
-                                .decimalKeyboard()
-                                .focused($transferFocused)
-                                .font(.system(.title3, design: .rounded).monospacedDigit())
-                                .foregroundStyle(Color.ink)
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(Color.hairline, lineWidth: 1)
-                                )
-                        }
-
-                        VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
-                            doTransfer()
-                        }
-                        .disabled(Double(transferAmount) == nil || (Double(transferAmount) ?? 0) <= 0)
-                        .opacity((Double(transferAmount) ?? 0) > 0 ? 1.0 : 0.4)
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            UnderlinedField(isFocused: transferFocused, accent: fromCash ? .cashBlue : .assetGold) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("¥")
+                        .font(.system(size: 22, weight: .ultraLight, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    TextField("0", text: $transferAmount)
+                        .decimalKeyboard()
+                        .focused($transferFocused)
+                        .font(.system(size: 32, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .minimumScaleFactor(0.5)
                 }
             }
+
+            // 超过可用金额时实际只会调走这一桶里有的, 提前说清楚
+            Text(entered > available
+                 ? "\(fromCash ? "现金" : "资产")只有 ¥\(available.formatted(.number))，会全部调过去"
+                 : "\(fromCash ? "现金" : "资产")可用 ¥\(available.formatted(.number))")
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(entered > available ? Color.flame : Color.inkFaint)
+
+            VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
+                doTransfer()
+            }
+            .disabled(entered <= 0)
+            .opacity(entered > 0 ? 1.0 : 0.4)
+        }
+        .padding(.top, Spacing.xs)
+    }
+
+    private func transferBucketLabel(isCash: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: isCash ? "banknote" : "lock.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(isCash ? Color.cashBlue : Color.assetGold)
+            Text(isCash ? "现金" : "资产")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.ink)
         }
     }
 
