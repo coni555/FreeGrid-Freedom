@@ -183,6 +183,24 @@ struct KickerLabel: View {
 }
 
 /// hairline 横线
+/// 表单输入框的统一样子: 没有底色和外框, 只在下面压一条细线; 聚焦时细线换成强调色。
+/// 和卡片的 1 像素描边是同一种语言, 不再用带底色的圆角盒子。
+struct UnderlinedField<Content: View>: View {
+    var isFocused: Bool
+    var accent: Color = .skyDeep
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: Spacing.sm) {
+            content
+            Rectangle()
+                .fill(isFocused ? accent : Color.hairline)
+                .frame(height: 1)
+                .animation(.easeInOut(duration: 0.2), value: isFocused)
+        }
+    }
+}
+
 struct Hairline: View {
     var color: Color = .hairline
     var body: some View {

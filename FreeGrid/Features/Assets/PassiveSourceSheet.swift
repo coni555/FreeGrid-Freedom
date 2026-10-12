@@ -11,7 +11,8 @@ struct PassiveSourceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
     @State private var monthly: String = ""
-    @FocusState private var nameFocused: Bool
+    private enum Field { case name, monthly }
+    @FocusState private var focus: Field?
 
     private var isEditing: Bool { existing != nil }
     private var title: String { isEditing ? "编辑被动源" : "添加被动源" }
@@ -23,59 +24,46 @@ struct PassiveSourceSheet: View {
                     // 名字
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         KickerLabel(text: "名称")
-                        TextField("房租 / 股息 / 利息 / 副业 ...", text: $name)
-                            .font(.system(.title3, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                            .focused($nameFocused)
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color.skyDeep.opacity(0.45), lineWidth: 1)
-                            )
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(Color.skyFaint.opacity(0.4))
-                            )
+                        UnderlinedField(isFocused: focus == .name) {
+                            TextField("房租、股息、利息、副业…", text: $name)
+                                .font(.system(.title3, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                                .focused($focus, equals: .name)
+                                .submitLabel(.next)
+                                .onSubmit { focus = .monthly }
+                        }
                     }
 
                     // 月入
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "月入 (元 / 月)")
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("¥")
-                                .font(.system(size: 28, weight: .ultraLight, design: .rounded))
-                                .foregroundStyle(Color.inkFaint)
-                            TextField("0", text: $monthly)
-                                .decimalKeyboard()
-                                .font(.system(size: 36, weight: .ultraLight, design: .rounded).monospacedDigit())
-                                .foregroundStyle(Color.ink)
+                        KickerLabel(text: "每月收入")
+                        UnderlinedField(isFocused: focus == .monthly, accent: .mossGreen) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text("¥")
+                                    .font(.system(size: 32, weight: .ultraLight, design: .rounded))
+                                    .foregroundStyle(Color.inkFaint)
+                                TextField("0", text: $monthly)
+                                    .decimalKeyboard()
+                                    .accessibilityIdentifier("passive-monthly-field")
+                                    .font(.system(size: 52, weight: .ultraLight, design: .rounded).monospacedDigit())
+                                    .foregroundStyle(Color.ink)
+                                    .minimumScaleFactor(0.5)
+                                    .focused($focus, equals: .monthly)
+                            }
                         }
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.mossGreen.opacity(0.45), lineWidth: 1)
-                        )
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.mossGreen.opacity(0.08))
-                        )
 
-                        // 日均预览
+                        // 细线下面一行: 输入后换算成每天多少
                         if let m = Double(monthly), FinancialFormatting.validAmount(m) {
-                            Text("≈ ¥\(String(format: "%.1f", m / 30)) / 天")
+                            Text("相当于每天 ¥\(String(format: "%.1f", m / 30))")
                                 .font(.system(.caption, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.mossGreen)
-                                .padding(.top, 2)
+                        } else {
+                            Text("不用持续工作也能稳定拿到的钱，按每月的金额填")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-
-                    // 说明
-                    Text("被动收入: 不需要持续工作就能稳定获得的收入。每月固定金额, 按 ÷ 30 转日均, 用来计算「被动覆盖率」。")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(Spacing.lg)
             }
@@ -100,7 +88,7 @@ struct PassiveSourceSheet: View {
                     name = e.name
                     monthly = String(format: "%g", e.monthlyAmount)
                 }
-                nameFocused = !isEditing  // 新增聚焦名字, 编辑不自动弹键盘
+                focus = isEditing ? nil : .name  // 新增聚焦名字, 编辑不自动弹键盘
             }
         }
         .saveErrorAlert($saveError)

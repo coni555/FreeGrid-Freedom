@@ -10,8 +10,8 @@ struct EditBucketSheet: View {
         var label: String { self == .assets ? "资产" : "现金" }
         var hint: String {
             self == .assets
-                ? "锁定的钱 — 定期 / 股票 / 基金 / 不动产等"
-                : "可花的钱 — 活期 / 钱包余额 / 微信支付宝"
+                ? "锁定的钱：定期、股票、基金、不动产等"
+                : "可花的钱：活期、钱包余额、微信、支付宝"
         }
         var color: Color { self == .assets ? .assetGold : .cashBlue }
         var icon: String { self == .assets ? "lock.fill" : "banknote" }
@@ -29,68 +29,58 @@ struct EditBucketSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
-                    // ===== 当前金额参考 =====
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // 是哪一桶、这一桶指什么
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
                             Image(systemName: bucket.icon)
                                 .font(.system(size: 11))
                                 .foregroundStyle(bucket.color)
-                            KickerLabel(text: "当前 \(bucket.label)")
+                            KickerLabel(text: bucket.label)
                         }
-                        Text("¥" + currentAmount.formatted(.number))
-                            .font(.system(size: 28, weight: .light, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.inkMuted)
+                        Text(bucket.hint)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    // ===== 新金额输入 =====
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "新金额")
-
+                    // 现在的金额就是输入框里的灰色占位: 直接打新数字盖掉它, 不用先看一眼再抄一遍
+                    UnderlinedField(isFocused: fieldFocused, accent: bucket.color) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("¥")
                                 .font(.system(size: 32, weight: .ultraLight, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
-                            TextField("0", text: $amount)
+                            TextField(currentAmount.formatted(.number), text: $amount)
                                 .decimalKeyboard()
                                 .accessibilityIdentifier("bucket-amount-field")
-                                .font(.system(size: 40, weight: .ultraLight, design: .rounded).monospacedDigit())
+                                .font(.system(size: 52, weight: .ultraLight, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.ink)
+                                .minimumScaleFactor(0.5)
                                 .focused($fieldFocused)
                                 .submitLabel(.done)
                                 .onSubmit { save() }
                         }
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.skyDeep.opacity(0.45), lineWidth: 1)
-                        )
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.skyFaint.opacity(0.4))
-                        )
+                    }
+                    .padding(.top, Spacing.sm)
 
-                        // delta 预览: 写新金额后实时显示净值变化
+                    // 细线下面一行: 没输入时说明灰字是什么, 输入后显示和现在差多少
+                    Group {
                         if let new = Double(amount),
                            FinancialFormatting.validAmount(new, allowsZero: true),
                            new != currentAmount {
                             HStack(spacing: 4) {
                                 Image(systemName: new > currentAmount ? "arrow.up" : "arrow.down")
                                     .font(.system(size: 10))
-                                Text("\(new > currentAmount ? "+" : "")\((new - currentAmount).formatted(.number)) 元")
+                                Text("比现在\(new > currentAmount ? "多" : "少") ¥\(abs(new - currentAmount).formatted(.number))")
                                     .font(.system(.caption, design: .rounded).monospacedDigit())
                             }
                             .foregroundStyle(new > currentAmount ? Color.skyDeep : Color.inkMuted)
-                            .padding(.top, 2)
+                        } else {
+                            Text("现在是 ¥\(currentAmount.formatted(.number))，输入新的金额替换它")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
                         }
                     }
-
-                    // ===== 说明 =====
-                    Text(bucket.hint)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(Spacing.lg)
             }
@@ -111,7 +101,7 @@ struct EditBucketSheet: View {
                 }
             }
             .onAppear {
-                // 不预填 — 用户看到"当前 ¥X"作为参考再录入新值, 心智更清晰。
+                // 不预填: 现在的金额是输入框的占位, 一打字就被替换。
                 // 自动聚焦让键盘立即弹出, 减少点击次数。
                 fieldFocused = true
             }
