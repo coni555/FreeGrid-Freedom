@@ -54,17 +54,16 @@ private struct DashboardContent: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    // 每天都用的排在上面: 记账、今日对比; 偶尔看的排在下面
                     topBar           // 圆点 + FreeGrid + 副标
                     DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
-                    actionRow        // 支出 + 收入
-                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    }
                     gridSection      // 按天、月或年显示自由网格
                     statsRow         // stat 卡片横向
+                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
                     simulateRow      // 模拟决策
+                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+                        todaySection // 今日 vs 日均 (推到最底,是 review 信息); 还没有日均时没有可比的东西
+                    }
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
