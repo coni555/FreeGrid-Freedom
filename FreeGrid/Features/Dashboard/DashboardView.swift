@@ -20,6 +20,10 @@ struct DashboardView: View {
     }
 }
 
+extension DashboardContent {
+    fileprivate static let topID = "dashboard-top"
+}
+
 /// 一次「打开记支出表单」的请求
 private struct ExpenseDraft: Identifiable {
     let id = UUID()
@@ -33,6 +37,8 @@ private struct DashboardContent: View {
     let todaySpending: Double
 
     @Environment(\.modelContext) private var modelContext
+    /// 讲解和起步引导要圈出这一页上的位置
+    @Environment(AppGuide.self) private var guide
 
     // ===== Sheet 状态 =====
     @State private var saveError: String?
@@ -70,13 +76,16 @@ private struct DashboardContent: View {
             now: snapshot.now
         )
         return NavigationStack {
+            ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
                     // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
                     topBar           // 一行 wordmark
+                        .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
                     gridSection      // 按天、月或年显示自由网格
+                        .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
                     if snapshot.hasExpenses {
@@ -89,6 +98,17 @@ private struct DashboardContent: View {
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.xxl)
+            }
+            // 「认识首页」: 先回到顶部, 等位置排好再开始
+            .task(id: guide.replays(of: .dashboard)) {
+                guard guide.replays(of: .dashboard) > 0, snapshot.hasExpenses else { return }
+                // 新用户刚记完第一笔: 等记支出的表单收完
+                try? await Task.sleep(for: .milliseconds(900))
+                scroller.scrollTo(Self.topID, anchor: .top)
+                try? await Task.sleep(for: .milliseconds(400))
+                guard expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
+            }
             }
             .scrollContentBackground(.hidden)
             // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
@@ -478,6 +498,7 @@ private struct DashboardContent: View {
                         style: .destructive) {
                 expenseDraft = ExpenseDraft()
             }
+            .guideTarget(.expenseButton, in: guide)
             VaultButton(title: "记收入",
                         icon: "plus",
                         style: .primary) {
@@ -494,6 +515,7 @@ private struct DashboardContent: View {
                         icon: "wand.and.stars") {
                 showingSimulate = true
             }
+            .guideTarget(.simulate, in: guide)
             Spacer()
         }
         .padding(.top, Spacing.xs)

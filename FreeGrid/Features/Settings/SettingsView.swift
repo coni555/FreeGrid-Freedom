@@ -9,8 +9,8 @@ import AppKit
 #endif
 
 struct SettingsView: View {
-    /// 点「使用指引」：切到 History 并重放指引，由 ContentView 接手
-    var onReplayHistoryGuide: () -> Void = {}
+    /// 在「使用指引」里选了一个讲解：切到对应页面并从头重放，由 ContentView 接手
+    var onReplayGuide: (AppGuide.Tour) -> Void = { _ in }
 
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
@@ -191,7 +191,7 @@ struct SettingsView: View {
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
-    /// 指引要圈出 History 里的记录，账本为空时没有可圈的位置
+    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置
     @ViewBuilder
     private var guideRow: some View {
         if expenses.isEmpty && incomes.isEmpty {
@@ -202,10 +202,42 @@ struct SettingsView: View {
                     .foregroundStyle(Color.inkFaint)
             }
         } else {
-            settingsRow(icon: "questionmark.circle", title: "使用指引",
-                        action: onReplayHistoryGuide) { chevron }
-                .accessibilityIdentifier("replay-history-guide")
+            NavigationLink {
+                guideListPage
+            } label: {
+                settingsRow(icon: "questionmark.circle", title: "使用指引") { chevron }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("guide-list")
         }
+    }
+
+    /// 点哪一个就跳到那一页从头讲一遍
+    private var guideListPage: some View {
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                settingsSection("") {
+                    settingsRow(icon: "chart.line.uptrend.xyaxis", title: "认识首页",
+                                action: { onReplayGuide(.dashboard) }) { playMark }
+                        .accessibilityIdentifier("replay-dashboard-guide")
+                    rowDivider
+                    settingsRow(icon: "clock.arrow.circlepath", title: "History 怎么用",
+                                action: { onReplayGuide(.history) }) { playMark }
+                        .accessibilityIdentifier("replay-history-guide")
+                }
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .navigationTitle("使用指引")
+        .inlineNavTitle()
+    }
+
+    private var playMark: some View {
+        Image(systemName: "play")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color.inkGhost)
     }
 
     private var aboutPage: some View {

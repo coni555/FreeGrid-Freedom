@@ -27,7 +27,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testHistoryGuideRunsOnceThenRowOpensEditAndSavedNoteLeadsTheRow() {
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "NO", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "NO", "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
         app.launch()
         app.buttons["记支出"].tap()
         let amount = app.textFields["0.00"]
@@ -38,7 +38,7 @@ final class FreeGridUITests: XCTestCase {
 
         app.tabBars.buttons["History"].tap()
         // 第一次进来先走完指引：月份、点行、左滑、工具栏，共四步
-        let next = app.buttons["history-guide-next"]
+        let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         finishGuide(next)
         let row = app.staticTexts["早餐"].firstMatch
@@ -62,7 +62,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testSettingsReplaysHistoryGuideOnceLedgerHasARecord() {
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
         app.launch()
         // 空账本没有可圈的位置，入口只说明原因
         app.tabBars.buttons["Settings"].tap()
@@ -78,13 +78,14 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["Settings"].tap()
+        app.buttons["guide-list"].tap()
         app.buttons["replay-history-guide"].tap()
         // 跳到 History 并从第一步重放，四步走完后消失
-        let next = app.buttons["history-guide-next"]
+        let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["History"].exists)
         // 第一步没有上一步；走到第二步后可以退回来
-        let back = app.buttons["history-guide-back"]
+        let back = app.buttons["guide-back"]
         XCTAssertFalse(back.exists)
         next.tap()
         XCTAssertTrue(back.waitForExistence(timeout: 3))
@@ -99,6 +100,7 @@ final class FreeGridUITests: XCTestCase {
         // 无值的 -UseInMemoryStore 会吞掉紧随其后的参数,所以它必须排在最后。
         app.launchArguments.append(contentsOf: [
             "-heroLayout", "leading", "-isDarkMode", "NO",
+            "-setupGuideCompleted", "YES",
             "-historyGuideCompleted", "YES",   // 这条只测导航，不让指引遮住 Tab 栏
         ])
         app.launchArguments.append("-UseInMemoryStore")
@@ -136,7 +138,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testSimulationWithoutExpenseExplainsMissingBaseline() {
         let app = XCUIApplication()
-        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-UseInMemoryStore"]
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Assets"].tap()
@@ -162,9 +164,51 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testSetupGuideWalksANewUserThroughMoneyAndFirstExpenseThenToursTheDashboard() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO",
+                               "-setupGuideCompleted", "NO", "-UseInMemoryStore"]
+        app.launch()
+        // 第 1 步：首页讲清楚大数字，带去 Assets
+        let goAssets = app.buttons["setup-guide-go-assets"]
+        XCTAssertTrue(goAssets.waitForExistence(timeout: 5))
+        goAssets.tap()
+        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
+        // 第 2 步：圈里的现金卡是真的能点的
+        XCTAssertFalse(app.buttons["setup-guide-go-assets"].exists)
+        app.buttons["编辑现金"].tap()
+        let cash = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 3))
+        cash.typeText("1000")
+        app.buttons["保存"].tap()
+        // 钱记好了，带回首页
+        let goHome = app.buttons["setup-guide-go-home"]
+        XCTAssertTrue(goHome.waitForExistence(timeout: 3))
+        goHome.tap()
+        // 第 3 步：圈里的记支出也是真的能点的
+        XCTAssertTrue(app.staticTexts["setup-guide-text"].waitForExistence(timeout: 3))
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.typeText("50")
+        app.buttons["保存"].tap()
+        // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共三步
+        let next = app.buttons["guide-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 6))
+        XCTAssertFalse(app.staticTexts["setup-guide-text"].exists)
+        for _ in 0..<2 { next.tap() }
+        expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
+        waitForExpectations(timeout: 3)
+        Thread.sleep(forTimeInterval: 0.4)
+        next.tap()
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["19"].exists)   // 950 ÷ 50
+    }
+
+    @MainActor
     func testSimulationHandsItsAmountToTheExpenseSheet() {
         let app = XCUIApplication()
-        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-UseInMemoryStore"]
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
         app.launch()
         let simulate = app.buttons["模拟一笔 · 看决策影响"]
         XCTAssertTrue(simulate.waitForExistence(timeout: 5))
@@ -192,7 +236,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UseInMemoryStore"]
+        app.launchArguments = ["-setupGuideCompleted", "YES", "-UseInMemoryStore"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Assets"].tap()

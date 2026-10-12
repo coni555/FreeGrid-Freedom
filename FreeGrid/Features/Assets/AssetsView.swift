@@ -9,6 +9,8 @@ struct AssetsView: View {
     @Query private var expenses: [Expense]              // 算 dailyBurn 用
     @Query private var passiveSources: [PassiveSource]  // 被动收入源
     @Environment(\.modelContext) private var modelContext
+    /// 起步引导要圈出现金卡
+    @Environment(AppGuide.self) private var guide
 
     // --- 双桶编辑 (sheet 模式) ---
     @State private var saveError: String?
@@ -206,6 +208,7 @@ struct AssetsView: View {
                 color: .cashBlue,
                 icon: "banknote"
             )
+            .guideTarget(.cashCard, in: guide)
         }
     }
 

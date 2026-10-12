@@ -33,7 +33,7 @@ struct HistoryView: View {
     @State private var editing: LedgerTransaction? = nil
 
     /// 首次进入时的逐步指引；遮罩本身挂在 ContentView，这里只负责上报位置和触发
-    @Environment(HistoryGuide.self) private var guide
+    @Environment(AppGuide.self) private var guide
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
     @State private var toolFrames: [Int: CGRect] = [:]
     @AppStorage("historyGuideCompleted") private var guideCompleted = false
@@ -94,14 +94,14 @@ struct HistoryView: View {
                 guard !guideCompleted, !(expenses.isEmpty && incomes.isEmpty) else { return }
                 try? await Task.sleep(for: .milliseconds(600))
                 guard !guideCompleted, !isSearching, editing == nil else { return }
-                withAnimation(.easeInOut(duration: 0.25)) { guide.start() }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
             }
-            .task(id: guide.replayRequests) {
+            .task(id: guide.replays(of: .history)) {
                 // 从设置页重放：先回到本月、收起搜索和筛选，圈的位置才和首次进来时一样
-                guard guide.replayRequests > 0, !(expenses.isEmpty && incomes.isEmpty) else { return }
+                guard guide.replays(of: .history) > 0, !(expenses.isEmpty && incomes.isEmpty) else { return }
                 resetForGuide()
                 try? await Task.sleep(for: .milliseconds(600))
-                withAnimation(.easeInOut(duration: 0.25)) { guide.start() }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
             }
             .saveErrorAlert($saveError)
             .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
@@ -180,7 +180,7 @@ struct HistoryView: View {
                             .background {
                                 // 只上报第一行的位置
                                 if tx.id == visible.first?.id {
-                                    Color.clear.historyGuideTarget(.row, in: guide)
+                                    Color.clear.guideTarget(.row, in: guide)
                                 }
                             }
                             .listRowBackground(Color.paper)
@@ -249,7 +249,7 @@ struct HistoryView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(scopeLabel)，月度汇总")
                     .accessibilityIdentifier("history-scope-title")
-                    .historyGuideTarget(.month, in: guide)
+                    .guideTarget(.month, in: guide)
                     Spacer()
                     if case .month(let month) = scope {
                         monthStepButton("chevron.left", label: "上个月", enabled: month > range.lowerBound) {

@@ -11,6 +11,7 @@ struct DashboardHero: View {
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
     @AppStorage("heroTrendExpanded") private var trendExpanded = true
+    @Environment(AppGuide.self) private var guide
 
     /// Hero: Silverline 大胆版 — 巨大数字 + trend badge + sparkline + 见底日期
     /// 参考 V3/V5 mockup 设计:把 hero card 升级为"自由仪表盘"
@@ -50,6 +51,7 @@ struct DashboardHero: View {
 
             // ─── 中部: 根据 heroLayout 偏好切换 ───
             heroBody(deplete: deplete)
+                .guideTarget(.number, in: guide)
 
             // ─── 底部: 趋势。一行摘要常驻, 点它展开或收起折线 ───
             if let first = history.first, let last = history.last, showsTrend {
@@ -220,6 +222,7 @@ struct DashboardHero: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .guideTarget(.trend, in: guide)
         .accessibilityIdentifier("hero-trend-toggle")
         .accessibilityLabel("\(history.count - 1) 周自由趋势，\(first.description) 到 \(last.description)")
         .accessibilityValue(trendExpanded ? "已展开" : "已收起")
