@@ -37,13 +37,15 @@ struct AddExpenseSheet: View {
                         .font(.system(.body, design: .rounded).monospacedDigit())
                         .focused($amountFocused)
                 }
-                // 分类和日期合成一组、不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
+                // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
                 Section {
                     Picker("分类", selection: $category) {
                         ForEach(categories, id: \.self) { c in
                             Text(c).tag(c)
                         }
                     }
+                }
+                Section("日期") {
                     TransactionDateRow(date: $date)
                 }
                 Section("备注 (可选)") {

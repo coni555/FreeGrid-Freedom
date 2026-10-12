@@ -37,7 +37,7 @@ struct AddIncomeSheet: View {
                     TextField("工资 / 投资 / 副业 / ...", text: $source)
                         .font(.system(.body, design: .rounded))
                 }
-                Section {
+                Section("日期") {
                     TransactionDateRow(date: $date)
                 }
                 Section("备注 (可选)") {
