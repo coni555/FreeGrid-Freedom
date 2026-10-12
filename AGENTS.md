@@ -22,7 +22,7 @@
 - 保留数据校验、事务回滚、恢复页与旧备份兼容。临时探针与合成测试数据放 `_local/`。
 - 改业务规则配具体输入输出测试；整理后跑 iOS 测试、macOS 构建与 `git diff --check`。
 - 核心阶段完成更新 `HANDOFF.md`；代码结构改变时同步 `CODE_GUIDE.md`。
-- 跑测试的标准动作（用户 2026-10-12 定，机器是 16G 内存的 MacBook Air）：直接在该分支自己的模拟器上跑（重构分支用 FG-UI），不新建临时模拟器；`xcodebuild` 加 `-parallel-testing-enabled NO`，否则它会自己再克隆一台；`-derivedDataPath` 固定用 `_local/derived/<分支简称>` 并保留，不要每轮删；测试和出图合在一次构建里。UI 测试都带 `-UseInMemoryStore`，不写真实账本。
+- 跑测试的标准动作（用户 2026-10-12 定，机器是 16G 内存的 MacBook Air）：直接在该分支自己的模拟器上跑（重构分支用 FG-UI），不新建临时模拟器；`xcodebuild` 加 `-parallel-testing-enabled NO`，否则它会自己再克隆一台；`-derivedDataPath` 固定用 `_local/derived/<分支简称>` 并保留，不要每轮删；测试和出图合在一次构建里。UI 测试都带 `-UseInMemoryStore`，不写真实账本。新建、克隆或抹掉模拟器会触发 Apple 系统资源下载（每台约 0.6–0.9 GB），没有用户同意不做。
 
 ## 视觉（用户已定；想改先问用户）
 
