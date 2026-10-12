@@ -162,6 +162,34 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
+    func testSimulationHandsItsAmountToTheExpenseSheet() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-UseInMemoryStore"]
+        app.launch()
+        let simulate = app.buttons["模拟一笔 · 看决策影响"]
+        XCTAssertTrue(simulate.waitForExistence(timeout: 5))
+        if !simulate.isHittable { app.swipeUp() }
+        simulate.tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.typeText("500")
+        let record = app.buttons["simulate-record-expense"]
+        XCTAssertTrue(record.waitForExistence(timeout: 3))
+        if !record.isHittable { app.swipeUp() }
+        record.tap()
+        // 模拟收起后接着打开记支出，金额已经填好
+        XCTAssertTrue(app.navigationBars["添加支出"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["0.00"].value as? String, "500")
+        app.buttons["取消"].tap()
+        // 之后从普通入口打开，不带着上次模拟的金额
+        let expense = app.buttons["记支出"]
+        if !expense.isHittable { app.swipeDown() }
+        expense.tap()
+        XCTAssertTrue(app.navigationBars["添加支出"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["0.00"].value as? String, "0.00")
+    }
+
+    @MainActor
     func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
         let app = XCUIApplication()
         app.launchArguments = ["-UseInMemoryStore"]

@@ -20,6 +20,12 @@ struct DashboardView: View {
     }
 }
 
+/// 一次「打开记支出表单」的请求
+private struct ExpenseDraft: Identifiable {
+    let id = UUID()
+    var amount = ""
+}
+
 private struct DashboardContent: View {
     let expenses: [Expense]
     let incomes: [Income]
@@ -30,9 +36,13 @@ private struct DashboardContent: View {
 
     // ===== Sheet 状态 =====
     @State private var saveError: String?
-    @State private var showingAddExpense = false
+    /// 非 nil 时打开记支出表单; 里面带着要预填的金额 (平时是空串)。
+    /// 用 item 而不是布尔开关: 表单内容要跟着这次请求的金额走, 不能读到上一次的旧值。
+    @State private var expenseDraft: ExpenseDraft?
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
+    /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
+    @State private var amountFromSimulation: String?
 
     // ===== 撤销 Toast(刚刚记的一笔有 5 秒撤销窗口) =====
     /// 待撤销交易 ID, nil = 不显示 toast
@@ -92,8 +102,8 @@ private struct DashboardContent: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet(onSaved: { exp in
+            .sheet(item: $expenseDraft) { draft in
+                AddExpenseSheet(initialAmount: draft.amount, onSaved: { exp in
                     showUndoToast(id: exp.id, amount: exp.amount, isExpense: true)
                 })
             }
@@ -102,8 +112,14 @@ private struct DashboardContent: View {
                     showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
                 })
             }
-            .sheet(isPresented: $showingSimulate) {
-                SimulateSheet()
+            // 模拟里点了「记为支出」: 等模拟这张表单收完, 再带着金额打开记支出
+            .sheet(isPresented: $showingSimulate, onDismiss: {
+                if let amount = amountFromSimulation {
+                    amountFromSimulation = nil
+                    expenseDraft = ExpenseDraft(amount: amount)
+                }
+            }) {
+                SimulateSheet(onRecordExpense: { amountFromSimulation = $0 })
             }
             .saveErrorAlert($saveError)
         }
@@ -460,7 +476,7 @@ private struct DashboardContent: View {
             VaultButton(title: "记支出",
                         icon: "minus",
                         style: .destructive) {
-                showingAddExpense = true
+                expenseDraft = ExpenseDraft()
             }
             VaultButton(title: "记收入",
                         icon: "plus",

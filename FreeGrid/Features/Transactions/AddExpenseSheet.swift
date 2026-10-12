@@ -17,7 +17,7 @@ struct AddExpenseSheet: View {
     @Query private var passiveSources: [PassiveSource]
 
     @State private var saveError: String?
-    @State private var amount: String = ""
+    @State private var amount: String
     @State private var category: String = "早餐"
     @State private var note: String = ""
     @State private var date: Date = .now
@@ -27,6 +27,12 @@ struct AddExpenseSheet: View {
     /// 分类清单 = 权威 canonical(单一来源 ExpenseCategory.canonical)。
     /// "人情"/"日用" 已不在清单(2026-05 移除);旧记录仍能在 History 正常显示。
     private let categories = ExpenseCategory.canonical
+
+    /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
+    init(initialAmount: String = "", onSaved: ((Expense) -> Void)? = nil) {
+        self.onSaved = onSaved
+        _amount = State(initialValue: initialAmount)
+    }
 
     var body: some View {
         NavigationStack {

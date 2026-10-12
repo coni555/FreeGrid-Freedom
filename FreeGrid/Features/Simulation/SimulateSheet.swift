@@ -7,6 +7,9 @@ struct SimulateSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// 模拟完决定真的花了：把金额交给首页，由它接着打开记支出表单
+    var onRecordExpense: ((String) -> Void)? = nil
+
     // 同样需要 @Query 当前数据,实时计算影响
     @Query private var expenses: [Expense]
     @Query private var assetsArr: [UserAssets]
@@ -17,22 +20,22 @@ struct SimulateSheet: View {
     @State private var mode: TransactionKind = .expense
     /// 格子推演动画三态
     @State private var demoPhase: SimDemoPhase = .idle
+    /// 打开就弹键盘, 少点一下
+    @FocusState private var amountFocused: Bool
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    bannerCard
                     modePicker
                     amountInput
-                    if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
-                        let impact = TransactionImpact(
-                            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                                        assets: assetsArr.first),
-                            kind: mode, amount: amt
-                        )
-                        previewCard(impact: impact)
+                    if let impact = currentImpact {
+                        // 格子是这个功能的看点, 放在数字表上面
                         gridDemoCard(impact: impact)
+                        previewCard(impact: impact)
+                        if mode == .expense, onRecordExpense != nil {
+                            recordButton
+                        }
                     } else {
                         hintCard
                     }
@@ -40,10 +43,19 @@ struct SimulateSheet: View {
                 .padding()
             }
             .scrollContentBackground(.hidden)
+            .dismissKeyboardOnScroll()
             .background(Color.paper)
+            .onAppear { amountFocused = true }
             // 金额或模式一变,演示回到静止态(旧网格),让用户重新观察这一笔
             .onChange(of: amount) { _, _ in demoPhase = .idle }
             .onChange(of: mode) { _, _ in demoPhase = .idle }
+            // 停止输入一小会儿后自己播一遍, 不用再点按钮; 继续输入会取消这次等待
+            .task(id: "\(amount)|\(mode)") {
+                try? await Task.sleep(for: .milliseconds(700))
+                guard !Task.isCancelled, case .idle = demoPhase,
+                      let impact = currentImpact, let demo = demoChange(for: impact) else { return }
+                playDemo(delta: demo.delta, ignite: demo.ignite)
+            }
             .navigationTitle("模拟决策")
             .inlineNavTitle()
             .toolbar {
@@ -59,40 +71,61 @@ struct SimulateSheet: View {
     // MARK: - 子组件
     // ============================================================================
 
-    /// 顶部 banner: silverline 风 — 极淡 sky wash 底 + 深蓝字
-    private var bannerCard: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "wand.and.stars")
-                .font(.system(size: 16, weight: .light))
-                .foregroundStyle(Color.skyDeep)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("模拟模式")
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.ink)
-                Text("不会扣资产,不会写入账本,只是看看决策影响。")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-            }
-            Spacer()
-        }
-        .padding(Spacing.lg)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.skyFaint)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.sky.opacity(0.3), lineWidth: 1)
+    /// 金额有效时这笔模拟的结果
+    private var currentImpact: TransactionImpact? {
+        guard let amt = Double(amount), FinancialFormatting.validAmount(amt) else { return nil }
+        return TransactionImpact(
+            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
+                                        assets: assetsArr.first),
+            kind: mode, amount: amt
         )
     }
 
-    private var modePicker: some View {
-        Picker("模拟类型", selection: $mode) {
-            ForEach(TransactionKind.allCases, id: \.self) { kind in
-                Text(kind == .expense ? "模拟支出" : "模拟收入").tag(kind)
+    /// 这笔模拟会让几格变化; 数据不够、画不下或不足一格时没有可演示的
+    private func demoChange(for o: TransactionImpact) -> (delta: Int, ignite: Bool)? {
+        guard !isInvalid(o.before.freedom), !isInvalid(o.newFreedom),
+              !isInsufficient(o.before.freedom), !isInsufficient(o.newFreedom) else { return nil }
+        let unit = FreedomMath.gridUnit(for: o.before.freedom)
+        let oldGrid = FreedomMath.gridState(for: o.before.freedom, lockedAssets: o.before.lockedAssets,
+                                            netWorth: o.before.netWorth, unit: unit)
+        let newGrid = FreedomMath.gridState(for: o.newFreedom, lockedAssets: o.before.lockedAssets,
+                                            netWorth: o.newNetWorth, unit: unit)
+        guard !oldGrid.isOverflow, !newGrid.isOverflow, newGrid.count != oldGrid.count else { return nil }
+        return (abs(newGrid.count - oldGrid.count), newGrid.count > oldGrid.count)
+    }
+
+    /// 看完决定真的花了: 关掉模拟, 带着金额去记支出
+    private var recordButton: some View {
+        VStack(spacing: Spacing.sm) {
+            VaultButton(title: "就这么花了，记为支出", icon: "arrow.right", style: .secondary) {
+                onRecordExpense?(amount)
+                dismiss()
             }
+            .accessibilityIdentifier("simulate-record-expense")
+            Text("会打开记支出表单并带上这个金额，保存前还可以改。")
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
         }
-        .pickerStyle(.segmented)
+    }
+
+    /// 切换支出/收入, 下面一行小字说明这只是模拟 (原来是一整块深蓝色的说明卡)
+    private var modePicker: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Picker("模拟类型", selection: $mode) {
+                ForEach(TransactionKind.allCases, id: \.self) { kind in
+                    Text(kind == .expense ? "模拟支出" : "模拟收入").tag(kind)
+                }
+            }
+            .pickerStyle(.segmented)
+            HStack(spacing: 6) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 11, weight: .light))
+                Text("只是看看：不会扣资产，也不会写入账本。")
+                    .font(.system(.caption2, design: .rounded))
+            }
+            .foregroundStyle(Color.inkFaint)
+            .padding(.leading, Spacing.xs)
+        }
     }
 
     /// 金额输入:VaultCard silverline 风
@@ -108,6 +141,7 @@ struct SimulateSheet: View {
                         .decimalKeyboard()
                         .font(.system(.title3, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
+                        .focused($amountFocused)
                 }
             }
         }
