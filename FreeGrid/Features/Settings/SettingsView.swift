@@ -45,6 +45,7 @@ struct SettingsView: View {
                 VStack(spacing: Spacing.xl) {
                     checkCard
                     appearanceSection
+                    dataSection
                     aboutSupportSection
                 }
                 .padding()
@@ -152,6 +153,19 @@ struct SettingsView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { isDarkMode = newValue }
             }
         )
+    }
+
+    /// 导出、导入、清空: 和资产无关的数据操作集中在这一页
+    private var dataSection: some View {
+        settingsSection("数据") {
+            NavigationLink {
+                DataManagementView()
+            } label: {
+                settingsRow(icon: "externaldrive", title: "备份与恢复") { chevron }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-data")
+        }
     }
 
     /// 关于(进子页) + 评价与反馈(跳 App Store)。无标题分组 —— 顶层保持精简,

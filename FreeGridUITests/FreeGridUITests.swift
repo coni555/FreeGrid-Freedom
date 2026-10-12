@@ -177,7 +177,10 @@ final class FreeGridUITests: XCTestCase {
         }
         let cashBefore = app.buttons["编辑现金"].value as? String
         let assetsBefore = app.buttons["编辑资产"].value as? String
-        app.swipeUp()
+        // 调拨平时收成一行, 点开才有表单
+        let toggle = app.buttons["transfer-toggle"]
+        if !toggle.isHittable { app.swipeUp() }
+        toggle.tap()
         let amount = app.textFields["0"]
         XCTAssertTrue(amount.waitForExistence(timeout: 3))
         amount.tap()
