@@ -136,6 +136,7 @@ flowchart TD
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
 | 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
 | 历史页按月取数、分类筛选、搜索、按天分组的规则 | `Logic/HistoryLedger.swift` |
+| History 首次指引（压暗、圈出位置、逐步说明） | `Features/History/HistoryGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由 `HistoryView` 上报 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
 | 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
