@@ -14,6 +14,8 @@ struct SettingsView: View {
 
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
+    @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -112,7 +114,7 @@ struct SettingsView: View {
             settingsRow(icon: "moon", title: "主题") {
                 // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
                 // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
-                // 跟 Dashboard 顶栏切换同款 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
+                // 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
                 Picker("主题", selection: themeBinding) {
                     Text("浅色").tag(false)
                     Text("深色").tag(true)
@@ -120,7 +122,25 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
             }
+            rowDivider
+            settingsRow(icon: "rectangle.split.2x1", title: "首页大数字") {
+                Picker("首页大数字", selection: heroLayoutBinding) {
+                    Text("靠右").tag("leading")
+                    Text("居中").tag("vertical")
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
         }
+    }
+
+    private var heroLayoutBinding: Binding<String> {
+        Binding(
+            get: { heroLayout == "vertical" ? "vertical" : "leading" },
+            set: { newValue in
+                withAnimation(.easeInOut(duration: 0.25)) { heroLayout = newValue }
+            }
+        )
     }
 
     /// 主题绑定: setter 包在 withAnimation 里 — 切换时整页换色走 0.25s 缓动交叉淡入,
