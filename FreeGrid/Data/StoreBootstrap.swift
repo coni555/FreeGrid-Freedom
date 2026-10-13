@@ -97,9 +97,19 @@ final class StoreBootstrap {
         if arguments.contains("-ForceStoreBootstrapFailure") {
             throw BootstrapError.forcedFailure
         }
-        return try makeContainer(
+        let container = try makeContainer(
             isStoredInMemoryOnly: arguments.contains("-UseInMemoryStore")
         )
+        // 拍商店截图用: 把一份备份灌进内存账本。只认内存账本, 不会写到真实数据上
+        if arguments.contains("-UseInMemoryStore"),
+           let flag = arguments.firstIndex(of: "-SeedBackupJSON"),
+           arguments.indices.contains(flag + 1) {
+            let context = ModelContext(container)
+            let data = try Data(contentsOf: URL(fileURLWithPath: arguments[flag + 1]))
+            let preview = try DataIO.previewJSON(data: data, context: context)
+            _ = try DataIO.commitImport(preview: preview, strategy: .replace, context: context)
+        }
+        return container
         #else
         return try makeContainer()
         #endif

@@ -276,6 +276,55 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertEqual(app.textFields["0.00"].value as? String, "0.00")
     }
 
+    /// 拍 App Store 截图，平时跳过。用法见 `_local/store-screenshots/`：
+    /// 环境变量给出演示账本和输出目录时才跑，账本灌进内存，不碰真实数据。
+    @MainActor
+    func testCaptureStoreScreenshots() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["STORE_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍商店截图时运行")
+        }
+        func launch(dark: Bool) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+
+        var app = launch(dark: false)
+        try shoot("1-自由天数")
+
+        app.tabBars.buttons["History"].tap()
+        try shoot("3-History")
+        app.tabBars.buttons["Assets"].tap()
+        try shoot("4-Assets")
+
+        app.tabBars.buttons["Dashboard"].tap()
+        let simulate = app.buttons["模拟一笔 · 看决策影响"]
+        if !simulate.isHittable { app.swipeUp() }
+        simulate.tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.typeText("3000")
+        // 往下拖进键盘区把键盘收起，露出下面的推演结果
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.97)))
+        Thread.sleep(forTimeInterval: 4)
+        try shoot("2-模拟决策")
+
+        app.terminate()
+        app = launch(dark: true)
+        try shoot("5-深色")
+    }
+
     @MainActor
     func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
         let app = XCUIApplication()
