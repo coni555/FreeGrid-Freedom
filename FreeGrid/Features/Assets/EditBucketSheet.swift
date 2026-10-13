@@ -20,6 +20,8 @@ struct EditBucketSheet: View {
     let bucket: Bucket
     let currentAmount: Double
     let onSave: (Double) throws -> Void
+    /// 资产桶才有：去「拆成多项」的 Pro 功能页
+    var onOpenItems: (() -> Void)? = nil
 
     @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
@@ -80,6 +82,32 @@ struct EditBucketSheet: View {
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
                         }
+                    }
+
+                    if let onOpenItems {
+                        Hairline()
+                        Button {
+                            onOpenItems()
+                            dismiss()
+                        } label: {
+                            HStack(spacing: Spacing.sm) {
+                                Text("拆成多项")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundStyle(Color.ink)
+                                Text("PRO")
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .tracking(2)
+                                    .foregroundStyle(Color.skyDeep)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color.inkGhost)
+                            }
+                            .padding(.vertical, Spacing.xs)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("split-assets-into-items")
                     }
                 }
                 .padding(Spacing.lg)

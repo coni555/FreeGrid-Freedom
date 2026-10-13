@@ -8,6 +8,8 @@ struct AssetsView: View {
     @Query private var assetsArr: [UserAssets]
     @Query private var expenses: [Expense]              // 算 dailyBurn 用
     @Query private var passiveSources: [PassiveSource]  // 被动收入源
+    @Query(sort: [SortDescriptor(\AssetItem.sortOrder), SortDescriptor(\AssetItem.createdAt)])
+    private var assetItems: [AssetItem]                 // Pro 资产逐项：免费用户永远是空
     @Environment(\.modelContext) private var modelContext
     /// 起步引导要圈出现金卡
     @Environment(AppGuide.self) private var guide
@@ -15,6 +17,9 @@ struct AssetsView: View {
     // --- 双桶编辑 (sheet 模式) ---
     @State private var saveError: String?
     @State private var editingBucket: EditBucketSheet.Bucket? = nil
+    @State private var showingAssetItems = false
+    /// 拆成多项之后，调拨要选是哪一项
+    @State private var transferItemID: UUID?
 
     // --- 调拨 ---
     @State private var transferAmount: String = ""
@@ -81,9 +86,11 @@ struct AssetsView: View {
                     currentAmount: amountFor(bucket: bucket),
                     onSave: { newAmount in
                         try applyBucketEdit(bucket: bucket, newAmount: newAmount)
-                    }
+                    },
+                    onOpenItems: bucket == .assets ? { showingAssetItems = true } : nil
                 )
             }
+            .navigationDestination(isPresented: $showingAssetItems) { AssetItemsView() }
             .sheet(isPresented: $showingAddPassive) {
                 PassiveSourceSheet(existing: nil) { name, monthly in
                     try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, in: modelContext)
@@ -257,8 +264,10 @@ struct AssetsView: View {
     }
 
     private func bucketCard(bucket: EditBucketSheet.Bucket, kicker: String, amount: Double, color: Color, icon: String) -> some View {
-        Button {
-            editingBucket = bucket
+        // 资产已经拆成多项时，总数是各项相加，点进明细页而不是改总数
+        let splitIntoItems = bucket == .assets && !assetItems.isEmpty
+        return Button {
+            if splitIntoItems { showingAssetItems = true } else { editingBucket = bucket }
         } label: {
             VaultCard {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -266,9 +275,9 @@ struct AssetsView: View {
                         Image(systemName: icon)
                             .font(.system(size: 11))
                             .foregroundStyle(color)
-                        KickerLabel(text: kicker)
+                        KickerLabel(text: splitIntoItems ? "\(kicker) · \(assetItems.count) 项" : kicker)
                         Spacer()
-                        Image(systemName: "square.and.pencil")
+                        Image(systemName: splitIntoItems ? "chevron.right" : "square.and.pencil")
                             .font(.system(size: 11))
                             .foregroundStyle(Color.inkFaint)
                     }
@@ -282,7 +291,7 @@ struct AssetsView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("编辑\(kicker)")
+        .accessibilityLabel(splitIntoItems ? "\(kicker)明细" : "编辑\(kicker)")
         // Button 会把 label 里的 Text 合并成一个元素,再被 accessibilityLabel 整体顶掉;
         // 金额得单独挂回 value,否则 VoiceOver 只念"编辑现金",听不到余额。
         .accessibilityValue("¥" + amount.formatted(.number))
@@ -454,15 +463,46 @@ struct AssetsView: View {
         .accessibilityValue(transferExpanded ? "已展开" : "已收起")
 
         if transferExpanded {
-            transferForm
-                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            Group {
+                if !assetItems.isEmpty && !ProFeatures.canManageAssetItems {
+                    lockedTransferNote
+                } else {
+                    transferForm
+                }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
         }
+    }
+
+    /// 拆成多项之后没有 Pro：调拨要改某一项的金额，这是 Pro 的事；先说清楚，再给出路
+    private var lockedTransferNote: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("资产已经拆成多项，调拨要改其中某一项，需要 Pro。也可以在资产明细里把它们合并成一个总数，再用原来的调拨。")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { showingAssetItems = true } label: {
+                Text("查看资产明细")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.skyDeep)
+                    .padding(.vertical, Spacing.xs)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, Spacing.xs)
+    }
+
+    /// 有资产项时调拨的资产一端落在哪一项；只有一项时不用选
+    private var transferItem: AssetItem? {
+        guard !assetItems.isEmpty else { return nil }
+        return assetItems.first { $0.id == transferItemID } ?? assetItems.first
     }
 
     /// 从哪一桶到哪一桶 (右边的圆钮对调方向) → 金额 → 确认
     private var transferForm: some View {
         let fromCash = transferDirection == .cashToAssets
-        let available = max(0, fromCash ? cashAmount : lockedAssetsAmount)
+        let assetSide = transferItem?.name ?? "资产"
+        let available = max(0, fromCash ? cashAmount : (transferItem?.amount ?? lockedAssetsAmount))
         let entered = Double(transferAmount) ?? 0
         return VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
@@ -490,6 +530,26 @@ struct AssetsView: View {
                 .accessibilityValue(transferDirection.rawValue)
             }
 
+            if assetItems.count > 1 {
+                HStack(spacing: Spacing.sm) {
+                    Text("资产项")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                    Spacer()
+                    Picker("资产项", selection: Binding(
+                        get: { transferItem?.id },
+                        set: { transferItemID = $0 }
+                    )) {
+                        ForEach(assetItems) { item in
+                            Text("\(item.name) · ¥\(item.amount.formatted(.number))").tag(Optional(item.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Color.skyDeep)
+                    .accessibilityIdentifier("transfer-item-picker")
+                }
+            }
+
             UnderlinedField(isFocused: transferFocused, accent: fromCash ? .cashBlue : .assetGold) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("¥")
@@ -506,8 +566,8 @@ struct AssetsView: View {
 
             // 超过可用金额时实际只会调走这一桶里有的, 提前说清楚
             Text(entered > available
-                 ? "\(fromCash ? "现金" : "资产")只有 ¥\(available.formatted(.number))，会全部调过去"
-                 : "\(fromCash ? "现金" : "资产")可用 ¥\(available.formatted(.number))")
+                 ? "\(fromCash ? "现金" : assetSide)只有 ¥\(available.formatted(.number))，会全部调过去"
+                 : "\(fromCash ? "现金" : assetSide)可用 ¥\(available.formatted(.number))")
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(entered > available ? Color.flame : Color.inkFaint)
 
@@ -540,6 +600,8 @@ struct AssetsView: View {
     }
 
     private func applyBucketEdit(bucket: EditBucketSheet.Bucket, newAmount: Double) throws {
+        // 资产拆成多项后总数是各项之和，不能绕过各项直接改
+        if bucket == .assets, !assetItems.isEmpty { throw AssetItemError.hasItems }
         try LedgerStore.updateAssets(in: modelContext) { assets in
             switch bucket {
             case .assets: assets.lockedAssets = newAmount
@@ -556,18 +618,25 @@ struct AssetsView: View {
               assets.cash.isFinite, assets.lockedAssets.isFinite else { return }
 
         do {
-            try LedgerStore.updateAssets(in: modelContext) { assets in
-                switch transferDirection {
-                case .cashToAssets:
-                    let actual = min(amt, max(0, assets.cash))
-                    assets.cash -= actual
-                    assets.lockedAssets += actual
-                case .assetsToCash:
-                    let actual = min(amt, max(0, assets.lockedAssets))
-                    assets.lockedAssets -= actual
-                    assets.cash += actual
+            if let item = transferItem {
+                // 有资产项：现金和选中的那一项之间调拨，资产总数跟着各项走
+                guard ProFeatures.canManageAssetItems else { throw AssetItemError.hasItems }
+                try AssetItemStore.transfer(transferDirection == .cashToAssets ? .cashToItem : .itemToCash,
+                                            amount: amt, item: item, in: modelContext)
+            } else {
+                try LedgerStore.updateAssets(in: modelContext) { assets in
+                    switch transferDirection {
+                    case .cashToAssets:
+                        let actual = min(amt, max(0, assets.cash))
+                        assets.cash -= actual
+                        assets.lockedAssets += actual
+                    case .assetsToCash:
+                        let actual = min(amt, max(0, assets.lockedAssets))
+                        assets.lockedAssets -= actual
+                        assets.cash += actual
+                    }
+                    assets.updatedAt = .now
                 }
-                assets.updatedAt = .now
             }
             transferAmount = ""
             transferFocused = false

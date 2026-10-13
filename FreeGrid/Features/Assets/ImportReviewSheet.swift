@@ -206,7 +206,7 @@ struct ImportReviewSheet: View {
                 strategyOption(
                     .replace,
                     "替换双桶",
-                    "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))"
+                    "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))" + replaceItemsNote
                 )
                 Hairline()
                 strategyOption(
@@ -220,6 +220,17 @@ struct ImportReviewSheet: View {
 
     private func money(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...2)))
+    }
+
+    /// 资产项跟着资产桶一起被替换：备份里有就恢复，没有而现在有就合并成总数
+    private var replaceItemsNote: String {
+        if !preview.importedAssetItems.isEmpty {
+            return "，含 \(preview.importedAssetItems.count) 个资产项"
+        }
+        if preview.currentAssetItemCount > 0 {
+            return "；现有 \(preview.currentAssetItemCount) 个资产项会并成一个总数"
+        }
+        return ""
     }
 
     private func strategyOption(_ s: DataIO.AssetsImportStrategy, _ title: String, _ desc: String) -> some View {

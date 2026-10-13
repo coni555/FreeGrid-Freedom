@@ -464,6 +464,102 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["资产未计入"].exists)
     }
 
+    /// 有 Pro：资产拆成多项。原来的总数自动变成一项「资产」，再加两项，改一项，删一项。
+    @MainActor
+    func testProCanSplitAssetsIntoItemsEditAndDeleteThem() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["编辑资产"].tap()
+        let bucket = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(bucket.waitForExistence(timeout: 3))
+        bucket.typeText("100000")
+        app.buttons["保存"].tap()
+
+        // 进逐项管理：总数自动变成一项「资产」
+        app.buttons["编辑资产"].tap()
+        let split = app.buttons["split-assets-into-items"]
+        XCTAssertTrue(split.waitForExistence(timeout: 3))
+        split.tap()
+        let total = app.staticTexts["asset-items-total"]
+        XCTAssertTrue(total.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["asset-item-资产"].waitForExistence(timeout: 3))
+        XCTAssertEqual(total.label, "¥100,000")
+
+        func add(_ name: String, _ amount: String) {
+            app.buttons["add-asset-item"].tap()
+            let nameField = app.textFields["asset-item-name-field"]
+            XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+            nameField.typeText(name)
+            let amountField = app.textFields["asset-item-amount-field"]
+            amountField.tap()
+            amountField.typeText(amount)
+            app.buttons["保存"].tap()
+        }
+        add("车", "30000")
+        add("基金", "5000")
+        XCTAssertTrue(app.buttons["asset-item-基金"].waitForExistence(timeout: 3))
+        XCTAssertEqual(total.label, "¥135,000")
+
+        // 改一项：总数跟着变
+        app.buttons["asset-item-资产"].tap()
+        let amountField = app.textFields["asset-item-amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 3))
+        amountField.tap()
+        amountField.typeText(String(repeating: "\u{8}", count: 12) + "120000")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.buttons["asset-item-资产"].waitForExistence(timeout: 3))
+        XCTAssertEqual(total.label, "¥155,000")
+
+        // 删一项：先确认，总数减少对应金额，其他项不动
+        app.buttons["delete-asset-item-基金"].tap()
+        let confirm = app.buttons["删除"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["asset-item-基金"].waitForNonExistence(timeout: 3))
+        XCTAssertEqual(total.label, "¥150,000")
+        XCTAssertTrue(app.buttons["asset-item-车"].exists)
+
+        // 回到 Assets：资产桶和净值跟着明细走
+        app.navigationBars.buttons.firstMatch.tap()
+        let bucketCard = app.buttons["资产明细"]
+        XCTAssertTrue(bucketCard.waitForExistence(timeout: 3))
+        XCTAssertEqual(bucketCard.value as? String, "¥150,000")
+        XCTAssertTrue(app.staticTexts["¥150,000"].firstMatch.exists)   // 净值
+    }
+
+    /// 没有 Pro：资产桶的「拆成多项」进的是锁定页，能走到购买页，不显示管理界面。
+    @MainActor
+    func testAssetItemsAreLockedWithoutProAndOpenThePaywall() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["编辑资产"].tap()
+        let bucket = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(bucket.waitForExistence(timeout: 3))
+        bucket.typeText("1000")
+        app.buttons["保存"].tap()
+        app.buttons["编辑资产"].tap()
+        let split = app.buttons["split-assets-into-items"]
+        XCTAssertTrue(split.waitForExistence(timeout: 3))
+        split.tap()
+        let open = app.buttons["open-pro-from-assets"]
+        XCTAssertTrue(open.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["add-asset-item"].exists)
+        // 锁定页不会悄悄把总数拆成一项
+        XCTAssertFalse(app.buttons["asset-item-资产"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "资产逐项-锁定页"
+        shot.lifetime = .keepAlways
+        add(shot)
+        open.tap()
+        XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
+    }
+
     /// 给用户挑方案用的截图：资产不计入自由天数时首页怎么画。只在给了环境变量时运行。
     /// 演示账本做法见 `_local/store-screenshots/`，账本灌进内存，不碰真实数据。
     @MainActor
@@ -502,6 +598,99 @@ final class FreeGridUITests: XCTestCase {
             app.terminate()
             app = launch(dark: dark, counts: false, style: "hollow")
             try shoot("\(mode)-3-关B-首页")
+            app.terminate()
+        }
+    }
+
+    /// 退款之后（没有 Pro 但已经拆好了项）：每一项和金额还在，不能增删改；合并成总数后回到只改总数。
+    @MainActor
+    func testItemsStayVisibleWithoutProAndCanBeMergedBackIntoATotal() throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("asset-items-ui-test.json")
+        try Data("""
+        {"schema_version":2,"assets":{"total":135000,"locked_assets":135000,"cash":0},
+         "asset_items":[{"name":"房","amount":100000},{"name":"定期","amount":30000},{"name":"基金","amount":5000}]}
+        """.utf8).write(to: backup)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        let card = app.buttons["资产明细"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertEqual(card.value as? String, "¥135,000")
+        card.tap()
+        XCTAssertTrue(app.buttons["asset-item-房"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["asset-item-基金"].exists)
+        XCTAssertEqual(app.staticTexts["asset-items-total"].label, "¥135,000")
+        XCTAssertFalse(app.buttons["add-asset-item"].exists)
+        XCTAssertFalse(app.buttons["delete-asset-item-房"].exists)
+        let merge = app.buttons["merge-asset-items"]
+        XCTAssertTrue(merge.exists)
+        merge.tap()
+        let confirm = app.buttons["合并"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["asset-item-房"].waitForNonExistence(timeout: 3))
+        XCTAssertEqual(app.staticTexts["asset-items-total"].label, "¥135,000")
+        app.navigationBars.buttons.firstMatch.tap()
+        let editable = app.buttons["编辑资产"]
+        XCTAssertTrue(editable.waitForExistence(timeout: 3))
+        XCTAssertEqual(editable.value as? String, "¥135,000")
+    }
+
+    /// 资产逐项记录的截图（演示账本）：列表、新增表单、锁定页。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureAssetItemScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["ASSET_ITEM_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍方案图时运行")
+        }
+        func launch(dark: Bool, pro: Bool) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                   "-proPreview", pro ? "YES" : "NO", "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        func openItems(_ app: XCUIApplication) {
+            app.tabBars.buttons["Assets"].tap()
+            app.buttons["编辑资产"].tap()
+            let split = app.buttons["split-assets-into-items"]
+            XCTAssertTrue(split.waitForExistence(timeout: 3))
+            split.tap()
+            XCTAssertTrue(app.staticTexts["asset-items-total"].waitForExistence(timeout: 5))
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            var app = launch(dark: dark, pro: true)
+            openItems(app)
+            for (name, amount) in [("车", "30000"), ("基金", "5000")] {
+                app.buttons["add-asset-item"].tap()
+                let nameField = app.textFields["asset-item-name-field"]
+                XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+                nameField.typeText(name)
+                let amountField = app.textFields["asset-item-amount-field"]
+                amountField.tap()
+                amountField.typeText(amount)
+                app.buttons["保存"].tap()
+                XCTAssertTrue(app.buttons["asset-item-\(name)"].waitForExistence(timeout: 3))
+            }
+            try shoot("\(mode)-1-资产列表")
+            app.buttons["add-asset-item"].tap()
+            XCTAssertTrue(app.textFields["asset-item-name-field"].waitForExistence(timeout: 3))
+            try shoot("\(mode)-2-新增表单")
+            app.terminate()
+            app = launch(dark: dark, pro: false)
+            openItems(app)
+            try shoot("\(mode)-3-锁定页")
             app.terminate()
         }
     }

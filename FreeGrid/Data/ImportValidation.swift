@@ -12,6 +12,8 @@ nonisolated enum FinancialLimits {
     static let ledgerRecords = 50_000
     static let deviceRecords = 10_000
     static let passiveSourceRecords = 1_000
+    static let assetItemRecords = 1_000
+    static let assetItemNameCharacters = 20
     static let nameCharacters = 120
     static let noteCharacters = 2_000
     static let maximumAmount = 1_000_000_000_000.0
@@ -29,7 +31,9 @@ nonisolated struct ImportPolicy: Sendable {
         maxFileBytes: .max,
         maxLedgerRecords: .max,
         maxDeviceRecords: .max,
-        maxPassiveSourceRecords: .max
+        maxPassiveSourceRecords: .max,
+        maxAssetItemRecords: .max,
+        checksAssetItemTotal: false
     )
 
     /// 用户确认大备份后，只放宽数量；读取仍受本次确认的文件字节数约束。
@@ -39,7 +43,8 @@ nonisolated struct ImportPolicy: Sendable {
             maxFileBytes: fileBytes,
             maxLedgerRecords: .max,
             maxDeviceRecords: .max,
-            maxPassiveSourceRecords: .max
+            maxPassiveSourceRecords: .max,
+            maxAssetItemRecords: .max
         )
     }
 
@@ -47,6 +52,9 @@ nonisolated struct ImportPolicy: Sendable {
     let maxLedgerRecords: Int
     let maxDeviceRecords: Int
     let maxPassiveSourceRecords: Int
+    let maxAssetItemRecords: Int
+    /// 资产项之和必须等于资产桶。导出自校验不查这条：导出是逃生舱，不能因为这个堆死。
+    let checksAssetItemTotal: Bool
     let maxNameCharacters: Int
     let maxNoteCharacters: Int
     let maximumAmount: Double
@@ -56,6 +64,8 @@ nonisolated struct ImportPolicy: Sendable {
         maxLedgerRecords: Int = FinancialLimits.ledgerRecords,
         maxDeviceRecords: Int = FinancialLimits.deviceRecords,
         maxPassiveSourceRecords: Int = FinancialLimits.passiveSourceRecords,
+        maxAssetItemRecords: Int = FinancialLimits.assetItemRecords,
+        checksAssetItemTotal: Bool = true,
         maxNameCharacters: Int = FinancialLimits.nameCharacters,
         maxNoteCharacters: Int = FinancialLimits.noteCharacters,
         maximumAmount: Double = FinancialLimits.maximumAmount
@@ -64,6 +74,8 @@ nonisolated struct ImportPolicy: Sendable {
         self.maxLedgerRecords = maxLedgerRecords
         self.maxDeviceRecords = maxDeviceRecords
         self.maxPassiveSourceRecords = maxPassiveSourceRecords
+        self.maxAssetItemRecords = maxAssetItemRecords
+        self.checksAssetItemTotal = checksAssetItemTotal
         self.maxNameCharacters = maxNameCharacters
         self.maxNoteCharacters = maxNoteCharacters
         self.maximumAmount = maximumAmount
@@ -85,6 +97,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case assetChecksumMismatch
     case invalidDeviceStatus
     case inconsistentDeviceState
+    case assetItemsTotalMismatch
+    case duplicateAssetItemID
 
     var isResourceLimit: Bool {
         switch self {
@@ -123,6 +137,10 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
             return "设备状态只能是 active、retired 或 sold"
         case .inconsistentDeviceState:
             return "设备卖出状态与卖出金额、日期不一致"
+        case .assetItemsTotalMismatch:
+            return "资产项金额之和与资产桶不一致"
+        case .duplicateAssetItemID:
+            return "资产项的记录 ID 重复"
         }
     }
 }
@@ -174,6 +192,15 @@ nonisolated struct ValidatedImport: Sendable {
         let createdAt: Date?
     }
 
+    struct AssetItemRecord: Sendable {
+        let id: UUID?
+        let name: String
+        let amount: Double
+        let sortOrder: Int?
+        let createdAt: Date?
+        let updatedAt: Date?
+    }
+
     let schemaVersion: Int
     let assets: Assets?
     let expenses: [ExpenseRecord]
@@ -181,6 +208,7 @@ nonisolated struct ValidatedImport: Sendable {
     let devices: [DeviceRecord]
     let passiveSources: [PassiveSourceRecord]
     let firstRecordDate: Date?
+    let assetItems: [AssetItemRecord]
 }
 
 nonisolated enum ImportValidator {
@@ -246,6 +274,15 @@ nonisolated enum ImportValidator {
                 kind: "被动收入源",
                 count: passiveCount,
                 maximum: policy.maxPassiveSourceRecords
+            )
+        }
+
+        let assetItemCount = envelope.assetItems?.count ?? 0
+        guard assetItemCount <= policy.maxAssetItemRecords else {
+            throw ImportValidationError.tooManyRecords(
+                kind: "资产项",
+                count: assetItemCount,
+                maximum: policy.maxAssetItemRecords
             )
         }
 
@@ -377,6 +414,33 @@ nonisolated enum ImportValidator {
             )
         }
 
+        var seenAssetItemIDs = Set<UUID>()
+        let assetItems = try (envelope.assetItems ?? []).map { raw in
+            let name = try text(raw.name, field: "资产项名称", maximum: FinancialLimits.assetItemNameCharacters)
+            guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
+                  name.rangeOfCharacter(from: .controlCharacters) == nil else {
+                throw ImportValidationError.emptyText(field: "资产项名称")
+            }
+            let id = try identifier(raw.id, field: "资产项")
+            if let id, !seenAssetItemIDs.insert(id).inserted {
+                throw ImportValidationError.duplicateAssetItemID
+            }
+            return ValidatedImport.AssetItemRecord(
+                id: id,
+                name: name,
+                amount: try amount(raw.amount, field: "资产项", allowsZero: true, policy: policy),
+                sortOrder: raw.sortOrder,
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "资产项创建时间", now: now) },
+                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "资产项更新时间", now: now) }
+            )
+        }
+        if policy.checksAssetItemTotal, !assetItems.isEmpty {
+            guard let locked = assets?.lockedAssets,
+                  abs(assetItems.reduce(0) { $0 + $1.amount } - locked) <= FinancialLimits.assetChecksumTolerance else {
+                throw ImportValidationError.assetItemsTotalMismatch
+            }
+        }
+
         let firstRecordDate = try envelope.firstRecordDate.map {
             try day($0, field: "首次记录日期", now: now)
         }
@@ -388,7 +452,8 @@ nonisolated enum ImportValidator {
             incomes: incomes,
             devices: devices,
             passiveSources: passiveSources,
-            firstRecordDate: firstRecordDate
+            firstRecordDate: firstRecordDate,
+            assetItems: assetItems
         )
     }
 

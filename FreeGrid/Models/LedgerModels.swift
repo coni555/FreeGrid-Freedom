@@ -140,6 +140,39 @@ final class PassiveSource: Identifiable {
 }
 
 // ============================================================================
+// MARK: - AssetItem (Pro 资产逐项记录)
+// ============================================================================
+// 把资产桶拆成一项一项：房、车、定期、基金…
+// 不变量：只要存在资产项，`UserAssets.lockedAssets` 就等于各项金额之和（见 `AssetItemStore`）。
+// 所以免费版的计算、旧备份和旧版本都只认 `lockedAssets`，不需要知道这张表。
+
+@Model
+final class AssetItem: Identifiable {
+    var id: UUID = UUID()
+
+    /// 1–20 个字符
+    var name: String = ""
+
+    /// 金额(元)，≥ 0
+    var amount: Double = 0
+
+    /// 列表里的顺序，新增的排在最后。备份按它还原顺序
+    var sortOrder: Int = 0
+
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
+
+    init(name: String, amount: Double, sortOrder: Int) {
+        self.id = UUID()
+        self.name = name
+        self.amount = amount
+        self.sortOrder = sortOrder
+        self.createdAt = .now
+        self.updatedAt = .now
+    }
+}
+
+// ============================================================================
 // MARK: - UserAssets (用户净值 - 单例)
 // ============================================================================
 // 净值 = 资产(锁定/投资) + 现金(可花)

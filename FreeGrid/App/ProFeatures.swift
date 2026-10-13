@@ -14,7 +14,12 @@ enum ProFeatures {
         Benefit(icon: "list.bullet",
                 title: "自定义支出分类",
                 detail: "添加自己的分类，调整常用顺序，删除用不到的选项。"),
+        Benefit(icon: "square.stack.3d.up",
+                title: "资产逐项记录",
+                detail: "把资产拆成房、车、定期、基金…一项一项记，总数自动相加。"),
     ]
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
+    /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。
+    static var canManageAssetItems: Bool { ProStore.shared.isUnlocked }
 }

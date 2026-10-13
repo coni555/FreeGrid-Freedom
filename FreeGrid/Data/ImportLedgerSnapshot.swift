@@ -82,6 +82,24 @@ struct ImportLedgerSnapshot: Equatable {
         }
     }
 
+    private struct AssetItemValue: Equatable {
+        let id: UUID
+        let name: String
+        let amount: UInt64
+        let sortOrder: Int
+        let createdAt: Date
+        let updatedAt: Date
+
+        init(_ record: AssetItem) {
+            id = record.id
+            name = record.name
+            amount = record.amount.bitPattern
+            sortOrder = record.sortOrder
+            createdAt = record.createdAt
+            updatedAt = record.updatedAt
+        }
+    }
+
     private struct UserAssetsValue: Equatable {
         let total: UInt64
         let lockedAssets: UInt64
@@ -103,8 +121,11 @@ struct ImportLedgerSnapshot: Equatable {
     private let devices: [PersistentIdentifier: DeviceValue]
     private let passiveSources: [PersistentIdentifier: PassiveSourceValue]
     private let assets: [PersistentIdentifier: UserAssetsValue]
+    private let assetItems: [PersistentIdentifier: AssetItemValue]
 
-    init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource], assets: [UserAssets]) {
+    init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource],
+         assets: [UserAssets], assetItems: [AssetItem] = []) {
+        self.assetItems = Dictionary(uniqueKeysWithValues: assetItems.map { ($0.persistentModelID, AssetItemValue($0)) })
         self.expenses = Dictionary(uniqueKeysWithValues: expenses.map { ($0.persistentModelID, ExpenseValue($0)) })
         self.incomes = Dictionary(uniqueKeysWithValues: incomes.map { ($0.persistentModelID, IncomeValue($0)) })
         self.devices = Dictionary(uniqueKeysWithValues: devices.map { ($0.persistentModelID, DeviceValue($0)) })
@@ -118,7 +139,8 @@ struct ImportLedgerSnapshot: Equatable {
             incomes: context.fetch(FetchDescriptor<Income>()),
             devices: context.fetch(FetchDescriptor<Device>()),
             passiveSources: context.fetch(FetchDescriptor<PassiveSource>()),
-            assets: context.fetch(FetchDescriptor<UserAssets>())
+            assets: context.fetch(FetchDescriptor<UserAssets>()),
+            assetItems: context.fetch(FetchDescriptor<AssetItem>())
         )
     }
 }

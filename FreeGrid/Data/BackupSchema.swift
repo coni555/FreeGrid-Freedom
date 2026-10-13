@@ -104,6 +104,26 @@ nonisolated struct BackupEnvelope: Codable {
         }
     }
 
+    /// Pro 资产逐项记录。可选字段：没有资产项时不写，旧版本读到也只会忽略它，资产总数仍在 `assets.locked_assets`。
+    struct AssetItemJSON: Codable {
+        let id: String?
+        let name: String
+        let amount: Double
+        let sortOrder: Int?
+        let createdAt: String?
+        let updatedAt: String?
+
+        init(id: String? = nil, name: String, amount: Double, sortOrder: Int? = nil,
+             createdAt: String? = nil, updatedAt: String? = nil) {
+            self.id = id
+            self.name = name
+            self.amount = amount
+            self.sortOrder = sortOrder
+            self.createdAt = createdAt
+            self.updatedAt = updatedAt
+        }
+    }
+
     let schemaVersion: Int?
     let assets: AssetsJSON?
     let expenses: [ExpenseJSON]?
@@ -111,6 +131,7 @@ nonisolated struct BackupEnvelope: Codable {
     let devices: [DeviceJSON]?
     let passiveSources: [PassiveSourceJSON]?
     let firstRecordDate: String?
+    let assetItems: [AssetItemJSON]?
 
     init(
         schemaVersion: Int? = nil,
@@ -119,7 +140,8 @@ nonisolated struct BackupEnvelope: Codable {
         incomes: [IncomeJSON]? = nil,
         devices: [DeviceJSON]? = nil,
         passiveSources: [PassiveSourceJSON]? = nil,
-        firstRecordDate: String? = nil
+        firstRecordDate: String? = nil,
+        assetItems: [AssetItemJSON]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -128,5 +150,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.devices = devices
         self.passiveSources = passiveSources
         self.firstRecordDate = firstRecordDate
+        self.assetItems = assetItems
     }
 }

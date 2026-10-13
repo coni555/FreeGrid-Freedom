@@ -71,6 +71,9 @@ enum DataIO {
         let deviceDuplicates: DuplicateCount
         let passiveSourcesNew: [ValidatedImport.PassiveSourceRecord]
         let passiveSourceDuplicates: DuplicateCount
+        /// 备份里的资产项。只在「替换」资产时一起恢复，其他策略不碰现有的项。
+        let importedAssetItems: [ValidatedImport.AssetItemRecord]
+        let currentAssetItemCount: Int
         let importedAssets: AssetSnapshot
         let jsonFirstRecordDate: Date?
         let currentCash: Double
@@ -116,6 +119,8 @@ enum DataIO {
         let devices: [ValidatedImport.DeviceRecord]
         let passiveSources: [ValidatedImport.PassiveSourceRecord]
         let assetsAction: AssetsAction
+        /// 仅 `.replace` 时写入：现有资产项整体换成这些（可以是空，也就是回到只有总数）
+        let assetItems: [ValidatedImport.AssetItemRecord]
         let importedAssetsTotal: Double
     }
 
@@ -146,6 +151,7 @@ enum DataIO {
             sortBy: [SortDescriptor(\.createdAt)]
         ))
         let assets = try context.fetch(FetchDescriptor<UserAssets>()).first
+        let assetItems = try AssetItemStore.items(in: context)
         let firstExpenseDate = expenses.map(\.date).min()
         let schemaVersion = expenses.contains { $0.amount <= 0 }
             ? ImportValidator.signedExpenseSchemaVersion
@@ -204,7 +210,17 @@ enum DataIO {
                     createdAt: iso.string(from: $0.createdAt)
                 )
             },
-            firstRecordDate: firstExpenseDate.map { day.string(from: $0) }
+            firstRecordDate: firstExpenseDate.map { day.string(from: $0) },
+            assetItems: assetItems.isEmpty ? nil : assetItems.map {
+                BackupEnvelope.AssetItemJSON(
+                    id: $0.id.uuidString,
+                    name: $0.name,
+                    amount: $0.amount,
+                    sortOrder: $0.sortOrder,
+                    createdAt: iso.string(from: $0.createdAt),
+                    updatedAt: iso.string(from: $0.updatedAt)
+                )
+            }
         )
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -477,6 +493,11 @@ enum DataIO {
 
         let allAssets = try context.fetch(FetchDescriptor<UserAssets>())
         let existingAssets = allAssets.first
+        let existingAssetItems = try context.fetch(FetchDescriptor<AssetItem>())
+        // 文件里没写顺序时按文件中的先后；写了就按写的顺序
+        let importedAssetItems = validated.assetItems.enumerated()
+            .sorted { ($0.element.sortOrder ?? $0.offset, $0.offset) < ($1.element.sortOrder ?? $1.offset, $1.offset) }
+            .map(\.element)
 
         var categoryTotals: [String: (count: Int, total: Double)] = [:]
         for expense in expensesNew {
@@ -525,7 +546,8 @@ enum DataIO {
 
         return ImportPreview(
             ledgerSnapshot: ImportLedgerSnapshot(expenses: existingExpenses, incomes: existingIncomes,
-                devices: existingDevices, passiveSources: existingPassives, assets: allAssets),
+                devices: existingDevices, passiveSources: existingPassives, assets: allAssets,
+                assetItems: existingAssetItems),
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
             suspectedExpenseIndices: suspectedExpenseIndices,
@@ -548,6 +570,8 @@ enum DataIO {
                 existing: passiveExistingDuplicates,
                 inFile: passiveFileDuplicates
             ),
+            importedAssetItems: importedAssetItems,
+            currentAssetItemCount: existingAssetItems.count,
             importedAssets: importedAssets,
             jsonFirstRecordDate: validated.firstRecordDate,
             currentCash: existingAssets?.cash ?? 0,
@@ -605,6 +629,7 @@ enum DataIO {
             devices: preview.devicesNew,
             passiveSources: preview.passiveSourcesNew,
             assetsAction: assetsAction,
+            assetItems: preview.importedAssetItems,
             importedAssetsTotal: preview.importedAssets.total
         )
     }
@@ -690,6 +715,16 @@ enum DataIO {
                 userAssets.lockedAssets = snapshot.lockedAssets
                 userAssets.cash = snapshot.cash
                 userAssets.updatedAt = snapshot.updatedAt ?? .now
+                // 资产桶换成备份里的数，资产项也跟着整体换：同一份备份导两次不会多出重复项。
+                // 没有项的旧备份导入后就只按总数走。
+                for existing in try context.fetch(FetchDescriptor<AssetItem>()) { context.delete(existing) }
+                for (index, record) in plan.assetItems.enumerated() {
+                    let item = AssetItem(name: record.name, amount: record.amount, sortOrder: index)
+                    if let id = record.id { item.id = id }
+                    if let createdAt = record.createdAt { item.createdAt = createdAt }
+                    item.updatedAt = record.updatedAt ?? record.createdAt ?? .now
+                    context.insert(item)
+                }
             case .addToCash(let amount):
                 userAssets.cash += amount
                 userAssets.updatedAt = .now
@@ -719,6 +754,7 @@ enum DataIO {
             for record in try context.fetch(FetchDescriptor<Device>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<PassiveSource>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<UserAssets>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<AssetItem>()) { context.delete(record) }
         }
     }
 
