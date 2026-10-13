@@ -8,12 +8,14 @@ struct CheckView: View {
     @Query private var expenses: [Expense]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     /// 8 项自检 + 汇总 — 逻辑统一在 FreedomChecklist, collapsed 卡与本页共用
     private var summary: FreedomSummary {
         FreedomChecklist.evaluate(expenses: expenses,
                                   passiveSources: passiveSources,
-                                  assets: assetsArr.first)
+                                  assets: assetsArr.first,
+                                  countsAssets: countsAssets)
     }
 
     // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)

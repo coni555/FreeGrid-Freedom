@@ -25,10 +25,14 @@ struct FreedomSummary {
 
 enum FreedomChecklist {
     /// 从已有记录反推 8 项自检 + 汇总。incomes 不参与(跟原 CheckView 一致)。
+    /// 自由天数相关的项（4、5）和首页用同一个口径；「记录了可变现资产」看净值，不跟开关走。
     static func evaluate(expenses: [Expense],
                          passiveSources: [PassiveSource],
-                         assets: UserAssets?) -> FreedomSummary {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets)
+                         assets: UserAssets?,
+                         now: Date = .now,
+                         countsAssets: Bool = FreedomSettings.countsAssets) -> FreedomSummary {
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets,
+                                         now: now, countsAssets: countsAssets)
         let days = snapshot.trackDays
         let dailyBurn = snapshot.dailyBurn
         let netWorth = snapshot.netWorth
@@ -74,13 +78,13 @@ enum FreedomChecklist {
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 180,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 180),
                 detail: "当前 \(fShow) / 180 天",
-                hint: "提高净值或降低日均消费"),
+                hint: countsAssets ? "提高净值或降低日均消费" : "提高现金或降低日均消费"),
             FreedomCheckItem(
                 id: 5, title: "自由天数超过 365 天", shortTitle: "自由天数 365 天",
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 365,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 365),
                 detail: "当前 \(fShow) / 365 天",
-                hint: "继续积累净值或被动收入"),
+                hint: countsAssets ? "继续积累净值或被动收入" : "继续积累现金或被动收入"),
             FreedomCheckItem(
                 id: 6, title: "有被动收入来源", shortTitle: "添加被动收入",
                 done: !passiveSources.isEmpty,

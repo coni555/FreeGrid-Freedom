@@ -32,9 +32,7 @@ struct AssetsView: View {
     @State private var pendingDeletePassive: PassiveSource? = nil
 
     // --- 自由天数口径 ---
-    @AppStorage(FreedomSettings.countsAssetsKey) private var countsAssets = true
-    /// 方案原型：开关放在这一页还是设置里，用户选定后删掉
-    @AppStorage("assetSwitchPlacement") private var assetSwitchPlacement = "assets"
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     // --- 说明与调拨默认收起 ---
     @State private var showingExplain = false
@@ -49,7 +47,7 @@ struct AssetsView: View {
                         .id(Self.topID)
                     bucketCards
                         .guideTarget(.buckets, in: guide)
-                    if assetSwitchPlacement == "assets" { countsAssetsCard }
+                    countsAssetsCard
                     if showEmptyHint { emptyHintCard }
                     passiveCard
                         .guideTarget(.passive, in: guide)

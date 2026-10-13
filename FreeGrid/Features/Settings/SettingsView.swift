@@ -27,9 +27,11 @@ struct SettingsView: View {
     @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
     @State private var showingPro = false
-    @AppStorage(FreedomSettings.countsAssetsKey) private var countsAssets = true
-    /// 方案原型：开关放在设置里还是 Assets 页，用户选定后删掉
-    @AppStorage("assetSwitchPlacement") private var assetSwitchPlacement = "assets"
+    /// 在 Assets 页改了口径，自检卡跟着重算
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    #if DEBUG
+    @AppStorage(FreedomSettings.uncountedAssetStyleKey, store: AppPreferences.store) private var uncountedAssetStyle = "drop"
+    #endif
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -38,7 +40,8 @@ struct SettingsView: View {
     private var summary: FreedomSummary {
         FreedomChecklist.evaluate(expenses: expenses,
                                   passiveSources: passiveSources,
-                                  assets: assetsArr.first)
+                                  assets: assetsArr.first,
+                                  countsAssets: countsAssets)
     }
 
     private var appVersion: String {
@@ -58,6 +61,9 @@ struct SettingsView: View {
                     dataSection
                         .guideTarget(.data, in: guide)
                     aboutSupportSection
+                    #if DEBUG
+                    debugSection
+                    #endif
                 }
                 .padding()
             }
@@ -157,16 +163,24 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("expense-categories-settings")
-            if assetSwitchPlacement == "settings" {
-                rowDivider
-                settingsRow(icon: "lock", title: "资产计入自由天数") {
-                    Toggle("资产计入自由天数", isOn: $countsAssets)
-                        .labelsHidden()
-                        .tint(Color.skyDeep)
+        }
+    }
+
+    #if DEBUG
+    /// 仅 Debug：资产没计入自由天数时，首页格子怎么画。Release 里只有「去掉」。
+    private var debugSection: some View {
+        settingsSection("调试") {
+            settingsRow(icon: "square.dashed", title: "未计入的资产") {
+                Picker("未计入的资产", selection: $uncountedAssetStyle) {
+                    Text("不画").tag("drop")
+                    Text("空心格").tag("hollow")
                 }
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
         }
     }
+    #endif
 
     private var appearanceSection: some View {
         settingsSection("外观") {

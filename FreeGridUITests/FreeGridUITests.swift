@@ -52,7 +52,7 @@ final class FreeGridUITests: XCTestCase {
         // 重启后仍用已保存的顺序与自定义项；只在首次启动重置偏好。
         app.terminate()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-UseInMemoryStore", "-proPreview", "YES"]
+                               "-UseInMemoryStore", "-KeepScratchPreferences", "-proPreview", "YES"]
         app.launch()
         app.tabBars.buttons["Dashboard"].tap()
         app.buttons["记支出"].tap()
@@ -420,21 +420,65 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["午餐"].exists)
     }
 
-    /// 拍 App Store 截图，平时跳过。用法见 `_local/store-screenshots/`：
-    /// 环境变量给出演示账本和输出目录时才跑，账本灌进内存，不碰真实数据。
-    /// 给用户挑方案用的截图：资产不计入自由天数时首页怎么画、开关放哪。只在给了环境变量时运行。
+    /// 在 Assets 页关掉「资产计入自由天数」：首页大数字只按现金算，图例写明资产未计入；再打开就回来。
     @MainActor
-    func testCaptureAssetSwitchOptions() throws {
+    func testAssetSwitchChangesTheDashboardNumber() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        for (label, amount) in [("编辑现金", "10000"), ("编辑资产", "10000")] {
+            app.buttons[label].tap()
+            let field = app.textFields["bucket-amount-field"]
+            XCTAssertTrue(field.waitForExistence(timeout: 3))
+            field.typeText(amount)
+            app.buttons["保存"].tap()
+        }
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("100")
+        app.buttons["保存"].tap()
+        // 现金 9900 + 资产 10000，日均 100
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["资产未计入"].exists)
+
+        app.tabBars.buttons["Assets"].tap()
+        let toggle = app.switches["counts-assets-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.switches.firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["自由天数只按现金算，资产仍在净值里。"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.staticTexts["99"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["199"].exists)
+        XCTAssertTrue(app.staticTexts["资产未计入"].exists)
+
+        app.tabBars.buttons["Assets"].tap()
+        toggle.switches.firstMatch.tap()
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["资产未计入"].exists)
+    }
+
+    /// 给用户挑方案用的截图：资产不计入自由天数时首页怎么画。只在给了环境变量时运行。
+    /// 演示账本做法见 `_local/store-screenshots/`，账本灌进内存，不碰真实数据。
+    @MainActor
+    func testCaptureAssetSwitchScreens() throws {
         let environment = ProcessInfo.processInfo.environment
         guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["ASSET_SWITCH_SHOTS_DIR"] else {
             throw XCTSkip("只在拍方案图时运行")
         }
-        func launch(counts: Bool, style: String, placement: String) -> XCUIApplication {
+        func launch(dark: Bool, counts: Bool, style: String) -> XCUIApplication {
             let app = XCUIApplication()
-            app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
-                                   "-setupGuideCompleted", "YES", "-UseInMemoryStore", "-SeedBackupJSON", ledger,
-                                   "-proPreview", "NO", "-countAssetsInFreedom", counts ? "YES" : "NO",
-                                   "-uncountedAssetStyle", style, "-assetSwitchPlacement", placement]
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-proPreview", "NO",
+                                   "-countAssetsInFreedom", counts ? "YES" : "NO", "-uncountedAssetStyle", style,
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
             return app
@@ -444,21 +488,26 @@ final class FreeGridUITests: XCTestCase {
             let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
             try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
         }
-        var app = launch(counts: true, style: "drop", placement: "assets")
-        try shoot("0-现在-资产计入")
-        app.terminate()
-        app = launch(counts: false, style: "drop", placement: "assets")
-        try shoot("A-首页-只剩现金格")
-        app.tabBars.buttons["Assets"].tap()
-        try shoot("开关-放在Assets")
-        app.terminate()
-        app = launch(counts: false, style: "hollow", placement: "settings")
-        try shoot("B-首页-资产画成空心格")
-        app.tabBars.buttons["Settings"].tap()
-        try shoot("开关-放在Settings")
-        app.terminate()
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            var app = launch(dark: dark, counts: true, style: "drop")
+            try shoot("\(mode)-1-开-首页")
+            app.tabBars.buttons["Assets"].tap()
+            try shoot("\(mode)-4-开-Assets开关卡")
+            app.terminate()
+            app = launch(dark: dark, counts: false, style: "drop")
+            try shoot("\(mode)-2-关A-首页")
+            app.tabBars.buttons["Assets"].tap()
+            try shoot("\(mode)-5-关-Assets开关卡")
+            app.terminate()
+            app = launch(dark: dark, counts: false, style: "hollow")
+            try shoot("\(mode)-3-关B-首页")
+            app.terminate()
+        }
     }
 
+    /// 拍 App Store 截图，平时跳过。用法见 `_local/store-screenshots/`：
+    /// 环境变量给出演示账本和输出目录时才跑，账本灌进内存，不碰真实数据。
     @MainActor
     func testCaptureStoreScreenshots() throws {
         let environment = ProcessInfo.processInfo.environment

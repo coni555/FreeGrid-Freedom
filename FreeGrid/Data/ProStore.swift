@@ -7,7 +7,7 @@ import StoreKit
 
 @Observable
 final class ProStore {
-    static let shared = ProStore()
+    static let shared = ProStore(defaults: AppPreferences.store)
 
     /// 要和 App Store Connect 里创建的非消耗型商品一致
     static let productID = "cn.conilab.FreeGrid.pro.lifetime"

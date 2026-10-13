@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 struct DataManagementView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(ExpenseCategoryStorage.key) private var encodedCategoryOptions = ""
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false

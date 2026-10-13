@@ -11,7 +11,7 @@ struct DashboardView: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
     /// 在 Assets 或设置里改了口径，首页跟着重算
-    @AppStorage(FreedomSettings.countsAssetsKey) private var countsAssets = true
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     var body: some View {
         DashboardContent(
@@ -68,6 +68,10 @@ private struct DashboardContent: View {
 
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
+
+    #if DEBUG
+    @AppStorage(FreedomSettings.uncountedAssetStyleKey, store: AppPreferences.store) private var uncountedAssetStyle = "drop"
+    #endif
 
     var body: some View {
         let history = FreedomMath.freedomDaysHistory(
@@ -461,25 +465,35 @@ private struct DashboardContent: View {
     /// 图例:silverline 版小方块 + 标签(无 glow)
     private func legendDot(color: Color, label: String, hollow: Bool = false) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 1)
-                .fill(hollow ? Color.clear : color)
-                .overlay(RoundedRectangle(cornerRadius: 1).stroke(color, lineWidth: 1))
-                .frame(width: 8, height: 8)
+            if hollow {
+                RoundedRectangle(cornerRadius: 1)
+                    .strokeBorder(color, lineWidth: 1)
+                    .frame(width: 8, height: 8)
+            } else {
+                Rectangle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .cornerRadius(1)
+            }
             Text(label)
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
         }
     }
 
-    /// 方案原型：资产不计入时，把资产本来能换的天数画成空心格跟在后面。
-    /// `uncountedAssetStyle` 为 "hollow" 时才画；用户选定方案后这个开关要删掉。
+    /// 方案 B（仅 Debug）：资产不计入时，把资产本来能换的天数画成空心格跟在后面。
+    /// Release 里恒为 0（方案 A）；用户选定后删掉另一种。
     private func reserveCells(after state: FreedomMath.GridState) -> Int {
+        #if DEBUG
         guard !snapshot.countsAssets, state.count > 0, !state.isOverflow,
-              UserDefaults.standard.string(forKey: "uncountedAssetStyle") == "hollow" else { return 0 }
+              uncountedAssetStyle == "hollow" else { return 0 }
         let full = FreedomMath.freedomState(netWorth: snapshot.netWorth, dailyBurn: snapshot.dailyBurn,
                                             dailyPassive: snapshot.dailyPassive, hasExpenses: snapshot.hasExpenses)
         let fullGrid = FreedomMath.gridState(for: full, lockedAssets: 0, netWorth: snapshot.netWorth, unit: state.unit)
         return max(0, fullGrid.count - state.count)
+        #else
+        return 0
+        #endif
     }
 
     /// 网格右上角文案: 格数和上面的大数字是同一个数, 只在格子画不下时说明 ("99+ 年")

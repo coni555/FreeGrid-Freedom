@@ -38,7 +38,7 @@ struct HistoryView: View {
     @Environment(AppGuide.self) private var guide
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
     @State private var toolFrames: [Int: CGRect] = [:]
-    @AppStorage("historyGuideCompleted") private var guideCompleted = false
+    @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var guideCompleted = false
     /// 重放指引前让列表回到顶部，每次加一
     @State private var scrollToTop = 0
 

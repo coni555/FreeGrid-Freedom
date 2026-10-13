@@ -17,9 +17,9 @@ struct ContentView: View {
 
     /// 全 App 的指引；遮罩要盖住导航栏和 Tab 栏，所以由这里持有
     @State private var guide = AppGuide()
-    @AppStorage("historyGuideCompleted") private var historyGuideCompleted = false
+    @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var historyGuideCompleted = false
     /// 起步引导点了「跳过引导」后不再出现
-    @AppStorage("setupGuideCompleted") private var setupGuideCompleted = false
+    @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
 
     // 起步引导走到哪一步由账本决定
     @Query private var expenses: [Expense]

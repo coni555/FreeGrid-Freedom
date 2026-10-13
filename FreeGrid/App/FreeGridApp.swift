@@ -23,7 +23,7 @@ struct FreeGridApp: App {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-UseInMemoryStore"), arguments.contains("-ResetExpenseCategories") {
-            UserDefaults.standard.removeObject(forKey: ExpenseCategoryStorage.key)
+            AppPreferences.store.removeObject(forKey: ExpenseCategoryStorage.key)
         }
         #endif
     }

@@ -3,7 +3,7 @@ import SwiftUI
 import SwiftData
 
 struct ExpenseCategoriesView: View {
-    @AppStorage(ExpenseCategoryStorage.key) private var encodedOptions = ""
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
     @Query private var expenses: [Expense]
     @State private var name = ""
     @State private var saveError: String?

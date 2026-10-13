@@ -202,6 +202,9 @@ struct DashboardHero: View {
     /// 折线淡入淡出, 卡片高度和下面的内容跟着一起滑动, 不跳。
     @ViewBuilder
     private func trendSection(first: FreedomMath.HistoryPoint, last: FreedomMath.HistoryPoint) -> some View {
+        // 资产不计入时只拿现金往回推，早期会被压到 0；那个 0 不是算出来的，不写
+        let summaryText = FreedomMath.trendSummaryText(first: first, last: last,
+                                                       hidesFlooredStart: !snapshot.countsAssets)
         Button {
             withAnimation(.snappy(duration: 0.32)) { trendExpanded.toggle() }
         } label: {
@@ -210,7 +213,7 @@ struct DashboardHero: View {
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                 Spacer()
-                Text("\(first.description) → \(last.description)")
+                Text(summaryText)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Color.ink)
                 Image(systemName: "chevron.down")
@@ -224,7 +227,9 @@ struct DashboardHero: View {
         .buttonStyle(.plain)
         .guideTarget(.trend, in: guide)
         .accessibilityIdentifier("hero-trend-toggle")
-        .accessibilityLabel("\(history.count - 1) 周自由趋势，\(first.description) 到 \(last.description)")
+        .accessibilityLabel(summaryText == last.description
+                            ? "\(history.count - 1) 周自由趋势，现在 \(last.description)"
+                            : "\(history.count - 1) 周自由趋势，\(first.description) 到 \(last.description)")
         .accessibilityValue(trendExpanded ? "已展开" : "已收起")
         .accessibilityHint(trendExpanded ? "收起折线" : "展开折线")
 

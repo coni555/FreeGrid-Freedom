@@ -131,6 +131,7 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；权益清单在 `App/ProFeatures.swift` |
+| 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
@@ -152,7 +153,11 @@ flowchart TD
 
 Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」。解锁状态不进账本备份。
 
-Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。界面测试通过 `-ResetExpenseCategories` 和 `-UseInMemoryStore` 在测试设备重置分类偏好；该重置仅在 Debug 且两个参数同时存在时生效。
+Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。
+
+**资产总开关（免费）** 沿这条路径工作：Assets 页的「资产计入自由天数」开关把偏好 `countAssetsInFreedom` 写进本机（默认开，不进备份）；`FinancialSnapshot` 里 `freedomBase` 在开时是净值、关时只是现金，首页大数字、格子（`countedAssets` 决定画多少金色）、趋势、记一笔的影响预览（`TransactionImpact.newFreedomBase`）、模拟和自检（`FreedomChecklist`）都用它。净值和「记录了可变现资产」不跑开关。关掉后趋势的起点如果是从现金往回推得负数、被压成 0 的，摘要行不写「0 天 →」（`FreedomMath.trendSummaryText`）。Debug 构建的「设置 → 调试」里可以把「未计入的资产」切成空心格（方案 B），Release 里恒为方案 A，不画。
+
+**本机偏好存在哪：** 资产开关、分类选项和 Pro 状态都走 `Data/AppPreferences.swift` 的 `store`。正常运行就是系统的 `UserDefaults.standard`；Debug 下带 `-UseInMemoryStore` 启动（界面测试、拍图）时换成一份临时偏好，默认每次启动清空，测试里切开关、改分类都不会碰真实偏好；要测「重启后还在」时第二次启动再加 `-KeepScratchPreferences`。`proPreview`、`countAssetsInFreedom`、`uncountedAssetStyle` 这几个启动参数会被抄进临时偏好。
 
 ## 7. 出 Bug 时怎样缩小范围
 
@@ -206,6 +211,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
+- [FreedomAssetSwitchTests](FreeGridTests/FreedomAssetSwitchTests.swift)：资产总开关开/关时的天数、格子、记一笔的预览、自检和趋势摘要，以及没有资产、被动收入覆盖的边界。
 
 构建和模拟器测试不能替代真机体验。发布之前仍需用真机确认输入、键盘、布局和真实备份恢复。
 

@@ -5,6 +5,8 @@ extension FreedomMath {
     struct HistoryPoint {
         let date: Date
         let state: FreedomState
+        /// 往回推出的钱小于 0，天数是被压到 0 的，不是真正算出来的
+        var isFloored = false
 
         var description: String {
             switch state {
@@ -98,8 +100,15 @@ extension FreedomMath {
             return HistoryPoint(date: dates[index], state: freedomState(
                 netWorth: netWorth, dailyBurn: burn, dailyPassive: dailyPassive,
                 hasExpenses: isCurrent ? !expenses.isEmpty : count > 0
-            ))
+            ), isFloored: netWorth < 0)
         }
+    }
+
+    /// 趋势摘要行的右侧文字。`hidesFlooredStart` 为真且起点是被压到 0 的值时，
+    /// 不显示「0 天 →」这一段，只显示现在的天数。
+    static func trendSummaryText(first: HistoryPoint, last: HistoryPoint, hidesFlooredStart: Bool) -> String {
+        if hidesFlooredStart, first.isFloored { return last.description }
+        return "\(first.description) → \(last.description)"
     }
 
     /// 只有有限天数之间才能相减；覆盖与无数据不能伪装成某个天数。

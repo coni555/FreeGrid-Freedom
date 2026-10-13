@@ -16,7 +16,7 @@ struct EditTransactionSheet: View {
     @State private var note: String
     @State private var date: Date
 
-    @AppStorage(ExpenseCategoryStorage.key) private var encodedOptions = ""
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
 
     init(transaction: LedgerTransaction) {
         self.transaction = transaction

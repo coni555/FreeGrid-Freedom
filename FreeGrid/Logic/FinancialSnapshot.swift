@@ -5,10 +5,18 @@ import Foundation
 /// 自由天数的口径：资产（锁定的钱）算不算进去。默认算；关掉后只按现金算，净值不受影响。
 enum FreedomSettings {
     static let countsAssetsKey = "countAssetsInFreedom"
-    static var countsAssets: Bool {
-        let defaults = UserDefaults.standard
-        return defaults.object(forKey: countsAssetsKey) == nil || defaults.bool(forKey: countsAssetsKey)
+    #if DEBUG
+    /// 仅 Debug 生效：资产不计入时首页格子的画法，`drop`（方案 A，默认）或 `hollow`（方案 B）。
+    /// 用户选定后删掉另一种。
+    static let uncountedAssetStyleKey = "uncountedAssetStyle"
+    #endif
+
+    /// 本机偏好，不进备份。没设过时是开。
+    static func isOn(in defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: countsAssetsKey) == nil || defaults.bool(forKey: countsAssetsKey)
     }
+
+    static var countsAssets: Bool { isOn(in: AppPreferences.store) }
 }
 
 struct FinancialSnapshot {

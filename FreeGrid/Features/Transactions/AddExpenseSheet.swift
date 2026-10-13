@@ -22,7 +22,7 @@ struct AddExpenseSheet: View {
     @State private var note: String = ""
     @State private var date: Date = .now
 
-    @AppStorage(ExpenseCategoryStorage.key) private var encodedOptions = ""
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
     private var categories: [String] {
         guard ProFeatures.canCustomizeExpenseCategories else { return ExpenseCategory.canonical }
         return ExpenseCategoryStorage.decode(encodedOptions)
