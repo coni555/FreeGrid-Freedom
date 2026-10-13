@@ -50,15 +50,37 @@ struct HistoryLedgerTests {
         #expect(totals.map(\.total) == [28.5, 22.8 - 30])
     }
 
-    @Test func searchMatchesTitleNoteAndAmountIgnoringCase() {
+    @Test func searchMatchesNoteIncomeSourceAndAmountButNotExpenseCategory() {
         let all = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .allTime)
         #expect(HistoryLedger.search(all, query: "clash").map(\.note) == ["Clash"])
-        #expect(HistoryLedger.search(all, query: "午餐 13").map(\.cashChange) == [-13])
+        #expect(HistoryLedger.search(all, query: "clash 22.8").map(\.cashChange) == [-22.8])
+        // 分类交给筛选：搜分类名不命中
+        #expect(HistoryLedger.search(all, query: "午餐").isEmpty)
+        #expect(HistoryLedger.search(all, query: "13").map(\.cashChange) == [-13])
         #expect(HistoryLedger.search(all, query: "1234.5").map(\.note) == ["高铁票"])
         #expect(HistoryLedger.search(all, query: "1,234").map(\.note) == ["高铁票"])
         #expect(HistoryLedger.search(all, query: "工资").count == 1)
         #expect(HistoryLedger.search(all, query: "不存在").isEmpty)
         #expect(HistoryLedger.search(all, query: "   ").count == all.count)
+    }
+
+    @Test func monthsGroupNewestFirstAndFrequentNotesNeedARepeat() {
+        let all = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .allTime)
+        let groups = HistoryLedger.months(all)
+        #expect(groups.map(\.month) == [october, HistoryMonth(year: 2026, month: 9)])
+        #expect(groups.map(\.summary.count) == [5, 1])
+        #expect(groups[1].summary.expense == 1234.5)
+
+        let repeated = [
+            Expense(amount: 5, category: "交通", note: "地铁", date: TestSupport.day("2026-10-03")),
+            Expense(amount: 30, category: "购物", note: "咖啡", date: TestSupport.day("2026-10-02")),
+            Expense(amount: 5, category: "交通", note: " 地铁 ", date: TestSupport.day("2026-10-01")),
+            Expense(amount: 30, category: "购物", note: "咖啡", date: TestSupport.day("2026-09-30")),
+            Expense(amount: 30, category: "购物", note: "咖啡", date: TestSupport.day("2026-09-29")),
+            Expense(amount: 99, category: "购物", note: "键盘", date: TestSupport.day("2026-09-28")),
+        ].map(LedgerTransaction.expense)
+        #expect(HistoryLedger.frequentNotes(repeated) == ["咖啡", "地铁"])
+        #expect(HistoryLedger.frequentNotes(repeated, limit: 1) == ["咖啡"])
     }
 
     @Test func daysGroupNewestFirstWithDailyNet() {
