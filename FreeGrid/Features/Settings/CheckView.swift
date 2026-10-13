@@ -106,7 +106,6 @@ struct CheckView: View {
                 Text("\(item.id). \(item.title)")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(item.done ? Color.ink : Color.inkMuted)
-                    .strikethrough(item.done, color: Color.inkFaint)
 
                 if item.done {
                     Text("已达成")

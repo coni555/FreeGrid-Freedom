@@ -9,14 +9,22 @@ import AppKit
 #endif
 
 struct SettingsView: View {
+    /// 在「使用指引」里选了一个讲解：切到对应页面并从头重放，由 ContentView 接手
+    var onReplayGuide: (AppGuide.Tour) -> Void = { _ in }
+
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
+    @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
     @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
 
     @Environment(\.openURL) private var openURL
+    /// 「Settings 怎么用」要圈出这一页上的位置
+    @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
 
     private let icpNumber = "浙ICP备2026045014号-1A"
@@ -38,8 +46,12 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: Spacing.xl) {
                     checkCard
+                        .guideTarget(.check, in: guide)
                     expenseCategoriesSection
                     appearanceSection
+                        .guideTarget(.appearance, in: guide)
+                    dataSection
+                        .guideTarget(.data, in: guide)
                     aboutSupportSection
                 }
                 .padding()
@@ -47,6 +59,13 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
+            // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
+            .task(id: guide.replays(of: .settings)) {
+                guard guide.takeReplay(.settings) else { return }
+                try? await Task.sleep(for: .milliseconds(800))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.settings) }
+            }
         }
     }
 
@@ -127,7 +146,7 @@ struct SettingsView: View {
             settingsRow(icon: "moon", title: "主题") {
                 // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
                 // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
-                // 跟 Dashboard 顶栏切换同款 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
+                // 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
                 Picker("主题", selection: themeBinding) {
                     Text("浅色").tag(false)
                     Text("深色").tag(true)
@@ -135,7 +154,25 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
             }
+            rowDivider
+            settingsRow(icon: "rectangle.split.2x1", title: "首页大数字") {
+                Picker("首页大数字", selection: heroLayoutBinding) {
+                    Text("靠右").tag("leading")
+                    Text("居中").tag("vertical")
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
         }
+    }
+
+    private var heroLayoutBinding: Binding<String> {
+        Binding(
+            get: { heroLayout == "vertical" ? "vertical" : "leading" },
+            set: { newValue in
+                withAnimation(.easeInOut(duration: 0.25)) { heroLayout = newValue }
+            }
+        )
     }
 
     /// 主题绑定: setter 包在 withAnimation 里 — 切换时整页换色走 0.25s 缓动交叉淡入,
@@ -149,10 +186,25 @@ struct SettingsView: View {
         )
     }
 
+    /// 导出、导入、清空: 和资产无关的数据操作集中在这一页
+    private var dataSection: some View {
+        settingsSection("数据") {
+            NavigationLink {
+                DataManagementView()
+            } label: {
+                settingsRow(icon: "externaldrive", title: "备份与恢复") { chevron }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-data")
+        }
+    }
+
     /// 关于(进子页) + 评价与反馈(跳 App Store)。无标题分组 —— 顶层保持精简,
     /// 后续加新功能时也按"入口行 → push 子页"这套模式往这里 / 新卡里加。
     private var aboutSupportSection: some View {
         settingsSection("") {
+            guideRow
+            rowDivider
             NavigationLink {
                 aboutPage
             } label: {
@@ -170,6 +222,27 @@ struct SettingsView: View {
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
+    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置
+    @ViewBuilder
+    private var guideRow: some View {
+        if expenses.isEmpty && incomes.isEmpty {
+            settingsRow(icon: "questionmark.circle", title: "使用指引",
+                        iconColor: .inkGhost, titleColor: .inkFaint) {
+                Text("记一笔后可看")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+            }
+        } else {
+            NavigationLink {
+                GuideListPage(onReplay: onReplayGuide)
+            } label: {
+                settingsRow(icon: "questionmark.circle", title: "使用指引") { chevron }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("guide-list")
+        }
+    }
+
     private var aboutPage: some View {
         ScrollView {
             VStack(spacing: Spacing.lg) {
@@ -299,5 +372,62 @@ struct SettingsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation { icpCopied = false }
         }
+    }
+}
+
+/// 「使用指引」列表：点哪一个就跳到那一页从头讲一遍。
+/// 单独成一个视图是为了拿到这一页自己的 dismiss：先退回 Settings 首页再开始讲，
+/// 否则「Settings 怎么用」要圈的东西被这一页盖着。
+private struct GuideListPage: View {
+    let onReplay: (AppGuide.Tour) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private let items: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] = [
+        (.dashboard, "chart.line.uptrend.xyaxis", "认识首页", "replay-dashboard-guide"),
+        (.assets, "banknote", "Assets 怎么用", "replay-assets-guide"),
+        (.history, "clock.arrow.circlepath", "History 怎么用", "replay-history-guide"),
+        (.settings, "gearshape", "Settings 里有什么", "replay-settings-guide"),
+    ]
+
+    var body: some View {
+        ScrollView {
+            VaultCard(padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        if index > 0 {
+                            Hairline().padding(.leading, Spacing.lg + 26 + Spacing.md)
+                        }
+                        Button {
+                            dismiss()
+                            onReplay(item.tour)
+                        } label: {
+                            HStack(spacing: Spacing.md) {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Color.inkMuted)
+                                    .frame(width: 26, alignment: .center)
+                                Text(item.title)
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(Color.ink)
+                                Spacer(minLength: Spacing.sm)
+                                Image(systemName: "play")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Color.inkGhost)
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier(item.id)
+                    }
+                }
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.paper)
+        .navigationTitle("使用指引")
+        .inlineNavTitle()
     }
 }

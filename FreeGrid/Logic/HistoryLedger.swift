@@ -62,6 +62,14 @@ struct HistoryDay: Identifiable {
     var income: Double { HistoryLedger.summary(transactions).income }
 }
 
+/// 搜索结果里同一个月的记录，新的在上。
+struct HistoryMonthGroup: Identifiable {
+    let month: HistoryMonth
+    let transactions: [LedgerTransaction]
+    var id: HistoryMonth { month }
+    var summary: HistorySummary { HistoryLedger.summary(transactions) }
+}
+
 struct HistorySummary: Equatable {
     var expense: Double = 0
     var income: Double = 0
@@ -108,14 +116,15 @@ enum HistoryLedger {
         }
     }
 
-    /// 空格分开的每个词都要命中标题、备注或金额中的一处；不分大小写。
+    /// 空格分开的每个词都要命中备注、收入来源或金额中的一处；不分大小写。
+    /// 不搜支出分类：分类只有固定几个，按分类看是筛选的事，搜它只会命中上千笔。
     static func search(_ transactions: [LedgerTransaction], query: String) -> [LedgerTransaction] {
         let terms = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return transactions }
         return transactions.filter { transaction in
             let amount = abs(transaction.cashChange)
             let fields = [
-                transaction.title.lowercased(),
+                transaction.kind == .income ? transaction.title.lowercased() : "",
                 transaction.note.lowercased(),
                 // 同时接受 "1,234.5" 与 "1234.5" 两种输入
                 amount.formatted(.number.precision(.fractionLength(0...2))),
@@ -135,6 +144,34 @@ enum HistoryLedger {
             groups[day, default: []].append(transaction)
         }
         return order.map { HistoryDay(id: $0, transactions: groups[$0] ?? []) }
+    }
+
+    /// 按自然月分组；输入已按日期从新到旧时，月和月内顺序都保持不变。
+    static func months(_ transactions: [LedgerTransaction], calendar: Calendar = .current) -> [HistoryMonthGroup] {
+        var order: [HistoryMonth] = []
+        var groups: [HistoryMonth: [LedgerTransaction]] = [:]
+        for transaction in transactions {
+            let month = HistoryMonth(containing: transaction.date, calendar: calendar)
+            if groups[month] == nil { order.append(month) }
+            groups[month, default: []].append(transaction)
+        }
+        return order.map { HistoryMonthGroup(month: $0, transactions: groups[$0] ?? []) }
+    }
+
+    /// 写过不止一次的备注，次数多的在前；同次数时先出现的（更近的）在前。给搜索当快捷词。
+    static func frequentNotes(_ transactions: [LedgerTransaction], limit: Int = 6) -> [String] {
+        var order: [String] = []
+        var counts: [String: Int] = [:]
+        for transaction in transactions {
+            let note = transaction.note.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !note.isEmpty else { continue }
+            if counts[note] == nil { order.append(note) }
+            counts[note, default: 0] += 1
+        }
+        let ranked = order.enumerated()
+            .filter { counts[$0.element, default: 0] > 1 }
+            .sorted { (counts[$0.element, default: 0], -$0.offset) > (counts[$1.element, default: 0], -$1.offset) }
+        return ranked.prefix(limit).map(\.element)
     }
 
     /// 退款以负数支出保存，会冲减支出合计。

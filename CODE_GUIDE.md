@@ -13,10 +13,10 @@ FreeGrid/
 ├── Features/     按功能组织的页面和弹窗
 │   ├── Dashboard/    首页、主数字、自由网格、流星装饰
 │   ├── Assets/       双桶、调拨、被动收入、导入确认
-│   ├── Transactions/ 支出和收入表单
+│   ├── Transactions/ 支出、收入、修改记录三个表单；日期行共用 TransactionDateRow
 │   ├── Simulation/   模拟决策及格子动画
 │   ├── History/      历史记录和月度汇总
-│   └── Settings/     设置和财富自由自检
+│   └── Settings/     设置、数据管理（导出/导入/清空）和财富自由自检
 └── UI/           共用颜色、卡片、按钮、金额格式、预览和错误提示
 ```
 
@@ -126,7 +126,7 @@ flowchart TD
 |---|---|
 | 页面顺序、Tab 名称 | `App/ContentView.swift` |
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
-| 首页卡片顺序、记账入口、首次引导 | `Features/Dashboard/DashboardView.swift` |
+| 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
@@ -136,7 +136,7 @@ flowchart TD
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
 | 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
 | 历史页按月取数、分类筛选、搜索、按天分组的规则 | `Logic/HistoryLedger.swift` |
-| History 首次指引（压暗、圈出位置、逐步说明） | `Features/History/HistoryGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由 `HistoryView` 上报 |
+| 指引（压暗、圈出位置、逐步说明）：首页和 History 的讲解，以及带新用户记下第一笔钱和第一笔支出的起步引导 | `Features/Guide/AppGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由各页用 `guideTarget` 上报；重放入口是 `SettingsView` 的「使用指引」列表 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
 | 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
@@ -169,7 +169,7 @@ flowchart TD
 导入相关的两个分支需要特别理解：
 
 - **疑似重复**：旧文件的分类来源被长备注截断后，匹配已有记录也不能确定是同一笔。`DataIO.ImportPreview.suspectedExpenseIndices` 标记这些记录；`ImportReviewSheet` 默认保留，用户可逐笔关闭保留开关；`makeImportPlan` 只跳过用户明确选择的疑似记录。这与按 UUID 确认的重复不同。
-- **大备份恢复**：普通导入仍有 10 MiB / 50,000 条收支限制。超过文件或数量限额时，`AssetsView.readImport` 显示文件大小并让用户确认。确认后使用 `ImportPolicy.confirmedBackup`，以本次确认的字节数为读取上限，放宽记录数量，但继续检查每条记录的金额、日期、UUID、文本长度和资产合计。解析通过仍需预览确认，才会写入。文件变大需重新选择确认；大文件的实际处理能力受设备内存限制。
+- **大备份恢复**：普通导入仍有 10 MiB / 50,000 条收支限制。超过文件或数量限额时，`DataManagementView.readImport` 显示文件大小并让用户确认。确认后使用 `ImportPolicy.confirmedBackup`，以本次确认的字节数为读取上限，放宽记录数量，但继续检查每条记录的金额、日期、UUID、文本长度和资产合计。解析通过仍需预览确认，才会写入。文件变大需重新选择确认；大文件的实际处理能力受设备内存限制。
 
 余额校验有两层：表单检查输入是否合理；`LedgerStore.updateAssets` 检查**运算后的结果**是否合理。例如现金已到上限，撤销 1 元支出会使余额越界，所以必须拒绝本次撤销并保留记录，不能等到备份时才报错。
 

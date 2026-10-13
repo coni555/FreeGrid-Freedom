@@ -5,8 +5,6 @@ import SwiftData
 
 struct DashboardView: View {
 
-    let onOpenAssets: () -> Void
-
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -17,10 +15,19 @@ struct DashboardView: View {
         DashboardContent(
             expenses: expenses, incomes: incomes,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first),
-            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount },
-            onOpenAssets: onOpenAssets
+            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount }
         )
     }
+}
+
+extension DashboardContent {
+    fileprivate static let topID = "dashboard-top"
+}
+
+/// 一次「打开记支出表单」的请求
+private struct ExpenseDraft: Identifiable {
+    let id = UUID()
+    var amount = ""
 }
 
 private struct DashboardContent: View {
@@ -28,15 +35,20 @@ private struct DashboardContent: View {
     let incomes: [Income]
     let snapshot: FinancialSnapshot
     let todaySpending: Double
-    let onOpenAssets: () -> Void
 
     @Environment(\.modelContext) private var modelContext
+    /// 讲解和起步引导要圈出这一页上的位置
+    @Environment(AppGuide.self) private var guide
 
     // ===== Sheet 状态 =====
     @State private var saveError: String?
-    @State private var showingAddExpense = false
+    /// 非 nil 时打开记支出表单; 里面带着要预填的金额 (平时是空串)。
+    /// 用 item 而不是布尔开关: 表单内容要跟着这次请求的金额走, 不能读到上一次的旧值。
+    @State private var expenseDraft: ExpenseDraft?
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
+    /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
+    @State private var amountFromSimulation: String?
 
     // ===== 撤销 Toast(刚刚记的一笔有 5 秒撤销窗口) =====
     /// 待撤销交易 ID, nil = 不显示 toast
@@ -54,30 +66,54 @@ private struct DashboardContent: View {
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
-    /// 首次引导的一次性闸门:存款与支出齐备过一次即永久落闸
-    @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
-
     var body: some View {
-        NavigationStack {
+        let history = FreedomMath.freedomDaysHistory(
+            expenses: expenses,
+            incomes: incomes,
+            currentNetWorth: snapshot.netWorth,
+            firstRecordDate: snapshot.firstExpenseDate,
+            dailyPassive: snapshot.dailyPassive,
+            now: snapshot.now
+        )
+        return NavigationStack {
+            ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    topBar           // 圆点 + FreeGrid + 副标
-                    DashboardHero(expenses: expenses, incomes: incomes, snapshot: snapshot,
+                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
+                    topBar           // 一行 wordmark
+                        .id(Self.topID)
+                    DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
-                    if needsOnboarding {
-                        onboardingPrompt // 存款与支出齐备后自动消失
-                    }
                     gridSection      // 按天、月或年显示自由网格
-                    statsRow         // 3 个 stat 卡片横向
-                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
+                        .guideTarget(.grid, in: guide)
+                    actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
+                    if snapshot.hasExpenses {
+                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                    }
+                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
+                    }
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.xxl)
             }
+            // 「认识首页」: 先回到顶部, 等位置排好再开始
+            .task(id: guide.replays(of: .dashboard)) {
+                guard snapshot.hasExpenses, guide.takeReplay(.dashboard) else { return }
+                // 新用户刚记完第一笔: 等记支出的表单收完
+                try? await Task.sleep(for: .milliseconds(900))
+                scroller.scrollTo(Self.topID, anchor: .top)
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled, expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
+            }
+            }
             .scrollContentBackground(.hidden)
+            // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
+            // 让出 1pt 它就只在安全区内裁剪, 数字不再压到时间和电量上
+            .padding(.top, 1)
             .background(Color.paper.ignoresSafeArea())
             .hideNavBar()
             .safeAreaInset(edge: .top) {
@@ -86,8 +122,8 @@ private struct DashboardContent: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet(onSaved: { exp in
+            .sheet(item: $expenseDraft) { draft in
+                AddExpenseSheet(initialAmount: draft.amount, onSaved: { exp in
                     showUndoToast(id: exp.id, amount: exp.amount, isExpense: true)
                 })
             }
@@ -96,18 +132,17 @@ private struct DashboardContent: View {
                     showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
                 })
             }
-            .sheet(isPresented: $showingSimulate) {
-                SimulateSheet()
+            // 模拟里点了「记为支出」: 等模拟这张表单收完, 再带着金额打开记支出
+            .sheet(isPresented: $showingSimulate, onDismiss: {
+                if let amount = amountFromSimulation {
+                    amountFromSimulation = nil
+                    expenseDraft = ExpenseDraft(amount: amount)
+                }
+            }) {
+                SimulateSheet(onRecordExpense: { amountFromSimulation = $0 })
             }
             .saveErrorAlert($saveError)
-            .onAppear { latchOnboardingIfSatisfied() }
-            .onChange(of: onboardingSatisfied) { _, _ in latchOnboardingIfSatisfied() }
         }
-    }
-
-    /// 只单向落闸,不会再打开——净值以后跌回 0 以下也不重新弹引导。
-    private func latchOnboardingIfSatisfied() {
-        if onboardingSatisfied { onboardingCompleted = true }
     }
 
     // ============================================================================
@@ -182,11 +217,10 @@ private struct DashboardContent: View {
     // MARK: - 顶部 wordmark
     // ============================================================================
 
-    /// 顶部 brand bar:靶心 mark(同时是 dark/light 切换按钮) + 品牌名 + VOL 标识
-    /// mark 内部:light mode = sky 实心点(太阳),dark mode = moon icon
+    /// 顶部一行: 左边的靶心是深浅色开关, 右边切换大数字布局。
+    /// 两个开关 Settings 的「外观」里也有; 首页这两个留给已经用惯的老用户。
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
-            // 主题切换按钮:外圈 outline + 内 sun/moon
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     isDarkMode.toggle()
@@ -211,19 +245,12 @@ private struct DashboardContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("FreeGrid")
-                    .font(.system(.title3, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.ink)
-                Text("通往财富自由之路")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-            }
+            Text("FreeGrid")
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.ink)
 
             Spacer()
 
-            // Hero 布局切换 toggle (leading 副标左数字右 ↔ vertical 居中堆叠)
-            // 放在右侧 utility 区,跟左侧 dark mode toggle 形成两端 cluster
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     heroLayout = (heroLayout == "leading") ? "vertical" : "leading"
@@ -244,7 +271,6 @@ private struct DashboardContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel(heroLayout == "vertical" ? "切换左右布局" : "切换居中堆叠布局")
         }
-        .padding(.bottom, Spacing.xs)
     }
 
     // ============================================================================
@@ -256,9 +282,12 @@ private struct DashboardContent: View {
             statCard(label: "Daily",
                      value: snapshot.dailyBurn.isFinite ? String(format: "%.1f", snapshot.dailyBurn) : "—",
                      unit: "元/天")
-            statCard(label: "Passive",
-                     value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                     unit: "被动覆盖")
+            // 没有被动收入时这张卡永远是 0%, 不占位置
+            if snapshot.dailyPassive > 0 {
+                statCard(label: "Passive",
+                         value: FinancialFormatting.percentage(snapshot.passiveRatio),
+                         unit: "被动覆盖")
+            }
             statCard(label: "Track",
                      value: "\(snapshot.trackDays)",
                      unit: "天追踪")
@@ -306,7 +335,8 @@ private struct DashboardContent: View {
 
                     // 中:bar with sky fill + marker
                     GeometryReader { geo in
-                        let pct = max(0.04, min(todayPercent, 1.0))
+                        // 花了一点点也至少画出一小段; 一分没花就是空的
+                        let pct = todayPercent > 0 ? max(0.04, min(todayPercent, 1.0)) : 0
                         ZStack(alignment: .leading) {
                             // mist 底 bar
                             Rectangle()
@@ -400,6 +430,7 @@ private struct DashboardContent: View {
                         .padding(.vertical, Spacing.sm)
                 }
 
+                if state.count > 0 {
                 HStack(spacing: Spacing.lg) {
                     legendDot(color: .assetGold, label: "资产")
                     legendDot(color: .cashBlue, label: "现金")
@@ -409,6 +440,7 @@ private struct DashboardContent: View {
                         .foregroundStyle(Color.inkFaint)
                 }
                 .padding(.top, Spacing.xs)
+                }
             }
         }
     }
@@ -426,12 +458,9 @@ private struct DashboardContent: View {
         }
     }
 
-    /// 网格右上角文案:按档位显示当前格数 + 单位
-    /// 日档 "127 天" / 月档 "16 月" / 年档 "34 年" / 溢出 "99+ 年"
+    /// 网格右上角文案: 格数和上面的大数字是同一个数, 只在格子画不下时说明 ("99+ 年")
     private func gridSummary(state: FreedomMath.GridState) -> String {
-        if state.count == 0 { return "等待数据" }
-        if state.isOverflow { return "\(state.count)+ \(state.unit.label)" }
-        return "\(state.count) \(state.unit.label)"
+        state.isOverflow ? "\(state.count)+ \(state.unit.label)" : ""
     }
 
     /// 空网格时的提示:暗色 SF symbol + 文案
@@ -451,86 +480,14 @@ private struct DashboardContent: View {
     private var gridEmptyText: String {
         switch snapshot.freedom {
         case .invalidData: return "数据异常, 检查金额后再生成网格"
-        case .insufficientData:
-            return needsSavings
-                ? "先记下你有多少钱，再记一笔支出，网格开始点亮"
-                : "记录第一笔支出后, 网格开始点亮"
+        // 该先做什么上面的大数字卡已经说了, 这里只解释格子是什么
+        case .insufficientData: return "每一格是一天自由，有了数据后在这里点亮"
         case .finite, .covered: return "当前净值还没有可点亮的自由格"
         }
     }
 
-    /// 首次使用的两步引导：先建立存款净值，再用第一笔支出建立日均消费。
-    /// 两类数据齐备后 @Query 自动更新，入口随即消失，不长期挤占品牌主视觉。
-    private var onboardingPrompt: some View {
-        Button {
-            if needsSavings {
-                onOpenAssets()
-            } else {
-                showingAddExpense = true
-            }
-        } label: {
-            VaultCard(emphasis: .high, padding: Spacing.md) {
-                HStack(spacing: Spacing.md) {
-                    Image(systemName: needsSavings ? "banknote.fill" : "minus.circle.fill")
-                        .font(.system(size: 26, weight: .light))
-                        .foregroundStyle(needsSavings ? Color.cashBlue : Color.flame)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(onboardingTitle)
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        Text(onboardingDetail)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                    }
-
-                    Spacer(minLength: Spacing.xs)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.inkFaint)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("onboarding-prompt")
-        .accessibilityLabel(onboardingTitle)
-        .accessibilityHint(needsSavings ? "前往资产页面，选择资产或现金录入" : "打开支出记录表单")
-    }
-
     private var needsSavings: Bool {
         snapshot.netWorth <= 0
-    }
-
-    /// 存款 + 支出同时齐备过一次,引导就算走完。
-    private var onboardingSatisfied: Bool {
-        !needsSavings && !expenses.isEmpty
-    }
-
-    /// 引导是一次性的:走完就永久关掉。
-    /// 不能只看 `needsSavings`——记支出会把现金扣成负数(cash 无下限),
-    /// 老用户净值跌到 0 以下时这张卡会重新常驻,那正是被否决过的常驻卡形态。
-    private var needsOnboarding: Bool {
-        !onboardingCompleted && !onboardingSatisfied
-    }
-
-    /// 文案刻意不用"存款":点进去是 Assets 页,资产和现金都能填,
-    /// 说"存款"会让用户以为只收现金。
-    private var onboardingTitle: String {
-        if needsSavings {
-            return expenses.isEmpty ? "先记下你有多少钱" : "还差一步:记下你有多少钱"
-        }
-        return "再记一笔支出"
-    }
-
-    private var onboardingDetail: String {
-        if needsSavings {
-            return expenses.isEmpty
-                ? "定期、股票、现金都算，记完再记一笔支出，格子就会点亮"
-                : "已经有支出了，补上手里的钱，格子就能点亮"
-        }
-        return "已经知道你有多少钱了，再建立日均消费，格子就能点亮"
     }
 
     /// 收支入口：支出使用 flame，收入使用 skyDeep。
@@ -539,8 +496,9 @@ private struct DashboardContent: View {
             VaultButton(title: "记支出",
                         icon: "minus",
                         style: .destructive) {
-                showingAddExpense = true
+                expenseDraft = ExpenseDraft()
             }
+            .guideTarget(.expenseButton, in: guide)
             VaultButton(title: "记收入",
                         icon: "plus",
                         style: .primary) {
@@ -557,6 +515,7 @@ private struct DashboardContent: View {
                         icon: "wand.and.stars") {
                 showingSimulate = true
             }
+            .guideTarget(.simulate, in: guide)
             Spacer()
         }
         .padding(.top, Spacing.xs)

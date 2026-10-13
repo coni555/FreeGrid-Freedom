@@ -25,6 +25,8 @@ struct HistoryView: View {
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
     @State private var showingMonths = false
+    /// 搜索结果里手动展开或收起过的月份；换搜索词时清空，回到默认
+    @State private var monthExpansion: [HistoryMonth: Bool] = [:]
 
     /// 撤销 confirm: 左滑点撤销时 set, alert 触发, 取消/确认后清空
     @State private var pendingDelete: LedgerTransaction? = nil
@@ -33,10 +35,12 @@ struct HistoryView: View {
     @State private var editing: LedgerTransaction? = nil
 
     /// 首次进入时的逐步指引；遮罩本身挂在 ContentView，这里只负责上报位置和触发
-    @Environment(HistoryGuide.self) private var guide
+    @Environment(AppGuide.self) private var guide
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
     @State private var toolFrames: [Int: CGRect] = [:]
     @AppStorage("historyGuideCompleted") private var guideCompleted = false
+    /// 重放指引前让列表回到顶部，每次加一
+    @State private var scrollToTop = 0
 
     /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
     private enum Selection: Equatable {
@@ -50,6 +54,8 @@ struct HistoryView: View {
             Group {
                 if expenses.isEmpty && incomes.isEmpty {
                     emptyState
+                } else if isSearching {
+                    searchList
                 } else {
                     ledgerList
                 }
@@ -92,7 +98,15 @@ struct HistoryView: View {
                 guard !guideCompleted, !(expenses.isEmpty && incomes.isEmpty) else { return }
                 try? await Task.sleep(for: .milliseconds(600))
                 guard !guideCompleted, !isSearching, editing == nil else { return }
-                withAnimation(.easeInOut(duration: 0.25)) { guide.start() }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
+            }
+            .task(id: guide.replays(of: .history)) {
+                // 从设置页重放：先回到本月、收起搜索和筛选，圈的位置才和首次进来时一样
+                guard !(expenses.isEmpty && incomes.isEmpty), guide.takeReplay(.history) else { return }
+                resetForGuide()
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
             }
             .saveErrorAlert($saveError)
             .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
@@ -112,40 +126,41 @@ struct HistoryView: View {
         }
     }
 
+    private func resetForGuide() {
+        showingMonths = false
+        isSearching = false
+        searchText = ""
+        showingFilters = false
+        selection = .all
+        scope = .month(HistoryMonth(containing: .now))
+        scrollToTop += 1
+    }
+
     // ============================================================================
     // MARK: - 列表
     // ============================================================================
 
     private var ledgerList: some View {
-        let scoped = HistoryLedger.transactions(
-            expenses: expenses, incomes: incomes, scope: isSearching ? .allTime : scope
-        )
+        let scoped = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: scope)
         let summary = HistoryLedger.summary(scoped)
-        let categories = isSearching ? [] : HistoryLedger.categoryTotals(scoped)
-        let active = isSearching || !showingFilters
-            ? .all : activeSelection(categories: categories, income: summary.income)
-        let visible = HistoryLedger.search(filtered(scoped, by: active), query: searchText)
+        let categories = HistoryLedger.categoryTotals(scoped)
+        let active = showingFilters ? activeSelection(categories: categories, income: summary.income) : .all
+        let visible = filtered(scoped, by: active)
         let days = HistoryLedger.days(visible)
 
-        return List {
+        return ScrollViewReader { proxy in
+        List {
             Section {
-                if isSearching {
-                    searchField
-                    searchSummary(visible)
-                } else {
-                    scopeCard(summary)
-                    if showingFilters && (!categories.isEmpty || summary.income != 0) {
-                        chipRow(categories, income: summary.income, active: active)
-                            .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
-                    }
+                scopeCard(summary)
+                    .id(Self.topID)
+                if showingFilters && (!categories.isEmpty || summary.income != 0) {
+                    chipRow(categories, income: summary.income, active: active)
+                        .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
                 }
 
                 if days.isEmpty {
-                    Text(isSearching ? "没有匹配的记录" : "这里还没有记录")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Spacing.xxl)
+                    listMessage("这里还没有记录")
+                        .onAppear { guide.forget(.row) }
                 }
             }
             .listRowSeparator(.hidden)
@@ -158,7 +173,7 @@ struct HistoryView: View {
                             .background {
                                 // 只上报第一行的位置
                                 if tx.id == visible.first?.id {
-                                    Color.clear.historyGuideTarget(.row, in: guide)
+                                    Color.clear.guideTarget(.row, in: guide)
                                 }
                             }
                             .listRowBackground(Color.paper)
@@ -170,13 +185,156 @@ struct HistoryView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.paper)
-        .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, 40)
-        .environment(\.defaultMinListHeaderHeight, 28)
-        .dismissKeyboardOnScroll()
+        .ledgerListStyle()
+        .onChange(of: scrollToTop) { proxy.scrollTo(Self.topID, anchor: .top) }
+        }
     }
+
+    private func listMessage(_ text: String) -> some View {
+        Text(text)
+            .font(.system(.subheadline, design: .rounded))
+            .foregroundStyle(Color.inkFaint)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.xxl)
+    }
+
+    // ============================================================================
+    // MARK: - 搜索
+    // ============================================================================
+
+    /// 搜索跨全部时间，但留在当前筛选里：先筛成「购物」再搜，就只在购物里找。
+    /// 结果先给合计，再按月收起来；一次只铺开需要看的那几个月，几千笔账也不会卡。
+    private var searchList: some View {
+        let filter: Selection = showingFilters ? selection : .all
+        let pool = filtered(
+            HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .allTime), by: filter
+        )
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matches = query.isEmpty ? [] : HistoryLedger.search(pool, query: query)
+        let groups = HistoryLedger.months(matches)
+        // 结果不多时全部铺开；多的时候只开最近一个月
+        let fewMatches = matches.count <= Self.searchExpandAllLimit
+
+        return List {
+            Section {
+                searchField(filter)
+                if query.isEmpty {
+                    searchSuggestions(HistoryLedger.frequentNotes(pool))
+                } else if matches.isEmpty {
+                    listMessage(
+                        ExpenseCategory.canonical.contains { $0.contains(query) }
+                            ? "没有匹配的记录\n想按分类看，用右上角的筛选"
+                            : "没有匹配的记录"
+                    )
+                    .multilineTextAlignment(.center)
+                } else {
+                    searchSummary(matches, groups: groups)
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.paper)
+
+            ForEach(groups) { group in
+                let expanded = monthExpansion[group.month] ?? (fewMatches || group.month == groups.first?.month)
+                Section {
+                    monthRow(group, expanded: expanded)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.paper)
+                    if expanded {
+                        // 月份行已经有小计，这里不再按天分段：命中往往一天一笔，段头只会重复金额
+                        ForEach(group.transactions) { tx in
+                            transactionRow(tx, showsDay: true)
+                                .listRowBackground(Color.paper)
+                                .listRowSeparatorTint(Color.hairlineSoft)
+                        }
+                    }
+                }
+            }
+        }
+        .ledgerListStyle()
+        .onChange(of: searchText) { monthExpansion = [:] }
+    }
+
+    /// 结果不超过这么多笔时，各月默认都展开
+    private static let searchExpandAllLimit = 20
+
+    /// 搜索结果里的一个月：点它展开或收起这个月的明细
+    private func monthRow(_ group: HistoryMonthGroup, expanded: Bool) -> some View {
+        let summary = group.summary
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { monthExpansion[group.month] = !expanded }
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(width: 12)
+                Text(group.month.label)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Text("\(summary.count) 笔")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
+                Spacer()
+                if summary.income != 0 {
+                    Text(FinancialFormatting.signedYuan(summary.income))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.skyDeep)
+                }
+                if summary.expense != 0 {
+                    Text(FinancialFormatting.signedYuan(-summary.expense))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkMuted)
+                }
+            }
+            .padding(.vertical, Spacing.sm)
+            .overlay(alignment: .top) { Rectangle().fill(Color.hairlineSoft).frame(height: 1) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("search-month-\(group.month.year)-\(group.month.month)")
+        .accessibilityValue(expanded ? "已展开" : "已收起")
+    }
+
+    /// 还没输入时：一句提示，加上自己常写的几个备注，点一下就搜
+    @ViewBuilder
+    private func searchSuggestions(_ notes: [String]) -> some View {
+        if notes.isEmpty {
+            listMessage("输入备注或金额")
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Text("输入备注或金额，或者点一个常写的备注")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.horizontal, Spacing.lg)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Spacing.sm) {
+                        ForEach(notes, id: \.self) { note in
+                            Button {
+                                searchText = note
+                                searchFocused = false
+                            } label: {
+                                Text(note)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundStyle(Color.inkMuted)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            .padding(.top, Spacing.sm)
+            .listRowInsets(EdgeInsets())
+        }
+    }
+
+    private static let topID = "history-top"
 
     /// 选中的项在当前范围里已经没有记录时，退回「全部」
     private func activeSelection(
@@ -223,7 +381,7 @@ struct HistoryView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(scopeLabel)，月度汇总")
                     .accessibilityIdentifier("history-scope-title")
-                    .historyGuideTarget(.month, in: guide)
+                    .guideTarget(.month, in: guide)
                     Spacer()
                     if case .month(let month) = scope {
                         monthStepButton("chevron.left", label: "上个月", enabled: month > range.lowerBound) {
@@ -334,13 +492,32 @@ struct HistoryView: View {
     }
 
     /// 点右上角放大镜才出现；取消后回到按月视图
-    private var searchField: some View {
+    private func searchField(_ filter: Selection) -> some View {
         HStack(spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.inkFaint)
-                TextField("搜索分类、备注或金额", text: $searchText)
+                if let name = filterName(filter) {
+                    // 正在某个筛选里搜；点它退回搜全部
+                    Button {
+                        selection = .all
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(name)
+                            Image(systemName: "xmark").font(.system(size: 8, weight: .medium))
+                        }
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .overlay(Capsule().stroke(Color.ink, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("只在\(name)里搜索，点按改为搜索全部")
+                    .accessibilityIdentifier("history-search-filter")
+                }
+                TextField("搜索备注或金额", text: $searchText)
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.ink)
                     .textFieldStyle(.plain)
@@ -376,13 +553,26 @@ struct HistoryView: View {
         }
     }
 
+    private func filterName(_ filter: Selection) -> String? {
+        switch filter {
+        case .all: return nil
+        case .income: return "收入"
+        case .category(let name): return name
+        }
+    }
+
     /// 搜索跨全部时间，所以这里回答的是「这样东西一共花了多少」
-    private func searchSummary(_ transactions: [LedgerTransaction]) -> some View {
+    private func searchSummary(_ transactions: [LedgerTransaction], groups: [HistoryMonthGroup]) -> some View {
         let summary = HistoryLedger.summary(transactions)
+        // 跨了几个月时写出起止，知道这个合计是多长时间里的
+        let span = groups.count > 1
+            ? " · \(groups[groups.count - 1].month.label) 至 \(groups[0].month.label)" : ""
         return HStack(spacing: Spacing.md) {
-            Text("找到 \(summary.count) 笔")
+            Text("找到 \(summary.count) 笔" + span)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
             if summary.income != 0 {
                 Text("收入 \(FinancialFormatting.yuan(summary.income))")
@@ -487,13 +677,20 @@ struct HistoryView: View {
         .textCase(nil)
     }
 
-    private func transactionRow(_ tx: LedgerTransaction) -> some View {
+    /// `showsDay`：搜索结果里没有日期段头，行首写上是几号
+    private func transactionRow(_ tx: LedgerTransaction, showsDay: Bool = false) -> some View {
         // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实
         let noteLeads = tx.kind == .expense && !tx.note.isEmpty
         return Button {
             editing = tx
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                if showsDay {
+                    Text("\(Calendar.current.component(.day, from: tx.date))日")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                        .frame(width: 36, alignment: .leading)
+                }
                 Text(noteLeads ? tx.note : tx.title)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
                     .foregroundStyle(Color.ink)
@@ -569,5 +766,17 @@ struct HistoryView: View {
         } catch {
             saveError = error.localizedDescription
         }
+    }
+}
+
+private extension View {
+    /// 月份视图和搜索结果共用的列表外观
+    func ledgerListStyle() -> some View {
+        scrollContentBackground(.hidden)
+            .background(Color.paper)
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 40)
+            .environment(\.defaultMinListHeaderHeight, 28)
+            .dismissKeyboardOnScroll()
     }
 }

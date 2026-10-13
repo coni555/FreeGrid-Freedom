@@ -45,7 +45,8 @@ struct EditTransactionSheet: View {
                 }
                 switch transaction.kind {
                 case .expense:
-                    Section("分类") {
+                    // 分类这组不加小标题: 行里已经写了「分类」
+                    Section {
                         Picker("分类", selection: $title) {
                             ForEach(categories, id: \.self) { Text($0).tag($0) }
                         }
@@ -58,8 +59,7 @@ struct EditTransactionSheet: View {
                     }
                 }
                 Section("日期") {
-                    DatePicker("日期", selection: $date, in: ...max(Date.now, transaction.date),
-                               displayedComponents: .date)
+                    TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)

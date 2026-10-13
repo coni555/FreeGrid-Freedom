@@ -21,6 +21,8 @@ struct AddIncomeSheet: View {
     @State private var source: String = ""
     @State private var note: String = ""
     @State private var date: Date = .now
+    /// 打开表单就弹键盘, 少点一下
+    @FocusState private var amountFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -29,13 +31,14 @@ struct AddIncomeSheet: View {
                     TextField("0.00", text: $amount)
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
+                        .focused($amountFocused)
                 }
                 Section("来源") {
                     TextField("工资 / 投资 / 副业 / ...", text: $source)
                         .font(.system(.body, design: .rounded))
                 }
                 Section("日期") {
-                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
+                    TransactionDateRow(date: $date)
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
@@ -59,6 +62,7 @@ struct AddIncomeSheet: View {
             .background(Color.paper)
             .navigationTitle("添加收入")
             .inlineNavTitle()
+            .onAppear { amountFocused = true }
             .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

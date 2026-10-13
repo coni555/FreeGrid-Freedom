@@ -17,7 +17,7 @@ struct AddExpenseSheet: View {
     @Query private var passiveSources: [PassiveSource]
 
     @State private var saveError: String?
-    @State private var amount: String = ""
+    @State private var amount: String
     @State private var category: String = ""
     @State private var note: String = ""
     @State private var date: Date = .now
@@ -29,6 +29,12 @@ struct AddExpenseSheet: View {
             .including(expenses.map(\.category)).visibleNames
     }
 
+    /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
+    init(initialAmount: String = "", onSaved: ((Expense) -> Void)? = nil) {
+        self.onSaved = onSaved
+        _amount = State(initialValue: initialAmount)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -37,7 +43,8 @@ struct AddExpenseSheet: View {
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 }
-                Section("分类") {
+                // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
+                Section {
                     Picker("分类", selection: $category) {
                         ForEach(categories, id: \.self) { c in
                             Text(c).tag(c)
@@ -48,7 +55,7 @@ struct AddExpenseSheet: View {
                         .foregroundStyle(Color.skyDeep)
                 }
                 Section("日期") {
-                    DatePicker("日期", selection: $date, in: ...Date.now, displayedComponents: .date)
+                    TransactionDateRow(date: $date)
                 }
                 Section("备注 (可选)") {
                     TextField("备注", text: $note)
