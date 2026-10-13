@@ -50,6 +50,7 @@ struct AddExpenseSheet: View {
                             Text(c).tag(c)
                         }
                     }
+                    .categoryPickerStyle()
                 }
                 Section("日期") {
                     TransactionDateRow(date: $date)

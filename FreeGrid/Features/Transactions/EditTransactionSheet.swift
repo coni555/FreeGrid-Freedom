@@ -46,6 +46,7 @@ struct EditTransactionSheet: View {
                             ForEach(categories, id: \.self) { Text($0).tag($0) }
                         }
                         .accessibilityIdentifier("edit-category-picker")
+                        .categoryPickerStyle()
                     }
                 case .income:
                     Section("来源") {

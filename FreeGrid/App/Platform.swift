@@ -47,6 +47,17 @@ extension View {
         #endif
     }
 
+    /// 表单里的分类选择: iOS 点了滑进一页完整列表, 键盘随之收起。
+    /// 默认的弹出菜单在键盘弹着时没地方展开, 会盖住半个表单并且卡顿;
+    /// 而菜单打开的同时收键盘, 系统会把菜单一起取消, 所以不用菜单。macOS 保持默认。
+    func categoryPickerStyle() -> some View {
+        #if os(iOS)
+        pickerStyle(.navigationLink)
+        #else
+        self
+        #endif
+    }
+
     /// iOS 滚动内容时可下拉收起键盘(兜底);macOS no-op。
     func dismissKeyboardOnScroll() -> some View {
         #if os(iOS)

@@ -276,6 +276,40 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertEqual(app.textFields["0.00"].value as? String, "0.00")
     }
 
+    /// 点分类滑进一页完整列表，键盘随之收起，选完回到表单。
+    /// 搜索刚点开时先等输入，不把全部记录铺出来。
+    @MainActor
+    func testCategoryMenuClosesTheKeyboardAndSearchWaitsForAQuery() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        amount.typeText("20")
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "分类")).firstMatch.tap()
+        let lunch = app.buttons["午餐"]
+        XCTAssertTrue(lunch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        if let path = ProcessInfo.processInfo.environment["PROBE_SHOT"] {
+            try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: path))
+        }
+        lunch.tap()
+        XCTAssertTrue(app.navigationBars["添加支出"].waitForExistence(timeout: 3))
+        app.buttons["保存"].tap()
+
+        app.tabBars.buttons["History"].tap()
+        XCTAssertTrue(app.staticTexts["午餐"].waitForExistence(timeout: 5))
+        app.buttons["搜索"].tap()
+        XCTAssertTrue(app.staticTexts["输入分类、备注或金额"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["午餐"].exists)
+        app.textFields["history-search-field"].typeText("午")
+        XCTAssertTrue(app.staticTexts["午餐"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["找到 1 笔"].exists)
+    }
+
     /// 拍 App Store 截图，平时跳过。用法见 `_local/store-screenshots/`：
     /// 环境变量给出演示账本和输出目录时才跑，账本灌进内存，不碰真实数据。
     @MainActor
