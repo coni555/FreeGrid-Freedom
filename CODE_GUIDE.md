@@ -130,6 +130,7 @@ flowchart TD
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
+| Pro 购买页、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；权益清单在 `App/ProFeatures.swift` |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
@@ -149,7 +150,9 @@ flowchart TD
 
 账本里的已用名称也会补入选项，因此换设备恢复后能找回自定义分类。排序、隐藏和未使用的自定义项是本机偏好，不写入原 v0–v3 账本备份。带 UUID 的 v2/v3 支出默认原样恢复名称；旧无 ID 文件保留别名建议和分类对齐，也可明确选择保留原名。映射后的旧账去重按日期、金额和备注建立索引，避免分类增多后逐条遍历全部名称。
 
-`App/ProFeatures.swift` 暂时仅在 Debug 提供开发预览，Release 不授予分类管理权益；后续在这里连接经过验证的 StoreKit 权益。当前没有购买流程。界面测试通过 `-ResetExpenseCategories` 和 `-UseInMemoryStore` 在测试设备重置分类偏好；该重置仅在 Debug 且两个参数同时存在时生效。
+Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」。解锁状态不进账本备份。
+
+Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。界面测试通过 `-ResetExpenseCategories` 和 `-UseInMemoryStore` 在测试设备重置分类偏好；该重置仅在 Debug 且两个参数同时存在时生效。
 
 ## 7. 出 Bug 时怎样缩小范围
 
@@ -195,6 +198,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [LedgerStoreTests](FreeGridTests/LedgerStoreTests.swift)：保存失败、撤销失败、重复撤销、退款撤销和五模型清空回滚；修改记录时现金只补差额、改日期重算统计起点、失败后字段与现金一起恢复、只改分类不动退款金额和具体时刻。
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
 - [ExpenseCategoryTests](FreeGridTests/ExpenseCategoryTests.swift)：名称校验、顺序与可见性持久化、至少一个选项、自定义名称备份恢复及旧分类去重；UI 测试覆盖实际记账、隐藏后历史保留及 Pro 闸门。
+- [ProStoreTests](FreeGridTests/ProStoreTests.swift)：新安装默认未解锁、本机记住的购买在离线时仍有效、读不到商品时不发起购买、调试预览不改购买记录。真实购买、恢复和退款不在这里测，要用真机沙盒。
 - [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。

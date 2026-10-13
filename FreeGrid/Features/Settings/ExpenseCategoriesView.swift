@@ -8,6 +8,7 @@ struct ExpenseCategoriesView: View {
     @State private var name = ""
     @State private var saveError: String?
     @FocusState private var isNameFocused: Bool
+    @State private var showingPro = false
 
     private var options: ExpenseCategoryOptions {
         ExpenseCategoryStorage.decode(encodedOptions).including(expenses.map(\.category))
@@ -24,9 +25,14 @@ struct ExpenseCategoriesView: View {
                             .foregroundStyle(Color.ink)
                         Text(ProFeatures.canCustomizeExpenseCategories
                              ? "添加自己的分类，调整常用顺序，隐藏用不到的选项。"
-                             : "自定义支出分类是 Pro 功能，正式上线后可购买解锁。")
+                             : "自定义支出分类是 Pro 功能。现有的九个分类照常可用。")
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
+                        if !ProFeatures.canCustomizeExpenseCategories {
+                            VaultButton(title: "了解 FreeGrid Pro", icon: "sparkles") { showingPro = true }
+                                .padding(.top, Spacing.xs)
+                                .accessibilityIdentifier("open-pro-from-categories")
+                        }
                     }
                 }
                 if ProFeatures.canCustomizeExpenseCategories {
@@ -44,6 +50,7 @@ struct ExpenseCategoriesView: View {
         .navigationTitle("支出分类")
         .inlineNavTitle()
         .saveErrorAlert($saveError)
+        .sheet(isPresented: $showingPro) { ProPaywallView() }
     }
 
     private var addCard: some View {

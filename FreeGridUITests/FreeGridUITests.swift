@@ -27,8 +27,8 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testCustomExpenseCategoryCanBeUsedAndHiddenWithoutChangingHistory() {
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
-                               "-ResetExpenseCategories", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES"]
         app.launch()
         app.tabBars.buttons["Settings"].tap()
         app.buttons["expense-categories-settings"].tap()
@@ -51,7 +51,8 @@ final class FreeGridUITests: XCTestCase {
 
         // 重启后仍用已保存的顺序与自定义项；只在首次启动重置偏好。
         app.terminate()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-UseInMemoryStore", "-proPreview", "YES"]
         app.launch()
         app.tabBars.buttons["Dashboard"].tap()
         app.buttons["记支出"].tap()
@@ -121,14 +122,40 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
-    func testCategoryManagementRequiresProAccessOutsidePreview() {
+    func testLockedCategoriesOpenThePaywallAndPreviewUnlocksThem() {
         let app = XCUIApplication()
-        app.launchArguments = ["-disableProPreview", "YES", "-ResetExpenseCategories", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-setupGuideCompleted", "YES", "-proPreview", "NO",
+                               "-ResetExpenseCategories", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Settings"].tap()
         app.buttons["expense-categories-settings"].tap()
-        XCTAssertTrue(app.staticTexts["自定义支出分类是 Pro 功能，正式上线后可购买解锁。"].waitForExistence(timeout: 5))
+        // 没有 Pro：看不到管理界面，只有去购买页的入口
+        let openPro = app.buttons["open-pro-from-categories"]
+        XCTAssertTrue(openPro.waitForExistence(timeout: 5))
         XCTAssertFalse(app.textFields["new-expense-category"].exists)
+        openPro.tap()
+        XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["自定义支出分类"].exists)
+        let paywall = XCTAttachment(screenshot: app.screenshot())
+        paywall.name = "Pro购买页-未解锁"
+        paywall.lifetime = .keepAlways
+        add(paywall)
+
+        // 解锁后购买页换成已解锁，关掉就能管理分类
+        let preview = app.switches["pro-preview-toggle"]
+        for _ in 0..<4 {
+            if preview.isHittable { break }
+            app.swipeUp()
+        }
+        preview.switches.firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pro-unlocked"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["pro-restore"].exists)
+        let unlocked = XCTAttachment(screenshot: app.screenshot())
+        unlocked.name = "Pro购买页-已解锁"
+        unlocked.lifetime = .keepAlways
+        add(unlocked)
+        app.buttons["pro-close"].tap()
+        XCTAssertTrue(app.textFields["new-expense-category"].waitForExistence(timeout: 5))
     }
 
     @MainActor

@@ -29,6 +29,7 @@ struct FreeGridApp: App {
     }
 
     @State private var storeBootstrap = StoreBootstrap()
+    @Environment(\.scenePhase) private var scenePhase
 
     #if os(macOS)
     @State private var menuActions = MenuActions()
@@ -55,6 +56,17 @@ struct FreeGridApp: App {
             .environment(menuActions)
             .frame(minWidth: 920, minHeight: 640)
             #endif
+            // Pro 购买状态：启动时核对一次，回到前台再核对（退款会撤销 Pro）。
+            // 单元测试宿主里不连 App Store，免得测试交易写进这台设备的偏好。
+            .task {
+                guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+                ProStore.shared.start()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active,
+                      ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+                Task { await ProStore.shared.refreshEntitlement() }
+            }
         }
         #if os(macOS)
         .defaultSize(width: 1120, height: 740)

@@ -26,6 +26,7 @@ struct SettingsView: View {
     /// 「Settings 怎么用」要圈出这一页上的位置
     @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
+    @State private var showingPro = false
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -47,6 +48,7 @@ struct SettingsView: View {
                 VStack(spacing: Spacing.xl) {
                     checkCard
                         .guideTarget(.check, in: guide)
+                    proSection
                     expenseCategoriesSection
                     appearanceSection
                         .guideTarget(.appearance, in: guide)
@@ -59,6 +61,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
+            .sheet(isPresented: $showingPro) { ProPaywallView() }
             // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
             .task(id: guide.replays(of: .settings)) {
                 guard guide.takeReplay(.settings) else { return }
@@ -123,6 +126,19 @@ struct SettingsView: View {
     }
 
     // MARK: - 分组
+    private var proSection: some View {
+        settingsSection("") {
+            settingsRow(icon: "sparkles", title: "FreeGrid Pro",
+                        action: { showingPro = true }) {
+                Text(ProStore.shared.isUnlocked ? "已解锁" : "永久买断")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                chevron
+            }
+            .accessibilityIdentifier("settings-pro")
+        }
+    }
+
     private var expenseCategoriesSection: some View {
         settingsSection("记账") {
             NavigationLink {
