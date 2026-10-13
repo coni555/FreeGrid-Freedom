@@ -25,7 +25,7 @@ final class FreeGridUITests: XCTestCase {
     }
 
     @MainActor
-    func testCustomExpenseCategoryCanBeUsedAndHiddenWithoutChangingHistory() {
+    func testCustomExpenseCategoryCanBeUsedAndDeletedWithoutChangingHistory() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES"]
@@ -67,14 +67,18 @@ final class FreeGridUITests: XCTestCase {
 
         app.tabBars.buttons["Settings"].tap()
         app.buttons["expense-categories-settings"].tap()
-        let hide = app.buttons["visibility-咖啡"]
+        let delete = app.buttons["delete-咖啡"]
         for _ in 0..<6 {
-            if hide.isHittable { break }
+            if delete.isHittable { break }
             app.swipeUp()
         }
-        XCTAssertTrue(hide.isHittable)
-        hide.tap()
-        XCTAssertEqual(hide.label, "显示咖啡")
+        XCTAssertTrue(delete.isHittable)
+        delete.tap()
+        // 先确认再删；删掉后这一行从列表里消失
+        let confirm = app.buttons["删除"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(delete.waitForNonExistence(timeout: 3))
         app.tabBars.buttons["Dashboard"].tap()
         app.buttons["记支出"].tap()
         app.buttons["expense-category-picker"].tap()
@@ -418,6 +422,43 @@ final class FreeGridUITests: XCTestCase {
 
     /// 拍 App Store 截图，平时跳过。用法见 `_local/store-screenshots/`：
     /// 环境变量给出演示账本和输出目录时才跑，账本灌进内存，不碰真实数据。
+    /// 给用户挑方案用的截图：资产不计入自由天数时首页怎么画、开关放哪。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureAssetSwitchOptions() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["ASSET_SWITCH_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍方案图时运行")
+        }
+        func launch(counts: Bool, style: String, placement: String) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-UseInMemoryStore", "-SeedBackupJSON", ledger,
+                                   "-proPreview", "NO", "-countAssetsInFreedom", counts ? "YES" : "NO",
+                                   "-uncountedAssetStyle", style, "-assetSwitchPlacement", placement]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        var app = launch(counts: true, style: "drop", placement: "assets")
+        try shoot("0-现在-资产计入")
+        app.terminate()
+        app = launch(counts: false, style: "drop", placement: "assets")
+        try shoot("A-首页-只剩现金格")
+        app.tabBars.buttons["Assets"].tap()
+        try shoot("开关-放在Assets")
+        app.terminate()
+        app = launch(counts: false, style: "hollow", placement: "settings")
+        try shoot("B-首页-资产画成空心格")
+        app.tabBars.buttons["Settings"].tap()
+        try shoot("开关-放在Settings")
+        app.terminate()
+    }
+
     @MainActor
     func testCaptureStoreScreenshots() throws {
         let environment = ProcessInfo.processInfo.environment

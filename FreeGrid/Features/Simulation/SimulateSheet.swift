@@ -86,10 +86,10 @@ struct SimulateSheet: View {
         guard !isInvalid(o.before.freedom), !isInvalid(o.newFreedom),
               !isInsufficient(o.before.freedom), !isInsufficient(o.newFreedom) else { return nil }
         let unit = FreedomMath.gridUnit(for: o.before.freedom)
-        let oldGrid = FreedomMath.gridState(for: o.before.freedom, lockedAssets: o.before.lockedAssets,
-                                            netWorth: o.before.netWorth, unit: unit)
-        let newGrid = FreedomMath.gridState(for: o.newFreedom, lockedAssets: o.before.lockedAssets,
-                                            netWorth: o.newNetWorth, unit: unit)
+        let oldGrid = FreedomMath.gridState(for: o.before.freedom, lockedAssets: o.before.countedAssets,
+                                            netWorth: o.before.freedomBase, unit: unit)
+        let newGrid = FreedomMath.gridState(for: o.newFreedom, lockedAssets: o.before.countedAssets,
+                                            netWorth: o.newFreedomBase, unit: unit)
         guard !oldGrid.isOverflow, !newGrid.isOverflow, newGrid.count != oldGrid.count else { return nil }
         return (abs(newGrid.count - oldGrid.count), newGrid.count > oldGrid.count)
     }
@@ -187,10 +187,10 @@ struct SimulateSheet: View {
     private func gridDemoCard(impact o: TransactionImpact) -> some View {
         // 固定当前态的单位，跨档时不会在播放途中改变每格含义。
         let unit = FreedomMath.gridUnit(for: o.before.freedom)
-        let oldGrid = FreedomMath.gridState(for: o.before.freedom, lockedAssets: o.before.lockedAssets,
-                                            netWorth: o.before.netWorth, unit: unit)
-        let newGrid = FreedomMath.gridState(for: o.newFreedom, lockedAssets: o.before.lockedAssets,
-                                            netWorth: o.newNetWorth, unit: unit)
+        let oldGrid = FreedomMath.gridState(for: o.before.freedom, lockedAssets: o.before.countedAssets,
+                                            netWorth: o.before.freedomBase, unit: unit)
+        let newGrid = FreedomMath.gridState(for: o.newFreedom, lockedAssets: o.before.countedAssets,
+                                            netWorth: o.newFreedomBase, unit: unit)
         let oldCount = oldGrid.count
         let newCount = newGrid.count
         let oldAssetCells = oldGrid.assetCells

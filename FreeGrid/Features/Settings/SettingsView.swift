@@ -27,6 +27,9 @@ struct SettingsView: View {
     @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
     @State private var showingPro = false
+    @AppStorage(FreedomSettings.countsAssetsKey) private var countsAssets = true
+    /// 方案原型：开关放在设置里还是 Assets 页，用户选定后删掉
+    @AppStorage("assetSwitchPlacement") private var assetSwitchPlacement = "assets"
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -154,6 +157,14 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("expense-categories-settings")
+            if assetSwitchPlacement == "settings" {
+                rowDivider
+                settingsRow(icon: "lock", title: "资产计入自由天数") {
+                    Toggle("资产计入自由天数", isOn: $countsAssets)
+                        .labelsHidden()
+                        .tint(Color.skyDeep)
+                }
+            }
         }
     }
 

@@ -16,6 +16,8 @@ struct TransactionImpact {
     let kind: TransactionKind
     let cashChange: Double
     let newNetWorth: Double
+    /// 这笔之后用来算自由天数的钱；资产不计入时和净值不是一个数
+    let newFreedomBase: Double
     let newDailyBurn: Double
     let newFreedom: FreedomState
     let changesTrackingStart: Bool
@@ -31,6 +33,7 @@ struct TransactionImpact {
         self.kind = kind
         cashChange = kind.cashChange(amount: amount)
         newNetWorth = snapshot.netWorth + cashChange
+        newFreedomBase = snapshot.freedomBase + cashChange
 
         if kind == .expense {
             let transactionDate = date ?? snapshot.now
@@ -45,7 +48,7 @@ struct TransactionImpact {
             changesTrackingStart = false
         }
         newFreedom = FreedomMath.freedomState(
-            netWorth: newNetWorth, dailyBurn: newDailyBurn,
+            netWorth: newFreedomBase, dailyBurn: newDailyBurn,
             dailyPassive: snapshot.dailyPassive,
             hasExpenses: snapshot.hasExpenses || kind == .expense
         )

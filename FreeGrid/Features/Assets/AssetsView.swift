@@ -31,6 +31,11 @@ struct AssetsView: View {
     @State private var editingPassiveSource: PassiveSource? = nil
     @State private var pendingDeletePassive: PassiveSource? = nil
 
+    // --- 自由天数口径 ---
+    @AppStorage(FreedomSettings.countsAssetsKey) private var countsAssets = true
+    /// 方案原型：开关放在这一页还是设置里，用户选定后删掉
+    @AppStorage("assetSwitchPlacement") private var assetSwitchPlacement = "assets"
+
     // --- 说明与调拨默认收起 ---
     @State private var showingExplain = false
     @State private var transferExpanded = false
@@ -44,6 +49,7 @@ struct AssetsView: View {
                         .id(Self.topID)
                     bucketCards
                         .guideTarget(.buckets, in: guide)
+                    if assetSwitchPlacement == "assets" { countsAssetsCard }
                     if showEmptyHint { emptyHintCard }
                     passiveCard
                         .guideTarget(.passive, in: guide)
@@ -210,6 +216,24 @@ struct AssetsView: View {
             .animation(.snappy(duration: 0.32), value: cashAmount)
             .accessibilityElement()
             .accessibilityLabel("资产占 \(FinancialFormatting.percentage(lockedAssetsAmount / currentNetWorth))，现金占 \(FinancialFormatting.percentage(cashAmount / currentNetWorth))")
+        }
+    }
+
+    // MARK: - 自由天数口径: 资产算不算
+    private var countsAssetsCard: some View {
+        VaultCard {
+            Toggle(isOn: $countsAssets) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("资产计入自由天数")
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                    Text(countsAssets ? "自由天数按资产加现金算。" : "自由天数只按现金算，资产仍在净值里。")
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                }
+            }
+            .tint(Color.skyDeep)
+            .accessibilityIdentifier("counts-assets-toggle")
         }
     }
 
