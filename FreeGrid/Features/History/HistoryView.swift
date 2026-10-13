@@ -137,7 +137,9 @@ struct HistoryView: View {
     // ============================================================================
 
     private var ledgerList: some View {
-        let scoped = HistoryLedger.transactions(
+        // 刚点开搜索、还没输入时不把全部记录铺出来：几千笔一次排进列表会卡住
+        let awaitingQuery = isSearching && searchText.allSatisfy(\.isWhitespace)
+        let scoped = awaitingQuery ? [] : HistoryLedger.transactions(
             expenses: expenses, incomes: incomes, scope: isSearching ? .allTime : scope
         )
         let summary = HistoryLedger.summary(scoped)
@@ -145,14 +147,16 @@ struct HistoryView: View {
         let active = isSearching || !showingFilters
             ? .all : activeSelection(categories: categories, income: summary.income)
         let visible = HistoryLedger.search(filtered(scoped, by: active), query: searchText)
-        let days = HistoryLedger.days(visible)
+        // 搜索结果只排最近的一部分，合计仍按全部匹配算
+        let shown = isSearching ? Array(visible.prefix(Self.searchRowLimit)) : visible
+        let days = HistoryLedger.days(shown)
 
         return ScrollViewReader { proxy in
         List {
             Section {
                 if isSearching {
                     searchField
-                    searchSummary(visible)
+                    if !awaitingQuery { searchSummary(visible) }
                 } else {
                     scopeCard(summary)
                         .id(Self.topID)
@@ -163,7 +167,7 @@ struct HistoryView: View {
                 }
 
                 if days.isEmpty {
-                    Text(isSearching ? "没有匹配的记录" : "这里还没有记录")
+                    Text(awaitingQuery ? "输入分类、备注或金额" : isSearching ? "没有匹配的记录" : "这里还没有记录")
                         .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .frame(maxWidth: .infinity)
@@ -192,6 +196,16 @@ struct HistoryView: View {
                         .listRowInsets(EdgeInsets(top: Spacing.lg, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
                 }
             }
+
+            if visible.count > shown.count {
+                Text("只显示最近 \(shown.count) 笔，继续输入可以缩小范围")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.lg)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.paper)
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
@@ -204,6 +218,8 @@ struct HistoryView: View {
     }
 
     private static let topID = "history-top"
+    /// 搜索时最多排进列表的行数
+    private static let searchRowLimit = 200
 
     /// 选中的项在当前范围里已经没有记录时，退回「全部」
     private func activeSelection(
