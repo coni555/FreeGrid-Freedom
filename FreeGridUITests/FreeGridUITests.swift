@@ -103,6 +103,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["记支出"].tap()
         let amount = app.textFields["0.00"]
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        amount.tap()
         amount.typeText("12")
         app.buttons["保存"].tap()
 
@@ -233,6 +234,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["记支出"].tap()
         let amount = app.textFields["0.00"]
         XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
         amount.typeText("50")
         app.buttons["保存"].tap()
         // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共三步
@@ -276,10 +278,10 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertEqual(app.textFields["0.00"].value as? String, "0.00")
     }
 
-    /// 点分类滑进一页完整列表，键盘随之收起，选完回到表单。
+    /// 记支出表单打开时不抢键盘；分类从弹出菜单里选。
     /// 搜索刚点开时先等输入，不把全部记录铺出来；只搜备注和金额。
     @MainActor
-    func testCategoryMenuClosesTheKeyboardAndSearchWaitsForAQuery() {
+    func testExpenseSheetOpensWithoutKeyboardAndSearchWaitsForAQuery() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
                                "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
@@ -287,14 +289,14 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["记支出"].tap()
         let amount = app.textFields["0.00"]
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        amount.typeText("20")
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1.5))
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "分类")).firstMatch.tap()
         let lunch = app.buttons["午餐"]
         XCTAssertTrue(lunch.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
         lunch.tap()
-        XCTAssertTrue(app.navigationBars["添加支出"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["昨天"].exists)
+        amount.tap()
+        amount.typeText("20")
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["History"].tap()

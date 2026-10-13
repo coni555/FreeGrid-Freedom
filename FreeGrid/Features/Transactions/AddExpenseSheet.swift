@@ -21,8 +21,6 @@ struct AddExpenseSheet: View {
     @State private var category: String = "早餐"
     @State private var note: String = ""
     @State private var date: Date = .now
-    /// 打开表单就弹键盘, 少点一下
-    @FocusState private var amountFocused: Bool
 
     /// 分类清单 = 权威 canonical(单一来源 ExpenseCategory.canonical)。
     /// "人情"/"日用" 已不在清单(2026-05 移除);旧记录仍能在 History 正常显示。
@@ -41,7 +39,6 @@ struct AddExpenseSheet: View {
                     TextField("0.00", text: $amount)
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
-                        .focused($amountFocused)
                 }
                 // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
                 Section {
@@ -50,7 +47,6 @@ struct AddExpenseSheet: View {
                             Text(c).tag(c)
                         }
                     }
-                    .categoryPickerStyle()
                 }
                 Section("日期") {
                     TransactionDateRow(date: $date)
@@ -78,7 +74,6 @@ struct AddExpenseSheet: View {
             .background(Color.paper)
             .navigationTitle("添加支出")
             .inlineNavTitle()
-            .onAppear { amountFocused = true }
             .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
