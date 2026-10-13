@@ -101,12 +101,12 @@ private struct DashboardContent: View {
             }
             // 「认识首页」: 先回到顶部, 等位置排好再开始
             .task(id: guide.replays(of: .dashboard)) {
-                guard guide.replays(of: .dashboard) > 0, snapshot.hasExpenses else { return }
+                guard snapshot.hasExpenses, guide.takeReplay(.dashboard) else { return }
                 // 新用户刚记完第一笔: 等记支出的表单收完
                 try? await Task.sleep(for: .milliseconds(900))
                 scroller.scrollTo(Self.topID, anchor: .top)
                 try? await Task.sleep(for: .milliseconds(400))
-                guard expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
+                guard !Task.isCancelled, expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
             }
             }

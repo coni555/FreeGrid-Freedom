@@ -127,6 +127,14 @@ final class FreeGridUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.4)
         next.tap()
         XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+
+        // 看过一遍之后，再回到这两页不会自己重放
+        app.tabBars.buttons["Assets"].tap()
+        XCTAssertFalse(next.waitForExistence(timeout: 2))
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertFalse(next.waitForExistence(timeout: 2))
+        app.tabBars.buttons["Assets"].tap()
+        XCTAssertFalse(next.waitForExistence(timeout: 2))
     }
 
     @MainActor

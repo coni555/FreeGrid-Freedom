@@ -56,13 +56,13 @@ struct AssetsView: View {
             }
             // 「Assets 怎么用」: 收起展开的东西、回到顶部, 等位置排好再开始
             .task(id: guide.replays(of: .assets)) {
-                guard guide.replays(of: .assets) > 0 else { return }
+                guard guide.takeReplay(.assets) else { return }
                 transferExpanded = false
                 showingExplain = false
                 transferFocused = false
                 scroller.scrollTo(Self.topID, anchor: .top)
                 try? await Task.sleep(for: .milliseconds(600))
-                guard editingBucket == nil, !showingAddPassive, editingPassiveSource == nil else { return }
+                guard !Task.isCancelled, editingBucket == nil, !showingAddPassive, editingPassiveSource == nil else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.assets) }
             }
             }

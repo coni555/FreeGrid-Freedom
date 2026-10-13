@@ -98,9 +98,10 @@ struct HistoryView: View {
             }
             .task(id: guide.replays(of: .history)) {
                 // 从设置页重放：先回到本月、收起搜索和筛选，圈的位置才和首次进来时一样
-                guard guide.replays(of: .history) > 0, !(expenses.isEmpty && incomes.isEmpty) else { return }
+                guard !(expenses.isEmpty && incomes.isEmpty), guide.takeReplay(.history) else { return }
                 resetForGuide()
                 try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
             }
             .saveErrorAlert($saveError)

@@ -70,6 +70,8 @@ final class AppGuide {
     private(set) var index: Int?
     /// 设置页「使用指引」每点一次加一，对应页面据此从头重放
     private(set) var replayRequests: [Tour: Int] = [:]
+    /// 每个讲解已经播到第几次请求；页面每次重新出现都会再问一遍，靠它保证一次请求只播一遍
+    @ObservationIgnored private var servedReplays: [Tour: Int] = [:]
 
     /// 当前屏幕上找不到位置的步骤直接跳过，例如这个月还没有记录时没有「行」。
     var availableSteps: [Step] {
@@ -85,6 +87,14 @@ final class AppGuide {
     func replays(of tour: Tour) -> Int { replayRequests[tour, default: 0] }
 
     func requestReplay(_ tour: Tour) { replayRequests[tour, default: 0] += 1 }
+
+    /// 取走一次还没播的重放请求；没有新请求时返回 false
+    func takeReplay(_ tour: Tour) -> Bool {
+        let requested = replays(of: tour)
+        guard requested > servedReplays[tour, default: 0] else { return false }
+        servedReplays[tour] = requested
+        return true
+    }
 
     func start(_ tour: Tour) {
         guard index == nil else { return }

@@ -60,8 +60,9 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
             .task(id: guide.replays(of: .settings)) {
-                guard guide.replays(of: .settings) > 0 else { return }
+                guard guide.takeReplay(.settings) else { return }
                 try? await Task.sleep(for: .milliseconds(800))
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.settings) }
             }
         }
