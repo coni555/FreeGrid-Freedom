@@ -241,16 +241,11 @@ struct HistoryView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.paper)
                     if expanded {
-                        ForEach(HistoryLedger.days(group.transactions)) { day in
-                            dayHeader(day)
-                                .padding(.top, Spacing.sm)
-                                .listRowSeparator(.hidden)
+                        // 月份行已经有小计，这里不再按天分段：命中往往一天一笔，段头只会重复金额
+                        ForEach(group.transactions) { tx in
+                            transactionRow(tx, showsDay: true)
                                 .listRowBackground(Color.paper)
-                            ForEach(day.transactions) { tx in
-                                transactionRow(tx)
-                                    .listRowBackground(Color.paper)
-                                    .listRowSeparatorTint(Color.hairlineSoft)
-                            }
+                                .listRowSeparatorTint(Color.hairlineSoft)
                         }
                     }
                 }
@@ -682,13 +677,20 @@ struct HistoryView: View {
         .textCase(nil)
     }
 
-    private func transactionRow(_ tx: LedgerTransaction) -> some View {
+    /// `showsDay`：搜索结果里没有日期段头，行首写上是几号
+    private func transactionRow(_ tx: LedgerTransaction, showsDay: Bool = false) -> some View {
         // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实
         let noteLeads = tx.kind == .expense && !tx.note.isEmpty
         return Button {
             editing = tx
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                if showsDay {
+                    Text("\(Calendar.current.component(.day, from: tx.date))日")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                        .frame(width: 36, alignment: .leading)
+                }
                 Text(noteLeads ? tx.note : tx.title)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
                     .foregroundStyle(Color.ink)
