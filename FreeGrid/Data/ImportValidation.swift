@@ -197,6 +197,8 @@ nonisolated struct ValidatedImport: Sendable {
         let name: String
         let amount: Double
         let sortOrder: Int?
+        /// nil = 备份里没写（阶段 2 的备份），按计入处理
+        let countsInFreedom: Bool?
         let createdAt: Date?
         let updatedAt: Date?
     }
@@ -430,6 +432,7 @@ nonisolated enum ImportValidator {
                 name: name,
                 amount: try amount(raw.amount, field: "资产项", allowsZero: true, policy: policy),
                 sortOrder: raw.sortOrder,
+                countsInFreedom: raw.countsInFreedom,
                 createdAt: try raw.createdAt.map { try timestamp($0, field: "资产项创建时间", now: now) },
                 updatedAt: try raw.updatedAt.map { try timestamp($0, field: "资产项更新时间", now: now) }
             )

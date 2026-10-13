@@ -87,6 +87,7 @@ struct ImportLedgerSnapshot: Equatable {
         let name: String
         let amount: UInt64
         let sortOrder: Int
+        let countsInFreedom: Bool
         let createdAt: Date
         let updatedAt: Date
 
@@ -95,6 +96,7 @@ struct ImportLedgerSnapshot: Equatable {
             name = record.name
             amount = record.amount.bitPattern
             sortOrder = record.sortOrder
+            countsInFreedom = record.countsInFreedom
             createdAt = record.createdAt
             updatedAt = record.updatedAt
         }

@@ -202,9 +202,10 @@ struct DashboardHero: View {
     /// 折线淡入淡出, 卡片高度和下面的内容跟着一起滑动, 不跳。
     @ViewBuilder
     private func trendSection(first: FreedomMath.HistoryPoint, last: FreedomMath.HistoryPoint) -> some View {
-        // 资产不计入时只拿现金往回推，早期会被压到 0；那个 0 不是算出来的，不写
+        // 资产不计入（或只计入一部分）时少了一块往回推，早期会被压到 0；那个 0 不是算出来的，不写
         let summaryText = FreedomMath.trendSummaryText(first: first, last: last,
-                                                       hidesFlooredStart: !snapshot.countsAssets)
+                                                       hidesFlooredStart: !snapshot.countsAssets
+                                                           || snapshot.uncountedAssets > 0)
         Button {
             withAnimation(.snappy(duration: 0.32)) { trendExpanded.toggle() }
         } label: {

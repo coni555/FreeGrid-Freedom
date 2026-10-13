@@ -193,4 +193,116 @@ struct FreedomAssetSwitchTests {
         #expect(withAssets.allSatisfy { !$0.isFloored })
         #expect(withAssets.first!.state != .finite(days: 0))
     }
+
+    // MARK: - 阶段 3：Pro 逐项开关
+
+    @Test func planStage3SpecificScenarioAndNumbers() {
+        let house = AssetItem(name: "房", amount: 100_000, sortOrder: 0, countsInFreedom: false)
+        let deposit = AssetItem(name: "定期", amount: 30_000, sortOrder: 1, countsInFreedom: true)
+        let fund = AssetItem(name: "基金", amount: 5_000, sortOrder: 2, countsInFreedom: true)
+        let items = [house, deposit, fund]
+        let userAssets = assets(locked: 135_000, cash: 14_000)
+
+        // 1. 净值 ¥149,000，资产桶 ¥135,000，都不受逐项开关影响
+        #expect(userAssets.lockedAssets == 135_000)
+        #expect(userAssets.netWorth == 149_000)
+
+        // 2. 自由天数按 14000 + 35000 = 49000 算，约 408 天 (408.333...)
+        let on = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                   assetItems: items, now: now, countsAssets: true)
+        #expect(on.lockedAssets == 135_000)
+        #expect(on.netWorth == 149_000)
+        #expect(on.countedAssets == 35_000)
+        #expect(on.uncountedAssets == 100_000)
+        #expect(on.freedomBase == 49_000)
+        #expect(on.dailyBurn == 120)
+        #expect(on.freedom == .finite(days: 49_000.0 / 120))
+        guard case .finite(let onDays) = on.freedom else { Issue.record(); return }
+        #expect(Int(onDays.rounded(.down)) == 408)
+        #expect(FreedomMath.freedomDaysDisplay(on.freedom) == "13") // 408 天 > 365 天显示为 13 个月
+        #expect(on.uncountedAssetsNote == "部分资产未计入")
+
+        // 3. 把总开关关掉 → 按 14000 算，约 117 天（14000/120 = 116.666...）；
+        //    各项自己的开关没被改动
+        let off = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                    assetItems: items, now: now, countsAssets: false)
+        #expect(off.freedomBase == 14_000)
+        #expect(off.countedAssets == 0)
+        #expect(off.uncountedAssets == 135_000)
+        #expect(off.freedom == .finite(days: 14_000.0 / 120))
+        guard case .finite(let offDays) = off.freedom else { Issue.record(); return }
+        #expect(Int(offDays.rounded()) == 117)
+        #expect(FreedomMath.freedomDaysDisplay(off.freedom) == "116") // ≤ 365 天向下取整显示天数
+        #expect(off.uncountedAssetsNote == "资产未计入")
+        #expect(house.countsInFreedom == false)
+        #expect(deposit.countsInFreedom == true)
+        #expect(fund.countsInFreedom == true)
+
+        // 再打开回到约 408 天
+        let reopened = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                         assetItems: items, now: now, countsAssets: true)
+        #expect(reopened.freedomBase == 49_000)
+        #expect(reopened.freedom == .finite(days: 49_000.0 / 120))
+        #expect(reopened.uncountedAssetsNote == "部分资产未计入")
+
+        // 4. 这时记一笔 1200 的支出，影响预览里的天数变化按 49000 这个口径算
+        let impact = TransactionImpact(snapshot: on, kind: .expense, amount: 1_200)
+        #expect(impact.before.freedomBase == 49_000)
+        #expect(impact.newFreedomBase == 47_800)
+        #expect(impact.newDailyBurn == 240) // 总支出 1200 + 1200 = 2400 / 10 天 = 240
+        #expect(impact.newFreedom == .finite(days: 47_800.0 / 240))
+        guard case .finite(let newDays) = impact.newFreedom else { Issue.record(); return }
+        #expect(Int(newDays.rounded()) == 199)
+
+        // 5. 把「房」改成计入 → 按 149000 算，约 1242 天 (149000/120 = 1241.666...)
+        house.countsInFreedom = true
+        let allCounted = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                           assetItems: items, now: now, countsAssets: true)
+        #expect(allCounted.countedAssets == 135_000)
+        #expect(allCounted.uncountedAssets == 0)
+        #expect(allCounted.freedomBase == 149_000)
+        #expect(allCounted.freedom == .finite(days: 149_000.0 / 120))
+        guard case .finite(let allCountedDays) = allCounted.freedom else { Issue.record(); return }
+        #expect(Int(allCountedDays.rounded()) == 1242)
+        #expect(allCounted.uncountedAssetsNote == nil)
+    }
+
+    @Test func perItemThreeBoundaries() {
+        let item1 = AssetItem(name: "A", amount: 10_000, sortOrder: 0, countsInFreedom: true)
+        let item2 = AssetItem(name: "B", amount: 20_000, sortOrder: 1, countsInFreedom: true)
+        let userAssets = assets(locked: 30_000, cash: 10_000)
+
+        // 边界 1：全部计入（等于阶段 2 的结果）
+        let allOn = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                      assetItems: [item1, item2], now: now, countsAssets: true)
+        #expect(allOn.countedAssets == 30_000)
+        #expect(allOn.uncountedAssets == 0)
+        #expect(allOn.freedomBase == 40_000)
+        #expect(allOn.uncountedAssetsNote == nil)
+
+        // 边界 2：全部不计入（等于总开关关）
+        item1.countsInFreedom = false
+        item2.countsInFreedom = false
+        let allOff = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                       assetItems: [item1, item2], now: now, countsAssets: true)
+        #expect(allOff.countedAssets == 0)
+        #expect(allOff.uncountedAssets == 30_000)
+        #expect(allOff.freedomBase == 10_000)
+        #expect(allOff.uncountedAssetsNote == "资产未计入")
+
+        // 边界 3：没有资产项（等于阶段 1 的结果）
+        let noItems = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                        assetItems: [], now: now, countsAssets: true)
+        #expect(noItems.countedAssets == 30_000)
+        #expect(noItems.uncountedAssets == 0)
+        #expect(noItems.freedomBase == 40_000)
+        #expect(noItems.uncountedAssetsNote == nil)
+
+        let noItemsOff = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                           assetItems: [], now: now, countsAssets: false)
+        #expect(noItemsOff.countedAssets == 0)
+        #expect(noItemsOff.uncountedAssets == 30_000)
+        #expect(noItemsOff.freedomBase == 10_000)
+        #expect(noItemsOff.uncountedAssetsNote == "资产未计入")
+    }
 }

@@ -14,6 +14,7 @@ struct SimulateSheet: View {
     @Query private var expenses: [Expense]
     @Query private var assetsArr: [UserAssets]
     @Query private var passiveSources: [PassiveSource]
+    @Query private var assetItems: [AssetItem]
 
     // ===== 模拟状态 =====
     @State private var amount: String = ""
@@ -76,7 +77,7 @@ struct SimulateSheet: View {
         guard let amt = Double(amount), FinancialFormatting.validAmount(amt) else { return nil }
         return TransactionImpact(
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                        assets: assetsArr.first),
+                                        assets: assetsArr.first, assetItems: assetItems),
             kind: mode, amount: amt
         )
     }

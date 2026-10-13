@@ -5,12 +5,13 @@ import SwiftUI
 struct AssetItemSheet: View {
 
     let existing: AssetItem?
-    let onSave: (String, Double) throws -> Void
+    let onSave: (String, Double, Bool) throws -> Void
 
     @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
     @State private var amount: String = ""
+    @State private var countsInFreedom: Bool = true
     private enum Field { case name, amount }
     @FocusState private var focus: Field?
 
@@ -57,6 +58,21 @@ struct AssetItemSheet: View {
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                     }
+
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Toggle(isOn: $countsInFreedom) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("计入自由天数")
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(Color.ink)
+                                Text(countsInFreedom ? "参与自由天数计算。" : "房、车等难以变现的资产可以关掉，只保留在净值里。")
+                                    .font(.system(.footnote, design: .rounded))
+                                    .foregroundStyle(Color.inkMuted)
+                            }
+                        }
+                        .tint(Color.skyDeep)
+                        .accessibilityIdentifier("asset-item-counts-in-freedom-toggle")
+                    }
                 }
                 .padding(Spacing.lg)
             }
@@ -82,6 +98,9 @@ struct AssetItemSheet: View {
                     amount = existing.amount.formatted(
                         .number.grouping(.never).precision(.fractionLength(0...2))
                             .locale(Locale(identifier: "en_US_POSIX")))
+                    countsInFreedom = existing.countsInFreedom
+                } else {
+                    countsInFreedom = true
                 }
                 focus = isEditing ? nil : .name
             }
@@ -98,7 +117,7 @@ struct AssetItemSheet: View {
     private func save() {
         guard isValid, let value = Double(amount) else { return }
         do {
-            try onSave(name, value)
+            try onSave(name, value, countsInFreedom)
             dismiss()
         } catch {
             saveError = error.localizedDescription

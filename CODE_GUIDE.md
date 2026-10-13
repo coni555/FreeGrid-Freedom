@@ -46,7 +46,7 @@ FreeGrid/
 | `UserAssets` | 资产和现金的当前余额，约定只有一行 | `lockedAssets` 资产、`cash` 现金 |
 | `PassiveSource` | 持续的月均被动收入源 | `monthlyAmount` 每月金额 |
 | `Device` | 旧账里的持有物/设备 | 价格、购买日期、卖出信息；目前通过备份保留 |
-| `AssetItem` | Pro：资产桶里的一项（房、车、定期…） | `name` 名称（1–20 字）、`amount` 金额、`sortOrder` 顺序 |
+| `AssetItem` | Pro：资产桶里的一项（房、车、定期…） | `name` 名称（1–20 字）、`amount` 金额、`sortOrder` 顺序、`countsInFreedom` 自由天数开关 |
 
 `id` 是记录的身份证；`date` 是这笔钱发生的日期；`createdAt` 是创建记录的时间。补录去年消费时，后两者不同。
 
@@ -157,9 +157,9 @@ Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购�
 
 Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。
 
-**资产逐项记录（Pro）** 沿这条路径工作：输入——在 `AssetItemSheet` 填名称和金额；保存——`AssetItemStore.save` 校验后，在同一次保存里把 `UserAssets.lockedAssets` 重算为各项之和（增删改和调拨都走同一个入口，失败时现金、各项、总数一起回滚）；显示——首页、净值、格子、自由天数仍只认 `lockedAssets`，所以免费版的计算、旧备份和旧版本不需要知道这张表。不变量：有资产项时资产桶就是各项之和（资产页不再允许直接改总数）；没有项时它就是用户填的那个数。老用户第一次进明细页时 `migrateIfNeeded` 把原来的总数变成一项「资产」，净值和自由天数不变。备份：有资产项时导出多一个可选字段 `asset_items`（`schema_version` 不变，没有项时不写，导出字节与以前一致）；导入时各项金额之和必须等于资产桶；只有「替换双桶」会把资产项一起整体换成备份里的（所以同一份导两次不会重复，旧格式导入后就按总数走），其他策略不碰现有的项。没有 Pro 时已经拆好的项照常显示，但不能增删改、不能调拨，可以合并成一个总数。
+**资产逐项记录（Pro）** 沿这条路径工作：输入——在 `AssetItemSheet` 填名称、金额与「计入自由天数」开关（默认开，房车等不易变现的资产可单独关掉）；保存——`AssetItemStore.save` 校验后，在同一次保存里把 `UserAssets.lockedAssets` 重算为各项之和（增删改和调拨都走同一个入口，失败时现金、各项、总数一起回滚）；显示——首页、净值、格子、自由天数仍只认 `lockedAssets`，所以免费版的计算、旧备份和旧版本不需要知道这张表。不变量：有资产项时资产桶就是各项之和（资产页不再允许直接改总数）；没有项时它就是用户填的那个数。老用户第一次进明细页时 `migrateIfNeeded` 把原来的总数变成一项「资产」，净值和自由天数不变。备份：有资产项时导出多一个可选字段 `asset_items`（`schema_version` 不变，包含可选的 `counts_in_freedom` 字段，没有项时不写，导出字节与以前一致）；导入时各项金额之和必须等于资产桶；只有「替换双桶」会把资产项一起整体换成备份里的（所以同一份导两次不会重复，旧格式导入后就按总数走），其他策略不碰现有的项。没有 Pro 时已经拆好的项照常显示，但不能增删改、不能调拨，可以合并成一个总数。
 
-**资产总开关（免费）** 沿这条路径工作：Assets 页的「资产计入自由天数」开关把偏好 `countAssetsInFreedom` 写进本机（默认开，不进备份）；`FinancialSnapshot` 里 `freedomBase` 在开时是净值、关时只是现金，首页大数字、格子（`countedAssets` 决定画多少金色）、趋势、记一笔的影响预览（`TransactionImpact.newFreedomBase`）、模拟和自检（`FreedomChecklist`）都用它。净值和「记录了可变现资产」不跑开关。关掉后趋势的起点如果是从现金往回推得负数、被压成 0 的，摘要行不写「0 天 →」（`FreedomMath.trendSummaryText`）。Debug 构建的「设置 → 调试」里可以把「未计入的资产」切成空心格（方案 B），Release 里恒为方案 A，不画。
+**资产自由天数开关** 沿这条路径工作：免费版总开关在 Assets 页双桶下方，把偏好 `countAssetsInFreedom` 写进本机（默认开，不进备份）；Pro 版可在资产逐项的编辑表单里单独关闭单项的「计入自由天数」。`FinancialSnapshot` 结合两者计算 `countedAssets` 与 `uncountedAssets`：总开关关闭时全部资产不计入，提示「资产未计入」；总开关打开但有部分资产项关闭时，只将关掉的项从自由天数底数扣除，净值不变，首页图例旁提示「部分资产未计入」，调拨选择未计入项时也会给出预警。首页大数字、格子、趋势、交易影响预览（`TransactionImpact.newFreedomBase`）、模拟和自检（`FreedomChecklist`）统一使用 `freedomBase`。关掉后趋势的起点如果是从现金往回推得负数、被压成 0 的，摘要行不写「0 天 →」（`FreedomMath.trendSummaryText`）。Debug 构建的「设置 → 调试」里可以把「未计入的资产」切成空心格（方案 B），Release 里恒为方案 A，不画。
 
 **本机偏好存在哪：** 资产开关、分类选项和 Pro 状态都走 `Data/AppPreferences.swift` 的 `store`。正常运行就是系统的 `UserDefaults.standard`；Debug 下带 `-UseInMemoryStore` 启动（界面测试、拍图）时换成一份临时偏好，默认每次启动清空，测试里切开关、改分类都不会碰真实偏好；要测「重启后还在」时第二次启动再加 `-KeepScratchPreferences`。`proPreview`、`countAssetsInFreedom`、`uncountedAssetStyle` 这几个启动参数会被抄进临时偏好。
 

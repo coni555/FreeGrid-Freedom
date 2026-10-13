@@ -322,7 +322,8 @@ struct AssetsView: View {
     // MARK: - 被动收入卡片
     // 顶部 kicker + "+" / 大数字覆盖率 / 月入·日均 subtitle / 已有源列表(每行 × 删除, 点行编辑)
     private var passiveCard: some View {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first)
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
+                                         assets: assetsArr.first, assetItems: assetItems)
         return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -541,7 +542,7 @@ struct AssetsView: View {
                         set: { transferItemID = $0 }
                     )) {
                         ForEach(assetItems) { item in
-                            Text("\(item.name) · ¥\(item.amount.formatted(.number))").tag(Optional(item.id))
+                            Text("\(item.name)\(item.countsInFreedom ? "" : " · 未计入") · ¥\(item.amount.formatted(.number))").tag(Optional(item.id))
                         }
                     }
                     .pickerStyle(.menu)
@@ -565,11 +566,18 @@ struct AssetsView: View {
             }
 
             // 超过可用金额时实际只会调走这一桶里有的, 提前说清楚
-            Text(entered > available
-                 ? "\(fromCash ? "现金" : assetSide)只有 ¥\(available.formatted(.number))，会全部调过去"
-                 : "\(fromCash ? "现金" : assetSide)可用 ¥\(available.formatted(.number))")
-                .font(.system(.caption2, design: .rounded))
-                .foregroundStyle(entered > available ? Color.flame : Color.inkFaint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entered > available
+                     ? "\(fromCash ? "现金" : assetSide)只有 ¥\(available.formatted(.number))，会全部调过去"
+                     : "\(fromCash ? "现金" : assetSide)可用 ¥\(available.formatted(.number))")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(entered > available ? Color.flame : Color.inkFaint)
+                if let item = transferItem, !item.countsInFreedom {
+                    Text("「\(item.name)」未计入自由天数\(fromCash ? "，调入后自由天数会减少" : "")")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.flame)
+                }
+            }
 
             VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
                 doTransfer()

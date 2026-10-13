@@ -15,6 +15,7 @@ struct AddExpenseSheet: View {
     @Query private var expenses: [Expense]
     @Query private var assetsArr: [UserAssets]
     @Query private var passiveSources: [PassiveSource]
+    @Query private var assetItems: [AssetItem]
 
     @State private var saveError: String?
     @State private var amount: String
@@ -100,7 +101,8 @@ struct AddExpenseSheet: View {
     }
 
     private var snapshot: FinancialSnapshot {
-        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first)
+        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                          assetItems: assetItems)
     }
 
     private var isAmountValid: Bool {

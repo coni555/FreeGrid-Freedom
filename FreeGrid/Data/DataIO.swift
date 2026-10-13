@@ -217,6 +217,7 @@ enum DataIO {
                     name: $0.name,
                     amount: $0.amount,
                     sortOrder: $0.sortOrder,
+                    countsInFreedom: $0.countsInFreedom,
                     createdAt: iso.string(from: $0.createdAt),
                     updatedAt: iso.string(from: $0.updatedAt)
                 )
@@ -719,7 +720,8 @@ enum DataIO {
                 // 没有项的旧备份导入后就只按总数走。
                 for existing in try context.fetch(FetchDescriptor<AssetItem>()) { context.delete(existing) }
                 for (index, record) in plan.assetItems.enumerated() {
-                    let item = AssetItem(name: record.name, amount: record.amount, sortOrder: index)
+                    let item = AssetItem(name: record.name, amount: record.amount, sortOrder: index,
+                                         countsInFreedom: record.countsInFreedom ?? true)
                     if let id = record.id { item.id = id }
                     if let createdAt = record.createdAt { item.createdAt = createdAt }
                     item.updatedAt = record.updatedAt ?? record.createdAt ?? .now

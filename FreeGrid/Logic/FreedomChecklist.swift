@@ -29,10 +29,11 @@ enum FreedomChecklist {
     static func evaluate(expenses: [Expense],
                          passiveSources: [PassiveSource],
                          assets: UserAssets?,
+                         assetItems: [AssetItem] = [],
                          now: Date = .now,
                          countsAssets: Bool = FreedomSettings.countsAssets) -> FreedomSummary {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets,
-                                         now: now, countsAssets: countsAssets)
+                                         assetItems: assetItems, now: now, countsAssets: countsAssets)
         let days = snapshot.trackDays
         let dailyBurn = snapshot.dailyBurn
         let netWorth = snapshot.netWorth

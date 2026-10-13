@@ -159,14 +159,19 @@ final class AssetItem: Identifiable {
     /// 列表里的顺序，新增的排在最后。备份按它还原顺序
     var sortOrder: Int = 0
 
+    /// 这一项算不算进自由天数（Pro 逐项开关）。默认算；房、车这种卖不掉的可以关掉。
+    /// 只影响自由天数，不影响资产总数和净值。旧库里已有的项升级后取默认值，也就是计入。
+    var countsInFreedom: Bool = true
+
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
 
-    init(name: String, amount: Double, sortOrder: Int) {
+    init(name: String, amount: Double, sortOrder: Int, countsInFreedom: Bool = true) {
         self.id = UUID()
         self.name = name
         self.amount = amount
         self.sortOrder = sortOrder
+        self.countsInFreedom = countsInFreedom
         self.createdAt = .now
         self.updatedAt = .now
     }

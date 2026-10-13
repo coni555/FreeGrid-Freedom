@@ -10,6 +10,8 @@ struct DashboardView: View {
     @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
+    /// Pro 逐项开关：哪些资产项不计入自由天数
+    @Query private var assetItems: [AssetItem]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
@@ -17,7 +19,7 @@ struct DashboardView: View {
         DashboardContent(
             expenses: expenses, incomes: incomes,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                        countsAssets: countsAssets),
+                                        assetItems: assetItems, countsAssets: countsAssets),
             todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount }
         )
     }
@@ -440,16 +442,19 @@ private struct DashboardContent: View {
 
                 if state.count > 0 {
                 HStack(spacing: Spacing.lg) {
-                    if snapshot.countsAssets {
+                    // 金色图例：总开关开、且至少有一部分资产在格子里（或者根本没有不计入的）
+                    if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
                         legendDot(color: .assetGold, label: "资产")
-                    } else if reserve > 0 {
+                    }
+                    if reserve > 0 {
                         legendDot(color: .assetGold, label: "资产 · 未计入", hollow: true)
                     }
                     legendDot(color: .cashBlue, label: "现金")
-                    if !snapshot.countsAssets, reserve == 0, snapshot.lockedAssets > 0 {
-                        Text("资产未计入")
+                    if reserve == 0, let note = snapshot.uncountedAssetsNote {
+                        Text(note)
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
+                            .accessibilityIdentifier("uncounted-assets-note")
                     }
                     Spacer()
                     Text("每格 = 1 \(state.unit.label)自由")
@@ -481,11 +486,11 @@ private struct DashboardContent: View {
         }
     }
 
-    /// 方案 B（仅 Debug）：资产不计入时，把资产本来能换的天数画成空心格跟在后面。
+    /// 方案 B（仅 Debug）：没计入的资产（总开关关掉，或逐项关掉的那些）本来能换的天数画成空心格跟在后面。
     /// Release 里恒为 0（方案 A）；用户选定后删掉另一种。
     private func reserveCells(after state: FreedomMath.GridState) -> Int {
         #if DEBUG
-        guard !snapshot.countsAssets, state.count > 0, !state.isOverflow,
+        guard snapshot.uncountedAssets > 0, state.count > 0, !state.isOverflow,
               uncountedAssetStyle == "hollow" else { return 0 }
         let full = FreedomMath.freedomState(netWorth: snapshot.netWorth, dailyBurn: snapshot.dailyBurn,
                                             dailyPassive: snapshot.dailyPassive, hasExpenses: snapshot.hasExpenses)

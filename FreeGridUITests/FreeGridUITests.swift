@@ -530,6 +530,107 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["¥150,000"].firstMatch.exists)   // 净值
     }
 
+    /// 有 Pro：关掉一项资产的自由天数开关，回首页看到大数字变小且图例旁出现「部分资产未计入」。
+    @MainActor
+    func testPerItemAssetSwitchChangesTheDashboardNumber() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-UseInMemoryStore"]
+        app.launch()
+
+        // 1. 设置现金 10000，资产 10000
+        app.tabBars.buttons["Assets"].tap()
+        for (label, amount) in [("编辑现金", "10000"), ("编辑资产", "10000")] {
+            app.buttons[label].tap()
+            let field = app.textFields["bucket-amount-field"]
+            XCTAssertTrue(field.waitForExistence(timeout: 3))
+            field.typeText(amount)
+            app.buttons["保存"].tap()
+        }
+
+        // 2. 将资产拆成多项：先有「资产」10000，改成 5000，再加「房」5000
+        app.buttons["编辑资产"].tap()
+        let split = app.buttons["split-assets-into-items"]
+        XCTAssertTrue(split.waitForExistence(timeout: 3))
+        split.tap()
+        XCTAssertTrue(app.staticTexts["asset-items-total"].waitForExistence(timeout: 5))
+
+        app.buttons["asset-item-资产"].tap()
+        let amountField = app.textFields["asset-item-amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 3))
+        amountField.tap()
+        amountField.typeText(String(repeating: "\u{8}", count: 12) + "5000")
+        app.buttons["保存"].tap()
+
+        app.buttons["add-asset-item"].tap()
+        let nameField = app.textFields["asset-item-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        nameField.typeText("房")
+        let houseAmount = app.textFields["asset-item-amount-field"]
+        houseAmount.tap()
+        houseAmount.typeText("5000")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.buttons["asset-item-房"].waitForExistence(timeout: 3))
+
+        // 3. 记一笔 100 支出：现金 9900，资产 10000（全部计入），日均 100 -> 199 天
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("100")
+        app.buttons["保存"].tap()
+
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["uncounted-assets-note"].exists)
+
+        // 4. 进 Assets -> 编辑「房」 -> 关掉「计入自由天数」
+        app.tabBars.buttons["Assets"].tap()
+        let houseRow = app.buttons["asset-item-房"]
+        if !houseRow.exists {
+            let detailButton = app.buttons["资产明细"]
+            XCTAssertTrue(detailButton.waitForExistence(timeout: 3))
+            detailButton.tap()
+        }
+
+        XCTAssertTrue(houseRow.waitForExistence(timeout: 3))
+        houseRow.tap()
+
+        let toggle = app.switches["asset-item-counts-in-freedom-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.switches.firstMatch.tap()
+        app.buttons["保存"].tap()
+
+        // 列表上显示「未计入自由天数」
+        XCTAssertTrue(app.staticTexts["未计入自由天数"].waitForExistence(timeout: 3))
+
+        // 5. 回首页：自由天数按 9900 + 5000 = 14900 算，大数字变成 149，并显示「部分资产未计入」
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.staticTexts["149"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["199"].exists)
+        let note = app.staticTexts["uncounted-assets-note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 3))
+        XCTAssertEqual(note.label, "部分资产未计入")
+
+        // 6. 再把房改回计入：回到 199 天
+        app.tabBars.buttons["Assets"].tap()
+        if !houseRow.exists {
+            let detailButton = app.buttons["资产明细"]
+            XCTAssertTrue(detailButton.waitForExistence(timeout: 3))
+            detailButton.tap()
+        }
+        XCTAssertTrue(houseRow.waitForExistence(timeout: 3))
+        houseRow.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.switches.firstMatch.tap()
+        app.buttons["保存"].tap()
+        XCTAssertFalse(app.staticTexts["未计入自由天数"].exists)
+
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["uncounted-assets-note"].exists)
+    }
+
     /// 没有 Pro：资产桶的「拆成多项」进的是锁定页，能走到购买页，不显示管理界面。
     @MainActor
     func testAssetItemsAreLockedWithoutProAndOpenThePaywall() {
@@ -691,6 +792,93 @@ final class FreeGridUITests: XCTestCase {
             app = launch(dark: dark, pro: false)
             openItems(app)
             try shoot("\(mode)-3-锁定页")
+            app.terminate()
+        }
+    }
+
+    /// 阶段 3 截图：演示账本拍资产列表上的逐项开关、首页「部分资产未计入」（方案 A 和 B 各一张），深浅各一。
+    @MainActor
+    func testCaptureStage3Screens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["STAGE3_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍阶段 3 截图时运行")
+        }
+        func launch(dark: Bool, style: String) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-proPreview", "YES",
+                                   "-countAssetsInFreedom", "YES", "-uncountedAssetStyle", style,
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            // 方案 A 首页（部分资产未计入）+ 资产列表
+            var app = launch(dark: dark, style: "drop")
+
+            // 先进 Assets 把资产拆成多项，并把其中一项关掉
+            app.tabBars.buttons["Assets"].tap()
+            app.buttons["编辑资产"].tap()
+            let split = app.buttons["split-assets-into-items"]
+            XCTAssertTrue(split.waitForExistence(timeout: 3))
+            split.tap()
+            XCTAssertTrue(app.staticTexts["asset-items-total"].waitForExistence(timeout: 5))
+
+            // 添加一项不计入的资产「房」
+            app.buttons["add-asset-item"].tap()
+            let nameField = app.textFields["asset-item-name-field"]
+            XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+            nameField.typeText("房")
+            let amountField = app.textFields["asset-item-amount-field"]
+            amountField.tap()
+            amountField.typeText("100000")
+            // 关掉计入自由天数
+            let toggle = app.switches["asset-item-counts-in-freedom-toggle"]
+            XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+            toggle.switches.firstMatch.tap()
+            try shoot("\(mode)-2-编辑表单-开关关")
+            app.buttons["保存"].tap()
+
+            // 拍资产列表（列表上能一眼看出「房」未计入）
+            XCTAssertTrue(app.buttons["asset-item-房"].waitForExistence(timeout: 3))
+            try shoot("\(mode)-1-资产列表-逐项开关")
+
+            // 回首页：拍方案 A（部分资产未计入）
+            app.tabBars.buttons["Dashboard"].tap()
+            XCTAssertTrue(app.staticTexts["uncounted-assets-note"].waitForExistence(timeout: 3))
+            try shoot("\(mode)-3-方案A-首页-部分资产未计入")
+            app.terminate()
+
+            // 方案 B 首页（空心格跟在后面）
+            app = launch(dark: dark, style: "hollow")
+            app.tabBars.buttons["Assets"].tap()
+            app.buttons["编辑资产"].tap()
+            let splitB = app.buttons["split-assets-into-items"]
+            XCTAssertTrue(splitB.waitForExistence(timeout: 3))
+            splitB.tap()
+            XCTAssertTrue(app.staticTexts["asset-items-total"].waitForExistence(timeout: 5))
+            app.buttons["add-asset-item"].tap()
+            let nameFieldB = app.textFields["asset-item-name-field"]
+            XCTAssertTrue(nameFieldB.waitForExistence(timeout: 3))
+            nameFieldB.typeText("房")
+            let amtB = app.textFields["asset-item-amount-field"]
+            amtB.tap()
+            amtB.typeText("100000")
+            let toggleB = app.switches["asset-item-counts-in-freedom-toggle"]
+            XCTAssertTrue(toggleB.waitForExistence(timeout: 3))
+            toggleB.switches.firstMatch.tap()
+            app.buttons["保存"].tap()
+            app.tabBars.buttons["Dashboard"].tap()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
+            try shoot("\(mode)-4-方案B-首页-部分资产未计入")
             app.terminate()
         }
     }

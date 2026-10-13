@@ -110,15 +110,18 @@ nonisolated struct BackupEnvelope: Codable {
         let name: String
         let amount: Double
         let sortOrder: Int?
+        /// 这一项算不算进自由天数。可选：阶段 2 导出的备份没有它，导入后按计入处理。
+        let countsInFreedom: Bool?
         let createdAt: String?
         let updatedAt: String?
 
         init(id: String? = nil, name: String, amount: Double, sortOrder: Int? = nil,
-             createdAt: String? = nil, updatedAt: String? = nil) {
+             countsInFreedom: Bool? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
             self.id = id
             self.name = name
             self.amount = amount
             self.sortOrder = sortOrder
+            self.countsInFreedom = countsInFreedom
             self.createdAt = createdAt
             self.updatedAt = updatedAt
         }

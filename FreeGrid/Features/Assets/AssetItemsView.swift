@@ -52,13 +52,13 @@ struct AssetItemsView: View {
             catch { saveError = error.localizedDescription }
         }
         .sheet(isPresented: $adding) {
-            AssetItemSheet(existing: nil) { name, amount in
-                try AssetItemStore.save(nil, name: name, amount: amount, in: modelContext)
+            AssetItemSheet(existing: nil) { name, amount, counts in
+                try AssetItemStore.save(nil, name: name, amount: amount, countsInFreedom: counts, in: modelContext)
             }
         }
         .sheet(item: $editing) { item in
-            AssetItemSheet(existing: item) { name, amount in
-                try AssetItemStore.save(item, name: name, amount: amount, in: modelContext)
+            AssetItemSheet(existing: item) { name, amount, counts in
+                try AssetItemStore.save(item, name: name, amount: amount, countsInFreedom: counts, in: modelContext)
             }
         }
         .sheet(isPresented: $showingPro) { ProPaywallView() }
@@ -155,10 +155,17 @@ struct AssetItemsView: View {
                 if canManage { editing = item }
             } label: {
                 HStack(spacing: Spacing.md) {
-                    Text(item.name)
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(Color.ink)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                            .lineLimit(1)
+                        if !item.countsInFreedom {
+                            Text("未计入自由天数")
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                    }
                     Spacer(minLength: Spacing.sm)
                     Text("¥" + item.amount.formatted(.number))
                         .font(.system(.body, design: .rounded).monospacedDigit())

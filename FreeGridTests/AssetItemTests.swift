@@ -39,7 +39,7 @@ struct AssetItemTests {
     private func state(_ context: ModelContext) throws -> State {
         let assets = try assets(context)
         return State(cash: assets.cash, locked: assets.lockedAssets,
-                     items: try items(context).map { "\($0.id)|\($0.name)|\($0.amount)|\($0.sortOrder)" })
+                     items: try items(context).map { "\($0.id)|\($0.name)|\($0.amount)|\($0.sortOrder)|\($0.countsInFreedom)" })
     }
 
     /// 房 100000 / 定期 30000 / 基金 5000，现金 14000
@@ -209,6 +209,26 @@ struct AssetItemTests {
         }
     }
 
+    @Test func transferBetweenCashAndUncountedItemMovesMoneyAndPreservesFlag() throws {
+        let context = try ledger(cash: 14_000)
+        let house = try AssetItemStore.save(nil, name: "房", amount: 100_000, countsInFreedom: false, in: context)
+        // 现金调入未计入的项 4000
+        let moved = try AssetItemStore.transfer(.cashToItem, amount: 4_000, item: house, in: context)
+        #expect(moved == 4_000)
+        #expect(try assets(context).cash == 10_000)
+        #expect(try assets(context).lockedAssets == 104_000)
+        #expect(house.amount == 104_000)
+        #expect(house.countsInFreedom == false)
+
+        // 再调回 2000
+        let movedBack = try AssetItemStore.transfer(.itemToCash, amount: 2_000, item: house, in: context)
+        #expect(movedBack == 2_000)
+        #expect(try assets(context).cash == 12_000)
+        #expect(try assets(context).lockedAssets == 102_000)
+        #expect(house.amount == 102_000)
+        #expect(house.countsInFreedom == false)
+    }
+
     // MARK: - 失败回滚
 
     @Test func everyWriteRestoresCashItemsAndTotalWhenSavingFails() throws {
@@ -264,8 +284,54 @@ struct AssetItemTests {
         #expect(restored.map(\.amount) == [30_000, 100_000, 5_000])
         #expect(restored.map(\.id) == original.map(\.id))
         #expect(restored.map(\.sortOrder) == [0, 1, 2])
+        #expect(restored.map(\.countsInFreedom) == [true, true, true])
         #expect(try assets(target).lockedAssets == 135_000)
         #expect(try assets(target).cash == 14_000)
+    }
+
+    @Test func countsInFreedomRoundTripPreservesBothStates() throws {
+        let source = try ledger(cash: 14_000)
+        try AssetItemStore.save(nil, name: "房", amount: 100_000, countsInFreedom: false, in: source)
+        try AssetItemStore.save(nil, name: "定期", amount: 30_000, countsInFreedom: true, in: source)
+        try AssetItemStore.save(nil, name: "基金", amount: 5_000, countsInFreedom: true, in: source)
+
+        let data = try backup(from: source)
+        let target = try TestSupport.makeContext()
+        let preview = try DataIO.previewJSON(data: data, context: target)
+        _ = try DataIO.commitImport(preview: preview, strategy: .replace, context: target)
+
+        let restored = try items(target)
+        #expect(restored.count == 3)
+        #expect(restored.map(\.name) == ["房", "定期", "基金"])
+        #expect(restored.map(\.countsInFreedom) == [false, true, true])
+    }
+
+    @Test func importBackupWithoutCountsInFreedomDefaultsToCounted() throws {
+        let target = try TestSupport.makeContext()
+        // 阶段 2 导出的备份，没有 counts_in_freedom 字段
+        let data = json(items: #"[{"name":"房","amount":100000},{"name":"定期","amount":30000}]"#, locked: 130_000)
+        let preview = try DataIO.previewJSON(data: data, context: target)
+        _ = try DataIO.commitImport(preview: preview, strategy: .replace, context: target)
+
+        let restored = try items(target)
+        #expect(restored.count == 2)
+        #expect(restored.allSatisfy { $0.countsInFreedom })
+    }
+
+    @Test func importingSameBackupTwiceKeepsCountsInFreedom() throws {
+        let source = try ledger(cash: 14_000)
+        try AssetItemStore.save(nil, name: "房", amount: 100_000, countsInFreedom: false, in: source)
+        try AssetItemStore.save(nil, name: "定期", amount: 30_000, countsInFreedom: true, in: source)
+        let data = try backup(from: source)
+
+        let target = try TestSupport.makeContext()
+        for _ in 0..<2 {
+            let preview = try DataIO.previewJSON(data: data, context: target)
+            _ = try DataIO.commitImport(preview: preview, strategy: .replace, context: target)
+        }
+        let restored = try items(target)
+        #expect(restored.count == 2)
+        #expect(restored.map(\.countsInFreedom) == [false, true])
     }
 
     @Test func importingTheSameBackupTwiceDoesNotDuplicateItems() throws {
@@ -445,5 +511,39 @@ struct AssetItemTests {
         try AssetItemStore.migrateIfNeeded(in: context)
         #expect(try AssetItemStore.items(in: context).map(\.amount) == [22_000])
         #expect(assets.netWorth == 36_000)
+    }
+
+    @Test func aPhase2StoreWithAssetItemsOpensWithAllItemsCounted() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appendingPathComponent("ledger.store")
+
+        // 阶段 2 数据库：有资产项，升级到阶段 3
+        let schema = StoreBootstrap.schema
+        do {
+            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+            let context = ModelContext(container)
+            let assets = UserAssets(total: 0)
+            assets.lockedAssets = 135_000
+            assets.cash = 14_000
+            context.insert(assets)
+            context.insert(AssetItem(name: "房", amount: 100_000, sortOrder: 0))
+            context.insert(AssetItem(name: "定期", amount: 35_000, sortOrder: 1))
+            try context.save()
+        }
+
+        let bootstrap = StoreBootstrap(factory: {
+            try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+        })
+        guard case .ready(let container) = bootstrap.state else {
+            Issue.record("阶段 2 数据库升级后进了恢复页")
+            return
+        }
+        let context = ModelContext(container)
+        let items = try context.fetch(FetchDescriptor<AssetItem>(sortBy: [SortDescriptor(\.sortOrder)]))
+        #expect(items.count == 2)
+        #expect(items.allSatisfy { $0.countsInFreedom })
+        #expect(try context.fetch(FetchDescriptor<UserAssets>()).first?.netWorth == 149_000)
     }
 }

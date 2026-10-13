@@ -74,10 +74,10 @@ enum AssetItemStore {
         return true
     }
 
-    /// 新增（existing 为 nil）或修改一项。
+    /// 新增（existing 为 nil）或修改一项。`countsInFreedom` 为 nil 时保持原样（新增的项默认计入）。
     @discardableResult
     static func save(
-        _ existing: AssetItem?, name: String, amount: Double,
+        _ existing: AssetItem?, name: String, amount: Double, countsInFreedom: Bool? = nil,
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> AssetItem {
@@ -88,14 +88,15 @@ enum AssetItemStore {
         let all = try items(in: context)
         let item = existing ?? AssetItem(name: name, amount: amount, sortOrder: (all.map(\.sortOrder).max() ?? -1) + 1)
         let previous = snapshot(all)
-        let previousItem = (item.name, item.amount, item.updatedAt)
+        let previousItem = (item.name, item.amount, item.countsInFreedom, item.updatedAt)
         try LedgerStore.updateAssets(in: context, save: save, restore: {
             restore(previous)
-            (item.name, item.amount, item.updatedAt) = previousItem
+            (item.name, item.amount, item.countsInFreedom, item.updatedAt) = previousItem
         }) { assets in
             if existing == nil { context.insert(item) }
             item.name = name
             item.amount = amount
+            if let countsInFreedom { item.countsInFreedom = countsInFreedom }
             item.updatedAt = .now
             try syncTotal(assets, in: context)
         }
@@ -178,11 +179,13 @@ enum AssetItemStore {
         let name: String
         let amount: Double
         let sortOrder: Int
+        let countsInFreedom: Bool
         let updatedAt: Date
     }
 
     private static func snapshot(_ items: [AssetItem]) -> [ItemState] {
-        items.map { ItemState(item: $0, name: $0.name, amount: $0.amount, sortOrder: $0.sortOrder, updatedAt: $0.updatedAt) }
+        items.map { ItemState(item: $0, name: $0.name, amount: $0.amount, sortOrder: $0.sortOrder,
+                              countsInFreedom: $0.countsInFreedom, updatedAt: $0.updatedAt) }
     }
 
     private static func restore(_ states: [ItemState]) {
@@ -190,6 +193,7 @@ enum AssetItemStore {
             state.item.name = state.name
             state.item.amount = state.amount
             state.item.sortOrder = state.sortOrder
+            state.item.countsInFreedom = state.countsInFreedom
             state.item.updatedAt = state.updatedAt
         }
     }

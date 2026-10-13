@@ -21,6 +21,8 @@ struct SettingsView: View {
     @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
+    /// Pro 逐项开关：不计入自由天数的资产项
+    @Query private var assetItems: [AssetItem]
 
     @Environment(\.openURL) private var openURL
     /// 「Settings 怎么用」要圈出这一页上的位置
@@ -41,6 +43,7 @@ struct SettingsView: View {
         FreedomChecklist.evaluate(expenses: expenses,
                                   passiveSources: passiveSources,
                                   assets: assetsArr.first,
+                                  assetItems: assetItems,
                                   countsAssets: countsAssets)
     }
 
