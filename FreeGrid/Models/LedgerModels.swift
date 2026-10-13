@@ -12,7 +12,7 @@ final class Expense {
     var amount: Double = 0
 
     /// 分类:早餐/午餐/晚餐/购物/交通/娱乐/成长投资/医疗/其他
-    /// 以 String 保存以兼容历史和 Pro 自定义分类；不因选项隐藏而改写记录。
+    /// 以 String 保存以兼容历史和 Pro 自定义分类；不因选项删除而改写记录。
     var category: String = ""
 
     /// 备注,可空

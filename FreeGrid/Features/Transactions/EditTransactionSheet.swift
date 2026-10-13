@@ -26,7 +26,7 @@ struct EditTransactionSheet: View {
         _date = State(initialValue: transaction.date)
     }
 
-    /// 和记支出时同一份选项；这笔账原来的分类即使已隐藏也保留在列表里，不逼用户改掉它。
+    /// 和记支出时同一份选项；这笔账原来的分类即使已删除也保留在列表里，不逼用户改掉它。
     private var categories: [String] {
         let options = ProFeatures.canCustomizeExpenseCategories
             ? ExpenseCategoryStorage.decode(encodedOptions).including(expenses.map(\.category)).visibleNames

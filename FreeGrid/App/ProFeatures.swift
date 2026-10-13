@@ -13,7 +13,7 @@ enum ProFeatures {
     static let benefits: [Benefit] = [
         Benefit(icon: "list.bullet",
                 title: "自定义支出分类",
-                detail: "添加自己的分类，调整常用顺序，隐藏用不到的选项。"),
+                detail: "添加自己的分类，调整常用顺序，删除用不到的选项。"),
     ]
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
