@@ -71,9 +71,6 @@ private struct DashboardContent: View {
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
 
-    #if DEBUG
-    @AppStorage(FreedomSettings.uncountedAssetStyleKey, store: AppPreferences.store) private var uncountedAssetStyle = "drop"
-    #endif
 
     var body: some View {
         let history = FreedomMath.freedomDaysHistory(
@@ -420,7 +417,6 @@ private struct DashboardContent: View {
     private var gridSection: some View {
         let state = FreedomMath.gridState(for: snapshot.freedom,
                                           lockedAssets: snapshot.countedAssets, netWorth: snapshot.freedomBase)
-        let reserve = reserveCells(after: state)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -436,7 +432,7 @@ private struct DashboardContent: View {
                     emptyGridHint
                 } else {
                     LifeGrid(unit: state.unit, count: state.count,
-                             assetCells: state.assetCells, reserveCells: reserve)
+                             assetCells: state.assetCells)
                         .padding(.vertical, Spacing.sm)
                 }
 
@@ -446,11 +442,8 @@ private struct DashboardContent: View {
                     if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
                         legendDot(color: .assetGold, label: "资产")
                     }
-                    if reserve > 0 {
-                        legendDot(color: .assetGold, label: "资产 · 未计入", hollow: true)
-                    }
                     legendDot(color: .cashBlue, label: "现金")
-                    if reserve == 0, let note = snapshot.uncountedAssetsNote {
+                    if let note = snapshot.uncountedAssetsNote {
                         Text(note)
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
@@ -468,37 +461,16 @@ private struct DashboardContent: View {
     }
 
     /// 图例:silverline 版小方块 + 标签(无 glow)
-    private func legendDot(color: Color, label: String, hollow: Bool = false) -> some View {
+    private func legendDot(color: Color, label: String) -> some View {
         HStack(spacing: 6) {
-            if hollow {
-                RoundedRectangle(cornerRadius: 1)
-                    .strokeBorder(color, lineWidth: 1)
-                    .frame(width: 8, height: 8)
-            } else {
-                Rectangle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                    .cornerRadius(1)
-            }
+            Rectangle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+                .cornerRadius(1)
             Text(label)
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
         }
-    }
-
-    /// 方案 B（仅 Debug）：没计入的资产（总开关关掉，或逐项关掉的那些）本来能换的天数画成空心格跟在后面。
-    /// Release 里恒为 0（方案 A）；用户选定后删掉另一种。
-    private func reserveCells(after state: FreedomMath.GridState) -> Int {
-        #if DEBUG
-        guard snapshot.uncountedAssets > 0, state.count > 0, !state.isOverflow,
-              uncountedAssetStyle == "hollow" else { return 0 }
-        let full = FreedomMath.freedomState(netWorth: snapshot.netWorth, dailyBurn: snapshot.dailyBurn,
-                                            dailyPassive: snapshot.dailyPassive, hasExpenses: snapshot.hasExpenses)
-        let fullGrid = FreedomMath.gridState(for: full, lockedAssets: 0, netWorth: snapshot.netWorth, unit: state.unit)
-        return max(0, fullGrid.count - state.count)
-        #else
-        return 0
-        #endif
     }
 
     /// 网格右上角文案: 格数和上面的大数字是同一个数, 只在格子画不下时说明 ("99+ 年")

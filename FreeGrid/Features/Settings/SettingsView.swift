@@ -31,9 +31,6 @@ struct SettingsView: View {
     @State private var showingPro = false
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    #if DEBUG
-    @AppStorage(FreedomSettings.uncountedAssetStyleKey, store: AppPreferences.store) private var uncountedAssetStyle = "drop"
-    #endif
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -64,9 +61,6 @@ struct SettingsView: View {
                     dataSection
                         .guideTarget(.data, in: guide)
                     aboutSupportSection
-                    #if DEBUG
-                    debugSection
-                    #endif
                 }
                 .padding()
             }
@@ -168,22 +162,6 @@ struct SettingsView: View {
             .accessibilityIdentifier("expense-categories-settings")
         }
     }
-
-    #if DEBUG
-    /// 仅 Debug：资产没计入自由天数时，首页格子怎么画。Release 里只有「去掉」。
-    private var debugSection: some View {
-        settingsSection("调试") {
-            settingsRow(icon: "square.dashed", title: "未计入的资产") {
-                Picker("未计入的资产", selection: $uncountedAssetStyle) {
-                    Text("不画").tag("drop")
-                    Text("空心格").tag("hollow")
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-            }
-        }
-    }
-    #endif
 
     private var appearanceSection: some View {
         settingsSection("外观") {

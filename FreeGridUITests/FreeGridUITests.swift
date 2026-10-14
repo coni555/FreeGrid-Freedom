@@ -661,7 +661,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
     }
 
-    /// 给用户挑方案用的截图：资产不计入自由天数时首页怎么画。只在给了环境变量时运行。
+    /// 资产总开关的截图：开和关时的首页与 Assets 开关卡。只在给了环境变量时运行。
     /// 演示账本做法见 `_local/store-screenshots/`，账本灌进内存，不碰真实数据。
     @MainActor
     func testCaptureAssetSwitchScreens() throws {
@@ -669,12 +669,12 @@ final class FreeGridUITests: XCTestCase {
         guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["ASSET_SWITCH_SHOTS_DIR"] else {
             throw XCTSkip("只在拍方案图时运行")
         }
-        func launch(dark: Bool, counts: Bool, style: String) -> XCUIApplication {
+        func launch(dark: Bool, counts: Bool) -> XCUIApplication {
             let app = XCUIApplication()
             app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
                                    "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
                                    "-setupGuideCompleted", "YES", "-proPreview", "NO",
-                                   "-countAssetsInFreedom", counts ? "YES" : "NO", "-uncountedAssetStyle", style,
+                                   "-countAssetsInFreedom", counts ? "YES" : "NO",
                                    "-UseInMemoryStore", "-SeedBackupJSON", ledger]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
@@ -687,18 +687,15 @@ final class FreeGridUITests: XCTestCase {
         }
         for dark in [false, true] {
             let mode = dark ? "深色" : "浅色"
-            var app = launch(dark: dark, counts: true, style: "drop")
+            var app = launch(dark: dark, counts: true)
             try shoot("\(mode)-1-开-首页")
             app.tabBars.buttons["Assets"].tap()
             try shoot("\(mode)-4-开-Assets开关卡")
             app.terminate()
-            app = launch(dark: dark, counts: false, style: "drop")
-            try shoot("\(mode)-2-关A-首页")
+            app = launch(dark: dark, counts: false)
+            try shoot("\(mode)-2-关-首页")
             app.tabBars.buttons["Assets"].tap()
             try shoot("\(mode)-5-关-Assets开关卡")
-            app.terminate()
-            app = launch(dark: dark, counts: false, style: "hollow")
-            try shoot("\(mode)-3-关B-首页")
             app.terminate()
         }
     }
@@ -796,19 +793,19 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
-    /// 阶段 3 截图：演示账本拍资产列表上的逐项开关、首页「部分资产未计入」（方案 A 和 B 各一张），深浅各一。
+    /// 阶段 3 截图：演示账本拍资产列表上的逐项开关、首页「部分资产未计入」，深浅各一。
     @MainActor
     func testCaptureStage3Screens() throws {
         let environment = ProcessInfo.processInfo.environment
         guard let ledger = environment["STORE_SHOTS_LEDGER"], let output = environment["STAGE3_SHOTS_DIR"] else {
             throw XCTSkip("只在拍阶段 3 截图时运行")
         }
-        func launch(dark: Bool, style: String) -> XCUIApplication {
+        func launch(dark: Bool) -> XCUIApplication {
             let app = XCUIApplication()
             app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
                                    "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
                                    "-setupGuideCompleted", "YES", "-proPreview", "YES",
-                                   "-countAssetsInFreedom", "YES", "-uncountedAssetStyle", style,
+                                   "-countAssetsInFreedom", "YES",
                                    "-UseInMemoryStore", "-SeedBackupJSON", ledger]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
@@ -821,8 +818,7 @@ final class FreeGridUITests: XCTestCase {
         }
         for dark in [false, true] {
             let mode = dark ? "深色" : "浅色"
-            // 方案 A 首页（部分资产未计入）+ 资产列表
-            var app = launch(dark: dark, style: "drop")
+            let app = launch(dark: dark)
 
             // 先进 Assets 把资产拆成多项，并把其中一项关掉
             app.tabBars.buttons["Assets"].tap()
@@ -851,34 +847,10 @@ final class FreeGridUITests: XCTestCase {
             XCTAssertTrue(app.buttons["asset-item-房"].waitForExistence(timeout: 3))
             try shoot("\(mode)-1-资产列表-逐项开关")
 
-            // 回首页：拍方案 A（部分资产未计入）
+            // 回首页：部分资产未计入
             app.tabBars.buttons["Dashboard"].tap()
             XCTAssertTrue(app.staticTexts["uncounted-assets-note"].waitForExistence(timeout: 3))
-            try shoot("\(mode)-3-方案A-首页-部分资产未计入")
-            app.terminate()
-
-            // 方案 B 首页（空心格跟在后面）
-            app = launch(dark: dark, style: "hollow")
-            app.tabBars.buttons["Assets"].tap()
-            app.buttons["编辑资产"].tap()
-            let splitB = app.buttons["split-assets-into-items"]
-            XCTAssertTrue(splitB.waitForExistence(timeout: 3))
-            splitB.tap()
-            XCTAssertTrue(app.staticTexts["asset-items-total"].waitForExistence(timeout: 5))
-            app.buttons["add-asset-item"].tap()
-            let nameFieldB = app.textFields["asset-item-name-field"]
-            XCTAssertTrue(nameFieldB.waitForExistence(timeout: 3))
-            nameFieldB.typeText("房")
-            let amtB = app.textFields["asset-item-amount-field"]
-            amtB.tap()
-            amtB.typeText("100000")
-            let toggleB = app.switches["asset-item-counts-in-freedom-toggle"]
-            XCTAssertTrue(toggleB.waitForExistence(timeout: 3))
-            toggleB.switches.firstMatch.tap()
-            app.buttons["保存"].tap()
-            app.tabBars.buttons["Dashboard"].tap()
-            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
-            try shoot("\(mode)-4-方案B-首页-部分资产未计入")
+            try shoot("\(mode)-3-首页-部分资产未计入")
             app.terminate()
         }
     }

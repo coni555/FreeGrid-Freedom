@@ -6,8 +6,6 @@ struct LifeGrid: View {
     let unit: FreedomMath.GridUnit
     let count: Int
     let assetCells: Int
-    /// 跟在后面的空心格：有这笔钱，但没算进自由天数
-    var reserveCells: Int = 0
 
     @Environment(\.colorScheme) private var scheme
 
@@ -33,17 +31,10 @@ struct LifeGrid: View {
                                    spacing: unit.spacing)],
                 spacing: unit.spacing
             ) {
-                ForEach(0..<(count + reserveCells), id: \.self) { i in
-                    if i < count {
-                        let isCurrent = (i == count - 1)
-                        let isCash = i >= assetCells
-                        cell(isCurrent: isCurrent, isCash: isCash, breath: b)
-                    } else {
-                        RoundedRectangle(cornerRadius: unit.cellSize * 0.11)
-                            .stroke(Color.assetGold, lineWidth: 1)
-                            .frame(width: unit.cellSize - 1, height: unit.cellSize - 1)
-                            .frame(width: unit.cellSize, height: unit.cellSize)
-                    }
+                ForEach(0..<count, id: \.self) { i in
+                    let isCurrent = (i == count - 1)
+                    let isCash = i >= assetCells
+                    cell(isCurrent: isCurrent, isCash: isCash, breath: b)
                 }
             }
         }

@@ -27,7 +27,6 @@ enum AppPreferences {
     private static let launchArgumentKeys = [
         ProStore.previewKey,
         FreedomSettings.countsAssetsKey,
-        FreedomSettings.uncountedAssetStyleKey,
         "historyGuideCompleted",
         "setupGuideCompleted",
     ]
