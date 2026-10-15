@@ -29,15 +29,22 @@ nonisolated struct BackupEnvelope: Codable {
         let date: String
         let note: String?
         let createdAt: String?
+        /// Pro 每月还款的自动扣款指向哪笔贷款。可选：普通支出不写
+        let loanId: String?
+        /// 算不算进日均消费。可选：只在「不算」时写 false，没写就是算
+        let countsInBurn: Bool?
 
         init(id: String? = nil, amount: Double, category: String, date: String,
-             note: String? = nil, createdAt: String? = nil) {
+             note: String? = nil, createdAt: String? = nil,
+             loanId: String? = nil, countsInBurn: Bool? = nil) {
             self.id = id
             self.amount = amount
             self.category = category
             self.date = date
             self.note = note
             self.createdAt = createdAt
+            self.loanId = loanId
+            self.countsInBurn = countsInBurn
         }
     }
 
@@ -127,6 +134,36 @@ nonisolated struct BackupEnvelope: Codable {
         }
     }
 
+    /// Pro 每月还款。可选字段：没有贷款时不写，旧版本读到也只会忽略它。
+    /// 已经扣过的月供是普通支出（带 `loan_id`），不在这里。
+    struct LoanJSON: Codable {
+        let id: String?
+        let name: String
+        let monthlyAmount: Double
+        let dueDay: Int
+        let periodsAtStart: Int
+        let startDate: String
+        let processedThrough: String?
+        let settledDates: [String]?
+        let sortOrder: Int?
+        let createdAt: String?
+
+        init(id: String? = nil, name: String, monthlyAmount: Double, dueDay: Int, periodsAtStart: Int,
+             startDate: String, processedThrough: String? = nil, settledDates: [String]? = nil,
+             sortOrder: Int? = nil, createdAt: String? = nil) {
+            self.id = id
+            self.name = name
+            self.monthlyAmount = monthlyAmount
+            self.dueDay = dueDay
+            self.periodsAtStart = periodsAtStart
+            self.startDate = startDate
+            self.processedThrough = processedThrough
+            self.settledDates = settledDates
+            self.sortOrder = sortOrder
+            self.createdAt = createdAt
+        }
+    }
+
     let schemaVersion: Int?
     let assets: AssetsJSON?
     let expenses: [ExpenseJSON]?
@@ -135,6 +172,7 @@ nonisolated struct BackupEnvelope: Codable {
     let passiveSources: [PassiveSourceJSON]?
     let firstRecordDate: String?
     let assetItems: [AssetItemJSON]?
+    let loans: [LoanJSON]?
 
     init(
         schemaVersion: Int? = nil,
@@ -144,7 +182,8 @@ nonisolated struct BackupEnvelope: Codable {
         devices: [DeviceJSON]? = nil,
         passiveSources: [PassiveSourceJSON]? = nil,
         firstRecordDate: String? = nil,
-        assetItems: [AssetItemJSON]? = nil
+        assetItems: [AssetItemJSON]? = nil,
+        loans: [LoanJSON]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -154,5 +193,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.passiveSources = passiveSources
         self.firstRecordDate = firstRecordDate
         self.assetItems = assetItems
+        self.loans = loans
     }
 }

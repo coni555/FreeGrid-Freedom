@@ -24,6 +24,13 @@ final class Expense {
     /// 记录时间(实际点保存按钮的时刻),用于审计
     var createdAt: Date = Date.now
 
+    /// Pro 每月还款：到期自动扣的那一期指向它的贷款。手动记的支出是 nil。
+    var loanID: UUID?
+
+    /// 算不算进日均消费。自动扣的月供，和用户确认过「以前记的月供」都是 false；
+    /// 它们照样扣过现金、照样出现在 History，只是不拿来估日常开销。旧库升级后全部为 true。
+    var countsInBurn: Bool = true
+
     init(amount: Double, category: String, note: String = "", date: Date = .now) {
         self.id = UUID()
         self.amount = amount
@@ -174,6 +181,56 @@ final class AssetItem: Identifiable {
         self.countsInFreedom = countsInFreedom
         self.createdAt = .now
         self.updatedAt = .now
+    }
+}
+
+// ============================================================================
+// MARK: - Loan (Pro 每月还款)
+// ============================================================================
+// 房贷、车贷这类按月固定还的钱。到期那天自动从现金扣（扣款是一笔 `loanID` 指向它的支出），
+// 自由天数按日历往后推：每天扣日常开销，到还款日再扣月供（见 `LoanSchedule`）。
+// 还了几期、还剩几期、哪期没扣成，都由扣款记录推出来，不另存计数。
+
+@Model
+final class Loan: Identifiable {
+    var id: UUID = UUID()
+
+    /// 1–20 个字符，例如「房贷」
+    var name: String = ""
+
+    /// 每月还多少(元)，> 0
+    var monthlyAmount: Double = 0
+
+    /// 每月几号还，1–31。当月没有这一天时按月底
+    var dueDay: Int = 1
+
+    /// 从 `startDate` 之后算起一共几期（后来扣掉的也算在内）。还剩几期 = 它 − 已经还了的
+    var periodsAtStart: Int = 0
+
+    /// 添加那天的零点；改了还款日或期数会重新从改的那天算。这一天及以前的到期日都不归它管
+    var startDate: Date = Date.now
+
+    /// 自动扣款已经处理到的最后一个到期日。在它之后的到期日还没尝试过
+    var processedThrough: Date?
+
+    /// 用户说「从别处还的」那几期的到期日：算已还，但没动现金
+    var settledDates: [Date] = []
+
+    var sortOrder: Int = 0
+    var createdAt: Date = Date.now
+
+    init(name: String, monthlyAmount: Double, dueDay: Int, periodsAtStart: Int,
+         startDate: Date, sortOrder: Int) {
+        self.id = UUID()
+        self.name = name
+        self.monthlyAmount = monthlyAmount
+        self.dueDay = dueDay
+        self.periodsAtStart = periodsAtStart
+        self.startDate = startDate
+        self.processedThrough = startDate
+        self.settledDates = []
+        self.sortOrder = sortOrder
+        self.createdAt = .now
     }
 }
 

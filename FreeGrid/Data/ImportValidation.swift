@@ -14,6 +14,8 @@ nonisolated enum FinancialLimits {
     static let passiveSourceRecords = 1_000
     static let assetItemRecords = 1_000
     static let assetItemNameCharacters = 20
+    static let loanRecords = 100
+    static let loanPeriods = 600
     static let nameCharacters = 120
     static let noteCharacters = 2_000
     static let maximumAmount = 1_000_000_000_000.0
@@ -33,6 +35,7 @@ nonisolated struct ImportPolicy: Sendable {
         maxDeviceRecords: .max,
         maxPassiveSourceRecords: .max,
         maxAssetItemRecords: .max,
+        maxLoanRecords: .max,
         checksAssetItemTotal: false
     )
 
@@ -44,7 +47,8 @@ nonisolated struct ImportPolicy: Sendable {
             maxLedgerRecords: .max,
             maxDeviceRecords: .max,
             maxPassiveSourceRecords: .max,
-            maxAssetItemRecords: .max
+            maxAssetItemRecords: .max,
+            maxLoanRecords: .max
         )
     }
 
@@ -53,6 +57,7 @@ nonisolated struct ImportPolicy: Sendable {
     let maxDeviceRecords: Int
     let maxPassiveSourceRecords: Int
     let maxAssetItemRecords: Int
+    let maxLoanRecords: Int
     /// 资产项之和必须等于资产桶。导出自校验不查这条：导出是逃生舱，不能因为这个堆死。
     let checksAssetItemTotal: Bool
     let maxNameCharacters: Int
@@ -65,6 +70,7 @@ nonisolated struct ImportPolicy: Sendable {
         maxDeviceRecords: Int = FinancialLimits.deviceRecords,
         maxPassiveSourceRecords: Int = FinancialLimits.passiveSourceRecords,
         maxAssetItemRecords: Int = FinancialLimits.assetItemRecords,
+        maxLoanRecords: Int = FinancialLimits.loanRecords,
         checksAssetItemTotal: Bool = true,
         maxNameCharacters: Int = FinancialLimits.nameCharacters,
         maxNoteCharacters: Int = FinancialLimits.noteCharacters,
@@ -75,6 +81,7 @@ nonisolated struct ImportPolicy: Sendable {
         self.maxDeviceRecords = maxDeviceRecords
         self.maxPassiveSourceRecords = maxPassiveSourceRecords
         self.maxAssetItemRecords = maxAssetItemRecords
+        self.maxLoanRecords = maxLoanRecords
         self.checksAssetItemTotal = checksAssetItemTotal
         self.maxNameCharacters = maxNameCharacters
         self.maxNoteCharacters = maxNoteCharacters
@@ -99,6 +106,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case inconsistentDeviceState
     case assetItemsTotalMismatch
     case duplicateAssetItemID
+    case duplicateLoanID
+    case invalidLoan
 
     var isResourceLimit: Bool {
         switch self {
@@ -141,6 +150,10 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
             return "资产项金额之和与资产桶不一致"
         case .duplicateAssetItemID:
             return "资产项的记录 ID 重复"
+        case .duplicateLoanID:
+            return "每月还款的记录 ID 重复"
+        case .invalidLoan:
+            return "每月还款的还款日或期数无效"
         }
     }
 }
@@ -160,6 +173,8 @@ nonisolated struct ValidatedImport: Sendable {
         let date: Date
         let note: String
         let createdAt: Date?
+        var loanID: UUID? = nil
+        var countsInBurn = true
     }
 
     struct IncomeRecord: Sendable {
@@ -203,6 +218,19 @@ nonisolated struct ValidatedImport: Sendable {
         let updatedAt: Date?
     }
 
+    struct LoanRecord: Sendable {
+        let id: UUID?
+        let name: String
+        let monthlyAmount: Double
+        let dueDay: Int
+        let periodsAtStart: Int
+        let startDate: Date
+        let processedThrough: Date?
+        let settledDates: [Date]
+        let sortOrder: Int?
+        let createdAt: Date?
+    }
+
     let schemaVersion: Int
     let assets: Assets?
     let expenses: [ExpenseRecord]
@@ -211,6 +239,7 @@ nonisolated struct ValidatedImport: Sendable {
     let passiveSources: [PassiveSourceRecord]
     let firstRecordDate: Date?
     let assetItems: [AssetItemRecord]
+    var loans: [LoanRecord] = []
 }
 
 nonisolated enum ImportValidator {
@@ -288,6 +317,15 @@ nonisolated enum ImportValidator {
             )
         }
 
+        let loanCount = envelope.loans?.count ?? 0
+        guard loanCount <= policy.maxLoanRecords else {
+            throw ImportValidationError.tooManyRecords(
+                kind: "每月还款",
+                count: loanCount,
+                maximum: policy.maxLoanRecords
+            )
+        }
+
         let assets = try envelope.assets.map { raw in
             let hasLocked = raw.lockedAssets != nil
             let hasCash = raw.cash != nil
@@ -351,7 +389,9 @@ nonisolated enum ImportValidator {
                     category: try text(raw.category, field: "支出分类", maximum: policy.maxNameCharacters),
                     date: try day(raw.date, field: "支出日期", now: now),
                     note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),
-                    createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) }
+                    createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) },
+                    loanID: try identifier(raw.loanId, field: "月供扣款"),
+                    countsInBurn: raw.countsInBurn ?? true
                 )
             )
         }
@@ -444,6 +484,35 @@ nonisolated enum ImportValidator {
             }
         }
 
+        var seenLoanIDs = Set<UUID>()
+        let loans = try (envelope.loans ?? []).map { raw in
+            let name = try text(raw.name, field: "每月还款名称", maximum: FinancialLimits.assetItemNameCharacters)
+            guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
+                  name.rangeOfCharacter(from: .controlCharacters) == nil else {
+                throw ImportValidationError.emptyText(field: "每月还款名称")
+            }
+            let id = try identifier(raw.id, field: "每月还款")
+            if let id, !seenLoanIDs.insert(id).inserted {
+                throw ImportValidationError.duplicateLoanID
+            }
+            guard (1...31).contains(raw.dueDay),
+                  (0...FinancialLimits.loanPeriods).contains(raw.periodsAtStart) else {
+                throw ImportValidationError.invalidLoan
+            }
+            return ValidatedImport.LoanRecord(
+                id: id,
+                name: name,
+                monthlyAmount: try amount(raw.monthlyAmount, field: "月供", allowsZero: false, policy: policy),
+                dueDay: raw.dueDay,
+                periodsAtStart: raw.periodsAtStart,
+                startDate: try day(raw.startDate, field: "每月还款起算日期", now: now),
+                processedThrough: try raw.processedThrough.map { try day($0, field: "每月还款处理日期", now: now) },
+                settledDates: try (raw.settledDates ?? []).map { try day($0, field: "每月还款已还日期", now: now) },
+                sortOrder: raw.sortOrder,
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "每月还款创建时间", now: now) }
+            )
+        }
+
         let firstRecordDate = try envelope.firstRecordDate.map {
             try day($0, field: "首次记录日期", now: now)
         }
@@ -456,7 +525,8 @@ nonisolated enum ImportValidator {
             devices: devices,
             passiveSources: passiveSources,
             firstRecordDate: firstRecordDate,
-            assetItems: assetItems
+            assetItems: assetItems,
+            loans: loans
         )
     }
 

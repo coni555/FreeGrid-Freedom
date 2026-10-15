@@ -32,6 +32,8 @@ struct FinancialSnapshot {
     let dailyBurn: Double
     let dailyPassive: Double
     let hasExpenses: Bool
+    /// Pro 每月还款：今天之后要扣的月供。没有贷款时为空，自由天数和以前一分不差
+    let loanPlan: LoanSchedule.Plan
     let now: Date
 
     var netWorth: Double { lockedAssets + cash }
@@ -54,27 +56,32 @@ struct FinancialSnapshot {
     var passiveRatio: Double {
         FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
     }
-    var freedom: FreedomState {
-        FreedomMath.freedomState(
+    /// 有贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」
+    var freedomRun: FreedomMath.FreedomRun {
+        FreedomMath.freedomRun(
             netWorth: freedomBase, dailyBurn: dailyBurn,
-            dailyPassive: dailyPassive, hasExpenses: hasExpenses
+            dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan
         )
     }
+    var freedom: FreedomState { freedomRun.state }
 
     /// `assetItems` 只用来知道哪些项不计入；资产总数仍以 `assets.lockedAssets` 为准。
+    /// 日均消费只算 `countsInBurn` 的支出：自动扣的月供和确认过的旧月供扣了现金，但不算日常开销。
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
-         assetItems: [AssetItem] = [], now: Date = .now,
+         assetItems: [AssetItem] = [], loans: [Loan] = [], now: Date = .now,
          countsAssets: Bool = FreedomSettings.countsAssets) {
         self.countsAssets = countsAssets
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0
-        totalExpenses = expenses.reduce(0) { $0 + $1.amount }
-        firstExpenseDate = FreedomMath.earliestExpenseDate(expenses)
+        let burnExpenses = expenses.filter(\.countsInBurn)
+        totalExpenses = burnExpenses.reduce(0) { $0 + $1.amount }
+        firstExpenseDate = FreedomMath.earliestExpenseDate(burnExpenses)
         trackDays = FreedomMath.trackDays(firstRecordDate: firstExpenseDate, now: now)
         dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExpenses, trackDays: trackDays)
         dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-        hasExpenses = !expenses.isEmpty
+        hasExpenses = !burnExpenses.isEmpty
+        loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
         self.now = now
     }
 }

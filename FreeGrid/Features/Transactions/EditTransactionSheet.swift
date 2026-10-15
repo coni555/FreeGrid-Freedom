@@ -27,9 +27,12 @@ struct EditTransactionSheet: View {
     }
 
     /// 和记支出时同一份选项；这笔账原来的分类即使已删除也保留在列表里，不逼用户改掉它。
+    /// 月供扣款的「分类」是贷款名，不让改成别的分类。
     private var categories: [String] {
+        if case .expense(let expense) = transaction, expense.loanID != nil { return [transaction.title] }
         let options = ProFeatures.canCustomizeExpenseCategories
-            ? ExpenseCategoryStorage.decode(encodedOptions).including(expenses.map(\.category)).visibleNames
+            ? ExpenseCategoryStorage.decode(encodedOptions)
+                .including(expenses.filter { $0.loanID == nil }.map(\.category)).visibleNames
             : ExpenseCategory.canonical
         return options.contains(transaction.title) ? options : options + [transaction.title]
     }

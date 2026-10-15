@@ -156,6 +156,8 @@ enum FreedomMath {
         /// 现金格子数（蓝色）
         let cashCells: Int
         let isOverflow: Bool
+        /// 还款日落在的格子（从 0 数）。只在按天显示时有，最后一格（正在呼吸的那格）不算
+        var paymentCells: Set<Int> = []
     }
 
     static func gridUnit(for state: FreedomState) -> GridUnit {
@@ -174,8 +176,9 @@ enum FreedomMath {
     }
 
     /// 模拟动画可传入固定档位，让操作前后的格子始终表示相同的单位。
+    /// `paymentDays` 是推演里扣月供的那几天（明天是 1），第 n 天对应第 n 格。
     static func gridState(for state: FreedomState, lockedAssets: Double, netWorth: Double,
-                          unit fixedUnit: GridUnit? = nil) -> GridState {
+                          unit fixedUnit: GridUnit? = nil, paymentDays: [Int] = []) -> GridState {
         let unit = fixedUnit ?? gridUnit(for: state)
         let count: Int
         let overflow: Bool
@@ -191,8 +194,11 @@ enum FreedomMath {
             overflow = false
         }
         let split = FinancialFormatting.assetCellSplit(count: count, lockedAssets: lockedAssets, netWorth: netWorth)
+        let paymentCells = unit == .day
+            ? Set(paymentDays.filter { $0 >= 1 && $0 < count }.map { $0 - 1 })
+            : []
         return GridState(unit: unit, count: count, assetCells: split.assets,
-                         cashCells: split.cash, isOverflow: overflow)
+                         cashCells: split.cash, isOverflow: overflow, paymentCells: paymentCells)
     }
 
     /// 当前自由耗尽的预计日期 (今天 + freedomDays 天)

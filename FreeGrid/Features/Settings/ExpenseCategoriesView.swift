@@ -13,7 +13,8 @@ struct ExpenseCategoriesView: View {
     @State private var pendingDelete: String?
 
     private var options: ExpenseCategoryOptions {
-        ExpenseCategoryStorage.decode(encodedOptions).including(expenses.map(\.category))
+        // 月供扣款的分类是贷款名，不当成支出分类补回来
+        ExpenseCategoryStorage.decode(encodedOptions).including(expenses.filter { $0.loanID == nil }.map(\.category))
     }
 
     var body: some View {

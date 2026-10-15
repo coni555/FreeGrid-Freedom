@@ -80,6 +80,7 @@ final class StoreBootstrap {
             PassiveSource.self,
             UserAssets.self,
             AssetItem.self,
+            Loan.self,
         ])
     }
 

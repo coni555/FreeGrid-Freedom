@@ -21,12 +21,15 @@ extension FreedomMath {
 
     /// 先生成周点的次日零点，再把每笔交易放入对应区间。
     /// 日期只用自然日边界比较，不对每个周点重新扫描账本或转换所有交易日期。
+    /// 有贷款时每个周点都按那天的扣款计划推演：那天之后才扣的月供在那天还没还。
+    /// 不算日均的支出（月供）照样参与往回推现金，只是不进日均消费。
     static func freedomDaysHistory(
         expenses: [Expense],
         incomes: [Income],
         currentNetWorth: Double,
         firstRecordDate: Date?,
         dailyPassive: Double = 0,
+        loans: [Loan] = [],
         weeks: Int = 12,
         now: Date = .now,
         calendar: Calendar = .current
@@ -55,17 +58,23 @@ extension FreedomMath {
             }
             return low
         }
-        var expenseSums = Array(repeating: 0.0, count: dates.count + 1)
+        // burn 是算日均的支出，cashOut 是全部扣过现金的支出（含月供）
+        var burnSums = Array(repeating: 0.0, count: dates.count + 1)
         var expenseCounts = Array(repeating: 0, count: dates.count + 1)
+        var cashOutSums = Array(repeating: 0.0, count: dates.count + 1)
         var incomeSums = Array(repeating: 0.0, count: dates.count + 1)
         var totalExpenses = 0.0
+        var hasBurnExpenses = false
         for expense in expenses {
             let amount = expense.amount
             guard amount.isFinite else { return [] }
             let index = bucket(for: expense.date)
-            expenseSums[index] += amount
+            cashOutSums[index] += amount
+            guard expense.countsInBurn else { continue }
+            burnSums[index] += amount
             expenseCounts[index] += 1
             totalExpenses += amount
+            hasBurnExpenses = true
         }
         for income in incomes {
             let amount = income.amount
@@ -76,19 +85,20 @@ extension FreedomMath {
         // 独立求后缀，避免用巨大总额减去巨大前缀时丢失小额后续交易。
         var expensesAfter = Array(repeating: 0.0, count: dates.count)
         var incomesAfter = Array(repeating: 0.0, count: dates.count)
-        var laterExpenses = expenseSums.last ?? 0
+        var laterExpenses = cashOutSums.last ?? 0
         var laterIncomes = incomeSums.last ?? 0
         for index in dates.indices.reversed() {
             expensesAfter[index] = laterExpenses
             incomesAfter[index] = laterIncomes
-            laterExpenses += expenseSums[index]
+            laterExpenses += cashOutSums[index]
             laterIncomes += incomeSums[index]
         }
 
+        let payments = loans.isEmpty ? [] : expenses.filter { $0.loanID != nil }
         var spent = 0.0
         var count = 0
         return dates.indices.map { index in
-            spent += expenseSums[index]
+            spent += burnSums[index]
             count += expenseCounts[index]
             // 终点与 FinancialSnapshot 使用同一累计顺序，避免浮点累加顺序造成差异。
             let isCurrent = index == dates.count - 1
@@ -97,10 +107,14 @@ extension FreedomMath {
                 : currentNetWorth + expensesAfter[index] - incomesAfter[index]
             let burn = dailyBurn(totalExpenses: expenseTotal,
                                  trackDays: trackDays(firstRecordDate: firstDay, now: dates[index], calendar: calendar))
-            return HistoryPoint(date: dates[index], state: freedomState(
+            let plan = loans.isEmpty ? LoanSchedule.Plan() : LoanSchedule.plan(
+                loans: loans,
+                payments: payments.filter { $0.date < boundaries[index] },
+                now: dates[index], calendar: calendar)
+            return HistoryPoint(date: dates[index], state: freedomRun(
                 netWorth: netWorth, dailyBurn: burn, dailyPassive: dailyPassive,
-                hasExpenses: isCurrent ? !expenses.isEmpty : count > 0
-            ), isFloored: netWorth < 0)
+                hasExpenses: isCurrent ? hasBurnExpenses : count > 0, loans: plan
+            ).state, isFloored: netWorth < 0)
         }
     }
 

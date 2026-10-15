@@ -11,6 +11,8 @@ struct ImportLedgerSnapshot: Equatable {
         let note: String
         let date: Date
         let createdAt: Date
+        let loanID: UUID?
+        let countsInBurn: Bool
 
         init(_ record: Expense) {
             id = record.id
@@ -19,6 +21,8 @@ struct ImportLedgerSnapshot: Equatable {
             note = record.note
             date = record.date
             createdAt = record.createdAt
+            loanID = record.loanID
+            countsInBurn = record.countsInBurn
         }
     }
 
@@ -102,6 +106,30 @@ struct ImportLedgerSnapshot: Equatable {
         }
     }
 
+    private struct LoanValue: Equatable {
+        let id: UUID
+        let name: String
+        let monthlyAmount: UInt64
+        let dueDay: Int
+        let periodsAtStart: Int
+        let startDate: Date
+        let processedThrough: Date?
+        let settledDates: [Date]
+        let sortOrder: Int
+
+        init(_ record: Loan) {
+            id = record.id
+            name = record.name
+            monthlyAmount = record.monthlyAmount.bitPattern
+            dueDay = record.dueDay
+            periodsAtStart = record.periodsAtStart
+            startDate = record.startDate
+            processedThrough = record.processedThrough
+            settledDates = record.settledDates
+            sortOrder = record.sortOrder
+        }
+    }
+
     private struct UserAssetsValue: Equatable {
         let total: UInt64
         let lockedAssets: UInt64
@@ -124,9 +152,11 @@ struct ImportLedgerSnapshot: Equatable {
     private let passiveSources: [PersistentIdentifier: PassiveSourceValue]
     private let assets: [PersistentIdentifier: UserAssetsValue]
     private let assetItems: [PersistentIdentifier: AssetItemValue]
+    private let loans: [PersistentIdentifier: LoanValue]
 
     init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource],
-         assets: [UserAssets], assetItems: [AssetItem] = []) {
+         assets: [UserAssets], assetItems: [AssetItem] = [], loans: [Loan] = []) {
+        self.loans = Dictionary(uniqueKeysWithValues: loans.map { ($0.persistentModelID, LoanValue($0)) })
         self.assetItems = Dictionary(uniqueKeysWithValues: assetItems.map { ($0.persistentModelID, AssetItemValue($0)) })
         self.expenses = Dictionary(uniqueKeysWithValues: expenses.map { ($0.persistentModelID, ExpenseValue($0)) })
         self.incomes = Dictionary(uniqueKeysWithValues: incomes.map { ($0.persistentModelID, IncomeValue($0)) })
@@ -142,7 +172,8 @@ struct ImportLedgerSnapshot: Equatable {
             devices: context.fetch(FetchDescriptor<Device>()),
             passiveSources: context.fetch(FetchDescriptor<PassiveSource>()),
             assets: context.fetch(FetchDescriptor<UserAssets>()),
-            assetItems: context.fetch(FetchDescriptor<AssetItem>())
+            assetItems: context.fetch(FetchDescriptor<AssetItem>()),
+            loans: context.fetch(FetchDescriptor<Loan>())
         )
     }
 }

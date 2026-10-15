@@ -47,10 +47,11 @@ struct TransactionImpact {
             newDailyBurn = snapshot.dailyBurn
             changesTrackingStart = false
         }
-        newFreedom = FreedomMath.freedomState(
+        newFreedom = FreedomMath.freedomRun(
             netWorth: newFreedomBase, dailyBurn: newDailyBurn,
             dailyPassive: snapshot.dailyPassive,
-            hasExpenses: snapshot.hasExpenses || kind == .expense
-        )
+            hasExpenses: snapshot.hasExpenses || kind == .expense,
+            loans: snapshot.loanPlan
+        ).state
     }
 }

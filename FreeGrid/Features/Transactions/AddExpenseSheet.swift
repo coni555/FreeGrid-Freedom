@@ -27,7 +27,7 @@ struct AddExpenseSheet: View {
     private var categories: [String] {
         guard ProFeatures.canCustomizeExpenseCategories else { return ExpenseCategory.canonical }
         return ExpenseCategoryStorage.decode(encodedOptions)
-            .including(expenses.map(\.category)).visibleNames
+            .including(expenses.filter { $0.loanID == nil }.map(\.category)).visibleNames
     }
 
     /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
