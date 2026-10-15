@@ -34,6 +34,16 @@ enum LoanSchedule {
         return result
     }
 
+    /// `date` 离某个到期日不超过 `days` 天。记支出时用它提醒「月供会自动扣，不用再记」。
+    static func isNearDueDate(_ date: Date, dueDay: Int, within days: Int = 3,
+                              calendar: Calendar = .current) -> Bool {
+        let day = calendar.startOfDay(for: date)
+        guard let monthBefore = calendar.date(byAdding: .month, value: -1, to: day) else { return false }
+        return dueDates(after: calendar.date(byAdding: .day, value: -1, to: monthBefore) ?? monthBefore,
+                        dueDay: dueDay, count: 3, calendar: calendar)
+            .contains { abs(calendar.dateComponents([.day], from: day, to: $0).day ?? .max) <= days }
+    }
+
     // MARK: - 一笔贷款现在的状态
 
     struct Status: Equatable {

@@ -16,6 +16,7 @@ struct AddExpenseSheet: View {
     @Query private var assetsArr: [UserAssets]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetItems: [AssetItem]
+    @Query private var loans: [Loan]
 
     @State private var saveError: String?
     @State private var amount: String
@@ -39,10 +40,18 @@ struct AddExpenseSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("金额 (元)") {
+                Section {
                     TextField("0.00", text: $amount)
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
+                } header: {
+                    Text("金额 (元)")
+                } footer: {
+                    if looksLikeRepayment {
+                        Text("月供会在到期日自动扣，不用再记")
+                            .font(.system(.caption2, design: .rounded))
+                            .accessibilityIdentifier("repayment-hint")
+                    }
                 }
                 // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
                 Section {
@@ -100,9 +109,17 @@ struct AddExpenseSheet: View {
         }
     }
 
+    /// 金额等于某笔贷款的月供、日期离它的还款日不超过 3 天：多半是在手动记月供
+    private var looksLikeRepayment: Bool {
+        guard let value = Double(amount), FinancialFormatting.validAmount(value) else { return false }
+        return loans.contains {
+            abs($0.monthlyAmount - value) < 0.005 && LoanSchedule.isNearDueDate(date, dueDay: $0.dueDay)
+        }
+    }
+
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems)
+                          assetItems: assetItems, loans: loans)
     }
 
     private var isAmountValid: Bool {

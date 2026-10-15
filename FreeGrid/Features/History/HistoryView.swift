@@ -679,8 +679,9 @@ struct HistoryView: View {
 
     /// `showsDay`：搜索结果里没有日期段头，行首写上是几号
     private func transactionRow(_ tx: LedgerTransaction, showsDay: Bool = false) -> some View {
-        // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实
-        let noteLeads = tx.kind == .expense && !tx.note.isEmpty
+        // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实。
+        // 月供扣款的「分类」就是贷款名，它才是事实，备注「自动扣款」退到后面
+        let noteLeads = tx.kind == .expense && !tx.note.isEmpty && !tx.isLoanPayment
         return Button {
             editing = tx
         } label: {
@@ -707,6 +708,13 @@ struct HistoryView: View {
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .lineLimit(1)
+                }
+                if tx.isExcludedFromBurn {
+                    Text("不计日均")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkGhost)
+                        .lineLimit(1)
+                        .fixedSize()
                 }
                 Spacer(minLength: Spacing.sm)
                 Text(FinancialFormatting.signedYuan(tx.cashChange))

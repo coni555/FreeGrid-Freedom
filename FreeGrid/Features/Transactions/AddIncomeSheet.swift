@@ -16,6 +16,7 @@ struct AddIncomeSheet: View {
     @Query private var assetsArr: [UserAssets]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetItems: [AssetItem]
+    @Query private var loans: [Loan]
 
     @State private var saveError: String?
     @State private var amount: String = ""
@@ -82,7 +83,7 @@ struct AddIncomeSheet: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems)
+                          assetItems: assetItems, loans: loans)
     }
 
     /// 输入有效性: 金额、来源、备注和日期都必须落在备份可表示边界内。

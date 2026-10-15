@@ -19,6 +19,15 @@ extension View {
         #endif
     }
 
+    /// iOS 设整数键盘;macOS 无软键盘,no-op。
+    func numberKeyboard() -> some View {
+        #if os(iOS)
+        keyboardType(.numberPad)
+        #else
+        self
+        #endif
+    }
+
     /// iOS 设 inline 导航标题;macOS 无导航栏标题概念,no-op。
     func inlineNavTitle() -> some View {
         #if os(iOS)

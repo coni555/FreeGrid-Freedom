@@ -9,6 +9,7 @@ struct CheckView: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
     @Query private var assetItems: [AssetItem]
+    @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     /// 8 项自检 + 汇总 — 逻辑统一在 FreedomChecklist, collapsed 卡与本页共用
@@ -17,6 +18,7 @@ struct CheckView: View {
                                   passiveSources: passiveSources,
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
+                                  loans: loans,
                                   countsAssets: countsAssets)
     }
 

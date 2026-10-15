@@ -25,6 +25,9 @@ struct ContentView: View {
     @Query private var expenses: [Expense]
     @Query private var assetsArr: [UserAssets]
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
+
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
     #endif
@@ -94,6 +97,12 @@ struct ContentView: View {
             guard old == .expense, new == nil, !setupGuideCompleted else { return }
             setupGuideCompleted = true
             guide.requestReplay(.dashboard)
+        }
+        // Pro 每月还款：打开 App 和回到前台时补扣到期的月供。失败时什么都不改，下次再来
+        .task { try? LoanStore.processDue(in: modelContext) }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            try? LoanStore.processDue(in: modelContext)
         }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)

@@ -41,6 +41,18 @@ enum LedgerTransaction: Identifiable {
         }
     }
 
+    /// Pro 每月还款到期自动扣的那一笔
+    var isLoanPayment: Bool {
+        if case .expense(let expense) = self { return expense.loanID != nil }
+        return false
+    }
+
+    /// 用户确认过是以前记的月供、不再算进日均的手动支出
+    var isExcludedFromBurn: Bool {
+        if case .expense(let expense) = self { return expense.loanID == nil && !expense.countsInBurn }
+        return false
+    }
+
     /// 记录里保存的金额，不带方向。
     var amount: Double {
         switch self {

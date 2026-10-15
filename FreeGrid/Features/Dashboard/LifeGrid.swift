@@ -1,4 +1,4 @@
-// 把自由天数画成资产与现金格子，最后一格持续呼吸。
+// 把自由天数画成资产与现金格子，最后一格持续呼吸；还款日的格子中间打一个孔。
 
 import SwiftUI
 
@@ -6,6 +6,8 @@ struct LifeGrid: View {
     let unit: FreedomMath.GridUnit
     let count: Int
     let assetCells: Int
+    /// 还款日落在的格子（从 0 数），见 `GridState.paymentCells`
+    var paymentCells: Set<Int> = []
 
     @Environment(\.colorScheme) private var scheme
 
@@ -34,14 +36,14 @@ struct LifeGrid: View {
                 ForEach(0..<count, id: \.self) { i in
                     let isCurrent = (i == count - 1)
                     let isCash = i >= assetCells
-                    cell(isCurrent: isCurrent, isCash: isCash, breath: b)
+                    cell(isCurrent: isCurrent, isCash: isCash, isPayment: paymentCells.contains(i), breath: b)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func cell(isCurrent: Bool, isCash: Bool, breath: CGFloat) -> some View {
+    private func cell(isCurrent: Bool, isCash: Bool, isPayment: Bool, breath: CGFloat) -> some View {
         let baseColor: Color = isCash ? .cashBlue : .assetGold
         let isDark = scheme == .dark
 
@@ -80,12 +82,29 @@ struct LifeGrid: View {
                 .shadow(color: baseColor.opacity(outerOpacity), radius: outerGlow)
                 .scaleEffect(currentScale)
                 .zIndex(1)
+        } else if isPayment {
+            PunchedCell(cornerRadius: unit.cellSize * 0.11)
+                .fill(baseColor, style: FillStyle(eoFill: true))
+                .frame(width: unit.cellSize, height: unit.cellSize)
         } else {
             Rectangle()
                 .fill(baseColor)
                 .frame(width: unit.cellSize, height: unit.cellSize)
                 .cornerRadius(unit.cellSize * 0.11)
         }
+    }
+}
+
+/// 还款日的格子：正中挖一个圆孔，孔里透出卡片底色。是真的孔，不是描边；
+/// 用 even-odd 填充，圆和方块重叠的部分不上色。图例里的小方块也用它。
+struct PunchedCell: Shape {
+    var cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(roundedRect: rect, cornerRadius: cornerRadius)
+        let hole = min(rect.width, rect.height) * 0.34
+        path.addEllipse(in: CGRect(x: rect.midX - hole / 2, y: rect.midY - hole / 2, width: hole, height: hole))
+        return path
     }
 }
 

@@ -661,6 +661,126 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
     }
 
+    /// Pro 每月还款：Assets 里加一笔房贷，首页数字变小、格子上出现还款日的孔和图例。
+    @MainActor
+    func testProAddsALoanAndTheDashboardRunsThroughRepaymentDays() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["编辑现金"].tap()
+        let cash = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 3))
+        cash.typeText("20000")
+        app.buttons["保存"].tap()
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("100")
+        app.buttons["保存"].tap()
+        // 现金 19900，日均 100，没有贷款
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.otherElements["repayment-day-legend"].exists)
+
+        app.tabBars.buttons["Assets"].tap()
+        let add = app.buttons["add-loan-button"]
+        if !add.isHittable { app.swipeUp() }
+        XCTAssertTrue(add.waitForExistence(timeout: 3))
+        add.tap()
+        let name = app.textFields["loan-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("房贷")
+        let monthly = app.textFields["loan-monthly-field"]
+        monthly.tap()
+        monthly.typeText("3000")
+        let periods = app.textFields["loan-periods-field"]
+        periods.tap()
+        periods.typeText("24")
+        XCTAssertTrue(app.staticTexts["loan-last-due"].label.hasPrefix("最后一期："))
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.buttons["loan-row"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["repayment-day-legend"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["199"].exists)
+    }
+
+    /// 没有 Pro、也没加过贷款：Assets 里看不到每月还款。
+    @MainActor
+    func testLoansAreHiddenWithoutProWhenNoneWereAdded() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["PASSIVE · 被动收入"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["REPAY · 每月还款"].exists)
+        XCTAssertFalse(app.buttons["add-loan-button"].exists)
+    }
+
+    /// 每月还款的截图：演示账本带两笔贷款，开 App 时补扣到期的月供。
+    /// 拍 Assets 的还款卡、添加表单、首页格子上的孔、History 里的扣款，深浅各一。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureLoanScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["LOAN_SHOTS_LEDGER"], let output = environment["LOAN_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍每月还款截图时运行")
+        }
+        func launch(dark: Bool) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-heroTrendExpanded", "NO", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-proPreview", "YES",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            let app = launch(dark: dark)
+            let legend = app.descendants(matching: .any)["repayment-day-legend"]
+            XCTAssertTrue(legend.waitForExistence(timeout: 5))
+            app.swipeUp()
+            try shoot("\(mode)-1-首页格子")
+
+            app.tabBars.buttons["Assets"].tap()
+            app.swipeUp()
+            app.swipeUp()
+            XCTAssertTrue(app.buttons["loan-row"].firstMatch.waitForExistence(timeout: 3))
+            try shoot("\(mode)-2-每月还款")
+
+            app.buttons["add-loan-button"].tap()
+            let name = app.textFields["loan-name-field"]
+            XCTAssertTrue(name.waitForExistence(timeout: 3))
+            name.typeText("装修贷")
+            let monthly = app.textFields["loan-monthly-field"]
+            monthly.tap()
+            monthly.typeText("1500")
+            let periods = app.textFields["loan-periods-field"]
+            periods.tap()
+            periods.typeText("36")
+            try shoot("\(mode)-3-添加表单")
+            app.buttons["取消"].tap()
+
+            app.tabBars.buttons["History"].tap()
+            let payment = app.staticTexts["自动扣款"].firstMatch
+            XCTAssertTrue(payment.waitForExistence(timeout: 3))
+            app.swipeUp()
+            try shoot("\(mode)-4-History扣款")
+            app.terminate()
+        }
+    }
+
     /// 资产总开关的截图：开和关时的首页与 Assets 开关卡。只在给了环境变量时运行。
     /// 演示账本做法见 `_local/store-screenshots/`，账本灌进内存，不碰真实数据。
     @MainActor

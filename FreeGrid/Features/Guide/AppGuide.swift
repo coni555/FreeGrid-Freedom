@@ -16,9 +16,9 @@ final class AppGuide {
         // History
         case month, row, tools
         // 首页
-        case number, grid, simulate, trend
+        case number, grid, repaymentDays, simulate, trend
         // Assets
-        case netWorth, transfer, buckets, passive
+        case netWorth, transfer, buckets, passive, loans
         // Settings
         case check, appearance, data
         // 起步引导里要用户真的去点的两处
@@ -38,6 +38,8 @@ final class AppGuide {
             return [
                 Step(target: .number, text: "按现在的花法，不工作你还能撑这么多天。\n下面写着大概哪一天见底。"),
                 Step(target: .grid, text: "一格是一天。金色来自资产，蓝色来自现金。\n钱花掉，格子就会少。"),
+                // 只有填了每月还款、格子上有孔时才出现
+                Step(target: .repaymentDays, text: "有孔的格子是还款日。"),
                 Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
                 Step(target: .trend, text: "点这一行，展开或收起最近几周的变化。"),
             ]
@@ -47,6 +49,7 @@ final class AppGuide {
                 Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
                 Step(target: .buckets, text: "点一张卡修改金额。\n资产是定期、股票这类锁定的钱，现金是随时能花的。"),
                 Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它盖住全部开销时，就是财富自由。"),
+                Step(target: .loans, text: "填了月供，自由天数会在每个还款日把这笔钱留出来，\n保证你按时还上。"),
             ]
         case .settings:
             return [

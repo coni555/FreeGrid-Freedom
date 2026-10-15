@@ -20,9 +20,14 @@ enum ProFeatures {
         Benefit(icon: "slider.horizontal.3",
                 title: "自由天数逐项开关",
                 detail: "房子、车等难以变现的资产可以单独排除，自由天数只算真正能用的钱。"),
+        Benefit(icon: "calendar",
+                title: "每月还款",
+                detail: "填上房贷车贷，自由天数在按时还款的前提下算，还款日在格子上一眼可见。"),
     ]
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
     /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。
     static var canManageAssetItems: Bool { ProStore.shared.isUnlocked }
+    /// 增、改每月还款。已经加过的不管有没有 Pro 都照常显示、照常到期自动扣，也能删和处理没扣成的那期。
+    static var canManageLoans: Bool { ProStore.shared.isUnlocked }
 }

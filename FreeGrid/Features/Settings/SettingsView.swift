@@ -23,6 +23,7 @@ struct SettingsView: View {
     @Query private var assetsArr: [UserAssets]
     /// Pro 逐项开关：不计入自由天数的资产项
     @Query private var assetItems: [AssetItem]
+    @Query private var loans: [Loan]
 
     @Environment(\.openURL) private var openURL
     /// 「Settings 怎么用」要圈出这一页上的位置
@@ -41,6 +42,7 @@ struct SettingsView: View {
                                   passiveSources: passiveSources,
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
+                                  loans: loans,
                                   countsAssets: countsAssets)
     }
 

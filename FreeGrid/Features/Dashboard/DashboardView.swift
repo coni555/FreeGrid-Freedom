@@ -12,15 +12,19 @@ struct DashboardView: View {
     @Query private var assetsArr: [UserAssets]
     /// Pro 逐项开关：哪些资产项不计入自由天数
     @Query private var assetItems: [AssetItem]
+    /// Pro 每月还款
+    @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     var body: some View {
         DashboardContent(
-            expenses: expenses, incomes: incomes,
+            expenses: expenses, incomes: incomes, loans: loans,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                        assetItems: assetItems, countsAssets: countsAssets),
-            todaySpending: expenses.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.amount }
+                                        assetItems: assetItems, loans: loans, countsAssets: countsAssets),
+            // 和日均比的是日常开销，自动扣的月供不算
+            todaySpending: expenses.filter { $0.countsInBurn && Calendar.current.isDateInToday($0.date) }
+                .reduce(0) { $0 + $1.amount }
         )
     }
 }
@@ -38,6 +42,7 @@ private struct ExpenseDraft: Identifiable {
 private struct DashboardContent: View {
     let expenses: [Expense]
     let incomes: [Income]
+    let loans: [Loan]
     let snapshot: FinancialSnapshot
     let todaySpending: Double
 
@@ -79,6 +84,7 @@ private struct DashboardContent: View {
             currentNetWorth: snapshot.freedomBase,
             firstRecordDate: snapshot.firstExpenseDate,
             dailyPassive: snapshot.dailyPassive,
+            loans: loans,
             now: snapshot.now
         )
         return NavigationStack {
@@ -415,8 +421,10 @@ private struct DashboardContent: View {
 
     // MARK: - 自由网格
     private var gridSection: some View {
-        let state = FreedomMath.gridState(for: snapshot.freedom,
-                                          lockedAssets: snapshot.countedAssets, netWorth: snapshot.freedomBase)
+        let run = snapshot.freedomRun
+        let state = FreedomMath.gridState(for: run.state,
+                                          lockedAssets: snapshot.countedAssets, netWorth: snapshot.freedomBase,
+                                          paymentDays: run.paymentDays)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -432,32 +440,62 @@ private struct DashboardContent: View {
                     emptyGridHint
                 } else {
                     LifeGrid(unit: state.unit, count: state.count,
-                             assetCells: state.assetCells)
+                             assetCells: state.assetCells, paymentCells: state.paymentCells)
                         .padding(.vertical, Spacing.sm)
                 }
 
                 if state.count > 0 {
-                HStack(spacing: Spacing.lg) {
-                    // 金色图例：总开关开、且至少有一部分资产在格子里（或者根本没有不计入的）
-                    if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
-                        legendDot(color: .assetGold, label: "资产")
+                    // 一行放不下（例如同时有「部分资产未计入」和「还款日」）时，「每格 = …」挪到第二行，图例不缩
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: Spacing.lg) {
+                            legendItems(state: state)
+                            Spacer(minLength: Spacing.sm)
+                            cellUnitText(state: state)
+                        }
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            HStack(spacing: Spacing.lg) { legendItems(state: state) }
+                            cellUnitText(state: state)
+                        }
                     }
-                    legendDot(color: .cashBlue, label: "现金")
-                    if let note = snapshot.uncountedAssetsNote {
-                        Text(note)
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkFaint)
-                            .accessibilityIdentifier("uncounted-assets-note")
-                    }
-                    Spacer()
-                    Text("每格 = 1 \(state.unit.label)自由")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                }
-                .padding(.top, Spacing.xs)
+                    .padding(.top, Spacing.xs)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func legendItems(state: FreedomMath.GridState) -> some View {
+        // 金色图例：总开关开、且至少有一部分资产在格子里（或者根本没有不计入的）
+        if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
+            legendDot(color: .assetGold, label: "资产")
+        }
+        legendDot(color: .cashBlue, label: "现金")
+        if !state.paymentCells.isEmpty {
+            HStack(spacing: 6) {
+                PunchedCell(cornerRadius: 1)
+                    .fill(Color.inkFaint, style: FillStyle(eoFill: true))
+                    .frame(width: 8, height: 8)
+                Text("还款日")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+            }
+            .accessibilityIdentifier("repayment-day-legend")
+            .guideTarget(.repaymentDays, in: guide)
+        }
+        if let note = snapshot.uncountedAssetsNote {
+            Text(note)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+                .fixedSize()
+                .accessibilityIdentifier("uncounted-assets-note")
+        }
+    }
+
+    private func cellUnitText(state: FreedomMath.GridState) -> some View {
+        Text("每格 = 1 \(state.unit.label)自由")
+            .font(.system(.caption2, design: .rounded))
+            .foregroundStyle(Color.inkFaint)
+            .fixedSize()
     }
 
     /// 图例:silverline 版小方块 + 标签(无 glow)

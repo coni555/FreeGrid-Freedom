@@ -37,7 +37,7 @@ FreeGrid/
 
 ## 3. 保存的是事实，其他数字由事实算出
 
-[LedgerModels](FreeGrid/Models/LedgerModels.swift) 包含六种持久化模型（前五种从 1.5 起不变，第六种 `AssetItem` 是 Pro 资产逐项记录）：
+[LedgerModels](FreeGrid/Models/LedgerModels.swift) 包含七种持久化模型（前五种从 1.5 起，`AssetItem` 和 `Loan` 是 Pro 新加的；`Expense` 在 Pro 里多了两个可选含义的字段）：
 
 | 类型 | 意义 | 典型字段 |
 |---|---|---|
@@ -47,6 +47,9 @@ FreeGrid/
 | `PassiveSource` | 持续的月均被动收入源 | `monthlyAmount` 每月金额 |
 | `Device` | 旧账里的持有物/设备 | 价格、购买日期、卖出信息；目前通过备份保留 |
 | `AssetItem` | Pro：资产桶里的一项（房、车、定期…） | `name` 名称（1–20 字）、`amount` 金额、`sortOrder` 顺序、`countsInFreedom` 自由天数开关 |
+| `Loan` | Pro：每月还款（房贷、车贷） | `monthlyAmount` 月供、`dueDay` 每月几号、`periodsAtStart` 起算时的期数、`startDate` 起算日、`processedThrough` 自动扣到哪天、`settledDates` 从别处还的到期日 |
+
+`Expense` 的 `loanID` 指向贷款时，这笔是到期自动扣的月供；`countsInBurn` 为 false 的支出扣过现金，但不算进日均消费（自动扣的月供，和用户确认过「以前记的月供」）。
 
 `id` 是记录的身份证；`date` 是这笔钱发生的日期；`createdAt` 是创建记录的时间。补录去年消费时，后两者不同。
 
@@ -133,6 +136,8 @@ flowchart TD
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；权益清单在 `App/ProFeatures.swift` |
 | 资产逐项记录（Pro）：列表、新增/编辑、锁定页 | 入口在资产页的资产桶（编辑资产 →「拆成多项」，拆过后点桶直接进明细）：`Features/Assets/AssetItemsView.swift`、`AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
+| 每月还款（Pro）：Assets 里的还款卡、添加表单、没扣成的那期 | `Features/Assets/AssetsView.swift`（`loansCard`）、`LoanSheet.swift` → `Data/LoanStore.swift` |
+| 到期日、还了几期、按日历推演自由天数 | `Logic/LoanSchedule.swift`（`LoanSchedule.status`、`plan`、`FreedomMath.freedomRun`） |
 | 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
@@ -160,6 +165,8 @@ Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 
 **资产逐项记录（Pro）** 沿这条路径工作：输入——在 `AssetItemSheet` 填名称、金额与「计入自由天数」开关（默认开，房车等不易变现的资产可单独关掉）；保存——`AssetItemStore.save` 校验后，在同一次保存里把 `UserAssets.lockedAssets` 重算为各项之和（增删改和调拨都走同一个入口，失败时现金、各项、总数一起回滚）；显示——首页、净值、格子、自由天数仍只认 `lockedAssets`，所以免费版的计算、旧备份和旧版本不需要知道这张表。不变量：有资产项时资产桶就是各项之和（资产页不再允许直接改总数）；没有项时它就是用户填的那个数。老用户第一次进明细页时 `migrateIfNeeded` 把原来的总数变成一项「资产」，净值和自由天数不变。备份：有资产项时导出多一个可选字段 `asset_items`（`schema_version` 不变，包含可选的 `counts_in_freedom` 字段，没有项时不写，导出字节与以前一致）；导入时各项金额之和必须等于资产桶；只有「替换双桶」会把资产项一起整体换成备份里的（所以同一份导两次不会重复，旧格式导入后就按总数走），其他策略不碰现有的项。没有 Pro 时已经拆好的项照常显示，但不能增删改、不能调拨，可以合并成一个总数。
 
 **资产自由天数开关** 沿这条路径工作：免费版总开关在 Assets 页双桶下方，把偏好 `countAssetsInFreedom` 写进本机（默认开，不进备份）；Pro 版可在资产逐项的编辑表单里单独关闭单项的「计入自由天数」。`FinancialSnapshot` 结合两者计算 `countedAssets` 与 `uncountedAssets`：总开关关闭时全部资产不计入，提示「资产未计入」；总开关打开但有部分资产项关闭时，只将关掉的项从自由天数底数扣除，净值不变，首页图例旁提示「部分资产未计入」，调拨选择未计入项时也会给出预警。首页大数字、格子、趋势、交易影响预览（`TransactionImpact.newFreedomBase`）、模拟和自检（`FreedomChecklist`）统一使用 `freedomBase`。关掉后趋势的起点如果是从现金往回推得负数、被压成 0 的，摘要行不写「0 天 →」（`FreedomMath.trendSummaryText`）。没计入的资产不画在格子里，只在图例旁用一行字说明。
+
+**每月还款（Pro）** 沿这条路径工作：输入——在 `LoanSheet` 填名称、月供、每月几号还、还剩几期，期数下面实时写出最后一期的日期；账本里有金额正好等于月供的旧支出时，问用户是不是以前记的月供，勾上的设成 `countsInBurn = false`（记录不删）。保存——`LoanStore.save`；改了还款日或期数时从今天重新起算，只改名称金额不动进度。到期自动扣——`ContentView` 在打开 App 和回到前台时调 `LoanStore.processDue`：每个「上次处理之后、今天及以前」的到期日，现金够就写一笔 `loanID` 指向贷款、不算日均的支出并扣现金，不够就留成待处理，同一个到期日只处理一次。待处理的那期在 Assets 的贷款行下显示，用户选「从现金扣」或「从别处还的」（`resolvePending`）。History 里撤销一笔扣款，那一期变回待处理，不会再自动扣。计算——还了几期、还剩几期、哪期待处理都由扣款记录推出（`LoanSchedule.status`），不另存计数。`FinancialSnapshot` 有贷款时用 `FreedomMath.freedomRun` 按日历往后推：每天扣「日均消费 − 日均被动收入」，到还款日扣月供，付不起的那天停在前一天，钱在两次还款之间花完就停在花完那刻；到期没还的当作今天就要付。没有贷款（或全还清）时直接走原来的公式，一分不差。首页大数字、格子、趋势的每个周点、记一笔的预览、模拟、自检都走这条。显示——推演里扣了月供的那几天，按天显示的格子上打一个孔（`PunchedCell`），图例多一项「还款日」。备份——有贷款时导出可选字段 `loans`；支出多两个可选字段 `loan_id`、`counts_in_burn`（只在不算日均时写 false）；没有贷款的账本导出和以前一字不差。导入时贷款按 ID 合并，同一份导两次不会重复。没有 Pro 时已有的贷款照常显示、照常自动扣，可以删、可以处理待处理的那期，不能新增和编辑。
 
 **本机偏好存在哪：** 资产开关、分类选项和 Pro 状态都走 `Data/AppPreferences.swift` 的 `store`。正常运行就是系统的 `UserDefaults.standard`；Debug 下带 `-UseInMemoryStore` 启动（界面测试、拍图）时换成一份临时偏好，默认每次启动清空，测试里切开关、改分类都不会碰真实偏好；要测「重启后还在」时第二次启动再加 `-KeepScratchPreferences`。`proPreview`、`countAssetsInFreedom` 这几个启动参数会被抄进临时偏好。
 
@@ -216,6 +223,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
+- [LoanTests](FreeGridTests/LoanTests.swift)：计划里 A–K 十一组期望天数（月底、两笔贷款、被动收入、资产开关、没有贷款时和原公式一致）、格子打孔位置、预览与趋势同口径、补扣与幂等、撤销后待处理、现金不够、当天到期的那期、改期数重新起算、旧月供不计日均、备份往返和重复导入。
 - [FreedomAssetSwitchTests](FreeGridTests/FreedomAssetSwitchTests.swift)：资产总开关开/关时的天数、格子、记一笔的预览、自检和趋势摘要，以及没有资产、被动收入覆盖的边界。
 
 构建和模拟器测试不能替代真机体验。发布之前仍需用真机确认输入、键盘、布局和真实备份恢复。
