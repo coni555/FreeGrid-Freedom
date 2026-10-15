@@ -42,7 +42,7 @@ struct ExpenseCategoriesView: View {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 if ProFeatures.canCustomizeExpenseCategories {
                     categoryList
-                    Text("按住一行拖动调整顺序，左滑删除。删除不影响旧账；改名会把旧账一起改。分类设置随 JSON 备份导出。")
+                    Text("长按拖动可调整顺序，左滑可删除。删除分类不会影响历史账目，重命名则会同步更新。分类设置会随 JSON 备份一同导出。")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.horizontal, Spacing.sm)
