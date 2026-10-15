@@ -164,6 +164,20 @@ nonisolated struct BackupEnvelope: Codable {
         }
     }
 
+    /// Pro 自定义分类的设置：顺序就是数组顺序。可选字段：没自定义过分类时不写。
+    struct ExpenseCategoryJSON: Codable {
+        let name: String
+        let icon: String?
+        /// 删掉的分类留记号，只在为真时写
+        let deleted: Bool?
+
+        init(name: String, icon: String? = nil, deleted: Bool? = nil) {
+            self.name = name
+            self.icon = icon
+            self.deleted = deleted
+        }
+    }
+
     let schemaVersion: Int?
     let assets: AssetsJSON?
     let expenses: [ExpenseJSON]?
@@ -173,6 +187,7 @@ nonisolated struct BackupEnvelope: Codable {
     let firstRecordDate: String?
     let assetItems: [AssetItemJSON]?
     let loans: [LoanJSON]?
+    let expenseCategories: [ExpenseCategoryJSON]?
 
     init(
         schemaVersion: Int? = nil,
@@ -183,7 +198,8 @@ nonisolated struct BackupEnvelope: Codable {
         passiveSources: [PassiveSourceJSON]? = nil,
         firstRecordDate: String? = nil,
         assetItems: [AssetItemJSON]? = nil,
-        loans: [LoanJSON]? = nil
+        loans: [LoanJSON]? = nil,
+        expenseCategories: [ExpenseCategoryJSON]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -194,5 +210,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.firstRecordDate = firstRecordDate
         self.assetItems = assetItems
         self.loans = loans
+        self.expenseCategories = expenseCategories
     }
 }

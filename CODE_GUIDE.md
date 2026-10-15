@@ -154,9 +154,9 @@ flowchart TD
 
 颜色名字已与实际意义一致：`assetGold` 是资产金色，`cashBlue` 是现金蓝色。`assetCells` 是资产格数。
 
-自定义分类沿这条路径工作：设置中的 `ExpenseCategoriesView` 调用 `ExpenseCategoryOptions` 校验名称、调整顺序和隐藏，再通过 `ExpenseCategoryStorage` 编码到 `@AppStorage`。`AddExpenseSheet` 读取可见选项，仍把名称写入原 `Expense.category` 字段；历史和月度统计继续按这个字段分组，隐藏不会修改旧账。
+自定义分类沿这条路径工作：设置中的 `ExpenseCategoriesView` 列出分类（按住拖动排序、左滑删除、每行显示用了几笔），点一行或「添加分类」打开 `ExpenseCategorySheet` 填名字、选细线图标（`Logic/ExpenseCategoryIcons.swift`，没选时按名字给默认图标）。`ExpenseCategoryOptions` 校验名称、改名、排序、删除和图标，再通过 `ExpenseCategoryStorage` 编码到 `@AppStorage`。改名时先用 `LedgerStore.renameCategory` 把这个分类的旧账一起改名（月供扣款不碰，失败回滚），成功后才存偏好。History 每行前面显示分类图标（月供扣款是日历、收入是一个箭头）。`AddExpenseSheet` 读取可见选项，仍把名称写入原 `Expense.category` 字段；历史和月度统计继续按这个字段分组，隐藏不会修改旧账。
 
-账本里的已用名称也会补入选项，因此换设备恢复后能找回自定义分类。排序、隐藏和未使用的自定义项是本机偏好，不写入原 v0–v3 账本备份。带 UUID 的 v2/v3 支出默认原样恢复名称；旧无 ID 文件保留别名建议和分类对齐，也可明确选择保留原名。映射后的旧账去重按日期、金额和备注建立索引，避免分类增多后逐条遍历全部名称。
+账本里的已用名称也会补入选项，因此换设备恢复后能找回自定义分类。用户自定义过分类时，导出备份多一段可选的 `expense_categories`（名称、图标、删除记号，数组顺序就是排序）；没自定义过就不写，导出和以前一样。导入后由数据管理页并进本机偏好：整份替换时以备份为准，其他方式只补本机没有的分类（`ExpenseCategoryOptions.merging`）。带 UUID 的 v2/v3 支出默认原样恢复名称；旧无 ID 文件保留别名建议和分类对齐，也可明确选择保留原名。映射后的旧账去重按日期、金额和备注建立索引，避免分类增多后逐条遍历全部名称。
 
 Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」。解锁状态不进账本备份。
 

@@ -116,4 +116,127 @@ struct ExpenseCategoryTests {
         #expect(try context.fetch(FetchDescriptor<Expense>()).first?.category == "宠物")
         #expect(try DataIO.previewJSON(data: data, context: context).expensesNew.isEmpty)
     }
+
+    // MARK: - 改名、图标、拖动排序
+
+    @Test func renameKeepsPositionAndRejectsDuplicates() throws {
+        var options = ExpenseCategoryOptions.defaults
+        try options.add("咖啡")
+        #expect(try options.rename("咖啡", to: " 咖啡豆 ") == "咖啡豆")
+        #expect(options.visibleNames.last == "咖啡豆")
+        try options.rename("午餐", to: "中饭")
+        #expect(options.visibleNames[1] == "中饭")
+        #expect(throws: ExpenseCategoryOptions.ValidationError.self) { try options.rename("中饭", to: "晚餐") }
+        #expect(throws: ExpenseCategoryOptions.ValidationError.self) { try options.rename("中饭", to: " ") }
+        // 改成删掉过的名字：沿用那条的写法，删除记号拿掉
+        try options.add("Tea")
+        try options.delete("Tea")
+        #expect(try options.rename("咖啡豆", to: "tea") == "Tea")
+        #expect(options.visibleNames.last == "Tea")
+        #expect(options.allNames.filter { $0 == "Tea" }.count == 1)
+    }
+
+    @Test func iconsDefaultByNameAndStayAfterRename() throws {
+        var options = ExpenseCategoryOptions.defaults
+        #expect(options.icon(for: "午餐") == "fork.knife")
+        try options.add("房租")
+        #expect(options.icon(for: "房租") == "house")
+        try options.add("奇怪的东西")
+        #expect(options.icon(for: "奇怪的东西") == "tag")
+        options.setIcon("leaf", for: "奇怪的东西")
+        try options.rename("奇怪的东西", to: "绿植")
+        #expect(options.icon(for: "绿植") == "leaf")
+        let restored = ExpenseCategoryStorage.decode(try ExpenseCategoryStorage.encode(options))
+        #expect(restored.icon(for: "绿植") == "leaf")
+        // 1.5 存的偏好没有 icon 字段，照常读
+        let legacy = ExpenseCategoryStorage.decode(#"{"items":[{"name":"早餐","isHidden":false}]}"#)
+        #expect(legacy.icon(for: "早餐") == "cup.and.saucer")
+    }
+
+    @Test func dragMoveSkipsDeletedCategories() throws {
+        var options = ExpenseCategoryOptions.defaults   // 早餐 午餐 晚餐 购物 …
+        try options.delete("午餐")
+        // 列出来的是 早餐 晚餐 购物 …；把「购物」拖到最前
+        options.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+        #expect(Array(options.visibleNames.prefix(3)) == ["购物", "早餐", "晚餐"])
+        // 删掉的「午餐」还在，只是不列出来
+        #expect(options.allNames.contains("午餐"))
+        // 往后拖
+        options.move(fromOffsets: IndexSet(integer: 0), toOffset: 3)
+        #expect(Array(options.visibleNames.prefix(3)) == ["早餐", "晚餐", "购物"])
+    }
+
+    @Test func renamingRewritesOldRecordsButNotLoanPayments() throws {
+        let context = try TestSupport.makeContext()
+        context.insert(Expense(amount: 30, category: "咖啡", date: TestSupport.day("2026-10-01")))
+        context.insert(Expense(amount: 25, category: "咖啡", date: TestSupport.day("2026-10-02")))
+        context.insert(Expense(amount: 40, category: "午餐", date: TestSupport.day("2026-10-02")))
+        let payment = Expense(amount: 3000, category: "咖啡", date: TestSupport.day("2026-10-03"))
+        payment.loanID = UUID()
+        context.insert(payment)
+        try context.save()
+        #expect(try LedgerStore.renameCategory(from: "咖啡", to: "咖啡豆", in: context) == 2)
+        let all = try context.fetch(FetchDescriptor<Expense>())
+        #expect(all.filter { $0.category == "咖啡豆" }.count == 2)
+        #expect(all.filter { $0.category == "咖啡" }.map(\.loanID) == [payment.loanID])
+
+        struct Failure: Error {}
+        #expect(throws: Failure.self) {
+            try LedgerStore.renameCategory(from: "咖啡豆", to: "咖啡", in: context, save: { _ in throw Failure() })
+        }
+        #expect(try context.fetch(FetchDescriptor<Expense>()).filter { $0.category == "咖啡豆" }.count == 2)
+    }
+
+    // MARK: - 分类设置进备份
+
+    @Test func categorySettingsRoundTripThroughBackup() throws {
+        var options = ExpenseCategoryOptions.defaults
+        try options.add("房租")
+        options.setIcon("leaf", for: "房租")
+        options.move(fromOffsets: IndexSet(integer: options.activeItems.count - 1), toOffset: 0)
+        try options.delete("早餐")
+        let source = try TestSupport.makeContext()
+        source.insert(Expense(amount: 10, category: "午餐", date: TestSupport.day("2026-10-01")))
+        try source.save()
+
+        let data = try DataIO.exportJSON(context: source, categoryOptions: options)
+        #expect(String(decoding: data, as: UTF8.self).contains("\"expense_categories\""))
+        let preview = try DataIO.previewJSON(data: data, context: try TestSupport.makeContext())
+        let restored = try #require(preview.categoryOptions)
+        #expect(restored == options)
+        #expect(restored.visibleNames.first == "房租")
+        #expect(restored.icon(for: "房租") == "leaf")
+        #expect(!restored.visibleNames.contains("早餐"))
+
+        // 没自定义过分类：备份里没有这一段，导入也不碰本机分类
+        let plain = try DataIO.exportJSON(context: source)
+        #expect(!String(decoding: plain, as: UTF8.self).contains("expense_categories"))
+        #expect(try DataIO.previewJSON(data: plain, context: try TestSupport.makeContext()).categoryOptions == nil)
+    }
+
+    @Test func restoringCategorySettingsReplacesOrOnlyAddsMissing() throws {
+        var local = ExpenseCategoryOptions.defaults
+        try local.add("咖啡")
+        var backup = ExpenseCategoryOptions.defaults
+        try backup.add("房租")
+        backup.move(fromOffsets: IndexSet(integer: backup.activeItems.count - 1), toOffset: 0)
+
+        let replaced = local.merging(backup, replacing: true)
+        #expect(replaced.visibleNames.first == "房租")
+        #expect(replaced.visibleNames.last == "咖啡")      // 本机有、备份没有的留在后面
+
+        let merged = local.merging(backup, replacing: false)
+        #expect(merged.visibleNames.first == "早餐")        // 本机顺序不变
+        #expect(Array(merged.visibleNames.suffix(2)) == ["咖啡", "房租"])
+    }
+
+    @Test func rejectsBrokenCategorySettingsInBackups() throws {
+        for bad in [#"[{"name":""}]"#, #"[{"name":"午餐"},{"name":"午餐"}]"#,
+                    #"[{"name":"午餐","icon":"<script>"}]"#, #"[{"name":"午餐","deleted":true}]"#] {
+            let data = Data(#"{"schema_version":2,"expense_categories":\#(bad)}"#.utf8)
+            #expect(throws: ImportValidationError.invalidExpenseCategories) {
+                _ = try ImportValidator.validate(data: data)
+            }
+        }
+    }
 }

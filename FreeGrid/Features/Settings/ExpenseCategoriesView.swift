@@ -1,50 +1,53 @@
-// Pro 支出选项管理；新增、排序和删除均只修改偏好，不改写旧账。
+// Pro 支出分类管理：拖动排序、左滑删除、点一行改名换图标。只有改名会改写旧账（一起改成新名字）。
 import SwiftUI
 import SwiftData
 
 struct ExpenseCategoriesView: View {
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
+    @Environment(\.modelContext) private var modelContext
     @Query private var expenses: [Expense]
-    @State private var name = ""
     @State private var saveError: String?
-    @FocusState private var isNameFocused: Bool
     @State private var showingPro = false
-    /// 等用户确认删除的分类名
-    @State private var pendingDelete: String?
+    @State private var editing: EditTarget?
+
+    /// 打开分类表单：新增，或编辑某一个
+    private enum EditTarget: Identifiable {
+        case new
+        case existing(String)
+        var id: String {
+            switch self {
+            case .new: return "+new"
+            case .existing(let name): return name
+            }
+        }
+    }
+
+    /// 一行的高度。列表放在卡片里不滚动，高度按行数算
+    private static let rowHeight: CGFloat = 56
 
     private var options: ExpenseCategoryOptions {
         // 月供扣款的分类是贷款名，不当成支出分类补回来
         ExpenseCategoryStorage.decode(encodedOptions).including(expenses.filter { $0.loanID == nil }.map(\.category))
     }
 
+    /// 每个分类下有几笔支出
+    private var recordCounts: [String: Int] {
+        expenses.reduce(into: [:]) { counts, expense in
+            if expense.loanID == nil { counts[expense.category, default: 0] += 1 }
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                VaultCard {
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "FREEGRID PRO")
-                        Text("用你的方式记支出")
-                            .font(.system(.title2, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        Text(ProFeatures.canCustomizeExpenseCategories
-                             ? "添加自己的分类，调整常用顺序，删除用不到的选项。"
-                             : "自定义支出分类是 Pro 功能。现有的九个分类照常可用。")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                        if !ProFeatures.canCustomizeExpenseCategories {
-                            VaultButton(title: "了解 FreeGrid Pro", icon: "sparkles") { showingPro = true }
-                                .padding(.top, Spacing.xs)
-                                .accessibilityIdentifier("open-pro-from-categories")
-                        }
-                    }
-                }
                 if ProFeatures.canCustomizeExpenseCategories {
-                    addCard
                     categoryList
-                    Text("删除只影响记支出时的选项，已有的记录和统计保持原样；想找回，重新添加同名分类。排序和删除保存在此设备；账本备份保留已使用的分类名称。")
+                    Text("按住一行拖动调整顺序，左滑删除。删除不影响旧账；改名会把旧账一起改。分类设置随 JSON 备份导出。")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.horizontal, Spacing.sm)
+                } else {
+                    lockedCard
                 }
             }
             .padding()
@@ -54,103 +57,152 @@ struct ExpenseCategoriesView: View {
         .inlineNavTitle()
         .saveErrorAlert($saveError)
         .sheet(isPresented: $showingPro) { ProPaywallView() }
-        .confirmationDialog("删除「\(pendingDelete ?? "")」？",
-                            isPresented: Binding(get: { pendingDelete != nil },
-                                                 set: { if !$0 { pendingDelete = nil } }),
-                            titleVisibility: .visible) {
-            Button("删除", role: .destructive) {
-                if let name = pendingDelete { update { try $0.delete(name) } }
-                pendingDelete = nil
+        .sheet(item: $editing) { target in
+            switch target {
+            case .new:
+                ExpenseCategorySheet(existingName: nil) { name, icon in try add(name, icon: icon) }
+            case .existing(let name):
+                ExpenseCategorySheet(
+                    existingName: name,
+                    existingIcon: options.items.first { $0.name == name }?.icon,
+                    recordCount: recordCounts[name, default: 0],
+                    canDelete: options.activeItems.count > 1,
+                    onSave: { newName, icon in try edit(name, to: newName, icon: icon) },
+                    onDelete: { try delete(name) }
+                )
             }
-            Button("取消", role: .cancel) { pendingDelete = nil }
-        } message: {
-            Text("记支出时不再出现这个选项。已有的记录不变。")
         }
     }
 
-    private var addCard: some View {
+    private var lockedCard: some View {
         VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "新增分类")
-                TextField("例如：房租、宠物、咖啡", text: $name)
-                    .font(.system(.body, design: .rounded))
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                KickerLabel(text: "FREEGRID PRO")
+                Text("用你的方式记支出")
+                    .font(.system(.title2, design: .rounded))
                     .foregroundStyle(Color.ink)
-                    .focused($isNameFocused)
-                    .submitLabel(.done)
-                    .onSubmit(add)
-                    .accessibilityIdentifier("new-expense-category")
-                Hairline()
-                VaultButton(title: "添加分类", icon: "plus", action: add)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("add-expense-category")
+                Text("自定义支出分类是 Pro 功能：添加自己的分类、配图标、改名、拖动排序。现有的九个分类照常可用。")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                VaultButton(title: "了解 FreeGrid Pro", icon: "sparkles") { showingPro = true }
+                    .padding(.top, Spacing.xs)
+                    .accessibilityIdentifier("open-pro-from-categories")
             }
         }
     }
 
     private var categoryList: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        let items = options.activeItems
+        let counts = recordCounts
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
-                KickerLabel(text: "你的支出选项")
+                KickerLabel(text: "你的支出分类")
                 Spacer()
-                Text("\(options.activeItems.count) 个")
+                Text("\(items.count) 个")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(Color.inkFaint)
             }
             .padding(.horizontal, Spacing.sm)
             VaultCard(padding: 0) {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(options.activeItems.enumerated()), id: \.element.id) { index, item in
-                        if index > 0 { Hairline().padding(.horizontal, Spacing.lg) }
-                        categoryRow(item, index: index)
+                List {
+                    ForEach(items) { item in
+                        categoryRow(item, count: counts[item.name, default: 0])
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                if items.count > 1 {
+                                    Button("删除") { update { try $0.delete(item.name) } }
+                                        .tint(Color.flame)
+                                }
+                            }
                     }
+                    .onMove { offsets, destination in
+                        update { $0.move(fromOffsets: offsets, toOffset: destination) }
+                    }
+                    addRow
+                        .moveDisabled(true)
+                }
+                .listStyle(.plain)
+                .scrollDisabled(true)
+                .scrollContentBackground(.hidden)
+                .environment(\.defaultMinListRowHeight, Self.rowHeight)
+                .frame(height: Self.rowHeight * CGFloat(items.count + 1))
+            }
+        }
+    }
+
+    private func categoryRow(_ item: ExpenseCategoryOptions.Item, count: Int) -> some View {
+        Button {
+            editing = .existing(item.name)
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: options.icon(for: item.name))
+                    .font(.system(size: 16, weight: .light))
+                    .foregroundStyle(Color.inkMuted)
+                    .frame(width: 24)
+                Text(item.name)
+                    .font(.system(.body, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Spacer(minLength: Spacing.sm)
+                if count > 0 {
+                    Text("\(count) 笔")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
                 }
             }
-        }
-    }
-
-    private func categoryRow(_ item: ExpenseCategoryOptions.Item, index: Int) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Text(item.name)
-                .font(.system(.body, design: .rounded))
-                .foregroundStyle(Color.ink)
-            Spacer(minLength: 0)
-            rowButton("arrow.up", label: "上移\(item.name)", id: "move-up-\(item.name)") {
-                update { $0.move(item.name, by: -1) }
-            }
-            .disabled(index == 0)
-            rowButton("arrow.down", label: "下移\(item.name)", id: "move-down-\(item.name)") {
-                update { $0.move(item.name, by: 1) }
-            }
-            .disabled(index == options.activeItems.count - 1)
-            rowButton("trash", label: "删除\(item.name)", id: "delete-\(item.name)", color: .flame) {
-                pendingDelete = item.name
-            }
-            .disabled(options.activeItems.count == 1)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.md)
-    }
-
-    private func rowButton(_ icon: String, label: String, id: String, color: Color = .skyDeep,
-                           action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+            .frame(height: Self.rowHeight)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(id)
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(Color.hairline)
+        .listRowInsets(EdgeInsets(top: 0, leading: Spacing.lg, bottom: 0, trailing: Spacing.lg))
+        .accessibilityIdentifier("category-row-\(item.name)")
     }
 
-    private func add() {
-        update {
-            try $0.add(name)
-            name = ""
-            isNameFocused = false
+    private var addRow: some View {
+        Button {
+            editing = .new
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .regular))
+                    .frame(width: 24)
+                Text("添加分类")
+                    .font(.system(.body, design: .rounded))
+                Spacer()
+            }
+            .foregroundStyle(Color.skyDeep)
+            .frame(height: Self.rowHeight)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden, edges: .bottom)
+        .listRowInsets(EdgeInsets(top: 0, leading: Spacing.lg, bottom: 0, trailing: Spacing.lg))
+        .accessibilityIdentifier("add-expense-category")
+    }
+
+    // MARK: - 写入
+
+    private func add(_ name: String, icon: String?) throws {
+        var next = options
+        let stored = try next.add(name)
+        if let icon { next.setIcon(icon, for: stored) }
+        encodedOptions = try ExpenseCategoryStorage.encode(next)
+    }
+
+    /// 先改旧账再存偏好：账改失败时偏好不动，分类名和旧账始终对得上
+    private func edit(_ old: String, to input: String, icon: String?) throws {
+        var next = options
+        let name = try next.rename(old, to: input)
+        if let icon { next.setIcon(icon, for: name) }
+        if name != old { try LedgerStore.renameCategory(from: old, to: name, in: modelContext) }
+        encodedOptions = try ExpenseCategoryStorage.encode(next)
+    }
+
+    private func delete(_ name: String) throws {
+        var next = options
+        try next.delete(name)
+        encodedOptions = try ExpenseCategoryStorage.encode(next)
     }
 
     private func update(_ mutation: (inout ExpenseCategoryOptions) throws -> Void) {

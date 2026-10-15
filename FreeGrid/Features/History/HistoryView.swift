@@ -34,6 +34,9 @@ struct HistoryView: View {
     /// 点一行打开修改表单
     @State private var editing: LedgerTransaction? = nil
 
+    /// 行首的分类图标（Pro 里可以换）
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
+
     /// 首次进入时的逐步指引；遮罩本身挂在 ContentView，这里只负责上报位置和触发
     @Environment(AppGuide.self) private var guide
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
@@ -686,6 +689,11 @@ struct HistoryView: View {
             editing = tx
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Image(systemName: rowIcon(tx))
+                    .font(.system(size: 13, weight: .light))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(width: 18)
+                    .accessibilityHidden(true)
                 if showsDay {
                     Text("\(Calendar.current.component(.day, from: tx.date))日")
                         .font(.system(.caption, design: .monospaced))
@@ -738,6 +746,13 @@ struct HistoryView: View {
                 pendingDelete = tx
             }
         }
+    }
+
+    /// 支出用分类的图标；月供扣款用日历；收入统一一个
+    private func rowIcon(_ tx: LedgerTransaction) -> String {
+        if tx.isLoanPayment { return "calendar" }
+        guard tx.kind == .expense else { return "arrow.down.left" }
+        return ExpenseCategoryStorage.decode(encodedCategoryOptions).icon(for: tx.title)
     }
 
     private func amountColor(_ tx: LedgerTransaction) -> Color {

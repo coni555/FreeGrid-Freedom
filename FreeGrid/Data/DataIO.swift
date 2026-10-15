@@ -77,6 +77,8 @@ enum DataIO {
         let currentAssetItemCount: Int
         /// 备份里账本还没有的每月还款（按 ID 认），所有策略都一样合并进来
         var loansNew: [ValidatedImport.LoanRecord] = []
+        /// 备份里的 Pro 分类设置；nil 表示没有。导入成功后由页面并进本机偏好（见 `ExpenseCategoryOptions.merging`）
+        var categoryOptions: ExpenseCategoryOptions? = nil
         let importedAssets: AssetSnapshot
         let jsonFirstRecordDate: Date?
         let currentCash: Double
@@ -141,7 +143,8 @@ enum DataIO {
         return formatter
     }
 
-    static func exportJSON(context: ModelContext) throws -> Data {
+    /// `categoryOptions` 是本机的分类设置；用户没自定义过时传 nil，备份里就不写这一段。
+    static func exportJSON(context: ModelContext, categoryOptions: ExpenseCategoryOptions? = nil) throws -> Data {
         let day = dayFormatter()
         let iso = ISO8601DateFormatter()
         let expenses = try context.fetch(FetchDescriptor<Expense>(
@@ -245,6 +248,11 @@ enum DataIO {
                     sortOrder: $0.sortOrder,
                     createdAt: iso.string(from: $0.createdAt)
                 )
+            },
+            expenseCategories: categoryOptions.map { options in
+                options.items.map {
+                    BackupEnvelope.ExpenseCategoryJSON(name: $0.name, icon: $0.icon, deleted: $0.isDeleted ? true : nil)
+                }
             }
         )
         let encoder = JSONEncoder()
@@ -606,6 +614,11 @@ enum DataIO {
             importedAssetItems: importedAssetItems,
             currentAssetItemCount: existingAssetItems.count,
             loansNew: loansNew,
+            categoryOptions: validated.expenseCategories.map { records in
+                ExpenseCategoryOptions(items: records.map {
+                    ExpenseCategoryOptions.Item(name: $0.name, isDeleted: $0.isDeleted, icon: $0.icon)
+                })
+            },
             importedAssets: importedAssets,
             jsonFirstRecordDate: validated.firstRecordDate,
             currentCash: existingAssets?.cash ?? 0,

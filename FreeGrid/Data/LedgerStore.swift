@@ -83,6 +83,26 @@ enum LedgerStore {
         }
     }
 
+    /// Pro 分类改名：用这个分类的旧账一起改成新名字（月供扣款的「分类」是贷款名，不碰）。
+    /// 返回改了几笔。失败时所有记录回到原名。
+    @discardableResult
+    static func renameCategory(
+        from old: String, to new: String,
+        in context: ModelContext,
+        save: SaveAction = { try $0.save() }
+    ) throws -> Int {
+        guard old != new else { return 0 }
+        let records = try context.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.category == old }))
+            .filter { $0.loanID == nil }
+        guard !records.isEmpty else { return 0 }
+        try perform(in: context, save: save, restore: {
+            for record in records { record.category = old }
+        }) {
+            for record in records { record.category = new }
+        }
+        return records.count
+    }
+
     static func add(
         _ transaction: LedgerTransaction,
         in context: ModelContext,

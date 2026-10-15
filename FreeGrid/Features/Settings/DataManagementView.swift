@@ -174,7 +174,10 @@ struct DataManagementView: View {
                 data = try DataIO.exportCSV(context: modelContext)
                 name = "FreeGrid-记账-\(timestamp)-\(nonce).csv"
             case .json:
-                data = try DataIO.exportJSON(context: modelContext)
+                // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样
+                data = try DataIO.exportJSON(
+                    context: modelContext,
+                    categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions))
                 name = "FreeGrid-备份-\(timestamp)-\(nonce).json"
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -240,6 +243,12 @@ struct DataManagementView: View {
         guard let preview = pendingImport else { return }
         let result = try DataIO.commitImport(preview: preview, strategy: strategy, categoryMap: categoryMap,
                                              skippingSuspectedExpenses: skippingSuspectedExpenses, context: modelContext)
+        // 备份里带着分类设置：整份恢复（替换）时以备份为准，其他方式只补本机没有的分类
+        if let backup = preview.categoryOptions,
+           let merged = try? ExpenseCategoryStorage.encode(
+            ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
+            encodedCategoryOptions = merged
+        }
         var lines: [String] = ["✓ 导入完成"]
         lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
         lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")

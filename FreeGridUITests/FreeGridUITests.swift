@@ -32,18 +32,23 @@ final class FreeGridUITests: XCTestCase {
         app.launch()
         app.tabBars.buttons["Settings"].tap()
         app.buttons["expense-categories-settings"].tap()
-        let name = app.textFields["new-expense-category"]
-        XCTAssertTrue(name.waitForExistence(timeout: 5))
-        name.tap()
-        name.typeText("咖啡")
-        app.buttons["add-expense-category"].tap()
-        let moveUp = app.buttons["move-up-咖啡"]
+        let addCategory = app.buttons["add-expense-category"]
+        XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
         for _ in 0..<6 {
-            if moveUp.isHittable { break }
+            if addCategory.isHittable { break }
             app.swipeUp()
         }
-        XCTAssertTrue(moveUp.isHittable)
-        moveUp.tap()
+        addCategory.tap()
+        let name = app.textFields["category-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("咖啡")
+        app.buttons["save-category"].tap()
+        // 按住「咖啡」拖到「其他」上面
+        let coffee = app.buttons["category-row-咖啡"]
+        let other = app.buttons["category-row-其他"]
+        XCTAssertTrue(coffee.waitForExistence(timeout: 3))
+        coffee.press(forDuration: 0.8, thenDragTo: other)
+        XCTAssertLessThan(coffee.frame.minY, other.frame.minY)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "自定义分类-浅色"
         attachment.lifetime = .keepAlways
@@ -67,17 +72,20 @@ final class FreeGridUITests: XCTestCase {
 
         app.tabBars.buttons["Settings"].tap()
         app.buttons["expense-categories-settings"].tap()
-        let delete = app.buttons["delete-咖啡"]
+        let row = app.buttons["category-row-咖啡"]
         for _ in 0..<6 {
-            if delete.isHittable { break }
+            if row.isHittable { break }
             app.swipeUp()
         }
-        XCTAssertTrue(delete.isHittable)
-        delete.tap()
+        XCTAssertTrue(row.isHittable)
+        XCTAssertTrue(app.staticTexts["1 笔"].exists)
+        row.tap()
+        app.buttons["delete-category"].tap()
         // 先确认再删；删掉后这一行从列表里消失
         let confirm = app.buttons["删除"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
+        let delete = row
         XCTAssertTrue(delete.waitForNonExistence(timeout: 3))
         app.tabBars.buttons["Dashboard"].tap()
         app.buttons["记支出"].tap()
@@ -87,6 +95,41 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["取消"].tap()
         app.tabBars.buttons["History"].tap()
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    /// Pro：分类改名，用这个分类的旧账在 History 里跟着改；换的图标出现在 History 行首。
+    @MainActor
+    func testRenamingACategoryRenamesItsRecords() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("30")
+        app.buttons["保存"].tap()   // 默认分类「早餐」
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["expense-categories-settings"].tap()
+        let row = app.buttons["category-row-早餐"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        let name = app.textFields["category-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        // 点到输入框最右边，光标落在末尾，删掉两个字再输入
+        name.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "早饭")
+        XCTAssertTrue(app.staticTexts["改名后，这个分类下的 1 笔记录一起改成「早饭」。"].exists)
+        app.buttons["leaf"].tap()
+        app.buttons["save-category"].tap()
+        XCTAssertTrue(app.buttons["category-row-早饭"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["category-row-早餐"].exists)
+
+        app.tabBars.buttons["History"].tap()
+        XCTAssertTrue(app.staticTexts["早饭"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["早餐"].exists)
     }
 
     @MainActor
@@ -136,7 +179,7 @@ final class FreeGridUITests: XCTestCase {
         // 没有 Pro：看不到管理界面，只有去购买页的入口
         let openPro = app.buttons["open-pro-from-categories"]
         XCTAssertTrue(openPro.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.textFields["new-expense-category"].exists)
+        XCTAssertFalse(app.buttons["add-expense-category"].exists)
         openPro.tap()
         XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["自定义支出分类"].exists)
@@ -159,7 +202,7 @@ final class FreeGridUITests: XCTestCase {
         unlocked.lifetime = .keepAlways
         add(unlocked)
         app.buttons["pro-close"].tap()
-        XCTAssertTrue(app.textFields["new-expense-category"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["add-expense-category"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -720,6 +763,52 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["PASSIVE · 被动收入"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["REPAY · 每月还款"].exists)
         XCTAssertFalse(app.buttons["add-loan-button"].exists)
+    }
+
+    /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureCategoryScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["CATEGORY_SHOTS_LEDGER"], let output = environment["CATEGORY_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍分类截图时运行")
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                   "-proPreview", "YES", "-ResetExpenseCategories",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            app.tabBars.buttons["Settings"].tap()
+            app.buttons["expense-categories-settings"].tap()
+            let addCategory = app.buttons["add-expense-category"]
+            XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
+            for _ in 0..<6 {
+                if addCategory.isHittable { break }
+                app.swipeUp()
+            }
+            addCategory.tap()
+            let name = app.textFields["category-name-field"]
+            XCTAssertTrue(name.waitForExistence(timeout: 3))
+            name.typeText("房租")
+            app.buttons["save-category"].tap()
+            app.swipeDown()
+            try shoot("\(mode)-1-分类列表")
+            app.buttons["category-row-午餐"].firstMatch.tap()
+            XCTAssertTrue(app.textFields["category-name-field"].waitForExistence(timeout: 3))
+            try shoot("\(mode)-2-编辑分类")
+            app.buttons["取消"].tap()
+            app.tabBars.buttons["History"].tap()
+            try shoot("\(mode)-3-History图标")
+            app.terminate()
+        }
     }
 
     /// 每月还款的截图：演示账本带两笔贷款，开 App 时补扣到期的月供。

@@ -108,6 +108,7 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case duplicateAssetItemID
     case duplicateLoanID
     case invalidLoan
+    case invalidExpenseCategories
 
     var isResourceLimit: Bool {
         switch self {
@@ -154,6 +155,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
             return "每月还款的记录 ID 重复"
         case .invalidLoan:
             return "每月还款的还款日或期数无效"
+        case .invalidExpenseCategories:
+            return "支出分类设置无效：名称为空、重复或图标名称不对"
         }
     }
 }
@@ -231,6 +234,12 @@ nonisolated struct ValidatedImport: Sendable {
         let createdAt: Date?
     }
 
+    struct ExpenseCategoryRecord: Sendable, Equatable {
+        let name: String
+        let icon: String?
+        let isDeleted: Bool
+    }
+
     let schemaVersion: Int
     let assets: Assets?
     let expenses: [ExpenseRecord]
@@ -240,6 +249,8 @@ nonisolated struct ValidatedImport: Sendable {
     let firstRecordDate: Date?
     let assetItems: [AssetItemRecord]
     var loans: [LoanRecord] = []
+    /// nil 表示备份里没有分类设置
+    var expenseCategories: [ExpenseCategoryRecord]? = nil
 }
 
 nonisolated enum ImportValidator {
@@ -513,6 +524,29 @@ nonisolated enum ImportValidator {
             )
         }
 
+        let expenseCategories = try envelope.expenseCategories.map { raws -> [ValidatedImport.ExpenseCategoryRecord] in
+            guard raws.count <= FinancialLimits.passiveSourceRecords else {
+                throw ImportValidationError.tooManyRecords(kind: "支出分类", count: raws.count,
+                                                           maximum: FinancialLimits.passiveSourceRecords)
+            }
+            var seen = Set<String>()
+            let records = try raws.map { raw -> ValidatedImport.ExpenseCategoryRecord in
+                let name = raw.name
+                let iconIsValid = raw.icon.map {
+                    !$0.isEmpty && $0.count <= 60 && $0.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == ".") }
+                } ?? true
+                guard !name.isEmpty, name.count <= policy.maxNameCharacters,
+                      name == name.trimmingCharacters(in: .whitespacesAndNewlines),
+                      name.rangeOfCharacter(from: .controlCharacters) == nil,
+                      seen.insert(name).inserted, iconIsValid else {
+                    throw ImportValidationError.invalidExpenseCategories
+                }
+                return ValidatedImport.ExpenseCategoryRecord(name: name, icon: raw.icon, isDeleted: raw.deleted ?? false)
+            }
+            guard records.contains(where: { !$0.isDeleted }) else { throw ImportValidationError.invalidExpenseCategories }
+            return records
+        }
+
         let firstRecordDate = try envelope.firstRecordDate.map {
             try day($0, field: "首次记录日期", now: now)
         }
@@ -526,7 +560,8 @@ nonisolated enum ImportValidator {
             passiveSources: passiveSources,
             firstRecordDate: firstRecordDate,
             assetItems: assetItems,
-            loans: loans
+            loans: loans,
+            expenseCategories: expenseCategories
         )
     }
 
