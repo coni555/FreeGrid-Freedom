@@ -80,13 +80,13 @@ enum FreedomChecklist {
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 180,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 180),
                 detail: "当前 \(fShow) / 180 天",
-                hint: countsAssets ? "提高净值或降低日均消费" : "提高现金或降低日均消费"),
+                hint: snapshot.countsAssets ? "提高净值或降低日均消费" : "提高现金或降低日均消费"),
             FreedomCheckItem(
                 id: 5, title: "自由天数超过 365 天", shortTitle: "自由天数 365 天",
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 365,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 365),
                 detail: "当前 \(fShow) / 365 天",
-                hint: countsAssets ? "继续积累净值或被动收入" : "继续积累现金或被动收入"),
+                hint: snapshot.countsAssets ? "继续积累净值或被动收入" : "继续积累现金或被动收入"),
             FreedomCheckItem(
                 id: 6, title: "有被动收入来源", shortTitle: "添加被动收入",
                 done: !passiveSources.isEmpty,

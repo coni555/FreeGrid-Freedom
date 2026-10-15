@@ -61,7 +61,7 @@ struct AssetItemTests {
         }
         let before = try snapshot()
 
-        #expect(try AssetItemStore.migrateIfNeeded(in: context))
+        #expect(try AssetItemStore.migrateIfNeeded(in: context) != nil)
         let migrated = try items(context)
         #expect(migrated.count == 1)
         #expect(migrated[0].name == "资产")
@@ -72,16 +72,16 @@ struct AssetItemTests {
         #expect(try assets(context).lockedAssets == 22_000)
 
         // 再进一次不会再生成
-        #expect(try !AssetItemStore.migrateIfNeeded(in: context))
+        #expect(try AssetItemStore.migrateIfNeeded(in: context) == nil)
         #expect(try items(context).count == 1)
     }
 
     @Test func nothingToMigrateWhenTheTotalIsZeroOrThereIsNoLedger() throws {
         let empty = try ledger(locked: 0, cash: 500)
-        #expect(try !AssetItemStore.migrateIfNeeded(in: empty))
+        #expect(try AssetItemStore.migrateIfNeeded(in: empty) == nil)
         #expect(try items(empty).isEmpty)
         let none = try TestSupport.makeContext()
-        #expect(try !AssetItemStore.migrateIfNeeded(in: none))
+        #expect(try AssetItemStore.migrateIfNeeded(in: none) == nil)
     }
 
     @Test func addingTheFirstItemKeepsTheOldTotalAsItsOwnItem() throws {
@@ -91,6 +91,89 @@ struct AssetItemTests {
         #expect(try items(context).map(\.name) == ["资产", "车"])
         #expect(try assets(context).lockedAssets == 52_000)
         #expect(try assets(context).cash == 14_000)
+    }
+
+    @Test func splittingWithTheSwitchOffKeepsTheOldTotalUncounted() throws {
+        // 拆分前总开关关着：拆出来的那一项「资产」也不算，自由天数和拆分前一样
+        let context = try ledger(locked: 22_000, cash: 14_000)
+        let expenses = [Expense(amount: 1_200, category: "午餐", date: Calendar.current.date(byAdding: .day, value: -9, to: today)!)]
+        let before = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: try assets(context),
+                                       now: today, countsAssets: false)
+        try AssetItemStore.save(nil, name: "基金", amount: 8_000, source: .unsplitTotal, totalCounts: false, in: context)
+        let all = try items(context)
+        #expect(all.map(\.name) == ["资产", "基金"])
+        #expect(all.map(\.countsInFreedom) == [false, true])
+        // 拆分之后总开关不再参与：传开传关都一样，只按各项算
+        for switchState in [true, false] {
+            let after = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: try assets(context),
+                                          assetItems: all, now: today, countsAssets: switchState)
+            #expect(after.freedomBase == 14_000 + 8_000)
+        }
+        #expect(before.freedomBase == 14_000)
+    }
+
+    // MARK: - 从已有一项里拆出来
+
+    @Test func carvingFromTheUnsplitTotalKeepsTheTotal() throws {
+        let context = try ledger(locked: 22_000, cash: 14_000)
+        try AssetItemStore.save(nil, name: "基金", amount: 8_000, source: .unsplitTotal, in: context)
+        #expect(try items(context).map(\.name) == ["资产", "基金"])
+        #expect(try items(context).map(\.amount) == [14_000, 8_000])
+        #expect(try assets(context).lockedAssets == 22_000)
+        #expect(try assets(context).cash == 14_000)
+    }
+
+    @Test func carvingFromAnItemMovesTheAmountAndCanTakeItAll() throws {
+        let context = try threeItems()
+        let deposit = try items(context)[1]
+        try AssetItemStore.save(nil, name: "国债", amount: 30_000, source: .item(deposit.id), in: context)
+        #expect(deposit.amount == 0)
+        #expect(try items(context).last?.name == "国债")
+        #expect(try assets(context).lockedAssets == 135_000)
+    }
+
+    @Test func carvingMoreThanTheSourceHasChangesNothing() throws {
+        let context = try threeItems()
+        let fund = try items(context)[2]
+        let before = try state(context)
+        #expect(throws: AssetItemError.notEnough(name: "基金", available: 5_000)) {
+            try AssetItemStore.save(nil, name: "股票", amount: 6_000, source: .item(fund.id), in: context)
+        }
+        #expect(try state(context) == before)
+    }
+
+    @Test func carvingRollsTheSourceBackWhenSavingFails() throws {
+        let context = try threeItems()
+        let house = try items(context)[0]
+        let before = try state(context)
+        #expect(throws: Failure.self) {
+            try AssetItemStore.save(nil, name: "车位", amount: 20_000, source: .item(house.id), in: context, save: failingSave)
+        }
+        #expect(try state(context) == before)
+        #expect(house.amount == 100_000)
+    }
+
+    // MARK: - 逐项开关
+
+    @Test func togglingOneItemLeavesTheOthersAndTheTotalAlone() throws {
+        let context = try threeItems()
+        let all = try items(context)
+        try AssetItemStore.setCountsInFreedom(false, for: all[0], in: context)
+        #expect(try items(context).map(\.countsInFreedom) == [false, true, true])
+        #expect(try assets(context).lockedAssets == 135_000)
+
+        let before = try state(context)
+        #expect(throws: Failure.self) {
+            try AssetItemStore.setCountsInFreedom(true, for: all[0], in: context, save: failingSave)
+        }
+        #expect(try state(context) == before)
+    }
+
+    @Test func oldSwitchOffIsHandedToEveryItem() throws {
+        let context = try threeItems()
+        #expect(try AssetItemStore.adoptSwitchOff(in: context))
+        #expect(try items(context).allSatisfy { !$0.countsInFreedom })
+        #expect(try !AssetItemStore.adoptSwitchOff(in: try ledger(locked: 100)))
     }
 
     // MARK: - 总数 = 各项之和

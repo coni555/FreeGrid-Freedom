@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct DataManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
@@ -249,6 +250,8 @@ struct DataManagementView: View {
             ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
             encodedCategoryOptions = merged
         }
+        // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
+        if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
         var lines: [String] = ["✓ 导入完成"]
         lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
         lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")

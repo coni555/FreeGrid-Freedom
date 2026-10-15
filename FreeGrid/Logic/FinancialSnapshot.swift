@@ -3,6 +3,7 @@
 import Foundation
 
 /// 自由天数的口径：资产（锁定的钱）算不算进去。默认算；关掉后只按现金算，净值不受影响。
+/// 资产没拆分时由总开关决定；拆成多项（Pro）后每一项自己决定，总开关不再参与。
 enum FreedomSettings {
     static let countsAssetsKey = "countAssetsInFreedom"
 
@@ -21,6 +22,7 @@ enum FreedomSettings {
 }
 
 struct FinancialSnapshot {
+    /// 实际生效的总开关：有资产项时恒为开，由各项自己决定算不算
     let countsAssets: Bool
     let lockedAssets: Double
     /// Pro 逐项开关：关掉「计入自由天数」的那些资产项金额之和。没有资产项时是 0。
@@ -38,7 +40,7 @@ struct FinancialSnapshot {
 
     var netWorth: Double { lockedAssets + cash }
     /// 画成金色格子、并算进自由天数的那部分资产。
-    /// 总开关是总闸：关 → 一项都不算；开 → 资产桶减去逐项关掉的那些。
+    /// 没拆分：总开关关 → 不算；拆成多项：资产桶减去逐项关掉的那些。
     /// 用「总数减不计入」而不是「计入项相加」；没有逐项关掉的时候直接用总数，和以前的数一分不差。
     var countedAssets: Double {
         guard countsAssets else { return 0 }
@@ -70,7 +72,7 @@ struct FinancialSnapshot {
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
          assetItems: [AssetItem] = [], loans: [Loan] = [], now: Date = .now,
          countsAssets: Bool = FreedomSettings.countsAssets) {
-        self.countsAssets = countsAssets
+        self.countsAssets = assetItems.isEmpty ? countsAssets : true
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0

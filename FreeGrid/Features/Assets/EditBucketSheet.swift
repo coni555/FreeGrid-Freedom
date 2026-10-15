@@ -20,7 +20,7 @@ struct EditBucketSheet: View {
     let bucket: Bucket
     let currentAmount: Double
     let onSave: (Double) throws -> Void
-    /// 资产桶才有：去「拆成多项」的 Pro 功能页
+    /// 资产桶才有：「拆成多项」（Pro），弹窗收起后由父页面接着开添加资产项
     var onOpenItems: (() -> Void)? = nil
 
     @State private var saveError: String?
@@ -94,10 +94,12 @@ struct EditBucketSheet: View {
                                 Text("拆成多项")
                                     .font(.system(.subheadline, design: .rounded))
                                     .foregroundStyle(Color.ink)
-                                Text("PRO")
-                                    .font(.system(.caption2, design: .monospaced))
-                                    .tracking(2)
-                                    .foregroundStyle(Color.skyDeep)
+                                if !ProFeatures.canManageAssetItems {
+                                    Text("PRO")
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .tracking(2)
+                                        .foregroundStyle(Color.skyDeep)
+                                }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 12, weight: .medium))

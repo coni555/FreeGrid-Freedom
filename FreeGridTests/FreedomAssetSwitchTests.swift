@@ -222,28 +222,16 @@ struct FreedomAssetSwitchTests {
         #expect(FreedomMath.freedomDaysDisplay(on.freedom) == "13") // 408 天 > 365 天显示为 13 个月
         #expect(on.uncountedAssetsNote == "部分资产未计入")
 
-        // 3. 把总开关关掉 → 按 14000 算，约 117 天（14000/120 = 116.666...）；
-        //    各项自己的开关没被改动
-        let off = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
-                                    assetItems: items, now: now, countsAssets: false)
-        #expect(off.freedomBase == 14_000)
-        #expect(off.countedAssets == 0)
-        #expect(off.uncountedAssets == 135_000)
-        #expect(off.freedom == .finite(days: 14_000.0 / 120))
-        guard case .finite(let offDays) = off.freedom else { Issue.record(); return }
-        #expect(Int(offDays.rounded()) == 117)
-        #expect(FreedomMath.freedomDaysDisplay(off.freedom) == "116") // ≤ 365 天向下取整显示天数
-        #expect(off.uncountedAssetsNote == "资产未计入")
+        // 3. 拆成多项以后总开关不再参与：哪怕偏好里还是「关」，也只按各项自己的设置算
+        let staleOff = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
+                                         assetItems: items, now: now, countsAssets: false)
+        #expect(staleOff.countsAssets)
+        #expect(staleOff.freedomBase == 49_000)
+        #expect(staleOff.countedAssets == 35_000)
+        #expect(staleOff.uncountedAssetsNote == "部分资产未计入")
         #expect(house.countsInFreedom == false)
         #expect(deposit.countsInFreedom == true)
         #expect(fund.countsInFreedom == true)
-
-        // 再打开回到约 408 天
-        let reopened = FinancialSnapshot(expenses: burn120, passiveSources: [], assets: userAssets,
-                                         assetItems: items, now: now, countsAssets: true)
-        #expect(reopened.freedomBase == 49_000)
-        #expect(reopened.freedom == .finite(days: 49_000.0 / 120))
-        #expect(reopened.uncountedAssetsNote == "部分资产未计入")
 
         // 4. 这时记一笔 1200 的支出，影响预览里的天数变化按 49000 这个口径算
         let impact = TransactionImpact(snapshot: on, kind: .expense, amount: 1_200)

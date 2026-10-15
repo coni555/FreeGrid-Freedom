@@ -1,4 +1,4 @@
-// 资产页面：净值、双桶、被动收入、每月还款和调拨。导出、导入、清空在 Settings 的数据管理页。
+// 资产页面：净值、双桶、资产明细或总开关、被动收入、每月还款和调拨。导出、导入、清空在 Settings 的数据管理页。
 
 import SwiftUI
 import SwiftData
@@ -19,7 +19,6 @@ struct AssetsView: View {
     // --- 双桶编辑 (sheet 模式) ---
     @State private var saveError: String?
     @State private var editingBucket: EditBucketSheet.Bucket? = nil
-    @State private var showingAssetItems = false
     /// 拆成多项之后，调拨要选是哪一项
     @State private var transferItemID: UUID?
 
@@ -31,6 +30,21 @@ struct AssetsView: View {
     enum TransferDirection: String, CaseIterable {
         case cashToAssets = "现金 → 资产"
         case assetsToCash = "资产 → 现金"
+    }
+
+    // --- 资产明细 (Pro) ---
+    @State private var addingItem: AddingItem? = nil
+    @State private var editingItem: AssetItem? = nil
+    @State private var pendingDeleteItem: AssetItem? = nil
+    @State private var confirmingMergeItems = false
+    @State private var showingPro = false
+    /// 在编辑资产的弹窗里点了「拆成多项」：等弹窗收起再开添加弹窗
+    @State private var splitAfterBucketSheet = false
+
+    /// 打开「添加资产项」：拆分时默认从原来的总数里拆
+    struct AddingItem: Identifiable {
+        let id = UUID()
+        let initialSource: AssetItemStore.Source?
     }
 
     // --- 被动收入 ---
@@ -67,7 +81,7 @@ struct AssetsView: View {
                         .id(Self.topID)
                     bucketCards
                         .guideTarget(.buckets, in: guide)
-                    countsAssetsCard
+                    if assetItems.isEmpty { countsAssetsCard } else { holdingsCard }
                     if showEmptyHint { emptyHintCard }
                     passiveCard
                         .guideTarget(.passive, in: guide)
@@ -99,17 +113,55 @@ struct AssetsView: View {
             .background(Color.paper)
             .navigationTitle("Assets")
             .saveErrorAlert($saveError)
-            .sheet(item: $editingBucket) { bucket in
+            .sheet(item: $editingBucket, onDismiss: {
+                if splitAfterBucketSheet {
+                    splitAfterBucketSheet = false
+                    startSplit()
+                }
+            }) { bucket in
                 EditBucketSheet(
                     bucket: bucket,
                     currentAmount: amountFor(bucket: bucket),
                     onSave: { newAmount in
                         try applyBucketEdit(bucket: bucket, newAmount: newAmount)
                     },
-                    onOpenItems: bucket == .assets ? { showingAssetItems = true } : nil
+                    onOpenItems: bucket == .assets ? { splitAfterBucketSheet = true } : nil
                 )
             }
-            .navigationDestination(isPresented: $showingAssetItems) { AssetItemsView() }
+            .sheet(item: $addingItem) { adding in
+                AssetItemSheet(existing: nil, sources: itemSources, initialSource: adding.initialSource) {
+                    name, amount, counts, source in
+                    try AssetItemStore.save(nil, name: name, amount: amount, countsInFreedom: counts,
+                                            source: source, totalCounts: countsAssets, in: modelContext)
+                    // 拆开以后由各项自己决定，总开关回到默认，免得以后合并回去时带着旧状态
+                    countsAssets = true
+                }
+            }
+            .sheet(item: $editingItem) { item in
+                AssetItemSheet(existing: item) { name, amount, counts, _ in
+                    try AssetItemStore.save(item, name: name, amount: amount, countsInFreedom: counts, in: modelContext)
+                }
+            }
+            .sheet(isPresented: $showingPro) { ProPaywallView() }
+            .alert(
+                "删除这一项资产?",
+                isPresented: Binding(
+                    get: { pendingDeleteItem != nil },
+                    set: { if !$0 { pendingDeleteItem = nil } }
+                ),
+                presenting: pendingDeleteItem
+            ) { item in
+                Button("删除", role: .destructive) { deleteItem(item) }
+                Button("取消", role: .cancel) { pendingDeleteItem = nil }
+            } message: { item in
+                Text("\(item.name) · ¥\(item.amount.formatted(.number))\n资产总数会少这么多。")
+            }
+            .confirmationDialog("合并成一个总数？", isPresented: $confirmingMergeItems, titleVisibility: .visible) {
+                Button("合并", role: .destructive) { mergeItems() }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("各项会删除，资产总数 ¥\(lockedAssetsAmount.formatted(.number)) 不变，之后在资产页直接改总数。")
+            }
             .sheet(isPresented: $showingAddPassive) {
                 PassiveSourceSheet(existing: nil) { name, monthly in
                     try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, in: modelContext)
@@ -280,21 +332,229 @@ struct AssetsView: View {
         }
     }
 
-    // MARK: - 自由天数口径: 资产算不算
+    // MARK: - 自由天数口径: 资产算不算 (没拆分时)
+    // 资产只有一个总数时，整笔算或整笔不算；想只算其中几项，拆成多项（Pro）后在资产明细里逐项选。
     private var countsAssetsCard: some View {
         VaultCard {
-            Toggle(isOn: $countsAssets) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("资产计入自由天数")
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(Color.ink)
-                    Text(countsAssets ? "自由天数按资产加现金算。" : "自由天数只按现金算，资产仍在净值里。")
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Toggle(isOn: $countsAssets) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("资产计入自由天数")
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        Text(countsAssets ? "自由天数按资产加现金算。" : "自由天数只按现金算，资产仍在净值里。")
+                            .font(.system(.footnote, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                    }
+                }
+                .tint(Color.skyDeep)
+                .accessibilityIdentifier("counts-assets-toggle")
+
+                Hairline()
+                Button(action: startSplit) {
+                    HStack(spacing: Spacing.sm) {
+                        Text("只算其中几项？拆成多项")
+                            .font(.system(.footnote, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        if !ProFeatures.canManageAssetItems {
+                            Text("PRO")
+                                .font(.system(.caption2, design: .monospaced))
+                                .tracking(2)
+                                .foregroundStyle(Color.skyDeep)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.inkGhost)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("split-assets-from-switch")
+            }
+        }
+    }
+
+    // MARK: - 资产明细 (拆成多项之后, 代替总开关)
+    // 每一项前面一个方格：金色实心 = 算进自由天数（就是首页的金色格子），空心 = 只算净值。点方格切换，点名字编辑。
+    private var holdingsCard: some View {
+        let canManage = ProFeatures.canManageAssetItems
+        let counted = assetItems.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
+        let allCounted = assetItems.allSatisfy(\.countsInFreedom)
+        return VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: "Holdings · 资产明细")
+                    Spacer()
+                    if canManage {
+                        Button {
+                            addingItem = AddingItem(initialSource: nil)
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color.skyDeep)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().stroke(Color.skyDeep.opacity(0.5), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("添加资产项")
+                        .accessibilityIdentifier("add-asset-item")
+                    }
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(assetItems) { item in
+                        holdingRow(item, canManage: canManage)
+                        if item.id != assetItems.last?.id {
+                            Hairline().padding(.leading, 4)
+                        }
+                    }
+                }
+
+                Hairline()
+                if canManage {
+                    Text(allCounted
+                         ? "全部计入自由天数 · 点方格可以不算某一项"
+                         : "计入自由天数 ¥\(counted.formatted(.number)) · 点方格切换")
+                        .font(.system(.caption2, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.inkFaint)
+                        .accessibilityIdentifier("holdings-counted-summary")
+                } else {
+                    lockedHoldingsNote
                 }
             }
-            .tint(Color.skyDeep)
-            .accessibilityIdentifier("counts-assets-toggle")
+        }
+    }
+
+    private func holdingRow(_ item: AssetItem, canManage: Bool) -> some View {
+        let counts = item.countsInFreedom
+        // 方格和名字的位置与被动收入、每月还款的行对齐（9pt 记号 + 10pt 间距）
+        return HStack(spacing: 0) {
+            Button {
+                toggleCounts(item)
+            } label: {
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(counts ? Color.assetGold : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                            .strokeBorder(counts ? Color.clear : Color.inkFaint, lineWidth: 1)
+                    )
+                    .frame(width: 9, height: 9)
+                    .frame(width: 19, height: 36, alignment: .leading)
+                    // 记号很小，点按范围往外放一圈
+                    .contentShape(Rectangle().inset(by: -8))
+            }
+            .buttonStyle(.plain)
+            // 没有 Pro 时只看不改；不用 disabled，免得整行变灰看不清
+            .allowsHitTesting(canManage)
+            .accessibilityLabel("\(item.name)计入自由天数")
+            .accessibilityValue(counts ? "计入" : "不计入")
+            .accessibilityAddTraits(.isToggle)
+            .accessibilityIdentifier("asset-item-counts-\(item.name)")
+
+            Button {
+                if canManage { editingItem = item }
+            } label: {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(item.name)
+                        .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        .foregroundStyle(counts ? Color.ink : Color.inkMuted)
+                        .lineLimit(1)
+                    Spacer(minLength: Spacing.sm)
+                    Text("¥" + item.amount.formatted(.number))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(counts ? Color.inkMuted : Color.inkFaint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(canManage)
+            .accessibilityIdentifier("asset-item-\(item.name)")
+
+            if canManage {
+                Button {
+                    pendingDeleteItem = item
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Color.inkFaint)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().stroke(Color.hairlineSoft, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 6)
+                .accessibilityLabel("删除\(item.name)")
+                .accessibilityIdentifier("delete-asset-item-\(item.name)")
+            }
+        }
+        .padding(.vertical, 2)
+        .animation(.snappy(duration: 0.24), value: counts)
+    }
+
+    /// 拆过但没有 Pro：各项照常算，只是不能改；给出两条路
+    private var lockedHoldingsNote: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("逐项管理是 Pro 功能，各项照常计算，暂时只能查看。")
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Spacing.lg) {
+                Button("了解 Pro") { showingPro = true }
+                    .accessibilityIdentifier("open-pro-from-assets")
+                Button("合并成一个总数") { confirmingMergeItems = true }
+                    .accessibilityIdentifier("merge-asset-items")
+            }
+            .font(.system(.footnote, design: .rounded))
+            .foregroundStyle(Color.skyDeep)
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// 可以从中拆出新一项的地方：没拆过时是原来的总数，拆过以后是各项
+    private var itemSources: [AssetItemSheet.SourceOption] {
+        if assetItems.isEmpty {
+            return lockedAssetsAmount > 0
+                ? [.init(source: .unsplitTotal, name: "资产", amount: lockedAssetsAmount)] : []
+        }
+        return assetItems.filter { $0.amount > 0 }
+            .map { .init(source: .item($0.id), name: $0.name, amount: $0.amount) }
+    }
+
+    /// 「拆成多项」：有 Pro 时直接加第一项（默认从原来的总数里拆），没有时看 Pro
+    private func startSplit() {
+        guard ProFeatures.canManageAssetItems else {
+            showingPro = true
+            return
+        }
+        addingItem = AddingItem(initialSource: lockedAssetsAmount > 0 && assetItems.isEmpty ? .unsplitTotal : nil)
+    }
+
+    private func toggleCounts(_ item: AssetItem) {
+        do { try AssetItemStore.setCountsInFreedom(!item.countsInFreedom, for: item, in: modelContext) }
+        catch { saveError = error.localizedDescription }
+    }
+
+    private func deleteItem(_ item: AssetItem) {
+        do {
+            try AssetItemStore.delete(item, in: modelContext)
+            pendingDeleteItem = nil
+            // 删到一项不剩就回到总开关；它在拆分期间不起作用，回到默认的开
+            if (try? AssetItemStore.items(in: modelContext))?.isEmpty == true { countsAssets = true }
+        } catch {
+            saveError = error.localizedDescription
+        }
+    }
+
+    /// 合并回一个总数：只要有一项算着，总开关就开；一项都没算才关
+    private func mergeItems() {
+        let anyCounted = assetItems.contains { $0.countsInFreedom && $0.amount > 0 }
+        do {
+            try AssetItemStore.mergeIntoTotal(in: modelContext)
+            countsAssets = anyCounted || lockedAssetsAmount == 0
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 
@@ -320,10 +580,10 @@ struct AssetsView: View {
     }
 
     private func bucketCard(bucket: EditBucketSheet.Bucket, kicker: String, amount: Double, color: Color, icon: String) -> some View {
-        // 资产已经拆成多项时，总数是各项相加，点进明细页而不是改总数
+        // 资产已经拆成多项时，总数是各项相加，在下面的资产明细里改，这张卡不再能点
         let splitIntoItems = bucket == .assets && !assetItems.isEmpty
         return Button {
-            if splitIntoItems { showingAssetItems = true } else { editingBucket = bucket }
+            editingBucket = bucket
         } label: {
             VaultCard {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -333,9 +593,11 @@ struct AssetsView: View {
                             .foregroundStyle(color)
                         KickerLabel(text: splitIntoItems ? "\(kicker) · \(assetItems.count) 项" : kicker)
                         Spacer()
-                        Image(systemName: splitIntoItems ? "chevron.right" : "square.and.pencil")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.inkFaint)
+                        if !splitIntoItems {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.inkFaint)
+                        }
                     }
                     Text("¥" + amount.formatted(.number))
                         .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
@@ -347,7 +609,9 @@ struct AssetsView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(splitIntoItems ? "\(kicker)明细" : "编辑\(kicker)")
+        .allowsHitTesting(!splitIntoItems)
+        .accessibilityIdentifier(bucket == .assets ? "assets-bucket-card" : "cash-bucket-card")
+        .accessibilityLabel(splitIntoItems ? kicker : "编辑\(kicker)")
         // Button 会把 label 里的 Text 合并成一个元素,再被 accessibilityLabel 整体顶掉;
         // 金额得单独挂回 value,否则 VoiceOver 只念"编辑现金",听不到余额。
         .accessibilityValue("¥" + amount.formatted(.number))
@@ -679,12 +943,12 @@ struct AssetsView: View {
     /// 拆成多项之后没有 Pro：调拨要改某一项的金额，这是 Pro 的事；先说清楚，再给出路
     private var lockedTransferNote: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("资产已经拆成多项，调拨要改其中某一项，需要 Pro。也可以在资产明细里把它们合并成一个总数，再用原来的调拨。")
+            Text("资产已经拆成多项，调拨要改其中某一项，需要 Pro。也可以在下面的资产明细里合并成一个总数，再用原来的调拨。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
-            Button { showingAssetItems = true } label: {
-                Text("查看资产明细")
+            Button { showingPro = true } label: {
+                Text("了解 Pro")
                     .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(Color.skyDeep)
                     .padding(.vertical, Spacing.xs)

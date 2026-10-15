@@ -11,6 +11,7 @@ enum AssetItemError: Error, LocalizedError, Equatable {
     case missingItem
     case hasItems
     case needsItem
+    case notEnough(name: String, available: Double)
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum AssetItemError: Error, LocalizedError, Equatable {
         case .missingItem: return "这一项已经不在账本里。"
         case .hasItems: return "资产已经拆成多项，请在资产明细里修改。"
         case .needsItem: return "请先选择是哪一项资产。"
+        case .notEnough(let name, let available):
+            return "「\(name)」只有 ¥\(available.formatted(.number))，拆不出这么多。"
         }
     }
 }
@@ -57,35 +60,56 @@ enum AssetItemStore {
 
     // MARK: - 写入
 
-    /// 老用户第一次进逐项管理：原来的总数变成一项「资产」，净值和自由天数不变。
-    /// 已经有项，或总数是 0 时什么都不做。
+    /// 老用户第一次拆分：原来的总数变成一项「资产」，净值和自由天数不变。
+    /// `countsInFreedom` 传拆分前总开关的状态：拆开以后由各项自己决定，原来没算的那笔钱拆开后仍然不算。
+    /// 已经有项，或总数是 0 时什么都不做，返回 nil。
     @discardableResult
     static func migrateIfNeeded(
         in context: ModelContext,
+        countsInFreedom: Bool = true,
         save: LedgerStore.SaveAction = { try $0.save() }
-    ) throws -> Bool {
+    ) throws -> AssetItem? {
         guard try items(in: context).isEmpty,
               let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
-              assets.lockedAssets > 0 else { return false }
-        let total = assets.lockedAssets
+              assets.lockedAssets > 0 else { return nil }
+        let item = AssetItem(name: "资产", amount: assets.lockedAssets, sortOrder: 0, countsInFreedom: countsInFreedom)
         try LedgerStore.updateAssets(in: context, save: save) { _ in
-            context.insert(AssetItem(name: "资产", amount: total, sortOrder: 0))
+            context.insert(item)
         }
-        return true
+        return item
+    }
+
+    /// 新加的一项从哪来：新增的钱（总数变大），或者从已有的一项里拆出来（总数不变）
+    enum Source: Hashable {
+        /// 还没拆过时的那个总数；拆分时它先变成一项「资产」
+        case unsplitTotal
+        case item(UUID)
     }
 
     /// 新增（existing 为 nil）或修改一项。`countsInFreedom` 为 nil 时保持原样（新增的项默认计入）。
+    /// `source` 只对新增有效：给了就从那一项里扣掉同样的金额，不够扣时报 `notEnough`。
+    /// `totalCounts` 是拆分前总开关的状态，只在这次新增触发拆分时用到。
     @discardableResult
     static func save(
         _ existing: AssetItem?, name: String, amount: Double, countsInFreedom: Bool? = nil,
+        source: Source? = nil, totalCounts: Bool = true,
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> AssetItem {
         let name = try cleanName(name)
         let amount = try validAmount(amount)
         // 还没拆过就直接加第一项：先把原来的总数变成一项，否则总数会被新的这一项顶掉
-        if existing == nil { try migrateIfNeeded(in: context, save: save) }
+        let migrated = existing == nil ? try migrateIfNeeded(in: context, countsInFreedom: totalCounts, save: save) : nil
         let all = try items(in: context)
+        let from: AssetItem?
+        switch existing == nil ? source : nil {
+        case .unsplitTotal: from = migrated
+        case .item(let id): from = all.first { $0.id == id }
+        case nil: from = nil
+        }
+        if let from, amount > from.amount + FinancialLimits.assetChecksumTolerance {
+            throw AssetItemError.notEnough(name: from.name, available: from.amount)
+        }
         let item = existing ?? AssetItem(name: name, amount: amount, sortOrder: (all.map(\.sortOrder).max() ?? -1) + 1)
         let previous = snapshot(all)
         let previousItem = (item.name, item.amount, item.countsInFreedom, item.updatedAt)
@@ -98,9 +122,44 @@ enum AssetItemStore {
             item.amount = amount
             if let countsInFreedom { item.countsInFreedom = countsInFreedom }
             item.updatedAt = .now
+            if let from {
+                from.amount = max(0, from.amount - amount)
+                from.updatedAt = .now
+            }
             try syncTotal(assets, in: context)
         }
         return item
+    }
+
+    /// 只改这一项算不算进自由天数（列表上点方格）
+    static func setCountsInFreedom(
+        _ counts: Bool, for item: AssetItem,
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws {
+        let previous = (item.countsInFreedom, item.updatedAt)
+        try LedgerStore.perform(in: context, save: save, restore: {
+            (item.countsInFreedom, item.updatedAt) = previous
+        }) {
+            item.countsInFreedom = counts
+            item.updatedAt = .now
+        }
+    }
+
+    /// 拆分以前关着总开关、拆分后又没让各项接手的旧状态（只在开发版出现过）：
+    /// 把各项都标成不计入，自由天数和以前一样。有改动时返回 true，调用方随后把总开关打开。
+    @discardableResult
+    static func adoptSwitchOff(
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws -> Bool {
+        let all = try items(in: context)
+        guard !all.isEmpty else { return false }
+        let previous = snapshot(all)
+        try LedgerStore.perform(in: context, save: save, restore: { restore(previous) }) {
+            for item in all { item.countsInFreedom = false }
+        }
+        return true
     }
 
     static func delete(
