@@ -97,6 +97,34 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// 记支出表单里没有常驻的 Pro 入口：它在分类菜单的最后一项。没有 Pro 打开购买页，有 Pro 进管理页。
+    @MainActor
+    func testCategoryMenuEndsWithManageOrProEntry() {
+        for pro in [false, true] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                   "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", pro ? "YES" : "NO"]
+            app.launch()
+            app.buttons["记支出"].tap()
+            let picker = app.buttons["expense-category-picker"]
+            XCTAssertTrue(picker.waitForExistence(timeout: 5))
+            XCTAssertFalse(app.staticTexts["管理支出分类 · Pro"].exists)
+            picker.tap()
+            if pro {
+                let manage = app.buttons["管理分类…"]
+                XCTAssertTrue(manage.waitForExistence(timeout: 3))
+                manage.tap()
+                XCTAssertTrue(app.buttons["add-expense-category"].waitForExistence(timeout: 5))
+            } else {
+                let upsell = app.buttons["添加自己的分类 · Pro"]
+                XCTAssertTrue(upsell.waitForExistence(timeout: 3))
+                upsell.tap()
+                XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
+            }
+            app.terminate()
+        }
+    }
+
     /// Pro：分类改名，用这个分类的旧账在 History 里跟着改；换的图标出现在 History 行首。
     @MainActor
     func testRenamingACategoryRenamesItsRecords() {
@@ -807,6 +835,16 @@ final class FreeGridUITests: XCTestCase {
             app.buttons["取消"].tap()
             app.tabBars.buttons["History"].tap()
             try shoot("\(mode)-3-History图标")
+            app.buttons["按分类筛选"].firstMatch.tap()
+            try shoot("\(mode)-4-分类筛选条")
+            app.tabBars.buttons["Dashboard"].tap()
+            app.buttons["记支出"].tap()
+            let picker = app.buttons["expense-category-picker"]
+            XCTAssertTrue(picker.waitForExistence(timeout: 5))
+            try shoot("\(mode)-5-记支出表单")
+            picker.tap()
+            XCTAssertTrue(app.buttons["管理分类…"].waitForExistence(timeout: 3))
+            try shoot("\(mode)-6-分类菜单")
             app.terminate()
         }
     }

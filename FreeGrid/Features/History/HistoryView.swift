@@ -7,6 +7,8 @@ struct HistoryView: View {
 
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    /// 筛选条上认出月供扣款（它的「分类」是贷款名）
+    @Query private var loans: [Loan]
 
     @Environment(\.modelContext) private var modelContext
 
@@ -610,7 +612,8 @@ struct HistoryView: View {
                 }
                 ForEach(categories, id: \.category) { item in
                     let this = Selection.category(item.category)
-                    chip(label: item.category, amount: item.total, selected: active == this) {
+                    chip(label: item.category, amount: item.total, selected: active == this,
+                         icon: chipIcon(for: item.category)) {
                         // 二次点击同一 chip = 取消选中
                         selection = (active == this) ? .all : this
                     }
@@ -621,14 +624,29 @@ struct HistoryView: View {
         }
     }
 
-    private func chip(label: String, amount: Double?, selected: Bool, onTap: @escaping () -> Void) -> some View {
+    /// 筛选条上的分类图标；月供扣款的「分类」是贷款名，用日历
+    private func chipIcon(for category: String) -> String {
+        let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
+        if !options.allNames.contains(category), loans.contains(where: { $0.name == category }) { return "calendar" }
+        return options.icon(for: category)
+    }
+
+    private func chip(label: String, amount: Double?, selected: Bool, icon: String? = nil,
+                      onTap: @escaping () -> Void) -> some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 2) {
                 if let amount {
-                    Text(label)
-                        .font(.system(.caption2, design: .monospaced))
-                        .tracking(0.5)
-                        .foregroundStyle(selected ? Color.ink : Color.inkFaint)
+                    HStack(spacing: 4) {
+                        if let icon {
+                            Image(systemName: icon)
+                                .font(.system(size: 10, weight: .light))
+                                .accessibilityHidden(true)
+                        }
+                        Text(label)
+                            .font(.system(.caption2, design: .monospaced))
+                            .tracking(0.5)
+                    }
+                    .foregroundStyle(selected ? Color.ink : Color.inkFaint)
                     Text(FinancialFormatting.yuan(amount))
                         .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
                         .foregroundStyle(selected ? Color.ink : Color.inkMuted)

@@ -23,6 +23,9 @@ struct AddExpenseSheet: View {
     @State private var category: String = ""
     @State private var note: String = ""
     @State private var date: Date = .now
+    /// 分类菜单最后一项：有 Pro 进管理页，没有 Pro 打开购买页
+    @State private var showingCategories = false
+    @State private var showingPro = false
 
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
     private var categories: [String] {
@@ -53,16 +56,35 @@ struct AddExpenseSheet: View {
                             .accessibilityIdentifier("repayment-hint")
                     }
                 }
-                // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复
+                // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复。
+                // 管理分类的入口收在菜单最后一项：只在用户找分类时出现，平时表单里没有任何推销
                 Section {
-                    Picker("分类", selection: $category) {
-                        ForEach(categories, id: \.self) { c in
-                            Text(c).tag(c)
+                    Menu {
+                        Picker("分类", selection: $category) {
+                            ForEach(categories, id: \.self) { c in
+                                Text(c).tag(c)
+                            }
                         }
+                        Divider()
+                        if ProFeatures.canCustomizeExpenseCategories {
+                            Button("管理分类…", systemImage: "slider.horizontal.3") { showingCategories = true }
+                        } else {
+                            Button("添加自己的分类 · Pro", systemImage: "plus") { showingPro = true }
+                        }
+                    } label: {
+                        HStack {
+                            Text("分类")
+                                .foregroundStyle(Color.ink)
+                            Spacer()
+                            Text(category)
+                                .foregroundStyle(.tint)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.tint)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .accessibilityIdentifier("expense-category-picker")
-                    NavigationLink("管理支出分类 · Pro") { ExpenseCategoriesView() }
-                        .foregroundStyle(Color.skyDeep)
                 }
                 Section("日期") {
                     TransactionDateRow(date: $date)
@@ -88,6 +110,8 @@ struct AddExpenseSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
+            .navigationDestination(isPresented: $showingCategories) { ExpenseCategoriesView() }
+            .sheet(isPresented: $showingPro) { ProPaywallView() }
             .navigationTitle("添加支出")
             .inlineNavTitle()
             .saveErrorAlert($saveError)
