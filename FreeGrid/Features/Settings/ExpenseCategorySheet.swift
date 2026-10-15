@@ -11,6 +11,8 @@ struct ExpenseCategorySheet: View {
     var recordCount = 0
     /// 只剩这一个可选分类时不能删
     var canDelete = true
+    /// 列表里其他分类的名字：改成其中一个就是合并
+    var otherNames: [String] = []
     /// 名字和用户选的图标（没选过为 nil，按名字给默认图标）
     let onSave: (String, String?) throws -> Void
     var onDelete: (() throws -> Void)? = nil
@@ -20,11 +22,17 @@ struct ExpenseCategorySheet: View {
     @State private var pickedIcon: String?
     @State private var saveError: String?
     @State private var confirmingDelete = false
+    @State private var confirmingMerge = false
     @FocusState private var nameFocused: Bool
 
     private var isEditing: Bool { existingName != nil }
     private var shownIcon: String { pickedIcon ?? ExpenseCategoryIcons.defaultIcon(for: cleanedName ?? "") }
     private var cleanedName: String? { try? ExpenseCategoryOptions.cleanName(name) }
+    /// 名字和另一个已有分类相同（不分大小写）时，保存就是并进它
+    private var mergeTarget: String? {
+        guard isEditing, let cleanedName else { return nil }
+        return otherNames.first { $0.caseInsensitiveCompare(cleanedName) == .orderedSame }
+    }
 
     var body: some View {
         NavigationStack {
@@ -46,13 +54,22 @@ struct ExpenseCategorySheet: View {
                                     .accessibilityIdentifier("category-name-field")
                             }
                         }
-                        if isEditing, recordCount > 0, let cleanedName, cleanedName != existingName {
+                        if let mergeTarget {
+                            Text(recordCount > 0
+                                 ? "已有「\(mergeTarget)」。保存后这 \(recordCount) 笔并进去，「\(existingName ?? "")」不再单独列出。"
+                                 : "已有「\(mergeTarget)」。保存后「\(existingName ?? "")」并进去，不再单独列出。")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.inkMuted)
+                                .accessibilityIdentifier("category-merge-hint")
+                        } else if isEditing, recordCount > 0, let cleanedName, cleanedName != existingName {
                             Text("改名后，这个分类下的 \(recordCount) 笔记录一起改成「\(cleanedName)」。")
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                         }
                     }
 
+                    // 合并时留下的是那个分类自己的图标，这里选了也不生效，先收起来
+                    if mergeTarget == nil {
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         KickerLabel(text: "图标")
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 52), spacing: Spacing.sm)],
@@ -61,6 +78,7 @@ struct ExpenseCategorySheet: View {
                                 iconButton(icon)
                             }
                         }
+                    }
                     }
 
                     if isEditing, onDelete != nil {
@@ -88,12 +106,19 @@ struct ExpenseCategorySheet: View {
                         .foregroundStyle(Color.inkMuted)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
+                    Button("保存") { mergeTarget == nil ? save() : (confirmingMerge = true) }
                         .disabled(cleanedName == nil)
                         .foregroundStyle(cleanedName == nil ? Color.inkFaint : Color.skyDeep)
                         .fontWeight(.medium)
                         .accessibilityIdentifier("save-category")
                 }
+            }
+            .confirmationDialog("把「\(existingName ?? "")」并进「\(mergeTarget ?? "")」？",
+                                isPresented: $confirmingMerge, titleVisibility: .visible) {
+                Button("合并") { save() }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text(recordCount > 0 ? "\(recordCount) 笔记录会改到「\(mergeTarget ?? "")」名下，合并后不能自动拆回。" : "合并后不能自动拆回。")
             }
             .confirmationDialog("删除「\(existingName ?? "")」？", isPresented: $confirmingDelete, titleVisibility: .visible) {
                 Button("删除", role: .destructive) {

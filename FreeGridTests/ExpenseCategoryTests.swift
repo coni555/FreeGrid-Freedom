@@ -166,6 +166,30 @@ struct ExpenseCategoryTests {
         #expect(Array(options.visibleNames.prefix(3)) == ["早餐", "晚餐", "购物"])
     }
 
+    @Test func renamingIntoAnotherCategoryMergesThem() throws {
+        var options = ExpenseCategoryOptions.defaults
+        try options.add("奶茶")
+        try options.add("咖啡")
+        options.setIcon("leaf", for: "咖啡")
+        #expect(options.mergeTarget(for: " 咖啡 ", excluding: "奶茶") == "咖啡")
+        #expect(options.mergeTarget(for: "奶茶", excluding: "奶茶") == nil)
+        #expect(options.mergeTarget(for: "新名字", excluding: "奶茶") == nil)
+        options.merge("奶茶", into: "咖啡")
+        #expect(!options.allNames.contains("奶茶"))
+        #expect(options.visibleNames.last == "咖啡")
+        #expect(options.icon(for: "咖啡") == "leaf")
+        // 删掉的分类不能当合并目标
+        try options.delete("午餐")
+        #expect(options.mergeTarget(for: "午餐", excluding: "晚餐") == nil)
+
+        let context = try TestSupport.makeContext()
+        context.insert(Expense(amount: 18, category: "奶茶", date: TestSupport.day("2026-10-01")))
+        context.insert(Expense(amount: 25, category: "咖啡", date: TestSupport.day("2026-10-02")))
+        try context.save()
+        #expect(try LedgerStore.renameCategory(from: "奶茶", to: "咖啡", in: context) == 1)
+        #expect(try context.fetch(FetchDescriptor<Expense>()).allSatisfy { $0.category == "咖啡" })
+    }
+
     @Test func renamingRewritesOldRecordsButNotLoanPayments() throws {
         let context = try TestSupport.makeContext()
         context.insert(Expense(amount: 30, category: "咖啡", date: TestSupport.day("2026-10-01")))

@@ -91,6 +91,19 @@ struct ExpenseCategoryOptions: Codable, Equatable {
         return name
     }
 
+    /// 列出来的分类里，和输入同名（不分大小写）的另一个分类；改名成它就是合并
+    func mergeTarget(for input: String, excluding old: String) -> String? {
+        guard let name = try? Self.cleanName(input) else { return nil }
+        return activeItems.first { $0.name != old && $0.name.caseInsensitiveCompare(name) == .orderedSame }?.name
+    }
+
+    /// 合并：`old` 从列表里拿掉，旧账由 `LedgerStore.renameCategory` 改到 `target` 名下。
+    /// 留下的是 `target` 的位置和图标。
+    mutating func merge(_ old: String, into target: String) {
+        guard old != target, items.contains(where: { $0.name == target && !$0.isDeleted }) else { return }
+        items.removeAll { $0.name == old }
+    }
+
     mutating func setIcon(_ icon: String?, for name: String) {
         guard let index = items.firstIndex(where: { $0.name == name }) else { return }
         items[index].icon = icon

@@ -67,6 +67,7 @@ struct ExpenseCategoriesView: View {
                     existingIcon: options.items.first { $0.name == name }?.icon,
                     recordCount: recordCounts[name, default: 0],
                     canDelete: options.activeItems.count > 1,
+                    otherNames: options.activeItems.map(\.name).filter { $0 != name },
                     onSave: { newName, icon in try edit(name, to: newName, icon: icon) },
                     onDelete: { try delete(name) }
                 )
@@ -190,9 +191,16 @@ struct ExpenseCategoriesView: View {
         encodedOptions = try ExpenseCategoryStorage.encode(next)
     }
 
-    /// 先改旧账再存偏好：账改失败时偏好不动，分类名和旧账始终对得上
+    /// 先改旧账再存偏好：账改失败时偏好不动，分类名和旧账始终对得上。
+    /// 改成另一个已有分类的名字就是合并：旧账并过去，这个分类从列表里拿掉（表单里已经确认过）。
     private func edit(_ old: String, to input: String, icon: String?) throws {
         var next = options
+        if let target = next.mergeTarget(for: input, excluding: old) {
+            try LedgerStore.renameCategory(from: old, to: target, in: modelContext)
+            next.merge(old, into: target)
+            encodedOptions = try ExpenseCategoryStorage.encode(next)
+            return
+        }
         let name = try next.rename(old, to: input)
         if let icon { next.setIcon(icon, for: name) }
         if name != old { try LedgerStore.renameCategory(from: old, to: name, in: modelContext) }

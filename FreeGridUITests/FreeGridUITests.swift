@@ -97,6 +97,46 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// Pro：把一个分类改成另一个已有分类的名字，确认后两个合并，旧账都归到留下的那个。
+    @MainActor
+    func testRenamingIntoAnExistingCategoryMergesThem() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("30")
+        app.buttons["保存"].tap()   // 默认分类「早餐」
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["expense-categories-settings"].tap()
+        let row = app.buttons["category-row-早餐"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        let name = app.textFields["category-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "午餐")
+        XCTAssertTrue(app.staticTexts["category-merge-hint"].waitForExistence(timeout: 3))
+        app.buttons["save-category"].tap()
+        let merge = app.buttons["合并"]
+        XCTAssertTrue(merge.waitForExistence(timeout: 3))
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "合并分类-确认"
+        shot.lifetime = .keepAlways
+        add(shot)
+        merge.tap()
+        XCTAssertTrue(app.buttons["category-row-早餐"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["1 笔"].exists)
+
+        app.tabBars.buttons["History"].tap()
+        XCTAssertTrue(app.staticTexts["午餐"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["早餐"].exists)
+    }
+
     /// 记支出表单里没有常驻的 Pro 入口：它在分类菜单的最后一项。没有 Pro 打开购买页，有 Pro 进管理页。
     @MainActor
     func testCategoryMenuEndsWithManageOrProEntry() {
