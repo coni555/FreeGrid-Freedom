@@ -129,6 +129,8 @@ extension FreedomMath {
         let state: FreedomState
         /// 推演里真的扣了月供的那几天（明天是 1）。首页格子在这几格打孔
         let paymentDays: [Int]
+        /// 钱撑不到的下一次还款是第几天；nil 表示后面没有付不起的月供。首页在最后一格后面补一个淡色的孔
+        var missedPaymentDay: Int? = nil
     }
 
     /// 有贷款时的自由天数：从明天起按日历往后推，每天扣「日均消费 − 日均被动收入」，
@@ -150,7 +152,9 @@ extension FreedomMath {
 
         let net = dailyBurn - dailyPassive
         var cash = netWorth
-        guard cash >= loans.dueNow else { return FreedomRun(state: .finite(days: 0), paymentDays: []) }
+        guard cash >= loans.dueNow else {
+            return FreedomRun(state: .finite(days: 0), paymentDays: [], missedPaymentDay: 0)
+        }
         cash -= loans.dueNow
 
         var lived = 0
@@ -158,11 +162,13 @@ extension FreedomMath {
         for event in loans.events {
             let cost = net * Double(event.day - lived)
             if net > 0, cash - cost < 0 {
-                return FreedomRun(state: .finite(days: Double(lived) + max(0, cash) / net), paymentDays: paid)
+                return FreedomRun(state: .finite(days: Double(lived) + max(0, cash) / net), paymentDays: paid,
+                                  missedPaymentDay: event.day)
             }
             cash -= cost
             guard cash >= event.amount else {
-                return FreedomRun(state: .finite(days: Double(event.day - 1)), paymentDays: paid)
+                return FreedomRun(state: .finite(days: Double(event.day - 1)), paymentDays: paid,
+                                  missedPaymentDay: event.day)
             }
             cash -= event.amount
             paid.append(event.day)

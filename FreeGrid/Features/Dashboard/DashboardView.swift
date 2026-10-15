@@ -424,7 +424,7 @@ private struct DashboardContent: View {
         let run = snapshot.freedomRun
         let state = FreedomMath.gridState(for: run.state,
                                           lockedAssets: snapshot.countedAssets, netWorth: snapshot.freedomBase,
-                                          paymentDays: run.paymentDays)
+                                          paymentDays: run.paymentDays, missedPaymentDay: run.missedPaymentDay)
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -440,7 +440,8 @@ private struct DashboardContent: View {
                     emptyGridHint
                 } else {
                     LifeGrid(unit: state.unit, count: state.count,
-                             assetCells: state.assetCells, paymentCells: state.paymentCells)
+                             assetCells: state.assetCells, paymentCells: state.paymentCells,
+                             showsMissedPayment: state.showsMissedPayment)
                         .padding(.vertical, Spacing.sm)
                 }
 
@@ -470,7 +471,7 @@ private struct DashboardContent: View {
             legendDot(color: .assetGold, label: "资产")
         }
         legendDot(color: .cashBlue, label: "现金")
-        if !state.paymentCells.isEmpty {
+        if !state.paymentCells.isEmpty || state.showsMissedPayment {
             HStack(spacing: 6) {
                 PunchedCell(cornerRadius: 1)
                     .fill(Color.inkFaint, style: FillStyle(eoFill: true))

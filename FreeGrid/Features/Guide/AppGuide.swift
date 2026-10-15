@@ -39,7 +39,7 @@ final class AppGuide {
                 Step(target: .number, text: "按现在的花法，不工作你还能撑这么多天。\n下面写着大概哪一天见底。"),
                 Step(target: .grid, text: "一格是一天。金色来自资产，蓝色来自现金。\n钱花掉，格子就会少。"),
                 // 只有填了每月还款、格子上有孔时才出现
-                Step(target: .repaymentDays, text: "有孔的格子是还款日。"),
+                Step(target: .repaymentDays, text: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。"),
                 Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
                 Step(target: .trend, text: "点这一行，展开或收起最近几周的变化。"),
             ]

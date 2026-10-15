@@ -124,6 +124,35 @@ struct LoanTests {
         #expect(monthGrid.paymentCells.isEmpty)
     }
 
+    @Test func theNextRepaymentThatCannotBeMetIsMarkedAfterTheLastCell() {
+        // 钱在两次还款之间花完：第 110 天花完，下一次（第 122 天）付不起
+        let a = snapshot(loans: [loan()])
+        #expect(a.freedomRun.missedPaymentDay == 122)
+        let grid = FreedomMath.gridState(for: a.freedom, lockedAssets: 0, netWorth: a.freedomBase,
+                                         paymentDays: a.freedomRun.paymentDays,
+                                         missedPaymentDay: a.freedomRun.missedPaymentDay)
+        #expect(grid.showsMissedPayment)
+
+        // 还款日当天付不起：停在前一天，标记的就是那一天
+        #expect(snapshot(loans: [loan(dueDay: 16)]).freedomRun.missedPaymentDay == 93)
+        // 现金撑不到第一次还款（FG-Pro 上那份账本的情形）：没有孔，只有这一个淡色标记
+        let short = snapshot(cash: 2500, loans: [loan()])
+        #expect(days(short) == 25)
+        #expect(short.freedomRun.paymentDays.isEmpty)
+        #expect(short.freedomRun.missedPaymentDay == 30)
+
+        // 都付得起、没有贷款、已经还清：不标
+        #expect(snapshot(loans: [loan(periods: 2)]).freedomRun.missedPaymentDay == nil)
+        #expect(snapshot(loans: [loan()], passive: 6000).freedomRun.missedPaymentDay == nil)
+        #expect(snapshot(loans: []).freedomRun.missedPaymentDay == nil)
+
+        // 月格里不画
+        let rich = snapshot(cash: 200_000, loans: [loan(dueDay: 14, periods: 600)])
+        let monthGrid = FreedomMath.gridState(for: rich.freedom, lockedAssets: 0, netWorth: rich.freedomBase,
+                                              missedPaymentDay: rich.freedomRun.missedPaymentDay)
+        #expect(!monthGrid.showsMissedPayment)
+    }
+
     // MARK: - 记一笔的预览和趋势用同一口径
 
     @Test func transactionPreviewRunsTheSameSchedule() {

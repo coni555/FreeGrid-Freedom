@@ -8,6 +8,8 @@ struct LifeGrid: View {
     let assetCells: Int
     /// 还款日落在的格子（从 0 数），见 `GridState.paymentCells`
     var paymentCells: Set<Int> = []
+    /// 钱撑不到下一次还款时，在最后一格后面补一个淡色带孔的格子
+    var showsMissedPayment = false
 
     @Environment(\.colorScheme) private var scheme
 
@@ -37,6 +39,14 @@ struct LifeGrid: View {
                     let isCurrent = (i == count - 1)
                     let isCash = i >= assetCells
                     cell(isCurrent: isCurrent, isCash: isCash, isPayment: paymentCells.contains(i), breath: b)
+                }
+                if showsMissedPayment {
+                    PunchedCell(cornerRadius: unit.cellSize * 0.11)
+                        .fill(Color.inkGhost, style: FillStyle(eoFill: true))
+                        .frame(width: unit.cellSize, height: unit.cellSize)
+                        .accessibilityElement()
+                        .accessibilityLabel("下一次还款，钱撑不到")
+                        .accessibilityIdentifier("missed-repayment-cell")
                 }
             }
         }
