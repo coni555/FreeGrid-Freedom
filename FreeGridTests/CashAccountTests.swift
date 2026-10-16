@@ -216,6 +216,56 @@ struct CashAccountTests {
         #expect(payment.cashAccountID == (try account("招行卡", other)).id)
     }
 
+    @Test func aLoanBoundToAnAccountOnlyEverPaysFromIt() throws {
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        let later = TestSupport.day("2026-11-20").addingTimeInterval(12 * 3600)
+        let context = try ledger()
+        try CashAccountStore.save(nil, name: "支付宝", amount: 9_000, in: context)
+        let card = try CashAccountStore.save(nil, name: "招行卡", amount: 1_000, in: context)
+        let loan = try LoanStore.save(nil, name: "房贷", monthlyAmount: 3_000, dueDay: 14, remaining: 24,
+                                      cashAccountID: card.id, now: now, in: context)
+        // 绑定的卡只有 1000：哪怕支付宝够，这期也不扣，留着等处理
+        #expect(try LoanStore.processDue(now: later, in: context) == 0)
+        #expect(try balances(context) == [9_000, 1_000])
+
+        // 处理时「从现金扣」也只扣这张卡（扣成负数）
+        let due = TestSupport.day("2026-11-14")
+        try LoanStore.resolvePending(loan, dueDate: due, fromCash: true, now: later, in: context)
+        #expect(try balances(context) == [9_000, -2_000])
+
+        // 卡里有钱了，下一期就从卡里扣
+        try TransferStore.transfer(8_000, from: .cashAccount((try account("支付宝", context)).id),
+                                   to: .cashAccount(card.id), in: context)
+        let december = TestSupport.day("2026-12-20").addingTimeInterval(12 * 3600)
+        #expect(try LoanStore.processDue(now: december, in: context) == 1)
+        #expect(try balances(context) == [1_000, 3_000])
+    }
+
+    @Test func aLoanWhoseAccountWasDeletedFallsBackToTheSpendingOrder() throws {
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        let later = TestSupport.day("2026-11-20").addingTimeInterval(12 * 3600)
+        let context = try ledger()
+        try CashAccountStore.save(nil, name: "支付宝", amount: 9_000, in: context)
+        let card = try CashAccountStore.save(nil, name: "招行卡", amount: 1_000, in: context)
+        try LoanStore.save(nil, name: "房贷", monthlyAmount: 3_000, dueDay: 14, remaining: 24,
+                           cashAccountID: card.id, now: now, in: context)
+        try CashAccountStore.delete(card, in: context)
+        #expect(try LoanStore.processDue(now: later, in: context) == 1)
+        #expect(try balances(context) == [6_000])
+    }
+
+    @Test func theBoundAccountSurvivesABackupRoundTrip() throws {
+        let source = try ledger()
+        let card = try CashAccountStore.save(nil, name: "招行卡", amount: 5_000, in: source)
+        try LoanStore.save(nil, name: "房贷", monthlyAmount: 3_000, dueDay: 14, remaining: 24,
+                           cashAccountID: card.id, in: source)
+        let target = try TestSupport.makeContext()
+        let preview = try DataIO.previewJSON(data: try DataIO.exportJSON(context: source), context: target)
+        _ = try DataIO.commitImport(preview: preview, strategy: .replace, context: target)
+        let loan = try #require(try LoanStore.loans(in: target).first)
+        #expect(loan.cashAccountID == card.id)
+    }
+
     // MARK: - 调拨
 
     @Test func transferMovesMoneyBetweenAccountsAndItems() throws {

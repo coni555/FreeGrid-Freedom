@@ -12,7 +12,12 @@ struct AccountDrawer<Rows: View>: View {
     let title: String
     let color: Color
     var count: String? = nil
-    let total: Double
+    /// nil 时标题行右边不放数字（还没加过的还款）
+    let total: Double?
+    /// 数字后面的小字，比如还款的「/月」
+    var totalSuffix: String? = nil
+    /// 色块挖一个孔：和首页格子上的还款日同一个记号
+    var punched = false
     var subtitle: String? = nil
     @Binding var isOpen: Bool
     var headerID: String
@@ -25,9 +30,14 @@ struct AccountDrawer<Rows: View>: View {
             } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                            .fill(color)
-                            .frame(width: 8, height: 8)
+                        Group {
+                            if punched {
+                                PunchedCell(cornerRadius: 1.5).fill(color, style: FillStyle(eoFill: true))
+                            } else {
+                                RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(color)
+                            }
+                        }
+                        .frame(width: 8, height: 8)
                         KickerLabel(text: title, color: .inkMuted)
                         if let count {
                             Text(count)
@@ -35,11 +45,20 @@ struct AccountDrawer<Rows: View>: View {
                                 .foregroundStyle(Color.inkFaint)
                         }
                         Spacer(minLength: Spacing.sm)
-                        Text("¥" + total.formatted(.number))
-                            .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.ink)
+                        if let total {
+                            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                Text("¥" + total.formatted(.number))
+                                    .font(.system(size: 24, weight: .light, design: .rounded).monospacedDigit())
+                                    .foregroundStyle(Color.ink)
+                                if let totalSuffix {
+                                    Text(totalSuffix)
+                                        .font(.system(size: 13, weight: .light, design: .rounded))
+                                        .foregroundStyle(Color.inkMuted)
+                                }
+                            }
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
+                        }
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(Color.inkFaint)
@@ -59,7 +78,8 @@ struct AccountDrawer<Rows: View>: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier(headerID)
             .accessibilityLabel(title)
-            .accessibilityValue("¥" + total.formatted(.number) + (isOpen ? "，已展开" : "，已收起"))
+            .accessibilityValue((total.map { "¥" + $0.formatted(.number) + (totalSuffix ?? "") + "，" } ?? "")
+                                + (isOpen ? "已展开" : "已收起"))
 
             if isOpen {
                 VStack(alignment: .leading, spacing: 0) {
@@ -78,7 +98,7 @@ struct AccountDrawer<Rows: View>: View {
 }
 
 /// 抽屉里的一行：左边一个记号，名字，金额。点整行进编辑。
-private struct DrawerRow<Leading: View, Trailing: View>: View {
+struct DrawerRow<Leading: View, Trailing: View>: View {
     let name: String
     let amount: Double
     var dimmed = false
@@ -122,12 +142,12 @@ private struct DrawerRow<Leading: View, Trailing: View>: View {
     }
 }
 
-private enum DrawerMetrics {
+enum DrawerMetrics {
     static let rowHeight: CGFloat = 46
 }
 
 /// 抽屉最后一行：添加。没有 Pro 时带 PRO 字样，点了去购买页
-private struct DrawerAddRow: View {
+struct DrawerAddRow: View {
     let title: String
     let showsPro: Bool
     let identifier: String
@@ -161,7 +181,7 @@ private struct DrawerAddRow: View {
 }
 
 /// 抽屉底部一行说明，或者退款后的两条出路
-private struct DrawerFooter: View {
+struct DrawerFooter: View {
     let text: String
     var locked = false
     var onPro: () -> Void = {}

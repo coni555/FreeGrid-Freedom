@@ -173,10 +173,12 @@ nonisolated struct BackupEnvelope: Codable {
         let settledDates: [String]?
         let sortOrder: Int?
         let createdAt: String?
+        /// Pro 现金账户：月供固定从哪个账户扣。可选：没指定时不写
+        let cashAccountId: String?
 
         init(id: String? = nil, name: String, monthlyAmount: Double, dueDay: Int, periodsAtStart: Int,
              startDate: String, processedThrough: String? = nil, settledDates: [String]? = nil,
-             sortOrder: Int? = nil, createdAt: String? = nil) {
+             sortOrder: Int? = nil, createdAt: String? = nil, cashAccountId: String? = nil) {
             self.id = id
             self.name = name
             self.monthlyAmount = monthlyAmount
@@ -187,6 +189,7 @@ nonisolated struct BackupEnvelope: Codable {
             self.settledDates = settledDates
             self.sortOrder = sortOrder
             self.createdAt = createdAt
+            self.cashAccountId = cashAccountId
         }
     }
 

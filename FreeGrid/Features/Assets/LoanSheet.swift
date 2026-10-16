@@ -1,4 +1,4 @@
-// Pro 每月还款：新增或编辑一笔贷款。只填名称、月供、每月几号还、还剩几期；
+// Pro 每月还款：新增或编辑一笔贷款。只填名称、月供、每月几号还、还剩几期（拆了现金账户时多一项：从哪个账户扣）；
 // 期数下面实时写出最后一期是哪天，方便核对。账本里有金额正好等于月供的旧支出时，问一句是不是以前记的月供。
 
 import SwiftUI
@@ -10,12 +10,17 @@ struct LoanSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var expenses: [Expense]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
 
     @State private var saveError: String?
     @State private var name = ""
     @State private var monthly = ""
     @State private var dueDay = Calendar.current.component(.day, from: .now)
     @State private var periods = ""
+    /// 月供固定从哪个账户扣；nil = 按扣款顺序
+    @State private var cashAccountID: UUID?
+    @State private var confirmingDelete = false
     /// 用户勾为「以前记的月供」的旧支出
     @State private var excluded: Set<UUID> = []
     @State private var showingCandidates = false
@@ -97,7 +102,17 @@ struct LoanSheet: View {
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
 
+                    if !cashAccounts.isEmpty { accountField }
+
                     if !candidates.isEmpty { candidatesSection }
+
+                    if isEditing {
+                        Button("删除这笔还款") { confirmingDelete = true }
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.flame)
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("delete-loan")
+                    }
                 }
                 .padding(Spacing.lg)
             }
@@ -118,10 +133,54 @@ struct LoanSheet: View {
                 }
             }
             .onAppear(perform: load)
+            .confirmationDialog("删除「\(existing?.name ?? "")」？", isPresented: $confirmingDelete,
+                                titleVisibility: .visible) {
+                Button("删除", role: .destructive) { delete() }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("以后不再自动扣。已经扣过的月供留在 History。")
+            }
             .onChange(of: monthly) { excluded = Set(candidates.filter { !$0.countsInBurn }.map(\.id)) }
         }
         .saveErrorAlert($saveError)
         .iosSheetDetents()
+    }
+
+    // MARK: - 从哪个账户扣
+
+    /// 房贷一般绑着一张卡：指定了就只从它扣，它余额不够这期就算没扣成
+    private var accountField: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            KickerLabel(text: "从哪个账户扣")
+            UnderlinedField(isFocused: false) {
+                Menu {
+                    Picker("从哪个账户扣", selection: $cashAccountID) {
+                        Text("按扣款顺序").tag(UUID?.none)
+                        ForEach(cashAccounts) { account in
+                            Text(account.name).tag(Optional(account.id))
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(cashAccounts.first { $0.id == cashAccountID }?.name ?? "按扣款顺序")
+                            .font(.system(.title3, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.inkFaint)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .menuIndicator(.hidden)
+                .accessibilityIdentifier("loan-account-picker")
+            }
+            Text(cashAccountID == nil
+                 ? "到期那天整笔扣第一个够付的账户"
+                 : "只从这个账户扣，余额不够这期就先不扣")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+        }
     }
 
     // MARK: - 以前记的月供
@@ -228,6 +287,8 @@ struct LoanSheet: View {
                 .number.grouping(.never).precision(.fractionLength(0...2))
                     .locale(Locale(identifier: "en_US_POSIX")))
             dueDay = existing.dueDay
+            // 指定的账户后来删了，就当没指定
+            cashAccountID = cashAccounts.contains { $0.id == existing.cashAccountID } ? existing.cashAccountID : nil
             let status = LoanSchedule.status(of: existing, payments: expenses)
             periods = String(max(1, status.remaining))
         }
@@ -239,7 +300,18 @@ struct LoanSheet: View {
         guard isValid, let value = Double(monthly), let count = periodCount else { return }
         do {
             try LoanStore.save(existing, name: name, monthlyAmount: value, dueDay: dueDay, remaining: count,
+                               cashAccountID: cashAccounts.isEmpty ? nil : cashAccountID,
                                pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
+            dismiss()
+        } catch {
+            saveError = error.localizedDescription
+        }
+    }
+
+    private func delete() {
+        guard let existing else { return }
+        do {
+            try LoanStore.delete(existing, in: modelContext)
             dismiss()
         } catch {
             saveError = error.localizedDescription

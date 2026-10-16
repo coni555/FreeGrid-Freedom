@@ -67,6 +67,7 @@ enum LoanStore {
     @discardableResult
     static func save(
         _ existing: Loan?, name: String, monthlyAmount: Double, dueDay: Int, remaining: Int,
+        cashAccountID: UUID? = nil,
         pastRepayments: [Expense] = [], excludedFromBurn: Set<UUID> = [],
         now: Date = .now, calendar: Calendar = .current,
         in context: ModelContext,
@@ -92,15 +93,18 @@ enum LoanStore {
 
         let previousLoan = (loan.name, loan.monthlyAmount, loan.dueDay, loan.periodsAtStart,
                             loan.startDate, loan.processedThrough, loan.settledDates)
+        let previousAccount = loan.cashAccountID
         let previousFlags = pastRepayments.map { ($0, $0.countsInBurn) }
         try LedgerStore.perform(in: context, save: save, restore: {
             (loan.name, loan.monthlyAmount, loan.dueDay, loan.periodsAtStart,
              loan.startDate, loan.processedThrough, loan.settledDates) = previousLoan
+            loan.cashAccountID = previousAccount
             for (expense, flag) in previousFlags { expense.countsInBurn = flag }
         }) {
             if existing == nil { context.insert(loan) }
             loan.name = name
             loan.monthlyAmount = monthlyAmount
+            loan.cashAccountID = cashAccountID
             if restartsSchedule {
                 loan.dueDay = dueDay
                 loan.periodsAtStart = remaining
@@ -154,10 +158,10 @@ enum LoanStore {
         }) { assets in
             paid = 0
             for (loan, dates) in work {
-                for date in dates where canPay(loan.monthlyAmount, assets: assets, in: context) {
+                for date in dates where canPay(loan, assets: assets, in: context) {
                     let payment = insertPayment(for: loan, on: date, in: context)
                     payment.cashAccountID = try CashAccountStore.applyCashChange(
-                        -loan.monthlyAmount, accountID: nil, assets: assets, in: context)?.id
+                        -loan.monthlyAmount, accountID: loan.cashAccountID, assets: assets, in: context)?.id
                     paid += 1
                 }
                 loan.processedThrough = dates.last
@@ -182,7 +186,7 @@ enum LoanStore {
             try LedgerStore.updateAssets(in: context, save: save) { assets in
                 let payment = insertPayment(for: loan, on: day, in: context)
                 payment.cashAccountID = try CashAccountStore.applyCashChange(
-                    -loan.monthlyAmount, accountID: nil, assets: assets, in: context)?.id
+                    -loan.monthlyAmount, accountID: loan.cashAccountID, assets: assets, in: context)?.id
                 assets.updatedAt = .now
             }
         } else {
@@ -202,9 +206,13 @@ enum LoanStore {
         return payment
     }
 
-    /// 到期这天扣得动吗：没拆账户看现金总数；拆了账户要有一个账户单独够付（每笔只从一个账户扣）
-    private static func canPay(_ amount: Double, assets: UserAssets, in context: ModelContext) -> Bool {
+    /// 到期这天扣得动吗：没拆账户看现金总数；指定了扣款账户就只看那个账户（银行卡余额不够就是扣不成）；
+    /// 没指定（或那个账户删了）时要有一个账户单独够付（每笔只从一个账户扣）
+    private static func canPay(_ loan: Loan, assets: UserAssets, in context: ModelContext) -> Bool {
         let accounts = (try? CashAccountStore.accounts(in: context)) ?? []
-        return accounts.isEmpty ? assets.cash >= amount : accounts.contains { $0.amount >= amount }
+        let amount = loan.monthlyAmount
+        guard !accounts.isEmpty else { return assets.cash >= amount }
+        if let bound = accounts.first(where: { $0.id == loan.cashAccountID }) { return bound.amount >= amount }
+        return accounts.contains { $0.amount >= amount }
     }
 }

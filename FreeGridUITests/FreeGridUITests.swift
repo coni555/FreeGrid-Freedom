@@ -1102,6 +1102,9 @@ final class FreeGridUITests: XCTestCase {
             try shoot("\(mode)-2-拆好了-上半")
             nudge(app, by: 0.35)
             try shoot("\(mode)-3-拆好了-抽屉")
+            nudge(app, by: 0.4)
+            try shoot("\(mode)-3b-每月还款")
+            app.swipeDown()
             // 两个抽屉都收起
             app.buttons["assets-drawer"].tap()
             app.buttons["cash-drawer"].tap()

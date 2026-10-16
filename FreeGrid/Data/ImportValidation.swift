@@ -250,6 +250,7 @@ nonisolated struct ValidatedImport: Sendable {
         let settledDates: [Date]
         let sortOrder: Int?
         let createdAt: Date?
+        var cashAccountID: UUID? = nil
     }
 
     struct ExpenseCategoryRecord: Sendable, Equatable {
@@ -573,7 +574,8 @@ nonisolated enum ImportValidator {
                 processedThrough: try raw.processedThrough.map { try day($0, field: "每月还款处理日期", now: now) },
                 settledDates: try (raw.settledDates ?? []).map { try day($0, field: "每月还款已还日期", now: now) },
                 sortOrder: raw.sortOrder,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "每月还款创建时间", now: now) }
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "每月还款创建时间", now: now) },
+                cashAccountID: try identifier(raw.cashAccountId, field: "每月还款扣款账户")
             )
         }
 

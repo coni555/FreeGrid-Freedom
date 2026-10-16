@@ -48,8 +48,8 @@ final class AppGuide {
                 Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线按账户分段，金色是资产，蓝色是现金。"),
                 Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
                 Step(target: .buckets, text: "资产是定期、股票这类锁定的钱，现金是随时能花的。\n点标题收起或展开，点一行修改金额。"),
-                Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它盖住全部开销时，就是财富自由。"),
                 Step(target: .loans, text: "填了月供，自由天数会在每个还款日把这笔钱留出来，\n保证你按时还上。"),
+                Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它盖住全部开销时，就是财富自由。"),
             ]
         case .settings:
             return [

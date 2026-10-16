@@ -255,6 +255,9 @@ final class Loan: Identifiable {
     /// 用户说「从别处还的」那几期的到期日：算已还，但没动现金
     var settledDates: [Date] = []
 
+    /// Pro 现金账户：月供固定从哪个账户扣（比如房贷绑的那张卡）。nil = 按扣款顺序找第一个够付的
+    var cashAccountID: UUID?
+
     var sortOrder: Int = 0
     var createdAt: Date = Date.now
 

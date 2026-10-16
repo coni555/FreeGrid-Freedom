@@ -254,7 +254,8 @@ enum DataIO {
                     processedThrough: $0.processedThrough.map { day.string(from: $0) },
                     settledDates: $0.settledDates.isEmpty ? nil : $0.settledDates.sorted().map { day.string(from: $0) },
                     sortOrder: $0.sortOrder,
-                    createdAt: iso.string(from: $0.createdAt)
+                    createdAt: iso.string(from: $0.createdAt),
+                    cashAccountId: $0.cashAccountID?.uuidString
                 )
             },
             expenseCategories: categoryOptions.map { options in
@@ -768,6 +769,7 @@ enum DataIO {
                 if let id = record.id { loan.id = id }
                 loan.processedThrough = record.processedThrough
                 loan.settledDates = record.settledDates
+                loan.cashAccountID = record.cashAccountID
                 if let createdAt = record.createdAt { loan.createdAt = createdAt }
                 context.insert(loan)
             }

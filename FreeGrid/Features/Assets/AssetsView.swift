@@ -1,4 +1,4 @@
-// 资产页面：净值、双桶、资产明细或总开关、被动收入、每月还款和调拨。导出、导入、清空在 Settings 的数据管理页。
+// 资产页面：净值（按账户分段、调拨）、资产 / 现金 / 每月还款三个抽屉、被动收入。导出、导入、清空在 Settings 的数据管理页。
 
 import SwiftUI
 import SwiftData
@@ -36,19 +36,6 @@ struct AssetsView: View {
     @State private var editingPassiveSource: PassiveSource? = nil
     @State private var pendingDeletePassive: PassiveSource? = nil
 
-    // --- 每月还款 ---
-    @State private var showingAddLoan = false
-    @State private var editingLoan: Loan? = nil
-    @State private var pendingDeleteLoan: Loan? = nil
-    /// 没扣成的那一期，等用户选「从现金扣」还是「从别处还的」
-    @State private var resolvingPayment: PendingPayment? = nil
-
-    struct PendingPayment: Identifiable {
-        let loan: Loan
-        let dueDate: Date
-        var id: String { "\(loan.id)-\(dueDate.timeIntervalSince1970)" }
-    }
-
     // --- 自由天数口径 ---
 
     // --- 说明与调拨默认收起 ---
@@ -67,12 +54,12 @@ struct AssetsView: View {
                         CashDrawer()
                     }
                     .guideTarget(.buckets, in: guide)
-                    passiveCard
-                        .guideTarget(.passive, in: guide)
                     if ProFeatures.canManageLoans || !loans.isEmpty {
-                        loansCard
+                        LoanDrawer()
                             .guideTarget(.loans, in: guide)
                     }
+                    passiveCard
+                        .guideTarget(.passive, in: guide)
                 }
                 .padding()
                 // 点击卡片之外的空白处收起调拨键盘(decimalPad 无 return 键)。
@@ -127,43 +114,6 @@ struct AssetsView: View {
                 Button("取消", role: .cancel) { pendingDeletePassive = nil }
             } message: { src in
                 Text("\(src.name) · 月入 ¥\(FinancialFormatting.wholeNumber(src.monthlyAmount))\n删除后被动覆盖率会下降。")
-            }
-            .sheet(isPresented: $showingAddLoan) { LoanSheet(existing: nil) }
-            .sheet(item: $editingLoan) { LoanSheet(existing: $0) }
-            .alert(
-                "删除这笔每月还款?",
-                isPresented: Binding(
-                    get: { pendingDeleteLoan != nil },
-                    set: { if !$0 { pendingDeleteLoan = nil } }
-                ),
-                presenting: pendingDeleteLoan
-            ) { loan in
-                Button("删除", role: .destructive) {
-                    do {
-                        try LoanStore.delete(loan, in: modelContext)
-                        pendingDeleteLoan = nil
-                    } catch {
-                        saveError = error.localizedDescription
-                    }
-                }
-                Button("取消", role: .cancel) { pendingDeleteLoan = nil }
-            } message: { loan in
-                Text("\(loan.name) · 每月 ¥\(FinancialFormatting.wholeNumber(loan.monthlyAmount))\n已经扣过的月供留在 History。")
-            }
-            .confirmationDialog(
-                resolvingPayment.map { "\(Self.monthDay($0.dueDate))这期 ¥\(FinancialFormatting.wholeNumber($0.loan.monthlyAmount))" } ?? "",
-                isPresented: Binding(
-                    get: { resolvingPayment != nil },
-                    set: { if !$0 { resolvingPayment = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: resolvingPayment
-            ) { payment in
-                Button("从现金扣") { resolve(payment, fromCash: true) }
-                Button("从别处还的，不动现金") { resolve(payment, fromCash: false) }
-                Button("取消", role: .cancel) { resolvingPayment = nil }
-            } message: { _ in
-                Text("到期那天现金不够，没有自动扣。")
             }
         }
     }
@@ -415,151 +365,6 @@ struct AssetsView: View {
             .accessibilityLabel("删除这个被动源")
         }
         .padding(.vertical, 6)
-    }
-
-    // MARK: - 每月还款 (Pro)
-
-    private var loansCard: some View {
-        let payments = expenses.filter { $0.loanID != nil }
-        let statuses = loans.map { LoanSchedule.status(of: $0, payments: payments) }
-        let active = zip(loans, statuses).filter { !$0.1.isPaidOff }
-        let monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyAmount }
-        let nextDue = active.compactMap { $0.1.nextDue }.min()
-        return VaultCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "Repay · 每月还款")
-                    Spacer()
-                    if ProFeatures.canManageLoans {
-                        Button {
-                            showingAddLoan = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color.skyDeep)
-                                .frame(width: 24, height: 24)
-                                .background(Circle().stroke(Color.skyDeep.opacity(0.5), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("添加每月还款")
-                        .accessibilityIdentifier("add-loan-button")
-                    }
-                }
-
-                if loans.isEmpty {
-                    Text("有房贷车贷？点右上 + 添加")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(FinancialFormatting.wholeNumber(monthlyTotal))
-                            .font(.system(size: 44, weight: .ultraLight, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.ink)
-                        Text("/月")
-                            .font(.system(size: 20, weight: .ultraLight, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                        Spacer()
-                        if let nextDue {
-                            Text("下次 \(Self.monthDay(nextDue))")
-                                .font(.system(.caption2, design: .monospaced))
-                                .tracking(0.5)
-                                .foregroundStyle(Color.inkFaint)
-                        }
-                    }
-
-                    Hairline()
-                    ForEach(Array(zip(loans, statuses)), id: \.0.id) { loan, status in
-                        loanRow(loan, status: status)
-                        if loan.id != loans.last?.id {
-                            Hairline().padding(.leading, 4)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func loanRow(_ loan: Loan, status: LoanSchedule.Status) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-        HStack(spacing: 10) {
-            Button {
-                if ProFeatures.canManageLoans { editingLoan = loan }
-            } label: {
-                HStack(spacing: 10) {
-                    // 和首页格子上的还款日同一个记号
-                    PunchedCell(cornerRadius: 1.5)
-                        .fill(status.isPaidOff ? Color.inkGhost : Color.cashBlue, style: FillStyle(eoFill: true))
-                        .frame(width: 9, height: 9)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(loan.name)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                .foregroundStyle(status.isPaidOff ? Color.inkMuted : Color.ink)
-                            Spacer()
-                            Text("−¥\(FinancialFormatting.wholeNumber(loan.monthlyAmount))/月")
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(status.isPaidOff ? Color.inkFaint : Color.inkMuted)
-                        }
-                        if status.pending.isEmpty {
-                            Text(status.isPaidOff ? "已还清" : "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期")
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(Color.inkFaint)
-                        }
-                    }
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("loan-row")
-
-            Button {
-                pendingDeleteLoan = loan
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(Color.inkFaint)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().stroke(Color.hairlineSoft, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("删除这笔每月还款")
-        }
-            if let due = status.pending.first {
-                Button {
-                    resolvingPayment = PendingPayment(loan: loan, dueDate: due)
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("\(Self.monthDay(due))这期没扣：现金不够")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                        Text("处理")
-                            .font(.system(.caption2, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color.skyDeep)
-                        Spacer()
-                    }
-                    .padding(.leading, 19)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("loan-pending")
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func resolve(_ payment: PendingPayment, fromCash: Bool) {
-        do {
-            try LoanStore.resolvePending(payment.loan, dueDate: payment.dueDate, fromCash: fromCash, in: modelContext)
-            resolvingPayment = nil
-        } catch {
-            saveError = error.localizedDescription
-        }
-    }
-
-    /// 「11月14日」
-    static func monthDay(_ date: Date) -> String {
-        let parts = Calendar.current.dateComponents([.month, .day], from: date)
-        return "\(parts.month ?? 0)月\(parts.day ?? 0)日"
     }
 
     // MARK: - 调拨 (净值卡底部, 默认收起)
