@@ -29,6 +29,8 @@ enum AppPreferences {
         FreedomSettings.countsAssetsKey,
         "historyGuideCompleted",
         "setupGuideCompleted",
+        "assetsLayout",
+        "assetsUnit",
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {

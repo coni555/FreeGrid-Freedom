@@ -536,7 +536,7 @@ final class FreeGridUITests: XCTestCase {
     func testAssetSwitchChangesTheDashboardNumber() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
-                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+                               "-setupGuideCompleted", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         for (label, amount) in [("编辑现金", "10000"), ("编辑资产", "10000")] {
@@ -582,7 +582,7 @@ final class FreeGridUITests: XCTestCase {
     func testProCanSplitAssetsIntoItemsEditAndDeleteThem() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-proPreview", "YES", "-UseInMemoryStore"]
+                               "-proPreview", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         app.buttons["编辑资产"].tap()
@@ -652,7 +652,7 @@ final class FreeGridUITests: XCTestCase {
     func testPerItemAssetSwitchChangesTheDashboardNumber() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
-                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-UseInMemoryStore"]
+                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
 
         // 1. 现金 10000，资产 10000
@@ -720,7 +720,7 @@ final class FreeGridUITests: XCTestCase {
     func testAssetItemsAreLockedWithoutProAndOpenThePaywall() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-proPreview", "NO", "-UseInMemoryStore"]
+                               "-proPreview", "NO", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         app.buttons["编辑资产"].tap()
@@ -754,7 +754,7 @@ final class FreeGridUITests: XCTestCase {
     func testProAddsALoanAndTheDashboardRunsThroughRepaymentDays() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
-                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-UseInMemoryStore"]
+                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         app.buttons["编辑现金"].tap()
@@ -975,7 +975,7 @@ final class FreeGridUITests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: backup) }
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-proPreview", "NO", "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
+                               "-proPreview", "NO", "-assetsLayout", "classic", "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         let card = app.buttons["assets-drawer"]
@@ -1012,7 +1012,7 @@ final class FreeGridUITests: XCTestCase {
     func testProSplitsCashIntoAccountsAndAnExpenseLandsOnTheChosenOne() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-proPreview", "YES", "-UseInMemoryStore"]
+                               "-proPreview", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         app.buttons["编辑现金"].tap()
@@ -1062,6 +1062,117 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertEqual(app.buttons["cash-account-现金"].value as? String, "¥9,700")
     }
 
+    /// Assets 新版「钱与时间」：录入现金和资产、记一笔，换成「天」后大数字是自由天数、两张标签按日均换算；
+    /// 中间的圆钮调拨；设置里换成经典版就回到抽屉页面。
+    @MainActor
+    func testMoneyTimeAssetsShowsDaysTransfersAndSwitchesToClassic() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        // 还没录钱时先打开的是现金标签
+        app.buttons["编辑现金"].tap()
+        var field = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.typeText("10000")
+        app.buttons["保存"].tap()
+        app.buttons["assets-tab"].tap()
+        app.buttons["编辑资产"].tap()
+        field = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.typeText("10000")
+        app.buttons["保存"].tap()
+        XCTAssertEqual(app.buttons["cash-tab"].value as? String, "¥10,000")
+
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("100")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 5))
+
+        // 换成「天」：大数字就是首页那个 199，现金 9900 ÷ 日均 100 = 99 天
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["unit-days"].tap()
+        let days = app.descendants(matching: .any)["assets-hero-days"]
+        XCTAssertTrue(days.waitForExistence(timeout: 3))
+        XCTAssertTrue(days.label.contains("199"))
+        XCTAssertEqual(app.buttons["cash-tab"].value as? String, "99 天")
+        XCTAssertEqual(app.buttons["assets-tab"].value as? String, "100 天")
+        app.buttons["unit-money"].tap()
+
+        // 中间的圆钮：从现金调 500 到资产
+        app.buttons["transfer-toggle"].tap()
+        let amount = app.textFields["transfer-amount-field"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.typeText("500")
+        app.buttons["confirm-transfer"].tap()
+        XCTAssertTrue(amount.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(app.buttons["cash-tab"].value as? String, "¥9,400")
+        XCTAssertEqual(app.buttons["assets-tab"].value as? String, "¥10,500")
+
+        // 设置里换成经典版
+        app.tabBars.buttons["Settings"].tap()
+        let picker = app.segmentedControls["assets-layout-picker"]
+        if !picker.waitForExistence(timeout: 3) { app.swipeUp() }
+        picker.buttons["经典"].tap()
+        app.tabBars.buttons["Assets"].tap()
+        XCTAssertTrue(app.buttons["assets-drawer"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["assets-tab"].exists)
+    }
+
+    /// 新版「钱与时间」截图（演示账本）：钱、天、现金标签、调拨弹窗，浅深各一套。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureMoneyTimeScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let split = environment["ACCOUNTS_SPLIT_LEDGER"], let output = environment["MONEY_TIME_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍新版 Assets 截图时运行")
+        }
+        func launch(dark: Bool) -> XCUIApplication {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES", "-proPreview", "YES",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", split]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            return app
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        func nudge(_ app: XCUIApplication, by amount: CGFloat) {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+            from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8 - amount)))
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            let app = launch(dark: dark)
+            app.tabBars.buttons["Assets"].tap()
+            app.buttons["assets-tab"].tap()
+            try shoot("\(mode)-1-钱")
+            app.buttons["unit-days"].tap()
+            try shoot("\(mode)-2-天")
+            app.buttons["unit-money"].tap()
+            app.buttons["cash-tab"].tap()
+            nudge(app, by: 0.3)
+            try shoot("\(mode)-3-现金标签")
+            nudge(app, by: 0.4)
+            try shoot("\(mode)-4-每月")
+            app.swipeDown()
+            app.swipeDown()
+            app.buttons["transfer-toggle"].tap()
+            XCTAssertTrue(app.textFields["transfer-amount-field"].waitForExistence(timeout: 3))
+            app.textFields["transfer-amount-field"].typeText("2000")
+            try shoot("\(mode)-5-调拨")
+            app.terminate()
+        }
+    }
+
     /// 资产和现金分账户（Pro）截图：演示账本没拆分 / 拆好了、记支出时的账户行、调拨、两个抽屉收起。只在给了环境变量时运行。
     @MainActor
     func testCaptureAccountsScreens() throws {
@@ -1075,7 +1186,7 @@ final class FreeGridUITests: XCTestCase {
             app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
                                    "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
                                    "-setupGuideCompleted", "YES", "-proPreview", "YES",
-                                   "-UseInMemoryStore", "-SeedBackupJSON", seed]
+                                   "-assetsLayout", "classic", "-UseInMemoryStore", "-SeedBackupJSON", seed]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
             return app
@@ -1181,7 +1292,7 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testTransferRejectsBalanceOverflowAndKeepsBuckets() {
         let app = XCUIApplication()
-        app.launchArguments = ["-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launchArguments = ["-setupGuideCompleted", "YES", "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Assets"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Assets"].tap()

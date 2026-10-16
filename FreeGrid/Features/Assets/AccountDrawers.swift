@@ -5,6 +5,40 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - 金额的单位
+
+/// 抽屉和面板里的金额写成什么：钱，或者换算成「够日常花几天」（Assets 新版的「天」）
+enum AmountUnit: Equatable {
+    case money
+    /// perDay 是日均消费；为 0 时还算不出天数
+    case days(perDay: Double)
+
+    /// 一笔钱写出来的样子。不计入自由天数的资产在「天」里写「不计入」
+    func text(_ amount: Double, counted: Bool = true, sign: String = "") -> String {
+        switch self {
+        case .money:
+            return sign + "¥" + amount.formatted(.number)
+        case .days(let perDay):
+            guard counted else { return "不计入" }
+            guard perDay > 0 else { return "— 天" }
+            return sign + Int((amount / perDay).rounded()).formatted(.number) + " 天"
+        }
+    }
+
+    var isDays: Bool { if case .days = self { return true } else { return false } }
+}
+
+private struct AmountUnitKey: EnvironmentKey {
+    static let defaultValue = AmountUnit.money
+}
+
+extension EnvironmentValues {
+    var amountUnit: AmountUnit {
+        get { self[AmountUnitKey.self] }
+        set { self[AmountUnitKey.self] = newValue }
+    }
+}
+
 // MARK: - 抽屉外壳
 
 /// 标题行常驻：色块、名字、几项、总数、展开箭头；下面是收起时也看得到的一行小字。展开后接各行。
@@ -109,6 +143,7 @@ struct DrawerRow<Leading: View, Trailing: View>: View {
     let onTap: () -> Void
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
+    @Environment(\.amountUnit) private var unit
 
     var body: some View {
         VStack(spacing: 0) {
@@ -122,11 +157,13 @@ struct DrawerRow<Leading: View, Trailing: View>: View {
                             .foregroundStyle(dimmed ? Color.inkMuted : Color.ink)
                             .lineLimit(1)
                         Spacer(minLength: Spacing.sm)
-                        Text("¥" + amount.formatted(.number))
+                        // 资产行变淡 = 不计入自由天数，换成「天」时写「不计入」
+                        Text(unit.text(amount, counted: !dimmed))
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(amount < 0 ? Color.flame : (dimmed ? Color.inkFaint : Color.inkMuted))
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
+                            .contentTransition(.numericText())
                     }
                     .frame(height: DrawerMetrics.rowHeight - 1)
                     .contentShape(Rectangle())
@@ -282,13 +319,32 @@ private extension View {
 
 // MARK: - 资产抽屉
 
+/// 经典版的资产抽屉：标题行 + `AssetRows`
 struct AssetDrawer: View {
+    @Query(sort: [SortDescriptor(\AssetItem.sortOrder), SortDescriptor(\AssetItem.createdAt)])
+    private var items: [AssetItem]
+    @Query private var assetsArr: [UserAssets]
+    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    @AppStorage("assetsDrawerOpen", store: AppPreferences.store) private var isOpen = true
+
+    var body: some View {
+        let total = assetsArr.first?.lockedAssets ?? 0
+        AccountDrawer(title: "资产", color: .assetGold, count: items.isEmpty ? nil : "\(items.count) 项",
+                      total: total, subtitle: AssetRows.summary(items: items, total: total, countsAssets: countsAssets),
+                      isOpen: $isOpen, headerID: "assets-drawer") {
+            AssetRows()
+        }
+    }
+}
+
+/// 资产的各行：没拆分时一行总数（方格是总开关），拆了一项一行；最后是添加和说明。增删改的弹窗都在这里。
+/// 经典版放在抽屉里，新版放在「资产」标签下面的面板里。
+struct AssetRows: View {
     @Query(sort: [SortDescriptor(\AssetItem.sortOrder), SortDescriptor(\AssetItem.createdAt)])
     private var items: [AssetItem]
     @Query private var assetsArr: [UserAssets]
     @Environment(\.modelContext) private var modelContext
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    @AppStorage("assetsDrawerOpen", store: AppPreferences.store) private var isOpen = true
 
     @State private var editingTotal = false
     @State private var splitAfterTotalSheet = false
@@ -310,15 +366,17 @@ struct AssetDrawer: View {
         items.isEmpty ? (countsAssets ? total : 0) : items.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
     }
 
-    private var subtitle: String? {
+    /// 一句话说资产有多少计入自由天数（标题行、标签下面用）
+    static func summary(items: [AssetItem], total: Double, countsAssets: Bool) -> String? {
         guard total > 0 else { return nil }
+        let counted = items.isEmpty ? (countsAssets ? total : 0)
+            : items.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
         if counted >= total { return "全部计入自由天数" }
         return counted == 0 ? "不计入自由天数" : "计入自由天数 ¥\(counted.formatted(.number))"
     }
 
     var body: some View {
-        AccountDrawer(title: "资产", color: .assetGold, count: items.isEmpty ? nil : "\(items.count) 项",
-                      total: total, subtitle: subtitle, isOpen: $isOpen, headerID: "assets-drawer") {
+        VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
                 // 没拆分：一行就是资产总数，方格是总开关
                 DrawerRow(name: "资产", amount: total, dimmed: !countsAssets, accessibilityName: "编辑资产",
@@ -468,13 +526,29 @@ struct AssetDrawer: View {
 
 // MARK: - 现金抽屉
 
+/// 经典版的现金抽屉：标题行 + `CashRows`
 struct CashDrawer: View {
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var accounts: [CashAccount]
+    @Query private var assetsArr: [UserAssets]
+    @AppStorage("cashDrawerOpen", store: AppPreferences.store) private var isOpen = true
+
+    var body: some View {
+        AccountDrawer(title: "现金", color: .cashBlue, count: accounts.isEmpty ? nil : "\(accounts.count) 个账户",
+                      total: assetsArr.first?.cash ?? 0, subtitle: CashRows.summary(accounts: accounts),
+                      isOpen: $isOpen, headerID: "cash-drawer") {
+            CashRows()
+        }
+    }
+}
+
+/// 现金的各行：没拆分时一行总数，拆了一个账户一行（序号 = 扣款顺序，右边把手拖动）；最后是添加和说明。
+struct CashRows: View {
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var accounts: [CashAccount]
     @Query private var assetsArr: [UserAssets]
     @Environment(\.modelContext) private var modelContext
     @Environment(AppGuide.self) private var guide
-    @AppStorage("cashDrawerOpen", store: AppPreferences.store) private var isOpen = true
 
     @State private var editingTotal = false
     @State private var splitAfterTotalSheet = false
@@ -493,13 +567,12 @@ struct CashDrawer: View {
     private var canManage: Bool { ProFeatures.canManageCashAccounts }
     private var total: Double { assetsArr.first?.cash ?? 0 }
 
-    private var subtitle: String? {
+    static func summary(accounts: [CashAccount]) -> String? {
         accounts.count > 1 ? "记支出先扣「\(accounts[0].name)」" : nil
     }
 
     var body: some View {
-        AccountDrawer(title: "现金", color: .cashBlue, count: accounts.isEmpty ? nil : "\(accounts.count) 个账户",
-                      total: total, subtitle: subtitle, isOpen: $isOpen, headerID: "cash-drawer") {
+        VStack(alignment: .leading, spacing: 0) {
             if accounts.isEmpty {
                 DrawerRow(name: "现金", amount: total, accessibilityName: "编辑现金", identifier: "edit-cash-total",
                           onTap: { editingTotal = true }) {

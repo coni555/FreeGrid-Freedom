@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
+    @AppStorage(AssetsLayout.key, store: AppPreferences.store) private var assetsLayout = AssetsLayout.moneyTime
 
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -186,6 +187,20 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
+            }
+            rowDivider
+            // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
+            settingsRow(icon: "square.split.1x2", title: "Assets 页面") {
+                Picker("Assets 页面", selection: Binding(
+                    get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
+                    set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
+                )) {
+                    Text("钱与时间").tag(AssetsLayout.moneyTime)
+                    Text("经典").tag(AssetsLayout.classic)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                .accessibilityIdentifier("assets-layout-picker")
             }
         }
     }

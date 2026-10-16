@@ -4,14 +4,33 @@
 import SwiftUI
 import SwiftData
 
+/// 经典版的还款抽屉：标题行 + `LoanRows`
 struct LoanDrawer: View {
+    @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
+    private var loans: [Loan]
+    @Query private var expenses: [Expense]
+    @AppStorage("loansDrawerOpen", store: AppPreferences.store) private var isOpen = true
+
+    var body: some View {
+        let summary = LoanRows.Summary(loans: loans, expenses: expenses)
+        AccountDrawer(title: "每月还款", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
+                      total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: "/月", punched: true,
+                      subtitle: loans.isEmpty ? "房贷、车贷、分期，到期自动扣" : summary.line,
+                      isOpen: $isOpen, headerID: "loans-drawer") {
+            LoanRows()
+        }
+    }
+}
+
+/// 还款的各行：一笔一行（点开编辑，退款后点开问删不删），没扣成的那期在行下面给处理入口；最后是添加和说明。
+struct LoanRows: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
     @Query private var expenses: [Expense]
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("loansDrawerOpen", store: AppPreferences.store) private var isOpen = true
+    @Environment(\.amountUnit) private var unit
 
     @State private var adding = false
     @State private var editing: Loan?
@@ -28,18 +47,34 @@ struct LoanDrawer: View {
 
     private var canManage: Bool { ProFeatures.canManageLoans }
 
+    /// 每月一共还多少、下次哪天扣哪笔、有几期没扣成：标题行和新版「每月」里用
+    struct Summary {
+        let monthlyTotal: Double
+        /// 「有 1 期没扣成，展开处理」或「下次 10月25日 扣「车贷」」
+        let line: String
+
+        init(loans: [Loan], expenses: [Expense], now: Date = .now) {
+            let payments = expenses.filter { $0.loanID != nil }
+            let statuses = loans.map { LoanSchedule.status(of: $0, payments: payments, now: now) }
+            let active = zip(loans, statuses).filter { !$0.1.isPaidOff }
+            monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyAmount }
+            let pending = statuses.reduce(0) { $0 + $1.pending.count }
+            if pending > 0 {
+                line = "有 \(pending) 期没扣成，展开处理"
+            } else if let (loan, date) = active.compactMap({ pair in pair.1.nextDue.map { (pair.0, $0) } })
+                        .min(by: { $0.1 < $1.1 }) {
+                line = "下次 \(LoanRows.monthDay(date)) 扣「\(loan.name)」"
+            } else {
+                line = "都还清了"
+            }
+        }
+    }
+
     var body: some View {
         let payments = expenses.filter { $0.loanID != nil }
         let statuses = loans.map { LoanSchedule.status(of: $0, payments: payments) }
-        let active = zip(loans, statuses).filter { !$0.1.isPaidOff }
-        let monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyAmount }
-        let next = active.compactMap { pair in pair.1.nextDue.map { (pair.0, $0) } }.min { $0.1 < $1.1 }
-        let pendingCount = statuses.reduce(0) { $0 + $1.pending.count }
 
-        AccountDrawer(title: "每月还款", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
-                      total: loans.isEmpty ? nil : monthlyTotal, totalSuffix: "/月", punched: true,
-                      subtitle: subtitle(next: next, pendingCount: pendingCount, empty: loans.isEmpty),
-                      isOpen: $isOpen, headerID: "loans-drawer") {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(zip(loans, statuses)), id: \.0.id) { loan, status in
                 loanRow(loan, status: status)
             }
@@ -85,13 +120,6 @@ struct LoanDrawer: View {
         }
     }
 
-    /// 收起时也看得到的一行：有没扣成的先说这个，否则说下次哪天扣哪笔
-    private func subtitle(next: (Loan, Date)?, pendingCount: Int, empty: Bool) -> String? {
-        if empty { return "房贷、车贷、分期，到期自动扣" }
-        if pendingCount > 0 { return "有 \(pendingCount) 期没扣成，展开处理" }
-        guard let (loan, date) = next else { return "都还清了" }
-        return "下次 \(Self.monthDay(date)) 扣「\(loan.name)」"
-    }
 
     // MARK: - 一行贷款
 
@@ -121,8 +149,9 @@ struct LoanDrawer: View {
                             .lineLimit(1)
                     }
                     Spacer(minLength: Spacing.sm)
-                    Text("−¥\(FinancialFormatting.wholeNumber(loan.monthlyAmount))")
+                    Text(unit.text(loan.monthlyAmount, sign: "−"))
                         .font(.system(.caption, design: .monospaced))
+                        .contentTransition(.numericText())
                         .foregroundStyle(paidOff ? Color.inkFaint : Color.inkMuted)
                 }
                 .padding(.vertical, 10)

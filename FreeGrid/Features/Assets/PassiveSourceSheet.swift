@@ -6,6 +6,8 @@ struct PassiveSourceSheet: View {
 
     let existing: PassiveSource?
     let onSave: (String, Double) throws -> Void
+    /// 编辑时才有：删除这个被动收入源（新版 Assets 的行上没有删除按钮）
+    var onDelete: (() throws -> Void)? = nil
 
     @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +15,7 @@ struct PassiveSourceSheet: View {
     @State private var monthly: String = ""
     private enum Field { case name, monthly }
     @FocusState private var focus: Field?
+    @State private var confirmingDelete = false
 
     private var isEditing: Bool { existing != nil }
     private var title: String { isEditing ? "编辑被动源" : "添加被动源" }
@@ -64,6 +67,14 @@ struct PassiveSourceSheet: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
+
+                    if isEditing, onDelete != nil {
+                        Button("删除这个被动收入") { confirmingDelete = true }
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.flame)
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("delete-passive-source")
+                    }
                 }
                 .padding(Spacing.lg)
             }
@@ -82,6 +93,20 @@ struct PassiveSourceSheet: View {
                         .foregroundStyle(isValid ? Color.skyDeep : Color.inkFaint)
                         .fontWeight(.medium)
                 }
+            }
+            .confirmationDialog("删除「\(existing?.name ?? "")」？", isPresented: $confirmingDelete,
+                                titleVisibility: .visible) {
+                Button("删除", role: .destructive) {
+                    do {
+                        try onDelete?()
+                        dismiss()
+                    } catch {
+                        saveError = error.localizedDescription
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("删除后被动覆盖率会下降。")
             }
             .onAppear {
                 if let e = existing {
