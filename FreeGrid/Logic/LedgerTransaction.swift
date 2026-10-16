@@ -41,6 +41,21 @@ enum LedgerTransaction: Identifiable {
         }
     }
 
+    /// Pro 现金账户：这笔记在哪个账户
+    var cashAccountID: UUID? {
+        switch self {
+        case .expense(let expense): return expense.cashAccountID
+        case .income(let income): return income.cashAccountID
+        }
+    }
+
+    func setCashAccountID(_ id: UUID?) {
+        switch self {
+        case .expense(let expense): expense.cashAccountID = id
+        case .income(let income): income.cashAccountID = id
+        }
+    }
+
     /// Pro 每月还款到期自动扣的那一笔
     var isLoanPayment: Bool {
         if case .expense(let expense) = self { return expense.loanID != nil }

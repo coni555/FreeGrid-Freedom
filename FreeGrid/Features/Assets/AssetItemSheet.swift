@@ -24,6 +24,8 @@ struct AssetItemSheet: View {
     /// 打开时默认选中的来源（拆分时是原来的总数）
     var initialSource: AssetItemStore.Source? = nil
     let onSave: (String, Double, Bool, AssetItemStore.Source?) throws -> Void
+    /// 编辑时才有：删除这一项
+    var onDelete: (() throws -> Void)? = nil
 
     @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
@@ -31,6 +33,7 @@ struct AssetItemSheet: View {
     @State private var amount: String = ""
     @State private var countsInFreedom: Bool = true
     @State private var source: AssetItemStore.Source?
+    @State private var confirmingDelete = false
     private enum Field { case name, amount }
     @FocusState private var focus: Field?
 
@@ -96,6 +99,14 @@ struct AssetItemSheet: View {
                     }
                     .tint(Color.skyDeep)
                     .accessibilityIdentifier("asset-item-counts-in-freedom-toggle")
+
+                    if isEditing, onDelete != nil {
+                        Button("删除这一项") { confirmingDelete = true }
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.flame)
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("delete-asset-item")
+                    }
                 }
                 .padding(Spacing.lg)
             }
@@ -115,6 +126,20 @@ struct AssetItemSheet: View {
                         .fontWeight(.medium)
                         .accessibilityIdentifier("save-asset-item")
                 }
+            }
+            .confirmationDialog("删除「\(existing?.name ?? "")」？", isPresented: $confirmingDelete,
+                                titleVisibility: .visible) {
+                Button("删除", role: .destructive) {
+                    do {
+                        try onDelete?()
+                        dismiss()
+                    } catch {
+                        saveError = error.localizedDescription
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("资产总数会少 ¥\((existing?.amount ?? 0).formatted(.number))。")
             }
             .onAppear {
                 if let existing {

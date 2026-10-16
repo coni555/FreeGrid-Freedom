@@ -45,9 +45,9 @@ final class AppGuide {
             ]
         case .assets:
             return [
-                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线是两者各占多少。"),
+                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线按账户分段，金色是资产，蓝色是现金。"),
                 Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
-                Step(target: .buckets, text: "点一张卡修改金额。\n资产是定期、股票这类锁定的钱，现金是随时能花的。"),
+                Step(target: .buckets, text: "资产是定期、股票这类锁定的钱，现金是随时能花的。\n点标题收起或展开，点一行修改金额。"),
                 Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它盖住全部开销时，就是财富自由。"),
                 Step(target: .loans, text: "填了月供，自由天数会在每个还款日把这笔钱留出来，\n保证你按时还上。"),
             ]
@@ -385,7 +385,7 @@ struct SetupGuideOverlay: View {
     private var text: String {
         switch step {
         case .welcome: return "FreeGrid 算的是：不工作，你现在的钱还能撑多少天。\n先告诉它你有多少钱。"
-        case .cash: return "活期、微信、支付宝里随时能花的钱，填在「现金」。\n点一下这张卡。"
+        case .cash: return "活期、微信、支付宝里随时能花的钱，填在「现金」。\n点一下这一行。"
         case .backHome: return "记下了。\n再回首页记一笔支出，格子就会点亮。"
         case .expense: return "记一笔今天的支出，多少都行。\n点「记支出」。"
         }

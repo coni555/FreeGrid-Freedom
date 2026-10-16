@@ -91,10 +91,10 @@ struct EditBucketSheet: View {
                             dismiss()
                         } label: {
                             HStack(spacing: Spacing.sm) {
-                                Text("拆成多项")
+                                Text(bucket == .assets ? "拆成多项" : "拆成多个账户")
                                     .font(.system(.subheadline, design: .rounded))
                                     .foregroundStyle(Color.ink)
-                                if !ProFeatures.canManageAssetItems {
+                                if !(bucket == .assets ? ProFeatures.canManageAssetItems : ProFeatures.canManageCashAccounts) {
                                     Text("PRO")
                                         .font(.system(.caption2, design: .monospaced))
                                         .tracking(2)
@@ -109,7 +109,7 @@ struct EditBucketSheet: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityIdentifier("split-assets-into-items")
+                        .accessibilityIdentifier(bucket == .assets ? "split-assets-into-items" : "split-cash-into-accounts")
                     }
                 }
                 .padding(Spacing.lg)

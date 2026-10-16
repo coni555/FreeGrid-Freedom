@@ -33,10 +33,12 @@ nonisolated struct BackupEnvelope: Codable {
         let loanId: String?
         /// 算不算进日均消费。可选：只在「不算」时写 false，没写就是算
         let countsInBurn: Bool?
+        /// Pro 现金账户：从哪个账户扣的。可选：没拆账户时不写
+        let cashAccountId: String?
 
         init(id: String? = nil, amount: Double, category: String, date: String,
              note: String? = nil, createdAt: String? = nil,
-             loanId: String? = nil, countsInBurn: Bool? = nil) {
+             loanId: String? = nil, countsInBurn: Bool? = nil, cashAccountId: String? = nil) {
             self.id = id
             self.amount = amount
             self.category = category
@@ -45,6 +47,7 @@ nonisolated struct BackupEnvelope: Codable {
             self.createdAt = createdAt
             self.loanId = loanId
             self.countsInBurn = countsInBurn
+            self.cashAccountId = cashAccountId
         }
     }
 
@@ -56,9 +59,11 @@ nonisolated struct BackupEnvelope: Codable {
         let note: String?
         let isPassive: Bool?
         let createdAt: String?
+        /// Pro 现金账户：进了哪个账户。可选：没拆账户时不写
+        let cashAccountId: String?
 
         init(id: String? = nil, amount: Double, source: String, date: String,
-             note: String? = nil, isPassive: Bool? = nil, createdAt: String? = nil) {
+             note: String? = nil, isPassive: Bool? = nil, createdAt: String? = nil, cashAccountId: String? = nil) {
             self.id = id
             self.amount = amount
             self.source = source
@@ -66,6 +71,7 @@ nonisolated struct BackupEnvelope: Codable {
             self.note = note
             self.isPassive = isPassive
             self.createdAt = createdAt
+            self.cashAccountId = cashAccountId
         }
     }
 
@@ -134,6 +140,26 @@ nonisolated struct BackupEnvelope: Codable {
         }
     }
 
+    /// Pro 现金账户。可选字段：没拆账户时不写，旧版本读到也只会忽略它，现金总数仍在 `assets.cash`。
+    struct CashAccountJSON: Codable {
+        let id: String?
+        let name: String
+        let amount: Double
+        let sortOrder: Int?
+        let createdAt: String?
+        let updatedAt: String?
+
+        init(id: String? = nil, name: String, amount: Double, sortOrder: Int? = nil,
+             createdAt: String? = nil, updatedAt: String? = nil) {
+            self.id = id
+            self.name = name
+            self.amount = amount
+            self.sortOrder = sortOrder
+            self.createdAt = createdAt
+            self.updatedAt = updatedAt
+        }
+    }
+
     /// Pro 每月还款。可选字段：没有贷款时不写，旧版本读到也只会忽略它。
     /// 已经扣过的月供是普通支出（带 `loan_id`），不在这里。
     struct LoanJSON: Codable {
@@ -188,6 +214,7 @@ nonisolated struct BackupEnvelope: Codable {
     let assetItems: [AssetItemJSON]?
     let loans: [LoanJSON]?
     let expenseCategories: [ExpenseCategoryJSON]?
+    let cashAccounts: [CashAccountJSON]?
 
     init(
         schemaVersion: Int? = nil,
@@ -199,7 +226,8 @@ nonisolated struct BackupEnvelope: Codable {
         firstRecordDate: String? = nil,
         assetItems: [AssetItemJSON]? = nil,
         loans: [LoanJSON]? = nil,
-        expenseCategories: [ExpenseCategoryJSON]? = nil
+        expenseCategories: [ExpenseCategoryJSON]? = nil,
+        cashAccounts: [CashAccountJSON]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -211,5 +239,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.assetItems = assetItems
         self.loans = loans
         self.expenseCategories = expenseCategories
+        self.cashAccounts = cashAccounts
     }
 }

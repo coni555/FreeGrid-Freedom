@@ -81,6 +81,7 @@ final class StoreBootstrap {
             UserAssets.self,
             AssetItem.self,
             Loan.self,
+            CashAccount.self,
         ])
     }
 

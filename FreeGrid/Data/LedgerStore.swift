@@ -25,6 +25,8 @@ enum LedgerStore {
         var title: String
         var note: String
         var date: Date
+        /// Pro 现金账户：换到哪个账户。nil 表示不换
+        var cashAccountID: UUID? = nil
     }
 
     /// 页面只在成功返回后关闭表单或显示成功。整个操作同步执行，不在中途让出执行权。
@@ -48,6 +50,7 @@ enum LedgerStore {
     }
 
     /// 余额及统计起点只有这一处修改边界。修改前保留值，失败后页面和账本都回到原态。
+    /// 现金账户（Pro）的余额也在这里一起保留和恢复，所以任何动现金的路径都不用自己记。
     static func updateAssets(
         in context: ModelContext,
         save: SaveAction = { try $0.save() },
@@ -57,8 +60,12 @@ enum LedgerStore {
         let existing = try context.fetch(FetchDescriptor<UserAssets>()).first
         let assets = existing ?? UserAssets(total: 0)
         let previous = (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate)
+        let accounts = try context.fetch(FetchDescriptor<CashAccount>()).map { ($0, $0.name, $0.amount, $0.sortOrder, $0.updatedAt) }
         try perform(in: context, save: save, restore: {
             (assets.cash, assets.lockedAssets, assets.updatedAt, assets.firstRecordDate) = previous
+            for (account, name, amount, order, updated) in accounts {
+                (account.name, account.amount, account.sortOrder, account.updatedAt) = (name, amount, order, updated)
+            }
             restore()
         }) {
             if existing == nil { context.insert(assets) }
@@ -117,7 +124,9 @@ enum LedgerStore {
             case .income(let income):
                 context.insert(income)
             }
-            assets.cash += transaction.cashChange
+            let account = try CashAccountStore.applyCashChange(
+                transaction.cashChange, accountID: transaction.cashAccountID, assets: assets, in: context)
+            transaction.setCashAccountID(account?.id)
             assets.updatedAt = .now
         }
     }
@@ -142,7 +151,8 @@ enum LedgerStore {
             transaction = .income(income)
         }
         try updateAssets(in: context, save: save) { assets in
-            assets.cash -= transaction.cashChange
+            try CashAccountStore.applyCashChange(
+                -transaction.cashChange, accountID: transaction.cashAccountID, assets: assets, in: context)
             switch transaction {
             case .expense(let expense):
                 context.delete(expense)
@@ -168,11 +178,13 @@ enum LedgerStore {
         case .expense:
             let expenses = try context.fetch(FetchDescriptor<Expense>())
             guard let expense = expenses.first(where: { $0.id == id }) else { throw StoreError.missingRecord }
-            let previous = (expense.amount, expense.category, expense.note, expense.date)
+            let previous = (expense.amount, expense.category, expense.note, expense.date, expense.cashAccountID)
             try updateAssets(in: context, save: save, restore: {
-                (expense.amount, expense.category, expense.note, expense.date) = previous
+                (expense.amount, expense.category, expense.note, expense.date, expense.cashAccountID) = previous
             }) { assets in
-                assets.cash += expense.amount - edit.amount
+                expense.cashAccountID = try moveCash(old: -expense.amount, new: -edit.amount,
+                                                     from: expense.cashAccountID, to: edit.cashAccountID,
+                                                     assets: assets, in: context)
                 (expense.amount, expense.category, expense.note, expense.date)
                     = (edit.amount, edit.title, edit.note, edit.date)
                 assets.firstRecordDate = FreedomMath.earliestExpenseDate(expenses)
@@ -181,15 +193,31 @@ enum LedgerStore {
         case .income:
             let incomes = try context.fetch(FetchDescriptor<Income>())
             guard let income = incomes.first(where: { $0.id == id }) else { throw StoreError.missingRecord }
-            let previous = (income.amount, income.source, income.note, income.date)
+            let previous = (income.amount, income.source, income.note, income.date, income.cashAccountID)
             try updateAssets(in: context, save: save, restore: {
-                (income.amount, income.source, income.note, income.date) = previous
+                (income.amount, income.source, income.note, income.date, income.cashAccountID) = previous
             }) { assets in
-                assets.cash += edit.amount - income.amount
+                income.cashAccountID = try moveCash(old: income.amount, new: edit.amount,
+                                                    from: income.cashAccountID, to: edit.cashAccountID,
+                                                    assets: assets, in: context)
                 (income.amount, income.source, income.note, income.date)
                     = (edit.amount, edit.title, edit.note, edit.date)
                 assets.updatedAt = .now
             }
         }
+    }
+
+    /// 改账时的现金：同一个账户只补差额；换了账户就把旧的整笔退回原账户、新的整笔记到新账户。
+    /// `old` / `new` 是这笔对现金的影响（支出为负）。返回这笔之后记在哪个账户。
+    private static func moveCash(
+        old: Double, new: Double, from oldAccount: UUID?, to newAccount: UUID?,
+        assets: UserAssets, in context: ModelContext
+    ) throws -> UUID? {
+        guard let newAccount, newAccount != oldAccount else {
+            try CashAccountStore.applyCashChange(new - old, accountID: oldAccount, assets: assets, in: context)
+            return oldAccount
+        }
+        try CashAccountStore.applyCashChange(-old, accountID: oldAccount, assets: assets, in: context)
+        return try CashAccountStore.applyCashChange(new, accountID: newAccount, assets: assets, in: context)?.id
     }
 }

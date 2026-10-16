@@ -558,10 +558,12 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["资产未计入"].exists)
 
         app.tabBars.buttons["Assets"].tap()
+        // 资产抽屉里那一行前面的方格就是总开关
         let toggle = app.switches["counts-assets-toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
-        toggle.switches.firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["自由天数只按现金算，资产仍在净值里。"].waitForExistence(timeout: 3))
+        XCTAssertEqual(toggle.value as? String, "计入")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "不计入")
 
         app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(app.staticTexts["99"].waitForExistence(timeout: 3))
@@ -569,7 +571,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["资产未计入"].exists)
 
         app.tabBars.buttons["Assets"].tap()
-        toggle.switches.firstMatch.tap()
+        toggle.tap()
         app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["资产未计入"].exists)
@@ -597,7 +599,8 @@ final class FreeGridUITests: XCTestCase {
             amountField.tap()
             amountField.typeText(amount)
         }
-        let card = app.buttons["assets-bucket-card"]
+        let card = app.buttons["assets-drawer"]
+        func total() -> String { String((card.value as? String ?? "").prefix { $0 != "，" }) }
 
         // 从编辑资产的弹窗进拆分：「车」默认从原来的 10 万里拆出来，总数不变
         app.buttons["编辑资产"].tap()
@@ -609,14 +612,14 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["save-asset-item"].tap()
         XCTAssertTrue(app.buttons["asset-item-车"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["asset-item-资产"].exists)
-        XCTAssertEqual(card.value as? String, "¥100,000")
+        XCTAssertEqual(total(), "¥100,000")
 
-        // 右上 + 加的是新的钱：总数变大
+        // 「添加资产项」加的是新的钱：总数变大
         app.buttons["add-asset-item"].tap()
         fill("基金", "5000")
         app.buttons["save-asset-item"].tap()
         XCTAssertTrue(app.buttons["asset-item-基金"].waitForExistence(timeout: 3))
-        XCTAssertEqual(card.value as? String, "¥105,000")
+        XCTAssertEqual(total(), "¥105,000")
 
         // 改一项：总数跟着变（资产 70000 → 120000）
         app.buttons["asset-item-资产"].tap()
@@ -626,15 +629,18 @@ final class FreeGridUITests: XCTestCase {
         amountField.typeText(String(repeating: "\u{8}", count: 12) + "120000")
         app.buttons["save-asset-item"].tap()
         XCTAssertTrue(app.buttons["asset-item-资产"].waitForExistence(timeout: 3))
-        XCTAssertEqual(card.value as? String, "¥155,000")
+        XCTAssertEqual(total(), "¥155,000")
 
-        // 删一项：先确认，总数减少对应金额，其他项不动
-        app.buttons["delete-asset-item-基金"].tap()
+        // 删一项：在编辑弹窗里删，先确认，总数减少对应金额，其他项不动
+        app.buttons["asset-item-基金"].tap()
+        let delete = app.buttons["delete-asset-item"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        delete.tap()
         let confirm = app.buttons["删除"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
         XCTAssertTrue(app.buttons["asset-item-基金"].waitForNonExistence(timeout: 3))
-        XCTAssertEqual(card.value as? String, "¥150,000")
+        XCTAssertEqual(total(), "¥150,000")
         XCTAssertTrue(app.buttons["asset-item-车"].exists)
         XCTAssertTrue(app.staticTexts["¥150,000"].firstMatch.exists)   // 净值
         // 拆开以后总开关退场，由各项自己决定
@@ -659,8 +665,8 @@ final class FreeGridUITests: XCTestCase {
             app.buttons["保存"].tap()
         }
 
-        // 2. 从总开关那张卡拆分：「房」5000 从资产里拆出来，剩下「资产」5000
-        let split = app.buttons["split-assets-from-switch"]
+        // 2. 在资产抽屉里拆分：「房」5000 从资产里拆出来，剩下「资产」5000
+        let split = app.buttons["add-asset-item"]
         XCTAssertTrue(split.waitForExistence(timeout: 3))
         split.tap()
         let nameField = app.textFields["asset-item-name-field"]
@@ -690,7 +696,6 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertEqual(houseCell.value as? String, "计入")
         houseCell.tap()
         XCTAssertEqual(houseCell.value as? String, "不计入")
-        XCTAssertTrue(app.staticTexts["holdings-counted-summary"].label.contains("¥5,000"))
 
         // 5. 回首页：按 9900 + 5000 = 14900 算，大数字变成 149，并显示「部分资产未计入」
         app.tabBars.buttons["Dashboard"].tap()
@@ -733,14 +738,13 @@ final class FreeGridUITests: XCTestCase {
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(restore.waitForNonExistence(timeout: 5))
 
-        let fromSwitch = app.buttons["split-assets-from-switch"]
+        let fromSwitch = app.buttons["add-asset-item"]
         XCTAssertTrue(fromSwitch.waitForExistence(timeout: 3))
         fromSwitch.tap()
         XCTAssertTrue(restore.waitForExistence(timeout: 5))
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(restore.waitForNonExistence(timeout: 5))
 
-        XCTAssertFalse(app.buttons["add-asset-item"].exists)
         XCTAssertFalse(app.buttons["asset-item-资产"].exists)
         XCTAssertTrue(app.switches["counts-assets-toggle"].exists)
     }
@@ -974,9 +978,9 @@ final class FreeGridUITests: XCTestCase {
                                "-proPreview", "NO", "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
-        let card = app.buttons["assets-bucket-card"]
+        let card = app.buttons["assets-drawer"]
         XCTAssertTrue(card.waitForExistence(timeout: 10))
-        XCTAssertEqual(card.value as? String, "¥135,000")
+        XCTAssertTrue((card.value as? String ?? "").hasPrefix("¥135,000"))
         XCTAssertTrue(app.buttons["asset-item-房"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["asset-item-基金"].exists)
         XCTAssertFalse(app.buttons["add-asset-item"].exists)
@@ -1000,22 +1004,77 @@ final class FreeGridUITests: XCTestCase {
         // 有两项算着：合并后总开关是开的
         let toggle = app.switches["counts-assets-toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
-        XCTAssertEqual(toggle.value as? String, "1")
+        XCTAssertEqual(toggle.value as? String, "计入")
     }
 
-    /// 资产明细（Pro）截图：演示账本拆成三项、「房」不计入；拆分弹窗；首页；退款后的只读样子。只在给了环境变量时运行。
+    /// 有 Pro：把现金拆出一个「微信」，记一笔支出时手动换到微信扣，余额落在微信上；总数不变。
     @MainActor
-    func testCaptureHoldingsScreens() throws {
+    func testProSplitsCashIntoAccountsAndAnExpenseLandsOnTheChosenOne() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        app.buttons["编辑现金"].tap()
+        let bucket = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(bucket.waitForExistence(timeout: 3))
+        bucket.typeText("10000")
+        app.buttons["保存"].tap()
+
+        // 拆成多个账户：「微信」300 默认从原来的现金里分出来
+        let split = app.buttons["add-cash-account"]
+        XCTAssertTrue(split.waitForExistence(timeout: 3))
+        split.tap()
+        let name = app.textFields["cash-account-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("微信")
+        let amount = app.textFields["cash-account-amount-field"]
+        amount.tap()
+        amount.typeText("300")
+        XCTAssertTrue(app.buttons["cash-account-source-menu"].label.contains("分出"))
+        app.buttons["save-cash-account"].tap()
+        let wechat = app.buttons["cash-account-微信"]
+        XCTAssertTrue(wechat.waitForExistence(timeout: 3))
+        XCTAssertEqual(wechat.value as? String, "¥300")
+        XCTAssertEqual(app.buttons["cash-account-现金"].value as? String, "¥9,700")
+        XCTAssertTrue((app.buttons["cash-drawer"].value as? String ?? "").hasPrefix("¥10,000"))
+
+        // 记 20：默认从排第一的「现金」扣，手动换到「微信」
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("20")
+        let picker = app.buttons["transaction-account-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        XCTAssertTrue(picker.label.contains("现金"))
+        picker.tap()
+        let option = app.buttons["微信 · ¥300"]
+        XCTAssertTrue(option.waitForExistence(timeout: 3))
+        option.tap()
+        XCTAssertTrue(picker.label.contains("微信"))
+        app.buttons["保存"].tap()
+
+        app.tabBars.buttons["Assets"].tap()
+        XCTAssertTrue(wechat.waitForExistence(timeout: 3))
+        XCTAssertEqual(wechat.value as? String, "¥280")
+        XCTAssertEqual(app.buttons["cash-account-现金"].value as? String, "¥9,700")
+    }
+
+    /// 资产和现金分账户（Pro）截图：演示账本没拆分 / 拆好了、记支出时的账户行、调拨、两个抽屉收起。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureAccountsScreens() throws {
         let environment = ProcessInfo.processInfo.environment
-        guard let ledger = environment["STORE_SHOTS_LEDGER"], let split = environment["HOLDINGS_SPLIT_LEDGER"],
-              let output = environment["HOLDINGS_SHOTS_DIR"] else {
-            throw XCTSkip("只在拍资产明细截图时运行")
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let split = environment["ACCOUNTS_SPLIT_LEDGER"],
+              let output = environment["ACCOUNTS_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍分账户截图时运行")
         }
-        func launch(_ seed: String, dark: Bool, pro: Bool) -> XCUIApplication {
+        func launch(_ seed: String, dark: Bool) -> XCUIApplication {
             let app = XCUIApplication()
             app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
                                    "-heroTrendExpanded", "YES", "-historyGuideCompleted", "YES",
-                                   "-setupGuideCompleted", "YES", "-proPreview", pro ? "YES" : "NO",
+                                   "-setupGuideCompleted", "YES", "-proPreview", "YES",
                                    "-UseInMemoryStore", "-SeedBackupJSON", seed]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
@@ -1026,43 +1085,43 @@ final class FreeGridUITests: XCTestCase {
             let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
             try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
         }
-        // 往上推一小段，让净值卡露出下半、双桶和下面那张卡都在屏幕里
-        func nudge(_ app: XCUIApplication) {
-            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)))
+        func nudge(_ app: XCUIApplication, by amount: CGFloat = 0.3) {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+            from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8 - amount)))
         }
         for dark in [false, true] {
             let mode = dark ? "深色" : "浅色"
-            // 没拆过：总开关卡和下面的拆分入口，再打开拆分弹窗
-            var app = launch(ledger, dark: dark, pro: true)
+            var app = launch(ledger, dark: dark)
             app.tabBars.buttons["Assets"].tap()
             nudge(app)
-            try shoot("\(mode)-1-没拆分-总开关")
-            app.buttons["split-assets-from-switch"].tap()
-            let nameField = app.textFields["asset-item-name-field"]
-            XCTAssertTrue(nameField.waitForExistence(timeout: 3))
-            nameField.typeText("基金")
-            let amountField = app.textFields["asset-item-amount-field"]
-            amountField.tap()
-            amountField.typeText("8000")
-            try shoot("\(mode)-2-拆分弹窗")
+            try shoot("\(mode)-1-没拆分")
             app.terminate()
 
-            // 拆好了：资产明细卡
-            app = launch(split, dark: dark, pro: true)
+            app = launch(split, dark: dark)
             app.tabBars.buttons["Assets"].tap()
-            nudge(app)
-            try shoot("\(mode)-3-资产明细")
+            try shoot("\(mode)-2-拆好了-上半")
+            nudge(app, by: 0.35)
+            try shoot("\(mode)-3-拆好了-抽屉")
+            // 两个抽屉都收起
+            app.buttons["assets-drawer"].tap()
+            app.buttons["cash-drawer"].tap()
+            try shoot("\(mode)-4-抽屉收起")
+            app.buttons["assets-drawer"].tap()
+            app.buttons["cash-drawer"].tap()
+
+            // 调拨：从招行卡到基金
+            app.swipeDown()
+            app.buttons["transfer-toggle"].tap()
+            try shoot("\(mode)-5-调拨")
+
+            // 记一笔 480：微信只有 320，自动跳到支付宝
             app.tabBars.buttons["Dashboard"].tap()
-            XCTAssertTrue(app.staticTexts["uncounted-assets-note"].waitForExistence(timeout: 3))
-            try shoot("\(mode)-4-首页")
-            app.terminate()
-
-            // 退款以后：只读
-            app = launch(split, dark: dark, pro: false)
-            app.tabBars.buttons["Assets"].tap()
-            nudge(app)
-            try shoot("\(mode)-5-没有Pro")
+            app.buttons["记支出"].tap()
+            let expense = app.textFields["0.00"]
+            XCTAssertTrue(expense.waitForExistence(timeout: 3))
+            expense.tap()
+            expense.typeText("480")
+            try shoot("\(mode)-6-记支出选账户")
             app.terminate()
         }
     }

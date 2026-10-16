@@ -58,7 +58,7 @@ nonisolated struct ImportPolicy: Sendable {
     let maxPassiveSourceRecords: Int
     let maxAssetItemRecords: Int
     let maxLoanRecords: Int
-    /// 资产项之和必须等于资产桶。导出自校验不查这条：导出是逃生舱，不能因为这个堆死。
+    /// 资产项之和必须等于资产桶、现金账户之和必须等于现金桶。导出自校验不查这条：导出是逃生舱，不能因为这个堆死。
     let checksAssetItemTotal: Bool
     let maxNameCharacters: Int
     let maxNoteCharacters: Int
@@ -106,6 +106,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case inconsistentDeviceState
     case assetItemsTotalMismatch
     case duplicateAssetItemID
+    case cashAccountsTotalMismatch
+    case duplicateCashAccountID
     case duplicateLoanID
     case invalidLoan
     case invalidExpenseCategories
@@ -151,6 +153,10 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
             return "资产项金额之和与资产桶不一致"
         case .duplicateAssetItemID:
             return "资产项的记录 ID 重复"
+        case .cashAccountsTotalMismatch:
+            return "现金账户余额之和与现金桶不一致"
+        case .duplicateCashAccountID:
+            return "现金账户的记录 ID 重复"
         case .duplicateLoanID:
             return "每月还款的记录 ID 重复"
         case .invalidLoan:
@@ -178,6 +184,7 @@ nonisolated struct ValidatedImport: Sendable {
         let createdAt: Date?
         var loanID: UUID? = nil
         var countsInBurn = true
+        var cashAccountID: UUID? = nil
     }
 
     struct IncomeRecord: Sendable {
@@ -188,6 +195,7 @@ nonisolated struct ValidatedImport: Sendable {
         let note: String
         let isPassive: Bool
         let createdAt: Date?
+        var cashAccountID: UUID? = nil
     }
 
     struct DeviceRecord: Sendable {
@@ -217,6 +225,16 @@ nonisolated struct ValidatedImport: Sendable {
         let sortOrder: Int?
         /// nil = 备份里没写（阶段 2 的备份），按计入处理
         let countsInFreedom: Bool?
+        let createdAt: Date?
+        let updatedAt: Date?
+    }
+
+    struct CashAccountRecord: Sendable {
+        let id: UUID?
+        let name: String
+        /// 可以是负数：现金不够时记的支出会把账户扣成负的
+        let amount: Double
+        let sortOrder: Int?
         let createdAt: Date?
         let updatedAt: Date?
     }
@@ -251,6 +269,7 @@ nonisolated struct ValidatedImport: Sendable {
     var loans: [LoanRecord] = []
     /// nil 表示备份里没有分类设置
     var expenseCategories: [ExpenseCategoryRecord]? = nil
+    var cashAccounts: [CashAccountRecord] = []
 }
 
 nonisolated enum ImportValidator {
@@ -402,7 +421,8 @@ nonisolated enum ImportValidator {
                     note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),
                     createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) },
                     loanID: try identifier(raw.loanId, field: "月供扣款"),
-                    countsInBurn: raw.countsInBurn ?? true
+                    countsInBurn: raw.countsInBurn ?? true,
+                    cashAccountID: try identifier(raw.cashAccountId, field: "支出账户")
                 )
             )
         }
@@ -415,7 +435,8 @@ nonisolated enum ImportValidator {
                 date: try day(raw.date, field: "收入日期", now: now),
                 note: try optionalText(raw.note, field: "收入备注", maximum: policy.maxNoteCharacters),
                 isPassive: raw.isPassive ?? false,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "收入创建时间", now: now) }
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "收入创建时间", now: now) },
+                cashAccountID: try identifier(raw.cashAccountId, field: "收入账户")
             )
         }
 
@@ -495,6 +516,38 @@ nonisolated enum ImportValidator {
             }
         }
 
+        let rawAccounts = envelope.cashAccounts ?? []
+        guard rawAccounts.count <= policy.maxAssetItemRecords else {
+            throw ImportValidationError.tooManyRecords(kind: "现金账户", count: rawAccounts.count,
+                                                       maximum: policy.maxAssetItemRecords)
+        }
+        var seenAccountIDs = Set<UUID>()
+        let cashAccounts = try rawAccounts.map { raw in
+            let name = try text(raw.name, field: "现金账户名称", maximum: FinancialLimits.assetItemNameCharacters)
+            guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
+                  name.rangeOfCharacter(from: .controlCharacters) == nil else {
+                throw ImportValidationError.emptyText(field: "现金账户名称")
+            }
+            let id = try identifier(raw.id, field: "现金账户")
+            if let id, !seenAccountIDs.insert(id).inserted {
+                throw ImportValidationError.duplicateCashAccountID
+            }
+            return ValidatedImport.CashAccountRecord(
+                id: id,
+                name: name,
+                amount: try signedAmount(raw.amount, field: "现金账户", maximum: policy.maximumAmount),
+                sortOrder: raw.sortOrder,
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "现金账户创建时间", now: now) },
+                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "现金账户更新时间", now: now) }
+            )
+        }
+        if policy.checksAssetItemTotal, !cashAccounts.isEmpty {
+            guard let cash = assets?.cash,
+                  abs(cashAccounts.reduce(0) { $0 + $1.amount } - cash) <= FinancialLimits.assetChecksumTolerance else {
+                throw ImportValidationError.cashAccountsTotalMismatch
+            }
+        }
+
         var seenLoanIDs = Set<UUID>()
         let loans = try (envelope.loans ?? []).map { raw in
             let name = try text(raw.name, field: "每月还款名称", maximum: FinancialLimits.assetItemNameCharacters)
@@ -561,7 +614,8 @@ nonisolated enum ImportValidator {
             firstRecordDate: firstRecordDate,
             assetItems: assetItems,
             loans: loans,
-            expenseCategories: expenseCategories
+            expenseCategories: expenseCategories,
+            cashAccounts: cashAccounts
         )
     }
 

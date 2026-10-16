@@ -15,8 +15,8 @@ enum ProFeatures {
                 title: "自定义支出分类",
                 detail: "添加自己的分类，调整常用顺序，删除用不到的选项。"),
         Benefit(icon: "square.stack.3d.up",
-                title: "资产逐项记录",
-                detail: "把资产拆成房、车、定期、基金…一项一项记，总数自动相加。"),
+                title: "资产和现金分账户",
+                detail: "资产拆成房、车、定期、基金，现金拆成微信、支付宝、银行卡；记支出按你排的顺序扣。"),
         Benefit(icon: "slider.horizontal.3",
                 title: "自由天数逐项开关",
                 detail: "房子、车等难以变现的资产可以单独排除，自由天数只算真正能用的钱。"),
@@ -30,4 +30,6 @@ enum ProFeatures {
     static var canManageAssetItems: Bool { ProStore.shared.isUnlocked }
     /// 增、改每月还款。已经加过的不管有没有 Pro 都照常显示、照常到期自动扣，也能删和处理没扣成的那期。
     static var canManageLoans: Bool { ProStore.shared.isUnlocked }
+    /// 增、删、改现金账户和扣款顺序。已经拆好的账户不管有没有 Pro 都照常显示、照常按顺序扣。
+    static var canManageCashAccounts: Bool { ProStore.shared.isUnlocked }
 }

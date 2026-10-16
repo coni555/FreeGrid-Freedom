@@ -75,6 +75,8 @@ enum DataIO {
         /// 备份里的资产项。只在「替换」资产时一起恢复，其他策略不碰现有的项。
         let importedAssetItems: [ValidatedImport.AssetItemRecord]
         let currentAssetItemCount: Int
+        /// 备份里的现金账户。和资产项一样，只在「替换」时一起恢复
+        var importedCashAccounts: [ValidatedImport.CashAccountRecord] = []
         /// 备份里账本还没有的每月还款（按 ID 认），所有策略都一样合并进来
         var loansNew: [ValidatedImport.LoanRecord] = []
         /// 备份里的 Pro 分类设置；nil 表示没有。导入成功后由页面并进本机偏好（见 `ExpenseCategoryOptions.merging`）
@@ -112,6 +114,7 @@ enum DataIO {
             let createdAt: Date?
             var loanID: UUID? = nil
             var countsInBurn = true
+            var cashAccountID: UUID? = nil
         }
 
         enum AssetsAction {
@@ -130,6 +133,8 @@ enum DataIO {
         let assetItems: [ValidatedImport.AssetItemRecord]
         let importedAssetsTotal: Double
         var loans: [ValidatedImport.LoanRecord] = []
+        /// 仅 `.replace` 时写入：现有现金账户整体换成这些（可以是空，也就是回到只有总数）
+        var cashAccounts: [ValidatedImport.CashAccountRecord] = []
     }
 
     typealias SaveAction = (ModelContext) throws -> Void
@@ -161,6 +166,7 @@ enum DataIO {
         ))
         let assets = try context.fetch(FetchDescriptor<UserAssets>()).first
         let assetItems = try AssetItemStore.items(in: context)
+        let cashAccounts = try CashAccountStore.accounts(in: context)
         let loans = try LoanStore.loans(in: context)
         let firstExpenseDate = expenses.map(\.date).min()
         let schemaVersion = expenses.contains { $0.amount <= 0 }
@@ -187,7 +193,8 @@ enum DataIO {
                     createdAt: iso.string(from: $0.createdAt),
                     // 普通支出两个字段都不写，没有贷款的账本导出和以前一字不差
                     loanId: $0.loanID?.uuidString,
-                    countsInBurn: $0.countsInBurn ? nil : false
+                    countsInBurn: $0.countsInBurn ? nil : false,
+                    cashAccountId: $0.cashAccountID?.uuidString
                 )
             },
             incomes: incomes.map {
@@ -198,7 +205,8 @@ enum DataIO {
                     date: day.string(from: $0.date),
                     note: $0.note,
                     isPassive: $0.isPassive,
-                    createdAt: iso.string(from: $0.createdAt)
+                    createdAt: iso.string(from: $0.createdAt),
+                    cashAccountId: $0.cashAccountID?.uuidString
                 )
             },
             devices: devices.map {
@@ -253,6 +261,16 @@ enum DataIO {
                 options.items.map {
                     BackupEnvelope.ExpenseCategoryJSON(name: $0.name, icon: $0.icon, deleted: $0.isDeleted ? true : nil)
                 }
+            },
+            cashAccounts: cashAccounts.isEmpty ? nil : cashAccounts.map {
+                BackupEnvelope.CashAccountJSON(
+                    id: $0.id.uuidString,
+                    name: $0.name,
+                    amount: $0.amount,
+                    sortOrder: $0.sortOrder,
+                    createdAt: iso.string(from: $0.createdAt),
+                    updatedAt: iso.string(from: $0.updatedAt)
+                )
             }
         )
         let encoder = JSONEncoder()
@@ -528,6 +546,7 @@ enum DataIO {
         let existingAssets = allAssets.first
         let existingAssetItems = try context.fetch(FetchDescriptor<AssetItem>())
         let existingLoans = try context.fetch(FetchDescriptor<Loan>())
+        let existingCashAccounts = try context.fetch(FetchDescriptor<CashAccount>())
         let existingLoanIDs = Set(existingLoans.map(\.id))
         let loansNew = validated.loans.filter { record in
             record.id.map { !existingLoanIDs.contains($0) } ?? !existingLoans.contains {
@@ -588,7 +607,7 @@ enum DataIO {
         return ImportPreview(
             ledgerSnapshot: ImportLedgerSnapshot(expenses: existingExpenses, incomes: existingIncomes,
                 devices: existingDevices, passiveSources: existingPassives, assets: allAssets,
-                assetItems: existingAssetItems, loans: existingLoans),
+                assetItems: existingAssetItems, loans: existingLoans, cashAccounts: existingCashAccounts),
             schemaVersion: validated.schemaVersion,
             expensesNew: expensesNew,
             suspectedExpenseIndices: suspectedExpenseIndices,
@@ -613,6 +632,9 @@ enum DataIO {
             ),
             importedAssetItems: importedAssetItems,
             currentAssetItemCount: existingAssetItems.count,
+            importedCashAccounts: validated.cashAccounts.enumerated()
+                .sorted { ($0.element.sortOrder ?? $0.offset, $0.offset) < ($1.element.sortOrder ?? $1.offset, $1.offset) }
+                .map(\.element),
             loansNew: loansNew,
             categoryOptions: validated.expenseCategories.map { records in
                 ExpenseCategoryOptions(items: records.map {
@@ -648,7 +670,8 @@ enum DataIO {
             if record.loanID != nil {
                 return ImportPlan.ExpenseRecord(id: record.id, amount: record.amount, category: record.category,
                                                 note: record.note, date: record.date, createdAt: record.createdAt,
-                                                loanID: record.loanID, countsInBurn: record.countsInBurn)
+                                                loanID: record.loanID, countsInBurn: record.countsInBurn,
+                                                cashAccountID: record.cashAccountID)
             }
             let rawCategory = record.category.trimmingCharacters(in: .whitespacesAndNewlines)
             let mappedCategory = categoryMap[rawCategory] ?? suggestedCategories[rawCategory]
@@ -661,7 +684,8 @@ enum DataIO {
                 note: note,
                 date: record.date,
                 createdAt: record.createdAt,
-                countsInBurn: record.countsInBurn
+                countsInBurn: record.countsInBurn,
+                cashAccountID: record.cashAccountID
             )
         }
 
@@ -684,7 +708,8 @@ enum DataIO {
             assetsAction: assetsAction,
             assetItems: preview.importedAssetItems,
             importedAssetsTotal: preview.importedAssets.total,
-            loans: preview.loansNew
+            loans: preview.loansNew,
+            cashAccounts: preview.importedCashAccounts
         )
     }
 
@@ -727,6 +752,7 @@ enum DataIO {
                 if let createdAt = record.createdAt { expense.createdAt = createdAt }
                 expense.loanID = record.loanID
                 expense.countsInBurn = record.countsInBurn
+                expense.cashAccountID = record.cashAccountID
                 context.insert(expense)
             }
 
@@ -756,6 +782,7 @@ enum DataIO {
                 )
                 if let id = record.id { income.id = id }
                 if let createdAt = record.createdAt { income.createdAt = createdAt }
+                income.cashAccountID = record.cashAccountID
                 context.insert(income)
             }
 
@@ -798,8 +825,18 @@ enum DataIO {
                     item.updatedAt = record.updatedAt ?? record.createdAt ?? .now
                     context.insert(item)
                 }
+                // 现金账户同理：整体换成备份里的
+                for existing in try context.fetch(FetchDescriptor<CashAccount>()) { context.delete(existing) }
+                for (index, record) in plan.cashAccounts.enumerated() {
+                    let account = CashAccount(name: record.name, amount: record.amount, sortOrder: index)
+                    if let id = record.id { account.id = id }
+                    if let createdAt = record.createdAt { account.createdAt = createdAt }
+                    account.updatedAt = record.updatedAt ?? record.createdAt ?? .now
+                    context.insert(account)
+                }
             case .addToCash(let amount):
-                userAssets.cash += amount
+                // 本机拆了现金账户时，加进扣款顺序第一个账户，总数仍是各账户之和
+                try CashAccountStore.applyCashChange(amount, accountID: nil, assets: userAssets, in: context)
                 userAssets.updatedAt = .now
             case .skip:
                 break
@@ -830,6 +867,7 @@ enum DataIO {
             for record in try context.fetch(FetchDescriptor<UserAssets>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<AssetItem>()) { context.delete(record) }
             for record in try context.fetch(FetchDescriptor<Loan>()) { context.delete(record) }
+            for record in try context.fetch(FetchDescriptor<CashAccount>()) { context.delete(record) }
         }
     }
 

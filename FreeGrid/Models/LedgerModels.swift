@@ -31,6 +31,9 @@ final class Expense {
     /// 它们照样扣过现金、照样出现在 History，只是不拿来估日常开销。旧库升级后全部为 true。
     var countsInBurn: Bool = true
 
+    /// Pro 现金账户：这笔从哪个账户扣的。没拆账户时是 nil；账户后来删了也留着，撤销时退回第一个账户。
+    var cashAccountID: UUID?
+
     init(amount: Double, category: String, note: String = "", date: Date = .now) {
         self.id = UUID()
         self.amount = amount
@@ -58,6 +61,9 @@ final class Income {
 
     /// 保留历史备份字段；不参与当前被动覆盖率计算，新录入为 false。
     var isPassive: Bool = false
+
+    /// Pro 现金账户：这笔进了哪个账户。没拆账户时是 nil
+    var cashAccountID: UUID?
 
     var note: String = ""
     var date: Date = Date.now
@@ -179,6 +185,39 @@ final class AssetItem: Identifiable {
         self.amount = amount
         self.sortOrder = sortOrder
         self.countsInFreedom = countsInFreedom
+        self.createdAt = .now
+        self.updatedAt = .now
+    }
+}
+
+// ============================================================================
+// MARK: - CashAccount (Pro 现金账户)
+// ============================================================================
+// 把现金拆成微信、支付宝、银行卡……
+// 不变量：只要存在现金账户，`UserAssets.cash` 就等于各账户余额之和（见 `CashAccountStore`）。
+// 账户的先后就是扣款顺序：记支出时从上往下，整笔扣第一个够付的账户。
+
+@Model
+final class CashAccount: Identifiable {
+    var id: UUID = UUID()
+
+    /// 1–20 个字符
+    var name: String = ""
+
+    /// 余额(元)。正常 ≥ 0；现金不够时记的支出可以把它扣成负数
+    var amount: Double = 0
+
+    /// 扣款顺序，0 是第一个
+    var sortOrder: Int = 0
+
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
+
+    init(name: String, amount: Double, sortOrder: Int) {
+        self.id = UUID()
+        self.name = name
+        self.amount = amount
+        self.sortOrder = sortOrder
         self.createdAt = .now
         self.updatedAt = .now
     }

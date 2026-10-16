@@ -1,4 +1,4 @@
-// 修改一笔已有的支出或收入：金额、分类/来源、日期、备注。
+// 修改一笔已有的支出或收入：金额、分类/来源、日期、备注；拆了现金账户时还能换账户。
 
 import SwiftUI
 import SwiftData
@@ -9,6 +9,9 @@ struct EditTransactionSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var expenses: [Expense]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
+    @State private var pickedAccount: UUID?
 
     @State private var saveError: String?
     @State private var amount: String
@@ -60,6 +63,12 @@ struct EditTransactionSheet: View {
                         TextField("工资 / 投资 / 副业 / ...", text: $title)
                             .font(.system(.body, design: .rounded))
                     }
+                }
+                // 原来的账户已经删了时显示第一个账户，不主动换；用户选了才换
+                if !cashAccounts.isEmpty {
+                    CashAccountSection(accounts: cashAccounts, kind: transaction.kind, amount: nil,
+                                       picked: $pickedAccount,
+                                       fallback: transaction.cashAccountID ?? cashAccounts.first?.id)
                 }
                 Section("日期") {
                     TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
@@ -124,7 +133,8 @@ struct EditTransactionSheet: View {
 
     /// 保存成功才关闭；失败保留输入。
     private func save() {
-        guard let edit = pendingEdit else { return }
+        guard var edit = pendingEdit else { return }
+        edit.cashAccountID = pickedAccount
         do {
             try LedgerStore.edit(id: transaction.id, kind: transaction.kind, in: modelContext, to: edit)
             dismiss()

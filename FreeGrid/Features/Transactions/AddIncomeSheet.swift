@@ -17,6 +17,10 @@ struct AddIncomeSheet: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetItems: [AssetItem]
     @Query private var loans: [Loan]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
+    @State private var pickedAccount: UUID?
+    @AppStorage(CashAccountPreferences.lastIncomeAccountKey, store: AppPreferences.store) private var lastIncomeAccount = ""
 
     @State private var saveError: String?
     @State private var amount: String = ""
@@ -39,6 +43,7 @@ struct AddIncomeSheet: View {
                     TextField("工资 / 投资 / 副业 / ...", text: $source)
                         .font(.system(.body, design: .rounded))
                 }
+                if !cashAccounts.isEmpty { accountSection }
                 Section("日期") {
                     TransactionDateRow(date: $date)
                 }
@@ -101,13 +106,21 @@ struct AddIncomeSheet: View {
         return resultingCash.isFinite && abs(resultingCash) <= FinancialLimits.maximumAmount
     }
 
+    /// 默认进上次记收入用过的账户
+    private var accountSection: CashAccountSection {
+        CashAccountSection(accounts: cashAccounts, kind: .income, amount: Double(amount),
+                           picked: $pickedAccount, fallback: UUID(uuidString: lastIncomeAccount))
+    }
+
     /// 保存成功才通知首页并关闭；失败保留输入。
     private func save() {
         guard isValid, let amt = Double(amount) else { return }
         let income = Income(amount: amt, source: source.trimmingCharacters(in: .whitespacesAndNewlines),
                             isPassive: false, note: note, date: date)
+        income.cashAccountID = cashAccounts.isEmpty ? nil : accountSection.chosen?.id
         do {
             try LedgerStore.add(.income(income), in: modelContext)
+            if let id = income.cashAccountID { lastIncomeAccount = id.uuidString }
             onSaved?(income)
             dismiss()
         } catch {

@@ -17,6 +17,10 @@ struct AddExpenseSheet: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetItems: [AssetItem]
     @Query private var loans: [Loan]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
+    /// Pro 现金账户：用户手动换的账户；nil = 按扣款顺序自动挑
+    @State private var pickedAccount: UUID?
 
     @State private var saveError: String?
     @State private var amount: String
@@ -86,6 +90,7 @@ struct AddExpenseSheet: View {
                     }
                     .accessibilityIdentifier("expense-category-picker")
                 }
+                if !cashAccounts.isEmpty { accountSection }
                 Section("日期") {
                     TransactionDateRow(date: $date)
                 }
@@ -133,6 +138,12 @@ struct AddExpenseSheet: View {
         }
     }
 
+    private var accountSection: CashAccountSection {
+        CashAccountSection(accounts: cashAccounts, kind: .expense,
+                           amount: Double(amount).flatMap { FinancialFormatting.validAmount($0) ? $0 : nil },
+                           picked: $pickedAccount)
+    }
+
     /// 金额等于某笔贷款的月供、日期离它的还款日不超过 3 天：多半是在手动记月供
     private var looksLikeRepayment: Bool {
         guard let value = Double(amount), FinancialFormatting.validAmount(value) else { return false }
@@ -162,6 +173,7 @@ struct AddExpenseSheet: View {
     private func save() {
         guard isAmountValid, let amt = Double(amount) else { return }
         let expense = Expense(amount: amt, category: category, note: note, date: date)
+        expense.cashAccountID = cashAccounts.isEmpty ? nil : accountSection.chosen?.id
         do {
             try LedgerStore.add(.expense(expense), in: modelContext)
             onSaved?(expense)

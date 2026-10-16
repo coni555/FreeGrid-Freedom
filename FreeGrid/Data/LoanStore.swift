@@ -154,9 +154,10 @@ enum LoanStore {
         }) { assets in
             paid = 0
             for (loan, dates) in work {
-                for date in dates where assets.cash >= loan.monthlyAmount {
-                    insertPayment(for: loan, on: date, in: context)
-                    assets.cash -= loan.monthlyAmount
+                for date in dates where canPay(loan.monthlyAmount, assets: assets, in: context) {
+                    let payment = insertPayment(for: loan, on: date, in: context)
+                    payment.cashAccountID = try CashAccountStore.applyCashChange(
+                        -loan.monthlyAmount, accountID: nil, assets: assets, in: context)?.id
                     paid += 1
                 }
                 loan.processedThrough = dates.last
@@ -179,8 +180,9 @@ enum LoanStore {
         guard status.pending.contains(day) else { throw LoanError.notPending }
         if fromCash {
             try LedgerStore.updateAssets(in: context, save: save) { assets in
-                insertPayment(for: loan, on: day, in: context)
-                assets.cash -= loan.monthlyAmount
+                let payment = insertPayment(for: loan, on: day, in: context)
+                payment.cashAccountID = try CashAccountStore.applyCashChange(
+                    -loan.monthlyAmount, accountID: nil, assets: assets, in: context)?.id
                 assets.updatedAt = .now
             }
         } else {
@@ -191,10 +193,18 @@ enum LoanStore {
         }
     }
 
-    private static func insertPayment(for loan: Loan, on day: Date, in context: ModelContext) {
+    @discardableResult
+    private static func insertPayment(for loan: Loan, on day: Date, in context: ModelContext) -> Expense {
         let payment = Expense(amount: loan.monthlyAmount, category: loan.name, note: autoPaymentNote, date: day)
         payment.loanID = loan.id
         payment.countsInBurn = false
         context.insert(payment)
+        return payment
+    }
+
+    /// 到期这天扣得动吗：没拆账户看现金总数；拆了账户要有一个账户单独够付（每笔只从一个账户扣）
+    private static func canPay(_ amount: Double, assets: UserAssets, in context: ModelContext) -> Bool {
+        let accounts = (try? CashAccountStore.accounts(in: context)) ?? []
+        return accounts.isEmpty ? assets.cash >= amount : accounts.contains { $0.amount >= amount }
     }
 }

@@ -106,6 +106,20 @@ struct ImportLedgerSnapshot: Equatable {
         }
     }
 
+    private struct CashAccountValue: Equatable {
+        let id: UUID
+        let name: String
+        let amount: UInt64
+        let sortOrder: Int
+
+        init(_ record: CashAccount) {
+            id = record.id
+            name = record.name
+            amount = record.amount.bitPattern
+            sortOrder = record.sortOrder
+        }
+    }
+
     private struct LoanValue: Equatable {
         let id: UUID
         let name: String
@@ -153,9 +167,11 @@ struct ImportLedgerSnapshot: Equatable {
     private let assets: [PersistentIdentifier: UserAssetsValue]
     private let assetItems: [PersistentIdentifier: AssetItemValue]
     private let loans: [PersistentIdentifier: LoanValue]
+    private let cashAccounts: [PersistentIdentifier: CashAccountValue]
 
     init(expenses: [Expense], incomes: [Income], devices: [Device], passiveSources: [PassiveSource],
-         assets: [UserAssets], assetItems: [AssetItem] = [], loans: [Loan] = []) {
+         assets: [UserAssets], assetItems: [AssetItem] = [], loans: [Loan] = [], cashAccounts: [CashAccount] = []) {
+        self.cashAccounts = Dictionary(uniqueKeysWithValues: cashAccounts.map { ($0.persistentModelID, CashAccountValue($0)) })
         self.loans = Dictionary(uniqueKeysWithValues: loans.map { ($0.persistentModelID, LoanValue($0)) })
         self.assetItems = Dictionary(uniqueKeysWithValues: assetItems.map { ($0.persistentModelID, AssetItemValue($0)) })
         self.expenses = Dictionary(uniqueKeysWithValues: expenses.map { ($0.persistentModelID, ExpenseValue($0)) })
@@ -173,7 +189,8 @@ struct ImportLedgerSnapshot: Equatable {
             passiveSources: context.fetch(FetchDescriptor<PassiveSource>()),
             assets: context.fetch(FetchDescriptor<UserAssets>()),
             assetItems: context.fetch(FetchDescriptor<AssetItem>()),
-            loans: context.fetch(FetchDescriptor<Loan>())
+            loans: context.fetch(FetchDescriptor<Loan>()),
+            cashAccounts: context.fetch(FetchDescriptor<CashAccount>())
         )
     }
 }
