@@ -189,6 +189,25 @@ enum AssetItemStore {
         }
     }
 
+    /// 调整顺序：把 `item` 挪到第 `index` 位。顺序只影响列表、净值分段和调拨菜单，不影响金额
+    static func move(
+        _ item: AssetItem, to index: Int,
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws {
+        var all = try items(in: context)
+        guard let from = all.firstIndex(where: { $0.id == item.id }) else { return }
+        let target = max(0, min(all.count - 1, index))
+        guard target != from else { return }
+        let previous = all.map { ($0, $0.sortOrder) }
+        all.insert(all.remove(at: from), at: target)
+        try LedgerStore.perform(in: context, save: save, restore: {
+            for (entry, order) in previous { entry.sortOrder = order }
+        }) {
+            for (order, entry) in all.enumerated() { entry.sortOrder = order }
+        }
+    }
+
     enum TransferDirection { case cashToItem, itemToCash }
 
     /// 现金和指定一项之间调拨；实际调走的不超过来源里有的。返回实际金额。

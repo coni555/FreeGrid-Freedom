@@ -27,8 +27,7 @@ struct AssetsView: View {
     @State private var transferTo: TransferStore.Place?
     @FocusState private var transferFocused: Bool   // decimalPad 无 return 键, 靠点空白处 / 下拉滚动收起
 
-    /// 净值下面那条线要知道哪些资产没算；点一段打开它所在的抽屉
-    @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 点净值下面那条线的一段，打开它所在的抽屉
     @AppStorage("assetsDrawerOpen", store: AppPreferences.store) private var assetsDrawerOpen = true
     @AppStorage("cashDrawerOpen", store: AppPreferences.store) private var cashDrawerOpen = true
 
@@ -245,21 +244,21 @@ struct AssetsView: View {
     }()
 
     /// 净值按账户分段：一项资产或一个现金账户是一段，长短就是它占多少。金色是资产、蓝色是现金，
-    /// 和首页格子的两种颜色是同一回事；不计入自由天数的资产段颜色变淡。点一段打开它所在的抽屉。
+    /// 和首页格子的两种颜色是同一回事。点一段打开它所在的抽屉。
+    /// 不计入自由天数的资产在这里照样全亮：这条线画的是净值，房子也是净值的一部分；算不算自由天数看抽屉里的方格。
     private struct Segment: Identifiable {
         let id: String
         let amount: Double
         let isCash: Bool
-        let counted: Bool
     }
 
     private var segments: [Segment] {
         let assetSegments: [Segment] = assetItems.isEmpty
-            ? [Segment(id: "assets", amount: lockedAssetsAmount, isCash: false, counted: countsAssets)]
-            : assetItems.map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: false, counted: $0.countsInFreedom) }
+            ? [Segment(id: "assets", amount: lockedAssetsAmount, isCash: false)]
+            : assetItems.map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: false) }
         let cashSegments: [Segment] = cashAccounts.isEmpty
-            ? [Segment(id: "cash", amount: cashAmount, isCash: true, counted: true)]
-            : cashAccounts.map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: true, counted: true) }
+            ? [Segment(id: "cash", amount: cashAmount, isCash: true)]
+            : cashAccounts.map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: true) }
         return (assetSegments + cashSegments).filter { $0.amount > 0 }
     }
 
@@ -275,7 +274,7 @@ struct AssetsView: View {
                 HStack(spacing: gap) {
                     ForEach(parts) { part in
                         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                            .fill(part.isCash ? Color.cashBlue : Color.assetGold.opacity(part.counted ? 1 : 0.32))
+                            .fill(part.isCash ? Color.cashBlue : Color.assetGold)
                             .frame(width: max(3, usable * CGFloat(part.amount / total)))
                     }
                 }

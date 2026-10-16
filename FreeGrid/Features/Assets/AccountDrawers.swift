@@ -191,6 +191,75 @@ private struct DrawerFooter: View {
     }
 }
 
+// MARK: - 拖动排序（两个抽屉共用）
+
+/// 按住右边把手上下拖：记住拖的是哪一行、拖了多远，算出松手会落在第几位、经过的行让出多少
+private struct DragReorder {
+    var dragging: UUID?
+    var offset: CGFloat = 0
+
+    func dropIndex(in ids: [UUID]) -> Int? {
+        guard let dragging, let from = ids.firstIndex(of: dragging) else { return nil }
+        return max(0, min(ids.count - 1, from + Int((offset / DrawerMetrics.rowHeight).rounded())))
+    }
+
+    func shift(for index: Int, in ids: [UUID]) -> CGFloat {
+        guard let dragging, let from = ids.firstIndex(of: dragging), let to = dropIndex(in: ids) else { return 0 }
+        if from < to, (from + 1...to).contains(index) { return -DrawerMetrics.rowHeight }
+        if from > to, (to..<from).contains(index) { return DrawerMetrics.rowHeight }
+        return 0
+    }
+}
+
+/// 每行右边的把手。读屏用户上下轻扫调整位置
+private struct ReorderHandle: View {
+    let id: UUID
+    let index: Int
+    let ids: [UUID]
+    let label: String
+    let identifier: String
+    @Binding var reorder: DragReorder
+    let onMove: (Int) -> Void
+
+    var body: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 12, weight: .light))
+            .foregroundStyle(Color.inkFaint)
+            .frame(width: 36, height: DrawerMetrics.rowHeight - 1, alignment: .trailing)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { value in
+                        reorder.dragging = id
+                        reorder.offset = value.translation.height
+                    }
+                    .onEnded { _ in
+                        let target = reorder.dropIndex(in: ids) ?? index
+                        reorder = DragReorder()
+                        if target != index { onMove(target) }
+                    }
+            )
+            .accessibilityLabel(label)
+            .accessibilityAdjustableAction { direction in
+                onMove(direction == .increment ? index + 1 : index - 1)
+            }
+            .accessibilityIdentifier(identifier)
+    }
+}
+
+private extension View {
+    /// 被拖的那行跟着手指走、浮起来；其他行让位时有动画
+    func reorderable(_ reorder: DragReorder, id: UUID, index: Int, ids: [UUID]) -> some View {
+        let isDragging = reorder.dragging == id
+        return self
+            .background(Color.mist)
+            .offset(y: isDragging ? reorder.offset : reorder.shift(for: index, in: ids))
+            .zIndex(isDragging ? 1 : 0)
+            .shadow(color: .black.opacity(isDragging ? 0.08 : 0), radius: 10, y: 4)
+            .animation(isDragging ? nil : .snappy(duration: 0.22), value: reorder.dropIndex(in: ids))
+    }
+}
+
 // MARK: - 资产抽屉
 
 struct AssetDrawer: View {
@@ -208,6 +277,7 @@ struct AssetDrawer: View {
     @State private var confirmingMerge = false
     @State private var showingPro = false
     @State private var saveError: String?
+    @State private var reorder = DragReorder()
 
     struct AddingItem: Identifiable {
         let id = UUID()
@@ -239,15 +309,27 @@ struct AssetDrawer: View {
                     }
                 } trailing: { EmptyView() }
             } else {
-                ForEach(items) { item in
-                    DrawerRow(name: item.name, amount: item.amount, dimmed: !item.countsInFreedom,
-                              enabled: canManage, identifier: "asset-item-\(item.name)",
-                              onTap: { editing = item }) {
-                        countsSquare(counted: item.countsInFreedom, name: item.name,
-                                     identifier: "asset-item-counts-\(item.name)") { toggle(item) }
-                            .allowsHitTesting(canManage)
-                    } trailing: { EmptyView() }
+                let ids = items.map(\.id)
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        DrawerRow(name: item.name, amount: item.amount, dimmed: !item.countsInFreedom,
+                                  enabled: canManage, identifier: "asset-item-\(item.name)",
+                                  onTap: { editing = item }) {
+                            countsSquare(counted: item.countsInFreedom, name: item.name,
+                                         identifier: "asset-item-counts-\(item.name)") { toggle(item) }
+                                .allowsHitTesting(canManage)
+                        } trailing: {
+                            if canManage && items.count > 1 {
+                                ReorderHandle(id: item.id, index: index, ids: ids, label: "调整\(item.name)的位置",
+                                              identifier: "reorder-\(item.name)", reorder: $reorder) { target in
+                                    move(item, to: target)
+                                }
+                            }
+                        }
+                        .reorderable(reorder, id: item.id, index: index, ids: ids)
+                    }
                 }
+                .sensoryFeedback(.selection, trigger: reorder.dropIndex(in: ids))
             }
             if canManage || items.isEmpty {
                 DrawerAddRow(title: items.isEmpty ? "拆成多项" : "添加资产项", showsPro: !canManage,
@@ -260,7 +342,7 @@ struct AssetDrawer: View {
             } else {
                 DrawerFooter(text: items.isEmpty
                              ? "点方格选资产算不算进自由天数。"
-                             : "点方格选这一项算不算进自由天数。")
+                             : "点方格选这一项算不算进自由天数，拖右边调整先后。")
             }
         }
         .saveErrorAlert($saveError)
@@ -342,6 +424,11 @@ struct AssetDrawer: View {
         adding = AddingItem(initialSource: items.isEmpty && total > 0 ? .unsplitTotal : nil)
     }
 
+    private func move(_ item: AssetItem, to index: Int) {
+        do { try AssetItemStore.move(item, to: index, in: modelContext) }
+        catch { saveError = error.localizedDescription }
+    }
+
     private func toggle(_ item: AssetItem) {
         do { try AssetItemStore.setCountsInFreedom(!item.countsInFreedom, for: item, in: modelContext) }
         catch { saveError = error.localizedDescription }
@@ -376,9 +463,7 @@ struct CashDrawer: View {
     @State private var confirmingMerge = false
     @State private var showingPro = false
     @State private var saveError: String?
-    /// 正在拖的账户和拖了多远
-    @State private var dragging: UUID?
-    @State private var dragOffset: CGFloat = 0
+    @State private var reorder = DragReorder()
 
     struct AddingAccount: Identifiable {
         let id = UUID()
@@ -420,7 +505,7 @@ struct CashDrawer: View {
                         }
                     }
                 }
-                .sensoryFeedback(.selection, trigger: dropIndex)
+                .sensoryFeedback(.selection, trigger: reorder.dropIndex(in: accounts.map(\.id)))
             }
             if canManage || accounts.isEmpty {
                 DrawerAddRow(title: accounts.isEmpty ? "拆成多个账户" : "添加账户", showsPro: !canManage,
@@ -477,7 +562,7 @@ struct CashDrawer: View {
     // MARK: - 一行账户
 
     private func accountRow(_ account: CashAccount, index: Int) -> some View {
-        let isDragging = dragging == account.id
+        let ids = accounts.map(\.id)
         return DrawerRow(name: account.name, amount: account.amount, enabled: canManage,
                          identifier: "cash-account-\(account.name)", onTap: { editing = account }) {
             Text("\(index + 1)")
@@ -490,53 +575,13 @@ struct CashDrawer: View {
                 .accessibilityLabel("第 \(index + 1) 个扣")
         } trailing: {
             if canManage && accounts.count > 1 {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 12, weight: .light))
-                    .foregroundStyle(Color.inkFaint)
-                    .frame(width: 36, height: DrawerMetrics.rowHeight - 1, alignment: .trailing)
-                    .contentShape(Rectangle())
-                    .gesture(reorderGesture(account, index: index))
-                    .accessibilityLabel("调整\(account.name)的扣款顺序")
-                    .accessibilityAdjustableAction { direction in
-                        let target = direction == .increment ? index + 1 : index - 1
-                        move(account, to: target)
-                    }
-                    .accessibilityIdentifier("reorder-\(account.name)")
+                ReorderHandle(id: account.id, index: index, ids: ids, label: "调整\(account.name)的扣款顺序",
+                              identifier: "reorder-\(account.name)", reorder: $reorder) { target in
+                    move(account, to: target)
+                }
             }
         }
-        .background(Color.mist)
-        .offset(y: isDragging ? dragOffset : shift(for: index))
-        .zIndex(isDragging ? 1 : 0)
-        .shadow(color: .black.opacity(isDragging ? 0.08 : 0), radius: 10, y: 4)
-        .animation(isDragging ? nil : .snappy(duration: 0.22), value: dropIndex)
-    }
-
-    /// 拖着走过的那几行让出位置
-    private func shift(for index: Int) -> CGFloat {
-        guard let dragging, let from = accounts.firstIndex(where: { $0.id == dragging }), let to = dropIndex else { return 0 }
-        if from < to, (from + 1...to).contains(index) { return -DrawerMetrics.rowHeight }
-        if from > to, (to..<from).contains(index) { return DrawerMetrics.rowHeight }
-        return 0
-    }
-
-    /// 松手会落在第几位
-    private var dropIndex: Int? {
-        guard let dragging, let from = accounts.firstIndex(where: { $0.id == dragging }) else { return nil }
-        return max(0, min(accounts.count - 1, from + Int((dragOffset / DrawerMetrics.rowHeight).rounded())))
-    }
-
-    private func reorderGesture(_ account: CashAccount, index: Int) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
-            .onChanged { value in
-                dragging = account.id
-                dragOffset = value.translation.height
-            }
-            .onEnded { _ in
-                let target = dropIndex ?? index
-                dragging = nil
-                dragOffset = 0
-                move(account, to: target)
-            }
+        .reorderable(reorder, id: account.id, index: index, ids: ids)
     }
 
     private func move(_ account: CashAccount, to index: Int) {

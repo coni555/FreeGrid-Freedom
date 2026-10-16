@@ -153,6 +153,21 @@ struct AssetItemTests {
         #expect(house.amount == 100_000)
     }
 
+    // MARK: - 排序
+
+    @Test func movingAnItemChangesOnlyTheOrder() throws {
+        let context = try threeItems()
+        try AssetItemStore.move(try items(context)[2], to: 0, in: context)
+        #expect(try items(context).map(\.name) == ["基金", "房", "定期"])
+        #expect(try assets(context).lockedAssets == 135_000)
+
+        let before = try state(context)
+        #expect(throws: Failure.self) {
+            try AssetItemStore.move(try items(context)[0], to: 2, in: context, save: failingSave)
+        }
+        #expect(try state(context) == before)
+    }
+
     // MARK: - 逐项开关
 
     @Test func togglingOneItemLeavesTheOthersAndTheTotalAlone() throws {
