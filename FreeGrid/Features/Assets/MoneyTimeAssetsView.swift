@@ -505,15 +505,16 @@ struct MoneyTimeAssetsView: View {
 
 // MARK: - ¥ / 天
 
-/// 苹果分段控件的样子：一条浅色轨道，上面一块浮起的滑块
+/// 苹果分段控件的样子：一条浅色轨道，上面一块浮起的滑块。¥ 和钟两个符号
 private struct UnitSwitch: View {
     @Binding var isDays: Bool
     @Namespace private var thumb
 
     var body: some View {
         HStack(spacing: 0) {
-            segment("¥", selected: !isDays, identifier: "unit-money") { isDays = false }
-            segment("天", selected: isDays, identifier: "unit-days") { isDays = true }
+            // 两边都用同一套线条图标：钱 = ¥，时间 = 钟（沙漏是实心的，和 ¥ 放一起会一轻一重）
+            segment("yensign", label: "钱", selected: !isDays, identifier: "unit-money") { isDays = false }
+            segment("clock", label: "天", selected: isDays, identifier: "unit-days") { isDays = true }
         }
         .padding(2)
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.mist2))
@@ -522,10 +523,11 @@ private struct UnitSwitch: View {
         .accessibilityLabel("单位")
     }
 
-    private func segment(_ title: String, selected: Bool, identifier: String, action: @escaping () -> Void) -> some View {
+    private func segment(_ symbol: String, label: String, selected: Bool, identifier: String,
+                         action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(.subheadline, design: .rounded).weight(selected ? .medium : .regular))
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: selected ? .medium : .regular))
                 .foregroundStyle(selected ? Color.ink : Color.inkFaint)
                 .frame(width: 42, height: 28)
                 .background {
@@ -539,6 +541,7 @@ private struct UnitSwitch: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier(identifier)
     }
