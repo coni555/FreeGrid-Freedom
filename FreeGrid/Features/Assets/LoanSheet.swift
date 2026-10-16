@@ -64,20 +64,36 @@ struct LoanSheet: View {
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack(alignment: .top, spacing: Spacing.xl) {
                         VStack(alignment: .leading, spacing: Spacing.sm) {
                             KickerLabel(text: "每月几号还")
                             UnderlinedField(isFocused: false) {
-                                Picker("每月几号还", selection: $dueDay) {
-                                    ForEach(1...31, id: \.self) { Text("\($0) 日").tag($0) }
+                                // 不用系统的菜单样式：它自带内边距，会和上面的标题、旁边的期数对不齐
+                                Menu {
+                                    Picker("每月几号还", selection: $dueDay) {
+                                        ForEach(1...31, id: \.self) { Text("\($0) 日").tag($0) }
+                                    }
+                                } label: {
+                                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                        Text("\(dueDay)")
+                                            .font(.system(.title3, design: .rounded).monospacedDigit())
+                                            .foregroundStyle(Color.ink)
+                                        Text("日")
+                                            .font(.system(.body, design: .rounded))
+                                            .foregroundStyle(Color.inkFaint)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(Color.inkFaint)
+                                    }
+                                    .contentShape(Rectangle())
                                 }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                .tint(Color.ink)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .menuIndicator(.hidden)
                                 .accessibilityIdentifier("loan-due-day-picker")
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .leading, spacing: Spacing.sm) {
                             KickerLabel(text: "还剩几期")
                             UnderlinedField(isFocused: focus == .periods) {
@@ -94,13 +110,15 @@ struct LoanSheet: View {
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    // 最后一期是哪天：填错了一眼能看出来
+                    // 最后一期是哪天：填错了一眼能看出来。紧贴在两栏下面，和它们是一组
                     Text(lastDueText ?? "今天到期的那期算已经还过")
                         .font(.system(.caption, design: .rounded).monospacedDigit())
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
+                    }
 
                     if !cashAccounts.isEmpty { accountField }
 
@@ -165,10 +183,10 @@ struct LoanSheet: View {
                         Text(cashAccounts.first { $0.id == cashAccountID }?.name ?? "按扣款顺序")
                             .font(.system(.title3, design: .rounded))
                             .foregroundStyle(Color.ink)
+                        Spacer()
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(Color.inkFaint)
-                        Spacer()
                     }
                     .contentShape(Rectangle())
                 }
