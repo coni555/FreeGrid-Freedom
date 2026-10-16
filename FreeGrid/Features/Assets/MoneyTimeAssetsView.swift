@@ -59,7 +59,9 @@ struct MoneyTimeAssetsView: View {
                     .padding(.top, Spacing.sm)
                     .padding(.bottom, Spacing.xl)
                     .environment(\.amountUnit, unit)
+                    .environment(\.drawerHints, false)
                 }
+                .hardTopScrollEdge()
                 // 「Assets 怎么用」：回到顶部、换回钱的单位，等位置排好再开始
                 .task(id: guide.replays(of: .assets)) {
                     guard guide.takeReplay(.assets) else { return }
@@ -128,7 +130,7 @@ struct MoneyTimeAssetsView: View {
             .transition(.blurReplace)
             .id(isDays)
 
-            strata
+            strata(snapshot)
                 .padding(.top, Spacing.lg)
             legend(snapshot)
                 .padding(.top, Spacing.md)
@@ -148,26 +150,51 @@ struct MoneyTimeAssetsView: View {
     // MARK: - 横线：一项资产或一个现金账户一段
 
     private struct Segment: Identifiable {
+        enum Kind { case asset, cash, reserved }
         let id: String
         let amount: Double
-        let isCash: Bool
+        let kind: Kind
+        var isCash: Bool { kind == .cash }
     }
 
     /// 钱的单位下画净值的构成（不计入的资产也是净值）；天的单位下只画算进自由天数的钱
     private var segments: [Segment] {
         let assets: [Segment] = assetItems.isEmpty
-            ? ((isDays && !countsAssets) ? [] : [Segment(id: "assets", amount: lockedAssets, isCash: false)])
+            ? ((isDays && !countsAssets) ? [] : [Segment(id: "assets", amount: lockedAssets, kind: .asset)])
             : assetItems.filter { !isDays || $0.countsInFreedom }
-                .map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: false) }
+                .map { Segment(id: $0.id.uuidString, amount: $0.amount, kind: .asset) }
         let cashParts: [Segment] = cashAccounts.isEmpty
-            ? [Segment(id: "cash", amount: cash, isCash: true)]
-            : cashAccounts.map { Segment(id: $0.id.uuidString, amount: $0.amount, isCash: true) }
+            ? [Segment(id: "cash", amount: cash, kind: .cash)]
+            : cashAccounts.map { Segment(id: $0.id.uuidString, amount: $0.amount, kind: .cash) }
         return (assets + cashParts).filter { $0.amount > 0 }
     }
 
-    @ViewBuilder
-    private var strata: some View {
+    /// 天的单位下，这些钱光够日常花几天（不算月供和被动收入）
+    private func plainDays(_ snapshot: FinancialSnapshot) -> Double? {
+        guard snapshot.dailyBurn > 0 else { return nil }
+        return snapshot.freedomBase / snapshot.dailyBurn
+    }
+
+    /// 月供留出了几天：光够日常花的天数 − 大数字。没有这回事时为 nil
+    private func reservedDays(_ snapshot: FinancialSnapshot) -> Int? {
+        guard isDays, case .finite(let days) = snapshot.freedom, let plain = plainDays(snapshot) else { return nil }
+        let reserved = Int(plain.rounded(.down)) - Int(max(0, days).rounded(.down))
+        return reserved > 0 ? reserved : nil
+    }
+
+    /// 天的单位下，横线末尾接一段淡灰：被月供留出去的那些天。实心部分的长度正好对应大数字，两边对得上
+    private func strataParts(_ snapshot: FinancialSnapshot) -> [Segment] {
         let parts = segments
+        guard let reserved = reservedDays(snapshot), let plain = plainDays(snapshot), plain > 0 else { return parts }
+        let solid = parts.reduce(0) { $0 + $1.amount }
+        let kept = plain - Double(reserved)
+        guard kept > 0 else { return [Segment(id: "reserved", amount: 1, kind: .reserved)] }
+        return parts + [Segment(id: "reserved", amount: solid * Double(reserved) / kept, kind: .reserved)]
+    }
+
+    @ViewBuilder
+    private func strata(_ snapshot: FinancialSnapshot) -> some View {
+        let parts = strataParts(snapshot)
         let total = parts.reduce(0) { $0 + $1.amount }
         GeometryReader { geo in
             let gap: CGFloat = 2
@@ -175,8 +202,8 @@ struct MoneyTimeAssetsView: View {
             HStack(spacing: gap) {
                 if total > 0 {
                     ForEach(parts) { part in
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(part.isCash ? Color.cashBlue : Color.assetGold)
+                        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                            .fill(part.kind == .cash ? Color.cashBlue : part.kind == .asset ? Color.assetGold : Color.hairline)
                             .frame(width: max(4, usable * CGFloat(part.amount / total)))
                     }
                 } else {
@@ -192,14 +219,15 @@ struct MoneyTimeAssetsView: View {
                 for part in parts {
                     x += max(4, usable * CGFloat(part.amount / total)) + gap
                     if location.x < x {
+                        guard part.kind != .reserved else { return }
                         withAnimation(.snappy(duration: 0.3)) { tabKey = (part.isCash ? Tab.cash : Tab.assets).rawValue }
                         return
                     }
                 }
             }
         }
-        .frame(height: 4)
-        .animation(.snappy(duration: 0.4), value: parts.map(\.amount))
+        .frame(height: 5)
+        .animation(.snappy(duration: 0.45), value: parts.map(\.amount))
         .accessibilityElement()
         .accessibilityLabel(netWorth > 0
             ? "资产占 \(FinancialFormatting.percentage(lockedAssets / netWorth))，现金占 \(FinancialFormatting.percentage(cash / netWorth))"
@@ -223,10 +251,12 @@ struct MoneyTimeAssetsView: View {
         if isDays {
             guard snapshot.dailyBurn > 0 else { return "记几天账就能换算" }
             let perDay = "日均 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))"
-            return snapshot.loanPlan.isEmpty ? "按\(perDay)换算" : "已留出月供 · \(perDay)"
+            if let reserved = reservedDays(snapshot) { return "月供留出 \(reserved) 天 · \(perDay)" }
+            return "按\(perDay)换算"
         }
-        guard netWorth != 0, let updated = assetsArr.first?.updatedAt else { return "点下面的资产、现金录入金额" }
-        return "更新于" + Self.relativeFormatter.localizedString(for: updated, relativeTo: .now)
+        guard netWorth != 0 else { return "点下面的资产、现金录入金额" }
+        // 钱的单位下也说一句和自由天数有关的：真正算进去的是多少
+        return "计入自由天数 ¥\(snapshot.freedomBase.formatted(.number))"
     }
 
     private func legendDot(_ color: Color, _ text: String) -> some View {
@@ -242,12 +272,6 @@ struct MoneyTimeAssetsView: View {
         "\(Int((part / whole * 100).rounded()))%"
     }
 
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateTimeStyle = .named
-        return formatter
-    }()
 
     // MARK: - 资产 | 现金
 
@@ -290,11 +314,10 @@ struct MoneyTimeAssetsView: View {
             : assetItems.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
         let amount = isAssets ? lockedAssets : cash
         let dayAmount = isAssets ? counted : cash
-        let count = isAssets ? assetItems.count : cashAccounts.count
         let subtitle = isAssets
             ? (isDays && counted < lockedAssets && counted > 0 ? "只算计入的部分"
                : AssetRows.summary(items: assetItems, total: lockedAssets, countsAssets: countsAssets) ?? "定期、股票、基金")
-            : (CashRows.summary(accounts: cashAccounts) ?? "随时能花的钱")
+            : (cashAccounts.count > 1 ? "\(cashAccounts.count) 个账户" : "随时能花的钱")
         return Button {
             withAnimation(.snappy(duration: 0.32)) { tabKey = which.rawValue }
         } label: {
@@ -303,7 +326,7 @@ struct MoneyTimeAssetsView: View {
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                         .fill(isAssets ? Color.assetGold : Color.cashBlue)
                         .frame(width: 8, height: 8)
-                    KickerLabel(text: count > 0 ? "\(isAssets ? "资产" : "现金") · \(count)" : (isAssets ? "资产" : "现金"))
+                    KickerLabel(text: isAssets ? "资产" : "现金")
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     if isDays {
@@ -378,7 +401,7 @@ struct MoneyTimeAssetsView: View {
                 Spacer()
                 if showsLoans {
                     Text("净 " + unit.text(abs(net), sign: net >= 0 ? "+" : "−") + " / 月")
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.system(.footnote, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.inkMuted)
                         .contentTransition(.numericText())
                         .accessibilityIdentifier("monthly-net")
@@ -388,8 +411,7 @@ struct MoneyTimeAssetsView: View {
 
             VStack(spacing: 0) {
                 flowRow(isOpen: $incomeOpen, marker: .moss, title: "进",
-                        caption: passiveSources.isEmpty ? "房租、利息、股息"
-                            : "被动收入 · 覆盖日常 \(FinancialFormatting.percentage(snapshot.passiveRatio))",
+                        caption: passiveSources.isEmpty ? "房租、利息、股息" : "被动收入",
                         amount: unit.text(income, sign: "+"), amountColor: .mossGreen,
                         share: income / largest, shareColor: .mossGreen, identifier: "monthly-income")
                     .guideTarget(.passive, in: guide)
@@ -401,7 +423,9 @@ struct MoneyTimeAssetsView: View {
                 if showsLoans {
                     Hairline(color: .hairlineSoft).padding(.horizontal, 18)
                     flowRow(isOpen: $loansOpen, marker: .punched, title: "出",
-                            caption: loans.isEmpty ? "房贷、车贷、分期" : "每月还款 · \(loanSummary.line)",
+                            // 有没扣成的就说出来（收起时也得看得到），平时只写是什么
+                            caption: loans.isEmpty ? "房贷、车贷、分期"
+                                : (loanSummary.line.hasPrefix("有") ? loanSummary.line : "每月还款"),
                             amount: unit.text(outflow, sign: "−"), amountColor: .ink,
                             share: outflow / largest, shareColor: .cashBlue, identifier: "monthly-loans")
                         .guideTarget(.loans, in: guide)
@@ -449,7 +473,7 @@ struct MoneyTimeAssetsView: View {
                         .minimumScaleFactor(0.8)
                     Spacer(minLength: Spacing.sm)
                     Text(amount)
-                        .font(.system(size: 22, weight: .light, design: .rounded).monospacedDigit())
+                        .font(.system(size: 17, weight: .regular, design: .rounded).monospacedDigit())
                         .foregroundStyle(amountColor)
                         .lineLimit(1)
                         .contentTransition(.numericText())
@@ -592,7 +616,7 @@ struct PassiveRows: View {
                                 .lineLimit(1)
                             Spacer(minLength: Spacing.sm)
                             Text(unit.text(source.monthlyAmount, sign: "+") + "/月")
-                                .font(.system(.caption, design: .monospaced))
+                                .font(.system(.footnote, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.inkMuted)
                                 .contentTransition(.numericText())
                         }
@@ -616,6 +640,20 @@ struct PassiveRows: View {
             }, onDelete: {
                 try LedgerStore.perform(in: modelContext) { modelContext.delete(source) }
             })
+        }
+    }
+}
+
+// MARK: - 顶部滚动边缘
+
+private extension View {
+    /// 滚动后大数字不要糊在导航栏标题后面：iOS 26 起顶部用实色边缘
+    @ViewBuilder
+    func hardTopScrollEdge() -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            scrollEdgeEffectStyle(.hard, for: .top)
+        } else {
+            self
         }
     }
 }

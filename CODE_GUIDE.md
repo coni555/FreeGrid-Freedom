@@ -135,7 +135,8 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；权益清单在 `App/ProFeatures.swift` |
-| 资产和现金两个抽屉（展开/收起、一行一个账户、添加、退款后只读） | `Features/Assets/AccountDrawers.swift`（`AssetDrawer`、`CashDrawer`），净值下面按账户分段的线和调拨在 `AssetsView.swift`（`strataBar`、`transferForm`） |
+| Assets 页（按设置选新版或经典版） | `Features/Assets/AssetsView.swift` 只做切换（偏好 `assetsLayout`）。新版「钱与时间」：`MoneyTimeAssetsView.swift`（¥/天 单位开关、净值或自由天数、按账户分段的横线、资产 \| 现金文件夹标签、「每月」进出），调拨弹窗 `TransferSheet.swift`。经典版：`ClassicAssetsView.swift`（三个抽屉 + 被动收入卡 + 内嵌调拨） |
+| 两版共用的各行（增删改、拖动排序、退款后只读、弹窗） | `Features/Assets/AccountDrawers.swift`（`AssetRows`、`CashRows`，以及经典版的抽屉外壳 `AssetDrawer`、`CashDrawer`）、`LoanDrawer.swift`（`LoanRows`）、`MoneyTimeAssetsView.swift` 里的 `PassiveRows`。行里的金额按环境值 `amountUnit` 写成钱或天 |
 | 资产逐项记录（Pro）：新增/编辑/删除一项 | `Features/Assets/AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
 | 现金账户（Pro）：新增/编辑/删除、扣款顺序、记账时选账户 | `Features/Assets/CashAccountSheet.swift`、`Features/Transactions/CashAccountSection.swift` → `Data/CashAccountStore.swift`；调拨 → `Data/TransferStore.swift` |
 | 每月还款（Pro）：Assets 里的还款卡、添加表单、没扣成的那期 | `Features/Assets/AssetsView.swift`（`loansCard`）、`LoanSheet.swift` → `Data/LoanStore.swift` |

@@ -32,10 +32,20 @@ private struct AmountUnitKey: EnvironmentKey {
     static let defaultValue = AmountUnit.money
 }
 
+private struct DrawerHintsKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 extension EnvironmentValues {
     var amountUnit: AmountUnit {
         get { self[AmountUnitKey.self] }
         set { self[AmountUnitKey.self] = newValue }
+    }
+
+    /// 行下面那行灰色说明放不放。新版 Assets 不放（讲解在「使用指引」里），退款后的出路照常放
+    var drawerHints: Bool {
+        get { self[DrawerHintsKey.self] }
+        set { self[DrawerHintsKey.self] = newValue }
     }
 }
 
@@ -75,7 +85,7 @@ struct AccountDrawer<Rows: View>: View {
                         KickerLabel(text: title, color: .inkMuted)
                         if let count {
                             Text(count)
-                                .font(.system(.caption2, design: .monospaced))
+                                .font(.system(.caption2, design: .rounded).monospacedDigit())
                                 .foregroundStyle(Color.inkFaint)
                         }
                         Spacer(minLength: Spacing.sm)
@@ -159,7 +169,7 @@ struct DrawerRow<Leading: View, Trailing: View>: View {
                         Spacer(minLength: Spacing.sm)
                         // 资产行变淡 = 不计入自由天数，换成「天」时写「不计入」
                         Text(unit.text(amount, counted: !dimmed))
-                            .font(.system(.caption, design: .monospaced))
+                            .font(.system(.footnote, design: .rounded).monospacedDigit())
                             .foregroundStyle(amount < 0 ? Color.flame : (dimmed ? Color.inkFaint : Color.inkMuted))
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
@@ -217,22 +227,29 @@ struct DrawerAddRow: View {
     }
 }
 
-/// 抽屉底部一行说明，或者退款后的两条出路
+/// 抽屉底部一行说明，或者退款后的两条出路。普通说明在新版里不放（见 `drawerHints`）
 struct DrawerFooter: View {
     let text: String
     var locked = false
+    /// 退款后是否给「了解 Pro / 合并成一个总数」两个按钮（还款没有合并，只留说明）
+    var showsActions = true
     var onPro: () -> Void = {}
     var onMerge: () -> Void = {}
     var mergeID = ""
+    @Environment(\.drawerHints) private var hints
 
     var body: some View {
+        if locked || hints { content }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Hairline()
             Text(text)
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .fixedSize(horizontal: false, vertical: true)
-            if locked {
+            if locked && showsActions {
                 HStack(spacing: Spacing.lg) {
                     Button("了解 Pro", action: onPro)
                         .accessibilityIdentifier("\(mergeID)-pro")

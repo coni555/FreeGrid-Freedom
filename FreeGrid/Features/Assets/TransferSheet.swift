@@ -62,6 +62,14 @@ struct TransferSheet: View {
         Double(amount).flatMap { FinancialFormatting.validAmount($0) ? $0 : nil }
     }
 
+    /// 填的比来源里有的还多：不让调，提示里给出「调全部」
+    private var exceeds: Bool {
+        guard let entered else { return false }
+        return entered > max(0, source.amount) + 0.005
+    }
+
+    private var canTransfer: Bool { entered != nil && !exceeds }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -81,9 +89,9 @@ struct TransferSheet: View {
                 }
                 if !locked {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("调拨") { transfer() }
-                            .disabled(entered == nil)
-                            .foregroundStyle(entered == nil ? Color.inkFaint : Color.skyDeep)
+                        Button("确认") { transfer() }
+                            .disabled(!canTransfer)
+                            .foregroundStyle(canTransfer ? Color.skyDeep : Color.inkFaint)
                             .fontWeight(.medium)
                             .accessibilityIdentifier("confirm-transfer")
                     }
@@ -101,7 +109,7 @@ struct TransferSheet: View {
     private var form: some View {
         let from = source
         let to = destination
-        let moved = min(entered ?? 0, max(0, from.amount))
+        let moved = entered ?? 0
         let uncounted = assetItems.first { TransferStore.Place.assetItem($0.id) == to.place && !$0.countsInFreedom }
         return VStack(alignment: .leading, spacing: Spacing.xl) {
             HStack(spacing: Spacing.sm) {
@@ -109,8 +117,9 @@ struct TransferSheet: View {
                 Button {
                     withAnimation(.snappy(duration: 0.28)) { (self.from, self.to) = (to.place, from.place) }
                 } label: {
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.system(size: 12, weight: .regular))
+                    // 方向箭头，点它对调（不用 ⇄：那是页面上调拨圆钮的记号）
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .light))
                         .foregroundStyle(Color.skyDeep)
                         .frame(width: 32, height: 32)
                         .contentShape(Circle())
@@ -136,13 +145,27 @@ struct TransferSheet: View {
                             .accessibilityIdentifier("transfer-amount-field")
                     }
                 }
-                // 调完之后两边各剩多少；超过来源有的，只会调走它有的
-                Text(entered == nil
-                     ? "「\(from.name)」可用 ¥\(max(0, from.amount).formatted(.number))"
-                     : "之后：\(from.name) ¥\((from.amount - moved).formatted(.number)) · \(to.name) ¥\((to.amount + moved).formatted(.number))")
+                // 调完之后两边各剩多少；比来源里有的多时说实话，点一下就填成全部
+                if exceeds {
+                    Button {
+                        amount = max(0, from.amount).formatted(
+                            .number.grouping(.never).precision(.fractionLength(0...2)).locale(Locale(identifier: "en_US_POSIX")))
+                    } label: {
+                        Text("「\(from.name)」只有 ¥\(max(0, from.amount).formatted(.number))  ")
+                            .foregroundStyle(Color.flame)
+                        + Text("调全部").foregroundStyle(Color.skyDeep)
+                    }
+                    .buttonStyle(.plain)
                     .font(.system(.caption, design: .rounded).monospacedDigit())
-                    .foregroundStyle((entered ?? 0) > from.amount ? Color.flame : Color.inkFaint)
-                    .contentTransition(.numericText())
+                    .accessibilityIdentifier("transfer-fill-all")
+                } else {
+                    Text(entered == nil
+                         ? "「\(from.name)」可用 ¥\(max(0, from.amount).formatted(.number))"
+                         : "之后：\(from.name) ¥\((from.amount - moved).formatted(.number)) · \(to.name) ¥\((to.amount + moved).formatted(.number))")
+                        .font(.system(.caption, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.inkFaint)
+                        .contentTransition(.numericText())
+                }
                 if let uncounted {
                     Text("「\(uncounted.name)」不计入自由天数，调进去自由天数会变少")
                         .font(.system(.caption, design: .rounded))
@@ -183,7 +206,7 @@ struct TransferSheet: View {
                         .foregroundStyle(Color.inkFaint)
                 }
                 Text("¥" + option.amount.formatted(.number))
-                    .font(.system(.caption2, design: .monospaced))
+                    .font(.system(.caption2, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.inkFaint)
                     .lineLimit(1)
             }
@@ -211,7 +234,7 @@ struct TransferSheet: View {
     }
 
     private func transfer() {
-        guard let value = entered else { return }
+        guard canTransfer, let value = entered else { return }
         do {
             try TransferStore.transfer(value, from: source.place, to: destination.place, in: modelContext)
             dismiss()

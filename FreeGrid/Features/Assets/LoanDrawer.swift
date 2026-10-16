@@ -85,7 +85,8 @@ struct LoanRows: View {
             if !loans.isEmpty {
                 DrawerFooter(text: canManage
                              ? "到期那天自动从现金扣，自由天数会把每期的钱先留出来。"
-                             : "管理还款是 Pro 功能，已经加的照常自动扣。点一行可以删除。")
+                             : "管理还款是 Pro 功能，已经加的照常自动扣。点一行可以删除。",
+                             locked: !canManage, showsActions: false)
             }
         }
         .saveErrorAlert($saveError)
@@ -144,13 +145,13 @@ struct LoanRows: View {
                             .foregroundStyle(paidOff ? Color.inkMuted : Color.ink)
                             .lineLimit(1)
                         Text(detail)
-                            .font(.system(.caption2, design: .monospaced))
+                            .font(.system(.caption2, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkFaint)
                             .lineLimit(1)
                     }
                     Spacer(minLength: Spacing.sm)
                     Text(unit.text(loan.monthlyAmount, sign: "−"))
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.system(.footnote, design: .rounded).monospacedDigit())
                         .contentTransition(.numericText())
                         .foregroundStyle(paidOff ? Color.inkFaint : Color.inkMuted)
                 }
