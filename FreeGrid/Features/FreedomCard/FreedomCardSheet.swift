@@ -1,5 +1,5 @@
 // 自由卡：设置页那一行、首页的升级提示、长按首页大数字，都打开这一页。
-// 上面是卡（晃手机有一道光跟着走），下面是材质等级、持卡人昵称、显不显示金额，最后是分享（Pro）。
+// 上面是卡（晃手机有一道光跟着走），下面是材质等级、持卡人昵称，最后是分享（Pro）。卡上从不写金额。
 
 import SwiftUI
 import SwiftData
@@ -17,7 +17,6 @@ struct FreedomCardSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     @AppStorage("freedomCardHolder", store: AppPreferences.store) private var holder = ""
-    @AppStorage("freedomCardShowsMoney", store: AppPreferences.store) private var showsMoney = false
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeen = -1
 
     @State private var tilt = CardTilt()
@@ -39,7 +38,7 @@ struct FreedomCardSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
-                    FreedomCardView(data: data, holder: holder, showsMoney: showsMoney, tilt: tilt.value)
+                    FreedomCardView(data: data, holder: holder, tilt: tilt.value)
                         .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.18), radius: 22, y: 14)
                         .padding(.top, Spacing.sm)
                         .gesture(DragGesture(minimumDistance: 0)
@@ -59,19 +58,6 @@ struct FreedomCardSheet: View {
                                 .accessibilityIdentifier("freedom-card-holder")
                         }
                     }
-
-                    Toggle(isOn: $showsMoney.animation(.snappy(duration: 0.3))) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("显示净值")
-                                .font(.system(.body, design: .rounded))
-                                .foregroundStyle(Color.ink)
-                            Text("默认只写天数和比例，不露金额，可以放心发。")
-                                .font(.system(.footnote, design: .rounded))
-                                .foregroundStyle(Color.inkMuted)
-                        }
-                    }
-                    .tint(Color.skyDeep)
-                    .accessibilityIdentifier("freedom-card-shows-money")
 
                     shareButtons
                 }
@@ -97,7 +83,7 @@ struct FreedomCardSheet: View {
             }
             .onDisappear { tilt.stop() }
             // 卡面内容一变就重新画两张图，点分享时直接用
-            .task(id: RenderKey(data: data, holder: holder, showsMoney: showsMoney, dark: colorScheme == .dark)) {
+            .task(id: RenderKey(data: data, holder: holder, dark: colorScheme == .dark)) {
                 render(data)
             }
         }
@@ -171,7 +157,6 @@ struct FreedomCardSheet: View {
     private struct RenderKey: Equatable {
         let data: FreedomCardData
         let holder: String
-        let showsMoney: Bool
         let dark: Bool
     }
 
@@ -179,12 +164,12 @@ struct FreedomCardSheet: View {
     @MainActor
     private func render(_ data: FreedomCardData) {
         let scheme = colorScheme
-        let card = FreedomCardView(data: data, holder: holder, showsMoney: showsMoney)
+        let card = FreedomCardView(data: data, holder: holder)
             .padding(24)
             .frame(width: 360)
             .background(Color.paper)
             .environment(\.colorScheme, scheme)
-        let poster = FreedomPosterView(data: data, holder: holder, showsMoney: showsMoney)
+        let poster = FreedomPosterView(data: data, holder: holder)
             .frame(width: 360)
             .environment(\.colorScheme, scheme)
         cardImage = Self.image(of: card)

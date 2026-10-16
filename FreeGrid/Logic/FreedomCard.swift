@@ -1,5 +1,5 @@
 // Pro 第五项权益「自由卡」要用到的数：卡的材质（随自由天数升级）、卡面上写什么、什么时候在首页提示一次「升级了」。
-// 卡上默认只写天数和比例，不写金额；净值要用户自己打开。
+// 卡上只写天数和比例，从不写金额：用户 2026-10-17「我不希望我的用户去炫富」。
 
 import Foundation
 
@@ -68,7 +68,6 @@ struct FreedomCardData: Equatable {
     let milestonesTotal: Int
     /// 第一笔账的日期
     let since: Date?
-    let netWorth: Double
     /// 卡面格子里金色（资产）占多少，其余是蓝色（现金）
     let assetShare: Double
 
@@ -80,7 +79,6 @@ struct FreedomCardData: Equatable {
         milestonesDone = summary.doneCount
         milestonesTotal = summary.total
         since = snapshot.firstExpenseDate
-        netWorth = snapshot.netWorth
         assetShare = snapshot.freedomBase > 0 ? min(1, max(0, snapshot.countedAssets / snapshot.freedomBase)) : 0
     }
 

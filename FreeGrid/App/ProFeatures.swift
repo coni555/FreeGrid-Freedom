@@ -25,7 +25,7 @@ enum ProFeatures {
                 detail: "填上房贷车贷，自由天数在按时还款的前提下算，还款日在格子上一眼可见。"),
         Benefit(icon: "creditcard",
                 title: "分享自由卡",
-                detail: "把自由天数做成一张卡，材质随天数升级。默认不露金额，导出卡片或海报。"),
+                detail: "把自由天数做成一张卡，材质随天数升级。只写天数和比例，不写金额，导出卡片或海报。"),
     ]
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }

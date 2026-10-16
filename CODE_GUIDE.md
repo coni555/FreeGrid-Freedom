@@ -140,7 +140,7 @@ flowchart TD
 | 资产逐项记录（Pro）：新增/编辑/删除一项 | `Features/Assets/AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
 | 现金账户（Pro）：新增/编辑/删除、扣款顺序、记账时选账户 | `Features/Assets/CashAccountSheet.swift`、`Features/Transactions/CashAccountSection.swift` → `Data/CashAccountStore.swift`；调拨 → `Data/TransferStore.swift` |
 | 每月还款（Pro）：Assets 里的还款卡、添加表单、没扣成的那期 | `Features/Assets/AssetsView.swift`（`loansCard`）、`LoanSheet.swift` → `Data/LoanStore.swift` |
-| 自由卡（Pro 分享）：卡面、竖版海报、卡片页，三个入口 | `Features/FreedomCard/FreedomCardView.swift`（材质 `FreedomCardMaterial`、卡面、海报）、`FreedomCardSheet.swift`（晃手机的光、等级、昵称、显示净值、`ImageRenderer` 导出分享）；等级、卡面数据、首页只提示一次的规则在 `Logic/FreedomCard.swift`。入口：设置页自检下面那行、首页大数字下的升级提示、长按首页大数字 |
+| 自由卡（Pro 分享）：卡面、竖版海报、卡片页，三个入口 | `Features/FreedomCard/FreedomCardView.swift`（材质 `FreedomCardMaterial`、卡面、海报）、`FreedomCardSheet.swift`（晃手机的光、等级、昵称、`ImageRenderer` 导出分享）；等级、卡面数据、首页只提示一次的规则在 `Logic/FreedomCard.swift`。入口：设置页自检下面那行、首页大数字下的升级提示、长按首页大数字 |
 | 到期日、还了几期、按日历推演自由天数 | `Logic/LoanSchedule.swift`（`LoanSchedule.status`、`plan`、`FreedomMath.freedomRun`） |
 | 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |

@@ -75,7 +75,6 @@ extension Color {
 struct FreedomCardView: View {
     let data: FreedomCardData
     let holder: String
-    var showsMoney = false
     var tilt: CGSize = .zero
     @Environment(\.colorScheme) private var colorScheme
 
@@ -222,11 +221,7 @@ struct FreedomCardView: View {
                 Spacer(minLength: 0)
                 stat("MILESTONES", "\(data.milestonesDone)/\(data.milestonesTotal)", unit: nil, material, u)
                 Spacer(minLength: 0)
-                if showsMoney {
-                    stat("NET WORTH", Self.compactMoney(data.netWorth), unit: nil, material, u)
-                } else {
-                    stat("SINCE", data.since.map(Self.sinceText) ?? "—", unit: nil, material, u)
-                }
+                stat("SINCE", data.since.map(Self.sinceText) ?? "—", unit: nil, material, u)
             }
             .padding(.top, 3 * u)
         }
@@ -261,15 +256,6 @@ struct FreedomCardView: View {
         let parts = Calendar.current.dateComponents([.year, .month], from: date)
         return String(format: "%d.%02d", parts.year ?? 0, parts.month ?? 0)
     }
-
-    /// 「¥1.24M」「¥36K」：卡上地方小
-    static func compactMoney(_ value: Double) -> String {
-        let magnitude = abs(value)
-        let sign = value < 0 ? "−" : ""
-        if magnitude >= 1_000_000 { return sign + "¥" + String(format: "%.2fM", magnitude / 1_000_000) }
-        if magnitude >= 10_000 { return sign + "¥" + String(format: "%.0fK", magnitude / 1_000) }
-        return sign + "¥" + Int(magnitude.rounded()).formatted(.number)
-    }
 }
 
 // MARK: - 竖版海报
@@ -278,7 +264,6 @@ struct FreedomCardView: View {
 struct FreedomPosterView: View {
     let data: FreedomCardData
     let holder: String
-    var showsMoney = false
 
     var body: some View {
         GeometryReader { geo in
@@ -304,7 +289,7 @@ struct FreedomPosterView: View {
                         .multilineTextAlignment(.center)
                         .lineSpacing(1.6 * u)
                         .foregroundStyle(Color.ink)
-                    FreedomCardView(data: data, holder: holder, showsMoney: showsMoney)
+                    FreedomCardView(data: data, holder: holder)
                         .padding(.horizontal, 7 * u)
                         .shadow(color: .black.opacity(0.18), radius: 6 * u, y: 3 * u)
                     Spacer()
