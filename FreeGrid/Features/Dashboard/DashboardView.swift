@@ -57,6 +57,10 @@ private struct DashboardContent: View {
     @State private var expenseDraft: ExpenseDraft?
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
+    /// 自由卡：首页升级提示和长按大数字都打开它
+    @State private var showingFreedomCard = false
+    @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeenCard = -1
+    @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -95,7 +99,8 @@ private struct DashboardContent: View {
                     topBar           // 一行 wordmark
                         .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
-                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings)
+                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings,
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
                     gridSection      // 按天、月或年显示自由网格
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
@@ -139,6 +144,7 @@ private struct DashboardContent: View {
                     showUndoToast(id: exp.id, amount: exp.amount, isExpense: true)
                 })
             }
+            .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
                     showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
@@ -538,6 +544,19 @@ private struct DashboardContent: View {
         case .insufficientData: return "每一格是一天自由，有了数据后在这里点亮"
         case .finite, .covered: return "当前净值还没有可点亮的自由格"
         }
+    }
+
+    /// 卡第一次升到某个更高的等级时，大数字下面提示一次；起步引导走完之前不打扰
+    private var cardPrompt: (text: String, tier: FreedomCardTier)? {
+        guard setupFinished else { return nil }
+        let tier = FreedomCardTier.tier(for: snapshot.freedom)
+        let hasNumber: Bool
+        switch snapshot.freedom {
+        case .finite, .covered: hasNumber = true
+        case .insufficientData, .invalidData: hasNumber = false
+        }
+        return FreedomCardPrompt.text(current: tier, highestSeen: highestSeenCard, hasFreedomNumber: hasNumber)
+            .map { ($0, tier) }
     }
 
     private var needsSavings: Bool {

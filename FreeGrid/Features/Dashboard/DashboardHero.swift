@@ -8,6 +8,11 @@ struct DashboardHero: View {
     let isDarkMode: Bool
     let heroLayout: String
     let needsSavings: Bool
+    /// 自由卡升级时的一行提示（只出现一次）；nil 时不显示
+    var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
+    /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
+    var onOpenCard: () -> Void = {}
+    @State private var longPressed = 0
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
     @AppStorage("heroTrendExpanded") private var trendExpanded = true
@@ -52,6 +57,35 @@ struct DashboardHero: View {
             // ─── 中部: 根据 heroLayout 偏好切换 ───
             heroBody(deplete: deplete)
                 .guideTarget(.number, in: guide)
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 0.5) {
+                    longPressed += 1
+                    onOpenCard()
+                }
+                .sensoryFeedback(.impact(weight: .light), trigger: longPressed)
+                .accessibilityAction(named: "打开自由卡") { onOpenCard() }
+
+            if let cardPrompt {
+                Button(action: onOpenCard) {
+                    HStack(spacing: Spacing.sm) {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(FreedomCardMaterial.of(cardPrompt.tier).background)
+                            .overlay(RoundedRectangle(cornerRadius: 2, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+                            .frame(width: 19, height: 12)
+                        Text(cardPrompt.text)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        Text("看看")
+                            .font(.system(.caption, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.skyDeep)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
+                .accessibilityIdentifier("freedom-card-prompt")
+            }
 
             // ─── 底部: 趋势。一行摘要常驻, 点它展开或收起折线 ───
             if let first = history.first, let last = history.last, showsTrend {

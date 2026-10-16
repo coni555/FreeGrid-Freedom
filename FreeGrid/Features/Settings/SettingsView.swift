@@ -31,6 +31,7 @@ struct SettingsView: View {
     @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
     @State private var showingPro = false
+    @State private var showingFreedomCard = false
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
@@ -55,8 +56,11 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.xl) {
-                    checkCard
-                        .guideTarget(.check, in: guide)
+                    VStack(spacing: Spacing.md) {
+                        checkCard
+                            .guideTarget(.check, in: guide)
+                        freedomCardRow
+                    }
                     proSection
                     expenseCategoriesSection
                     appearanceSection
@@ -71,6 +75,7 @@ struct SettingsView: View {
             .background(Color.paper)
             .navigationTitle("Settings")
             .sheet(isPresented: $showingPro) { ProPaywallView() }
+            .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
             .task(id: guide.replays(of: .settings)) {
                 guard guide.takeReplay(.settings) else { return }
@@ -132,6 +137,26 @@ struct SettingsView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// 自检是「走到哪了」，自由卡是「把这一刻拿出去晒」，紧挨着放。右边是当前材质的小卡
+    private var freedomCardRow: some View {
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                                         assetItems: assetItems, loans: loans, countsAssets: countsAssets)
+        let tier = FreedomCardTier.tier(for: snapshot.freedom)
+        return settingsSection("") {
+            settingsRow(icon: "creditcard", title: "我的自由卡", action: { showingFreedomCard = true }) {
+                Text(tier.name)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    .fill(FreedomCardMaterial.of(tier).background)
+                    .overlay(RoundedRectangle(cornerRadius: 2.5, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+                    .frame(width: 24, height: 15)
+                chevron
+            }
+            .accessibilityIdentifier("settings-freedom-card")
+        }
     }
 
     // MARK: - 分组

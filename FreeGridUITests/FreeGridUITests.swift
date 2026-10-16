@@ -964,6 +964,88 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
+    /// 自由卡（Pro 第五项）：首页升级提示只出现一次；长按大数字、设置页那一行都能打开；没有 Pro 能看卡，分享要 Pro。
+    @MainActor
+    func testFreedomCardOpensFromHomeAndSettingsAndPromptShowsOnce() throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("freedom-card-ui-test.json")
+        let expenses = (1...9).map { #"{"amount":100,"category":"午餐","note":"","date":"2026-10-0\#($0)"}"# }.joined(separator: ",")
+        try Data("""
+        {"schema_version":2,"assets":{"total":10000,"locked_assets":0,"cash":10000},"expenses":[\(expenses)]}
+        """.utf8).write(to: backup)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-proPreview", "NO", "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
+        app.launch()
+
+        // 第一次有了银卡以上：大数字下面一行提示，点开是卡，分享要 Pro
+        let prompt = app.buttons["freedom-card-prompt"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 10))
+        prompt.tap()
+        let holder = app.textFields["freedom-card-holder"]
+        XCTAssertTrue(holder.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["share-freedom-card-pro"].exists)
+        XCTAssertFalse(app.buttons["share-freedom-card"].exists)
+        app.buttons["完成"].tap()
+        // 看过了，提示不再出现
+        XCTAssertTrue(prompt.waitForNonExistence(timeout: 3))
+
+        // 彩蛋：长按大数字
+        let number = app.staticTexts.matching(NSPredicate(format: "label MATCHES '^[0-9,]+$'")).firstMatch
+        XCTAssertTrue(number.waitForExistence(timeout: 3))
+        number.press(forDuration: 0.8)
+        XCTAssertTrue(holder.waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+
+        // 设置页：紧挨着自检
+        app.tabBars.buttons["Settings"].tap()
+        let row = app.buttons["settings-freedom-card"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(holder.waitForExistence(timeout: 5))
+    }
+
+    /// 自由卡截图：首页提示、卡（Pro 能分享）、海报分享面板、设置页那一行，浅色深色各一套。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureFreedomCardScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["FREEDOM_CARD_LEDGER"], let output = environment["FREEDOM_CARD_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍自由卡截图时运行")
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES", "-proPreview", "YES",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            let prompt = app.buttons["freedom-card-prompt"]
+            XCTAssertTrue(prompt.waitForExistence(timeout: 10))
+            try shoot("\(mode)-1-首页提示")
+            prompt.tap()
+            XCTAssertTrue(app.buttons["share-freedom-poster"].waitForExistence(timeout: 5))
+            try shoot("\(mode)-2-卡")
+            app.textFields["freedom-card-holder"].tap()
+            app.textFields["freedom-card-holder"].typeText("coni\n")
+            app.switches["freedom-card-shows-money"].tap()
+            try shoot("\(mode)-3-昵称和净值")
+            app.buttons["share-freedom-poster"].tap()
+            Thread.sleep(forTimeInterval: 1.5)
+            try shoot("\(mode)-4-分享海报")
+            app.terminate()
+            app.launch()
+            app.tabBars.buttons["Settings"].tap()
+            XCTAssertTrue(app.buttons["settings-freedom-card"].waitForExistence(timeout: 5))
+            try shoot("\(mode)-5-设置页")
+            app.terminate()
+        }
+    }
+
     /// 退款之后（没有 Pro 但已经拆好了项）：每一项和金额还在 Assets 页上，不能增删改、不能点方格；合并成总数后回到总开关。
     @MainActor
     func testItemsStayVisibleWithoutProAndCanBeMergedBackIntoATotal() throws {
