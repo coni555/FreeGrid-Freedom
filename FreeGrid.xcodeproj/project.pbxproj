@@ -33,6 +33,7 @@
 		F34FDE322FC569A7003AA776 /* Exceptions for "FreeGrid" folder in "FreeGrid" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/FreeGridPro.storekit,
 				Secrets.swift,
 			);
 			target = F34FDE052FC569A6003AA776 /* FreeGrid */;

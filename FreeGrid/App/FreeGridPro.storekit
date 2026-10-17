@@ -1,0 +1,41 @@
+{
+  "identifier" : "6C1F0B7E-3A0D-4C1B-9B2E-6A3F2D1C9E41",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "18.0",
+      "familyShareable" : false,
+      "internalID" : "6781104301",
+      "localizations" : [
+        {
+          "description" : "一次买断，解锁 FreeGrid Pro 的全部权益。",
+          "displayName" : "FreeGrid Pro",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "cn.conilab.FreeGrid.pro.lifetime",
+      "referenceName" : "FreeGrid Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_compatibilityTimeRate" : {
+      "3" : 6
+    },
+    "_failTransactionsEnabled" : false,
+    "_locale" : "zh_CN",
+    "_storefront" : "CHN",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
