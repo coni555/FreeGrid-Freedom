@@ -88,6 +88,10 @@ final class ProStore {
 
     /// 以 App Store 的当前权益为准重新计算。退款后的交易带撤销日期，不算数。
     func refreshEntitlement() async {
+        #if DEBUG
+        // UI 测试和拍图（-UseInMemoryStore）只认 -proPreview：模拟器里在 Xcode 测过的购买还留着，会让「没买」的样子出不来
+        if ProcessInfo.processInfo.arguments.contains("-UseInMemoryStore") { return }
+        #endif
         var owned = false
         for await entitlement in Transaction.currentEntitlements {
             if case .verified(let transaction) = entitlement,

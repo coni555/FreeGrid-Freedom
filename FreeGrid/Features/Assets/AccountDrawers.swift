@@ -472,7 +472,7 @@ struct AssetRows: View {
                 if (try? AssetItemStore.items(in: modelContext))?.isEmpty == true { countsAssets = true }
             })
         }
-        .sheet(isPresented: $showingPro) { ProPaywallView() }
+        .sheet(isPresented: $showingPro) { ProPaywallView(topic: .assets) }
         .confirmationDialog("合并成一个总数？", isPresented: $confirmingMerge, titleVisibility: .visible) {
             Button("合并", role: .destructive) { merge() }
             Button("取消", role: .cancel) {}
@@ -657,7 +657,7 @@ struct CashRows: View {
                 try CashAccountStore.delete(account, in: modelContext)
             })
         }
-        .sheet(isPresented: $showingPro) { ProPaywallView() }
+        .sheet(isPresented: $showingPro) { ProPaywallView(topic: .cash) }
         .confirmationDialog("合并成一个总数？", isPresented: $confirmingMerge, titleVisibility: .visible) {
             Button("合并", role: .destructive) {
                 do { try CashAccountStore.mergeIntoTotal(in: modelContext) }

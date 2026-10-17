@@ -85,7 +85,7 @@ struct ClassicAssetsView: View {
             .background(Color.paper)
             .navigationTitle("Assets")
             .saveErrorAlert($saveError)
-            .sheet(isPresented: $showingPro) { ProPaywallView() }
+            .sheet(isPresented: $showingPro) { ProPaywallView(topic: assetItems.isEmpty ? .cash : .assets) }
             .sheet(isPresented: $showingAddPassive) {
                 PassiveSourceSheet(existing: nil) { name, monthly in
                     try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, in: modelContext)

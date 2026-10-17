@@ -56,7 +56,7 @@ struct ExpenseCategoriesView: View {
         .navigationTitle("支出分类")
         .inlineNavTitle()
         .saveErrorAlert($saveError)
-        .sheet(isPresented: $showingPro) { ProPaywallView() }
+        .sheet(isPresented: $showingPro) { ProPaywallView(topic: .categories) }
         .sheet(item: $editing) { target in
             switch target {
             case .new:

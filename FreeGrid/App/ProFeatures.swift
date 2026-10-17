@@ -2,38 +2,40 @@
 import Foundation
 
 enum ProFeatures {
-    struct Benefit: Identifiable {
-        let icon: String
+    /// 从哪个功能进的购买页：对照表上那一行淡淡地标出来
+    enum Topic {
+        case categories, assets, cash, freedomSwitch, loans, freedomCard
+    }
+
+    /// 对照表一格：打勾、横杠（没有）、或者一个短词
+    enum Cell {
+        case yes, no
+        case text(String)
+    }
+
+    /// 购买页对照表的一行。前两行两边都有，告诉人免费版本来就够用；往下左边变少，右边一直是满的
+    struct Row: Identifiable {
         let title: String
-        let detail: String
-        /// 设置页 Pro 卡上的一行短说明
-        let brief: String
+        let free: Cell
+        let pro: Cell
+        var topic: Topic?
         var id: String { title }
     }
 
-    /// 购买页只列已经做好的权益；新功能做完再加到这里
-    static let benefits: [Benefit] = [
-        Benefit(icon: "list.bullet",
-                title: "自定义支出分类",
-                detail: "添加自己的分类，调整常用顺序，删除用不到的选项。",
-                brief: "添加、排序、删除自己的分类"),
-        Benefit(icon: "square.stack.3d.up",
-                title: "资产和现金分账户",
-                detail: "资产拆成房、车、定期、基金，现金拆成微信、支付宝、银行卡；记支出按你排的顺序扣。",
-                brief: "房、车、基金；微信、支付宝、银行卡"),
-        Benefit(icon: "slider.horizontal.3",
-                title: "自由天数逐项开关",
-                detail: "房子、车等难以变现的资产可以单独排除，自由天数只算真正能用的钱。",
-                brief: "难变现的资产可以单独不算"),
-        Benefit(icon: "calendar",
-                title: "每月还款",
-                detail: "填上房贷车贷，自由天数在按时还款的前提下算，还款日在格子上一眼可见。",
-                brief: "按时还款的前提下算自由天数"),
-        Benefit(icon: "creditcard",
-                title: "分享自由卡",
-                detail: "把自由天数做成一张卡，材质随天数升级。只写天数和比例，不写金额，导出卡片或海报。",
-                brief: "材质随天数升级，不写金额"),
+    /// 只列已经做好的；新功能做完再加到这里
+    static let comparison: [Row] = [
+        Row(title: "记账 · 历史 · 备份", free: .yes, pro: .yes),
+        Row(title: "自由天数 · 格子 · 模拟", free: .yes, pro: .yes),
+        Row(title: "支出分类", free: .text("固定"), pro: .text("自定义"), topic: .categories),
+        Row(title: "资产", free: .text("一个总数"), pro: .text("逐项拆分"), topic: .assets),
+        Row(title: "现金", free: .text("一个总数"), pro: .text("分账户"), topic: .cash),
+        Row(title: "资产计入自由天数", free: .text("整体开关"), pro: .text("逐项开关"), topic: .freedomSwitch),
+        Row(title: "每月还款", free: .no, pro: .yes, topic: .loans),
+        Row(title: "自由卡", free: .text("查看"), pro: .text("导出分享"), topic: .freedomCard),
     ]
+
+    /// 设置页 Pro 卡头下面那一行
+    static let headline = "分账户 · 每月还款 · 分享自由卡"
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
     /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。

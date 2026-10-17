@@ -250,7 +250,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.buttons["add-expense-category"].exists)
         openPro.tap()
         XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["自定义支出分类"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["pro-comparison"].exists)
         let paywall = XCTAttachment(screenshot: app.screenshot())
         paywall.name = "Pro购买页-未解锁"
         paywall.lifetime = .keepAlways
@@ -1034,8 +1034,9 @@ final class FreeGridUITests: XCTestCase {
             app.buttons["settings-card-ledger"].tap()
             try shoot("\(mode)-2-账本")
             app.buttons["settings-card-pro"].tap()
-            app.swipeUp()
+            XCTAssertTrue(app.buttons["pro-close"].waitForExistence(timeout: 5))
             try shoot("\(mode)-3-Pro")
+            app.buttons["pro-close"].tap()
             app.buttons["settings-card-about"].tap()
             app.swipeUp()
             try shoot("\(mode)-4-FreeGrid")

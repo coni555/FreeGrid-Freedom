@@ -33,7 +33,7 @@ struct SettingsView: View {
     @State private var icpCopied = false
     @State private var showingPro = false
     @State private var showingFreedomCard = false
-    /// 一叠卡里现在抽出来的是哪张（look / ledger / pro / about，空 = 都收着）。同一时间只开一张，下次进来还是它
+    /// 一叠卡里现在抽出来的是哪张（look / ledger / about，空 = 都收着）。同一时间只开一张，下次进来还是它
     @SceneStorage("settingsOpenCard") private var openCard = "look"
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 屏幕上能放卡的高度、自检卡的高度：都收着时按这两个数把卡叠铺开
@@ -73,14 +73,21 @@ struct SettingsView: View {
                         .zIndex(6)
                     freedomCardCard
                         .zIndex(5)
-                    lookCard
+                    // 没买时 Pro 紧跟在自由卡后面；买过了退到 FreeGrid 前面，不再占前排
+                    if !proUnlocked {
+                        proCard(depth: 1)
+                            .zIndex(4.5)
+                    }
+                    lookCard(depth: proUnlocked ? 1 : 2)
                         .guideTarget(.appearance, in: guide)
                         .zIndex(4)
-                    ledgerCard
+                    ledgerCard(depth: proUnlocked ? 2 : 3)
                         .guideTarget(.data, in: guide)
                         .zIndex(3)
-                    proCard
-                        .zIndex(2)
+                    if proUnlocked {
+                        proCard(depth: 3)
+                            .zIndex(2)
+                    }
                     aboutCard
                         .zIndex(1)
                 }
@@ -91,6 +98,8 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
+            // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
+            .onAppear { if openCard == "pro" { openCard = "" } }
             .sheet(isPresented: $showingPro) { ProPaywallView() }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sensoryFeedback(.selection, trigger: isDarkMode)
@@ -209,10 +218,12 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 第 3 张：外观（默认抽出来；三行分段按钮）
-    private var lookCard: some View {
+    private var proUnlocked: Bool { ProStore.shared.isUnlocked }
+
+    // MARK: - 外观（默认抽出来；三行分段按钮）
+    private func lookCard(depth: Int) -> some View {
         let isOpen = openCard == "look"
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(1)), peek: peek) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("look") } label: {
                     DeckHeader(title: "外观", detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
@@ -304,11 +315,11 @@ struct SettingsView: View {
         )
     }
 
-    // MARK: - 第 4 张：账本（读数是一共记了几笔）
-    private var ledgerCard: some View {
+    // MARK: - 账本（读数是一共记了几笔）
+    private func ledgerCard(depth: Int) -> some View {
         let isOpen = openCard == "ledger"
         let records = expenses.count + incomes.count
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(2)), peek: peek) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("ledger") } label: {
                     DeckHeader(title: "账本", detail: isOpen ? nil : detail("\(categoryCount) 个分类 · 备份与恢复"), isOpen: isOpen) {
@@ -364,78 +375,38 @@ struct SettingsView: View {
             .activeItems.count
     }
 
-    // MARK: - 第 5 张：Pro（和别的卡同一种纸，只多一道蓝；不推销）
-    private var proCard: some View {
-        let isOpen = openCard == "pro"
-        let unlocked = ProStore.shared.isUnlocked
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(3)), peek: peek) {
-            VStack(spacing: 0) {
-                Button { toggle("pro") } label: {
-                    DeckHeader(title: "FreeGrid Pro",
-                               detail: isOpen ? nil : detail(unlocked ? "五项权益都已解锁" : "五项权益 · 一次买断"),
-                               isOpen: isOpen) {
-                        RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
-                    } trailing: {
-                        if unlocked {
-                            Text("PRO")
-                                .font(.system(size: 10, design: .monospaced))
-                                .tracking(2)
-                                .foregroundStyle(Color.skyDeep)
-                        } else {
-                            DeckReading(value: "\(ProFeatures.benefits.count)", unit: "项")
-                        }
+    // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的价格胶囊；点了直接弹出对照表，不抽出来）
+    private func proCard(depth: Int) -> some View {
+        DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
+            Button { showingPro = true } label: {
+                DeckHeader(title: "FreeGrid Pro",
+                           detail: detail(proUnlocked ? "全部功能已解锁" : ProFeatures.headline)) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
+                } trailing: {
+                    if proUnlocked {
+                        Text("PRO")
+                            .font(.system(size: 10, design: .monospaced))
+                            .tracking(2)
+                            .foregroundStyle(Color.skyDeep)
+                    } else {
+                        Text(proPriceLabel)
+                            .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.skyDeep)
+                            .padding(.horizontal, 12)
+                            .frame(height: 28)
+                            .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
                     }
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("settings-card-pro")
-                if isOpen {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(ProFeatures.benefits.enumerated()), id: \.offset) { index, benefit in
-                            DeckDivider()
-                            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                                Text(String(format: "%02d", index + 1))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(Color.inkFaint)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(benefit.title)
-                                        .font(.system(size: 15, design: .rounded))
-                                        .foregroundStyle(Color.ink)
-                                    Text(benefit.brief)
-                                        .font(.system(size: 13, design: .rounded))
-                                        .foregroundStyle(Color.inkMuted)
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 9)
-                            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-                        }
-                        if !unlocked {
-                            Button { showingPro = true } label: {
-                                Text(proPriceTitle)
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(Color.skyDeep)
-                                    .padding(.horizontal, 18)
-                                    .frame(height: 40)
-                                    .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
-                                    .contentShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 20)
-                            .padding(.top, Spacing.md)
-                            .accessibilityIdentifier("settings-pro")
-                        }
-                    }
-                    .padding(.bottom, Spacing.lg)
-                    .transition(reveal)
                 }
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-card-pro")
         }
     }
 
-    /// 「永久买断 ¥18」：价格用 App Store 给的本地化文字，读不到时不写数
-    private var proPriceTitle: String {
+    /// 胶囊里的字：价格用 App Store 给的本地化文字，读不到时写「永久买断」
+    private var proPriceLabel: String {
         if case .loaded(let product) = ProStore.shared.productState {
-            return "永久买断 \(product.displayPrice)"
+            return product.displayPrice
         }
         return "永久买断"
     }
