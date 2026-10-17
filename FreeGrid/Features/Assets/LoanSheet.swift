@@ -218,15 +218,6 @@ struct LoanSheet: View {
         }
     }
 
-    /// 选项里多一句常见叫法，帮人对上自己的情况
-    static func intervalOption(_ months: Int) -> String {
-        switch months {
-        case 1: return "每月（押一付一）"
-        case 3: return "每季度（押一付三）"
-        default: return intervalLabel(months)
-        }
-    }
-
     private var fixedScheduleFields: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .top, spacing: Spacing.xl) {
@@ -235,7 +226,7 @@ struct LoanSheet: View {
                     UnderlinedField(isFocused: false) {
                         Menu {
                             Picker("几个月付一次", selection: $intervalMonths) {
-                                ForEach(LoanSchedule.intervals, id: \.self) { Text(Self.intervalOption($0)).tag($0) }
+                                ForEach(LoanSchedule.intervals, id: \.self) { Text(Self.intervalLabel($0)).tag($0) }
                             }
                         } label: {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
