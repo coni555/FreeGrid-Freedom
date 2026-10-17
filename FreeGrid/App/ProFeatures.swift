@@ -53,8 +53,8 @@ enum ProFeatures {
         Row(title: "自由名片", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
     ]
 
-    /// 设置页 Pro 卡头下面那一行
-    static let headline = "全新资产视图 · 子账户 · 每月还款"
+    /// 设置页 Pro 卡头下面那一行：说人话讲能多做什么，不写价格（价格只在购买页出现）
+    static let headline = "分类自己定，钱分账户记，房贷也算进去"
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
     /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。

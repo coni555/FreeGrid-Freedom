@@ -114,7 +114,7 @@ struct FreedomCardSheet: View {
                     .opacity(tier == current ? 1 : 0.55)
                 }
             }
-            Text("卡的材质跟着自由天数变：30 天银卡，180 天香槟金，1 年黑卡；被动收入盖住全部开销是 ∞ 卡。")
+            Text("卡的材质跟着自由天数变：30 天银卡，180 天香槟金，1 年黑卡；被动收入覆盖全部开销是 ∞ 卡。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .fixedSize(horizontal: false, vertical: true)

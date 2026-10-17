@@ -52,7 +52,7 @@ enum FreedomCardTier: Int, CaseIterable, Comparable {
         case .silver: return "30 天"
         case .champagne: return "180 天"
         case .obsidian: return "1 年"
-        case .infinite: return "被动收入盖住开销"
+        case .infinite: return "被动收入覆盖开销"
         }
     }
 }
@@ -95,7 +95,7 @@ struct FreedomCardData: Equatable {
     var posterLine: String {
         switch freedom {
         case .finite: return "我的自由\n还能撑 \(daysText) 天"
-        case .covered: return "我的被动收入\n已经盖住了全部开销"
+        case .covered: return "我的被动收入\n已经覆盖了全部开销"
         case .insufficientData, .invalidData: return "我在用 FreeGrid\n数我的自由"
         }
     }

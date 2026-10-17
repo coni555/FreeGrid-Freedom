@@ -399,7 +399,7 @@ struct SettingsView: View {
             .activeItems.count
     }
 
-    // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的价格胶囊；点了直接弹出对照表，不抽出来）
+    // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的「看看」胶囊；点了直接弹出对照表，不抽出来）
     private func proCard(depth: Int) -> some View {
         DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             Button {
@@ -416,8 +416,9 @@ struct SettingsView: View {
                             .tracking(2)
                             .foregroundStyle(Color.skyDeep)
                     } else {
-                        Text(proPriceLabel)
-                            .font(.system(size: 13, weight: .medium, design: .rounded).monospacedDigit())
+                        // 卡面不写价格：设置页是看一眼的地方，钱留到购买页再说
+                        Text("看看")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Color.skyDeep)
                             .padding(.horizontal, 12)
                             .frame(height: 28)
@@ -428,14 +429,6 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("settings-card-pro")
         }
-    }
-
-    /// 胶囊里的字：价格用 App Store 给的本地化文字，读不到时写「永久买断」
-    private var proPriceLabel: String {
-        if case .loaded(let product) = ProStore.shared.productState {
-            return product.displayPrice
-        }
-        return "永久买断"
     }
 
     // MARK: - 最后一张：FreeGrid（使用指引、关于、评价）
