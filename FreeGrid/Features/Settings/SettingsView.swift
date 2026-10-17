@@ -416,42 +416,38 @@ struct SettingsView: View {
         return "永久买断"
     }
 
-    // MARK: - 最后一张：FreeGrid（墨色封底：使用指引、关于、评价）
+    // MARK: - 最后一张：FreeGrid（使用指引、关于、评价）
     private var aboutCard: some View {
         let isOpen = openCard == "about"
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.inkCard),
-                        edge: colorScheme == .dark ? SettingsDeck.edge : .black.opacity(0.2)) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(4))) {
             VStack(spacing: 0) {
                 Button { toggle("about") } label: {
-                    DeckHeader(title: "FreeGrid", titleColor: SettingsDeck.inkCardText, isOpen: isOpen,
-                               chevronColor: SettingsDeck.inkCardFaint) {
+                    DeckHeader(title: "FreeGrid", isOpen: isOpen) {
                         VStack(spacing: 1.5) {
-                            HStack(spacing: 1.5) { logoCell(Color(white: 0.8)); logoCell(Color.assetGold) }
-                            HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color(white: 0.8)) }
+                            HStack(spacing: 1.5) { logoCell(Color.inkFaint); logoCell(Color.assetGold) }
+                            HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color.inkFaint) }
                         }
                         .accessibilityHidden(true)
                     } trailing: {
-                        DeckReading(value: appVersion, color: SettingsDeck.inkCardText)
+                        DeckReading(value: appVersion)
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("settings-card-about")
                 if isOpen {
                     VStack(spacing: 0) {
-                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        DeckDivider()
                         guideRow
-                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        DeckDivider()
                         NavigationLink {
                             aboutPage
                         } label: {
-                            DeckRow(title: "关于", titleColor: SettingsDeck.inkCardText,
-                                    chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
+                            DeckRow(title: "关于") { EmptyView() }
                         }
                         .buttonStyle(.plain)
-                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        DeckDivider()
                         Button { openURL(rateURL) } label: {
-                            DeckRow(title: "评价与反馈", titleColor: SettingsDeck.inkCardText,
-                                    chevron: "arrow.up.right", chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
+                            DeckRow(title: "评价与反馈", chevron: "arrow.up.right") { EmptyView() }
                         }
                         .buttonStyle(.plain)
                     }
@@ -471,17 +467,16 @@ struct SettingsView: View {
     @ViewBuilder
     private var guideRow: some View {
         if expenses.isEmpty && incomes.isEmpty {
-            DeckRow(title: "使用指引", titleColor: SettingsDeck.inkCardFaint, chevron: nil) {
+            DeckRow(title: "使用指引", titleColor: .inkFaint, chevron: nil) {
                 Text("记一笔后可看")
                     .font(.system(size: 13, design: .rounded))
-                    .foregroundStyle(SettingsDeck.inkCardFaint)
+                    .foregroundStyle(Color.inkFaint)
             }
         } else {
             NavigationLink {
                 GuideListPage(onReplay: onReplayGuide)
             } label: {
-                DeckRow(title: "使用指引", titleColor: SettingsDeck.inkCardText,
-                        chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
+                DeckRow(title: "使用指引") { EmptyView() }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("guide-list")

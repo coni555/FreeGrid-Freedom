@@ -1,5 +1,5 @@
 // 设置页的「一叠卡」：自检卡在最前，后面每张藏在上一张背后，只露出下沿。
-// 全页只有自由卡用材质；其余卡是同一种纸，越往后底色深一档，最后一张是墨色封底。
+// 全页只有自由卡用材质（黑卡也是深色的，所以别的卡都不用深色）；其余卡是同一种纸，越往后底色深一档。
 
 import SwiftUI
 
@@ -12,24 +12,19 @@ enum SettingsDeck {
     /// 抽出、收回：弹一下就停
     static let spring = Animation.spring(response: 0.42, dampingFraction: 0.86)
 
-    /// 第 0…3 张纸的底色：越往后越深一档
+    /// 第 0…4 张纸的底色：越往后越深一档
     static func paper(_ depth: Int) -> Color {
         switch depth {
         case 0: return .dyn(lightRGB: (0.998, 0.999, 1.000), darkRGB: (0.090, 0.098, 0.149))
         case 1: return .dyn(lightRGB: (0.976, 0.980, 0.984), darkRGB: (0.078, 0.086, 0.133))
         case 2: return .dyn(lightRGB: (0.957, 0.961, 0.969), darkRGB: (0.067, 0.075, 0.118))
-        default: return .dyn(lightRGB: (0.937, 0.941, 0.953), darkRGB: (0.059, 0.067, 0.102))
+        case 3: return .dyn(lightRGB: (0.937, 0.941, 0.953), darkRGB: (0.059, 0.067, 0.102))
+        default: return .dyn(lightRGB: (0.918, 0.922, 0.937), darkRGB: (0.051, 0.059, 0.090))
         }
     }
 
     /// 卡的细边：深色下比页面的 hairline 再暗一点，叠在一起不显得花
     static let edge = Color.dyn(lightRGB: (0.870, 0.870, 0.882), darkRGB: (0.173, 0.180, 0.235))
-
-    /// 封底那张墨色卡，和它上面的字（两种主题都是浅字）
-    static let inkCard = Color.dyn(lightRGB: (0.149, 0.145, 0.165), darkRGB: (0.110, 0.122, 0.180))
-    static let inkCardText = Color(red: 0.940, green: 0.945, blue: 0.960)
-    static let inkCardFaint = inkCardText.opacity(0.45)
-    static let inkCardLine = Color.white.opacity(0.08)
 }
 
 /// 一张卡：圆角、细边、朝下的影子；深色下顶边一道淡高光。
