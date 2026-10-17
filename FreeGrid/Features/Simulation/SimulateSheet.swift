@@ -15,6 +15,8 @@ struct SimulateSheet: View {
     @Query private var assetsArr: [UserAssets]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetItems: [AssetItem]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
 
     // ===== 模拟状态 =====
@@ -78,7 +80,7 @@ struct SimulateSheet: View {
         guard let amt = Double(amount), FinancialFormatting.validAmount(amt) else { return nil }
         return TransactionImpact(
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                        assets: assetsArr.first, assetItems: assetItems, loans: loans),
+                                        assets: assetsArr.first, assetItems: assetItems, cashAccounts: cashAccounts, loans: loans),
             kind: mode, amount: amt
         )
     }

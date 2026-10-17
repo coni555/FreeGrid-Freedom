@@ -255,7 +255,8 @@ struct ClassicAssetsView: View {
     // 顶部 kicker + "+" / 大数字覆盖率 / 月入·日均 subtitle / 已有源列表(每行 × 删除, 点行编辑)
     private var passiveCard: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                         assets: assetsArr.first, assetItems: assetItems)
+                                         assets: assetsArr.first, assetItems: assetItems,
+                                         cashAccounts: cashAccounts, loans: loans)
         return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
@@ -460,7 +461,10 @@ struct ClassicAssetsView: View {
         let all = cashPlaces + assetPlaces
         if let picked = all.first(where: { $0.place == transferTo }), picked.place != fromPlace.place { return picked }
         // 默认调进第一个算自由天数的资产项，不往房、车这类不计入的里调
-        guard fromPlace.place.isCash else { return cashPlaces[0] }
+        guard fromPlace.place.isCash else {
+            let countedCash = Set(cashAccounts.filter(\.countsInFreedom).map { TransferStore.Place.cashAccount($0.id) })
+            return cashPlaces.first { countedCash.contains($0.place) } ?? cashPlaces[0]
+        }
         let counted = Set(assetItems.filter(\.countsInFreedom).map { TransferStore.Place.assetItem($0.id) })
         return assetPlaces.first { counted.contains($0.place) } ?? assetPlaces[0]
     }
@@ -471,7 +475,8 @@ struct ClassicAssetsView: View {
         let to = toPlace
         let entered = Double(transferAmount) ?? 0
         let available = max(0, from.amount)
-        let uncountedDestination = assetItems.first { TransferStore.Place.assetItem($0.id) == to.place && !$0.countsInFreedom }
+        let uncountedDestination = TransferStore.uncountedDestinationName(from: from.place, to: to.place,
+                                                                          assetItems: assetItems, cashAccounts: cashAccounts)
         return VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 placeMenu(selected: from, identifier: "transfer-from-menu") { transferFrom = $0 }
@@ -520,8 +525,8 @@ struct ClassicAssetsView: View {
                      : "「\(from.name)」可用 ¥\(available.formatted(.number))")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(entered > available ? Color.flame : Color.inkFaint)
-                if let item = uncountedDestination {
-                    Text("「\(item.name)」未计入自由天数，调入后自由天数会减少")
+                if let name = uncountedDestination {
+                    Text("「\(name)」未计入自由天数，调入后自由天数会减少")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
                 }

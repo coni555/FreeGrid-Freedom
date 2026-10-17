@@ -28,12 +28,15 @@ struct TransactionImpact {
         return newDays - oldDays
     }
 
-    init(snapshot: FinancialSnapshot, kind: TransactionKind, amount: Double, date: Date? = nil) {
+    /// `countsInFreedom`：这笔从（或进）的现金账户算不算进自由天数。不算时净值照变，自由天数里的钱不变，
+    /// 支出仍然算进日均。
+    init(snapshot: FinancialSnapshot, kind: TransactionKind, amount: Double, date: Date? = nil,
+         countsInFreedom: Bool = true) {
         before = snapshot
         self.kind = kind
         cashChange = kind.cashChange(amount: amount)
         newNetWorth = snapshot.netWorth + cashChange
-        newFreedomBase = snapshot.freedomBase + cashChange
+        newFreedomBase = countsInFreedom ? snapshot.freedomBase + cashChange : snapshot.freedomBase
 
         if kind == .expense {
             let entry = FreedomMath.BurnEntry(date: date ?? snapshot.now, amount: amount)

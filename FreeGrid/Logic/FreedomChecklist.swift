@@ -30,11 +30,12 @@ enum FreedomChecklist {
                          passiveSources: [PassiveSource],
                          assets: UserAssets?,
                          assetItems: [AssetItem] = [],
+                         cashAccounts: [CashAccount] = [],
                          loans: [Loan] = [],
                          now: Date = .now,
                          countsAssets: Bool = FreedomSettings.countsAssets) -> FreedomSummary {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets,
-                                         assetItems: assetItems, loans: loans, now: now, countsAssets: countsAssets)
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, now: now, countsAssets: countsAssets)
         let days = snapshot.trackDays
         let dailyBurn = snapshot.dailyBurn
         let netWorth = snapshot.netWorth

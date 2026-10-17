@@ -111,12 +111,14 @@ struct ImportLedgerSnapshot: Equatable {
         let name: String
         let amount: UInt64
         let sortOrder: Int
+        let countsInFreedom: Bool
 
         init(_ record: CashAccount) {
             id = record.id
             name = record.name
             amount = record.amount.bitPattern
             sortOrder = record.sortOrder
+            countsInFreedom = record.countsInFreedom
         }
     }
 

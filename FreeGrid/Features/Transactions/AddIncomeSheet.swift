@@ -55,7 +55,8 @@ struct AddIncomeSheet: View {
                 if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
                     Section {
                         TransactionImpactView(impact: TransactionImpact(
-                            snapshot: snapshot, kind: .income, amount: amt, date: date
+                            snapshot: snapshot, kind: .income, amount: amt, date: date,
+                            countsInFreedom: accountSection.chosen?.countsInFreedom ?? true
                         ))
                     } header: {
                         Text("自由增长预览")
@@ -88,7 +89,7 @@ struct AddIncomeSheet: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, loans: loans)
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loans)
     }
 
     /// 输入有效性: 金额、来源、备注和日期都必须落在备份可表示边界内。

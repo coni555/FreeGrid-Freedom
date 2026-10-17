@@ -196,6 +196,7 @@ final class AssetItem: Identifiable {
 // 把现金拆成微信、支付宝、银行卡……
 // 不变量：只要存在现金账户，`UserAssets.cash` 就等于各账户余额之和（见 `CashAccountStore`）。
 // 账户的先后就是扣款顺序：记支出时从上往下，整笔扣第一个够付的账户。
+// 每个账户自己决定算不算进自由天数（和资产项一样），默认算。
 
 @Model
 final class CashAccount: Identifiable {
@@ -210,14 +211,19 @@ final class CashAccount: Identifiable {
     /// 扣款顺序，0 是第一个
     var sortOrder: Int = 0
 
+    /// 这个账户算不算进自由天数（Pro 逐项开关）。默认算；留着不打算动的储蓄卡可以关掉。
+    /// 只影响自由天数，不影响现金总数和净值。旧库里已有的账户升级后取默认值，也就是计入。
+    var countsInFreedom: Bool = true
+
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
 
-    init(name: String, amount: Double, sortOrder: Int) {
+    init(name: String, amount: Double, sortOrder: Int, countsInFreedom: Bool = true) {
         self.id = UUID()
         self.name = name
         self.amount = amount
         self.sortOrder = sortOrder
+        self.countsInFreedom = countsInFreedom
         self.createdAt = .now
         self.updatedAt = .now
     }

@@ -96,9 +96,10 @@ enum CashAccountStore {
     }
 
     /// 新增（existing 为 nil）或修改一个账户。`source` 只对新增有效。新账户排在最后。
+    /// `countsInFreedom` 为 nil 时保持原样（新增的账户默认计入）。
     @discardableResult
     static func save(
-        _ existing: CashAccount?, name: String, amount: Double, source: Source? = nil,
+        _ existing: CashAccount?, name: String, amount: Double, countsInFreedom: Bool? = nil, source: Source? = nil,
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> CashAccount {
@@ -116,13 +117,14 @@ enum CashAccountStore {
             throw CashAccountError.notEnough(name: from.name, available: from.amount)
         }
         let account = existing ?? CashAccount(name: name, amount: amount, sortOrder: (all.map(\.sortOrder).max() ?? -1) + 1)
-        let previousAccount = (account.name, account.amount)
+        let previousAccount = (account.name, account.amount, account.countsInFreedom)
         try LedgerStore.updateAssets(in: context, save: save, restore: {
-            (account.name, account.amount) = previousAccount
+            (account.name, account.amount, account.countsInFreedom) = previousAccount
         }) { assets in
             if existing == nil { context.insert(account) }
             account.name = name
             account.amount = amount
+            if let countsInFreedom { account.countsInFreedom = countsInFreedom }
             account.updatedAt = .now
             if let from {
                 from.amount -= amount
@@ -131,6 +133,21 @@ enum CashAccountStore {
             try syncTotal(assets, in: context)
         }
         return account
+    }
+
+    /// 只改这个账户算不算进自由天数（列表上点序号）
+    static func setCountsInFreedom(
+        _ counts: Bool, for account: CashAccount,
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws {
+        let previous = (account.countsInFreedom, account.updatedAt)
+        try LedgerStore.perform(in: context, save: save, restore: {
+            (account.countsInFreedom, account.updatedAt) = previous
+        }) {
+            account.countsInFreedom = counts
+            account.updatedAt = .now
+        }
     }
 
     /// 删掉一个账户：它的余额从现金总数里去掉；删到一个不剩时现金归零。记过的账不改，撤销时退回第一个账户。

@@ -148,15 +148,18 @@ nonisolated struct BackupEnvelope: Codable {
         let sortOrder: Int?
         let createdAt: String?
         let updatedAt: String?
+        /// 不计入自由天数时写 false；计入（默认）时不写
+        let countsInFreedom: Bool?
 
         init(id: String? = nil, name: String, amount: Double, sortOrder: Int? = nil,
-             createdAt: String? = nil, updatedAt: String? = nil) {
+             createdAt: String? = nil, updatedAt: String? = nil, countsInFreedom: Bool? = nil) {
             self.id = id
             self.name = name
             self.amount = amount
             self.sortOrder = sortOrder
             self.createdAt = createdAt
             self.updatedAt = updatedAt
+            self.countsInFreedom = countsInFreedom
         }
     }
 

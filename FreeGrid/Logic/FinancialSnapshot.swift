@@ -19,6 +19,11 @@ enum FreedomSettings {
     static func excludedAmount(of items: [AssetItem]) -> Double {
         items.reduce(0) { $1.countsInFreedom ? $0 : $0 + $1.amount }
     }
+
+    /// Pro 现金账户的逐个开关：不计入的那些账户余额之和。扣成负数的账户不算（不计入的钱不会让自由天数变多）。
+    static func excludedCash(of accounts: [CashAccount]) -> Double {
+        accounts.reduce(0) { $1.countsInFreedom ? $0 : $0 + max(0, $1.amount) }
+    }
 }
 
 struct FinancialSnapshot {
@@ -28,6 +33,8 @@ struct FinancialSnapshot {
     /// Pro 逐项开关：关掉「计入自由天数」的那些资产项金额之和。没有资产项时是 0。
     let excludedItemAssets: Double
     let cash: Double
+    /// Pro 现金账户：关掉「计入自由天数」的那些账户余额之和。没有账户或都计入时是 0。
+    let excludedCash: Double
     let totalExpenses: Double
     let firstExpenseDate: Date?
     let trackDays: Int
@@ -54,13 +61,27 @@ struct FinancialSnapshot {
     }
     /// 在净值里、但没算进自由天数的资产
     var uncountedAssets: Double { lockedAssets - countedAssets }
-    /// 用来算自由天数的钱：现金加计入的资产
-    var freedomBase: Double { countsAssets && excludedItemAssets == 0 ? netWorth : cash + countedAssets }
-    /// 首页图例旁的说明：资产全部计入时没有；一点没计入是「资产未计入」，只算了一部分是「部分资产未计入」
-    var uncountedAssetsNote: String? {
-        guard uncountedAssets > 0 else { return nil }
-        return countedAssets > 0 ? "部分资产未计入" : "资产未计入"
+    /// 画成蓝色格子、并算进自由天数的现金
+    var countedCash: Double { cash - excludedCash }
+    /// 用来算自由天数的钱：计入的现金加计入的资产。都计入时就是净值，和以前一分不差
+    var freedomBase: Double {
+        let base = countsAssets && excludedItemAssets == 0 ? netWorth : cash + countedAssets
+        return excludedCash == 0 ? base : base - excludedCash
     }
+    /// 首页图例旁的说明：都计入时没有；资产一点没计入是「资产未计入」，只算了一部分是「部分资产未计入」；
+    /// 有现金账户没计入时是「部分现金未计入」；两样都有时合成一句
+    var uncountedAssetsNote: String? {
+        let assetNote = uncountedAssets > 0 ? (countedAssets > 0 ? "部分资产" : "资产") : nil
+        let cashNote = excludedCash > 0 ? (countedCash > 0 ? "部分现金" : "现金") : nil
+        switch (assetNote, cashNote) {
+        case (nil, nil): return nil
+        case (let asset?, nil): return asset + "未计入"
+        case (nil, let cash?): return cash + "未计入"
+        case (_?, _?): return "部分资金未计入"
+        }
+    }
+    /// 有不计入自由天数的钱（资产或现金）。趋势往回推时这部分算不清，早期的 0 不写出来
+    var hasUncountedMoney: Bool { !countsAssets || uncountedAssets > 0 || excludedCash > 0 }
     /// 被动收入能盖住多少开销：日常开销加上固定支出和月供。只比日常会在有房租、贷款时虚高
     var passiveRatio: Double {
         FreedomMath.passiveRatio(dailyPassive: dailyPassive,
@@ -75,15 +96,16 @@ struct FinancialSnapshot {
     }
     var freedom: FreedomState { freedomRun.state }
 
-    /// `assetItems` 只用来知道哪些项不计入；资产总数仍以 `assets.lockedAssets` 为准。
+    /// `assetItems`、`cashAccounts` 只用来知道哪些项不计入；资产、现金总数仍以 `assets` 为准。
     /// 日均消费只算 `countsInBurn` 的支出：自动扣的房租、月供和确认过的旧记录扣了现金，但不算日常开销。
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
-         assetItems: [AssetItem] = [], loans: [Loan] = [], now: Date = .now,
+         assetItems: [AssetItem] = [], cashAccounts: [CashAccount] = [], loans: [Loan] = [], now: Date = .now,
          countsAssets: Bool = FreedomSettings.countsAssets) {
         self.countsAssets = assetItems.isEmpty ? countsAssets : true
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0
+        excludedCash = FreedomSettings.excludedCash(of: cashAccounts)
         burnEntries = FreedomMath.burnEntries(expenses)
         let burn = FreedomMath.burnEstimate(burnEntries, now: now)
         totalExpenses = burn.total

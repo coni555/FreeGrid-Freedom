@@ -48,7 +48,10 @@ struct TransferSheet: View {
     private var destination: Option {
         let all = cashOptions + assetOptions
         if let picked = all.first(where: { $0.place == to }), picked.place != source.place { return picked }
-        guard source.place.isCash else { return cashOptions[0] }
+        guard source.place.isCash else {
+            let countedCash = Set(cashAccounts.filter(\.countsInFreedom).map { TransferStore.Place.cashAccount($0.id) })
+            return cashOptions.first { countedCash.contains($0.place) } ?? cashOptions[0]
+        }
         let counted = Set(assetItems.filter(\.countsInFreedom).map { TransferStore.Place.assetItem($0.id) })
         return assetOptions.first { counted.contains($0.place) } ?? assetOptions[0]
     }
@@ -110,7 +113,8 @@ struct TransferSheet: View {
         let from = source
         let to = destination
         let moved = entered ?? 0
-        let uncounted = assetItems.first { TransferStore.Place.assetItem($0.id) == to.place && !$0.countsInFreedom }
+        let uncounted = TransferStore.uncountedDestinationName(from: from.place, to: to.place,
+                                                               assetItems: assetItems, cashAccounts: cashAccounts)
         return VStack(alignment: .leading, spacing: Spacing.xl) {
             HStack(spacing: Spacing.sm) {
                 placeCard(label: "从", option: from, excluding: nil, identifier: "transfer-from-menu") { self.from = $0 }
@@ -167,7 +171,7 @@ struct TransferSheet: View {
                         .contentTransition(.numericText())
                 }
                 if let uncounted {
-                    Text("「\(uncounted.name)」不计入自由天数，调进去自由天数会变少")
+                    Text("「\(uncounted)」不计入自由天数，调进去自由天数会变少")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.flame)
                 }

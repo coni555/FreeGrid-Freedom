@@ -552,7 +552,8 @@ struct CashDrawer: View {
 
     var body: some View {
         AccountDrawer(title: "现金", color: .cashBlue, count: accounts.isEmpty ? nil : "\(accounts.count) 个账户",
-                      total: assetsArr.first?.cash ?? 0, subtitle: CashRows.summary(accounts: accounts),
+                      total: assetsArr.first?.cash ?? 0,
+                      subtitle: CashRows.countsSummary(accounts: accounts) ?? CashRows.summary(accounts: accounts),
                       isOpen: $isOpen, headerID: "cash-drawer") {
             CashRows()
         }
@@ -586,6 +587,13 @@ struct CashRows: View {
 
     static func summary(accounts: [CashAccount]) -> String? {
         accounts.count > 1 ? "记支出先扣「\(accounts[0].name)」" : nil
+    }
+
+    /// 有账户不计入自由天数时，一句话说计入了多少；都计入时为 nil
+    static func countsSummary(accounts: [CashAccount]) -> String? {
+        guard accounts.contains(where: { !$0.countsInFreedom }) else { return nil }
+        let counted = accounts.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
+        return counted <= 0 ? "不计入自由天数" : "计入自由天数 ¥\(counted.formatted(.number))"
     }
 
     var body: some View {
@@ -628,7 +636,9 @@ struct CashRows: View {
             } else if accounts.isEmpty {
                 DrawerFooter(text: "活期、微信、支付宝里随时能花的钱。")
             } else if accounts.count > 1 {
-                DrawerFooter(text: "记支出整笔扣第一个够付的账户，拖右边调整先后。")
+                DrawerFooter(text: "记支出整笔扣第一个够付的账户，拖右边调整先后。点序号选账户算不算进自由天数。")
+            } else {
+                DrawerFooter(text: "点序号选这个账户算不算进自由天数。")
             }
         }
         .saveErrorAlert($saveError)
@@ -646,13 +656,14 @@ struct CashRows: View {
             }, onOpenItems: { splitAfterTotalSheet = true })
         }
         .sheet(item: $adding) { adding in
-            CashAccountSheet(existing: nil, sources: sources, initialSource: adding.initialSource) { name, amount, source in
-                try CashAccountStore.save(nil, name: name, amount: amount, source: source, in: modelContext)
+            CashAccountSheet(existing: nil, sources: sources, initialSource: adding.initialSource) { name, amount, counts, source in
+                try CashAccountStore.save(nil, name: name, amount: amount, countsInFreedom: counts, source: source,
+                                          in: modelContext)
             }
         }
         .sheet(item: $editing) { account in
-            CashAccountSheet(existing: account, onSave: { name, amount, _ in
-                try CashAccountStore.save(account, name: name, amount: amount, in: modelContext)
+            CashAccountSheet(existing: account, onSave: { name, amount, counts, _ in
+                try CashAccountStore.save(account, name: name, amount: amount, countsInFreedom: counts, in: modelContext)
             }, onDelete: {
                 try CashAccountStore.delete(account, in: modelContext)
             })
@@ -673,16 +684,30 @@ struct CashRows: View {
 
     private func accountRow(_ account: CashAccount, index: Int) -> some View {
         let ids = accounts.map(\.id)
-        return DrawerRow(name: account.name, amount: account.amount, enabled: canManage,
+        let counted = account.countsInFreedom
+        return DrawerRow(name: account.name, amount: account.amount, dimmed: !counted, enabled: canManage,
                          identifier: "cash-account-\(account.name)", onTap: { editing = account }) {
-            Text("\(index + 1)")
-                .font(.system(size: 11, weight: .regular, design: .monospaced))
-                .foregroundStyle(Color.skyDeep)
-                .frame(width: 20, height: 20)
-                .background(Circle().fill(Color.mist))
-                .overlay(Circle().stroke(Color.cashBlue, lineWidth: 1))
-                .frame(width: 30, alignment: .leading)
-                .accessibilityLabel("第 \(index + 1) 个扣")
+            // 序号同时是「计入自由天数」的开关：计入是蓝圈，不计入是灰色虚线圈（和资产项的空心方格一个意思）
+            Button { toggle(account) } label: {
+                Text("\(index + 1)")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(counted ? Color.skyDeep : Color.inkFaint)
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(Color.mist))
+                    .overlay(
+                        Circle().stroke(counted ? Color.cashBlue : Color.inkFaint,
+                                        style: StrokeStyle(lineWidth: 1, dash: counted ? [] : [2, 2]))
+                    )
+                    .frame(width: 30, height: DrawerMetrics.rowHeight - 1, alignment: .leading)
+                    .contentShape(Rectangle().inset(by: -6))
+                    .animation(.snappy(duration: 0.24), value: counted)
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(canManage)
+            .accessibilityLabel("第 \(index + 1) 个扣，\(account.name)计入自由天数")
+            .accessibilityValue(counted ? "计入" : "不计入")
+            .accessibilityAddTraits(.isToggle)
+            .accessibilityIdentifier("cash-account-counts-\(account.name)")
         } trailing: {
             if canManage && accounts.count > 1 {
                 ReorderHandle(id: account.id, index: index, ids: ids, label: "调整\(account.name)的扣款顺序",
@@ -696,6 +721,11 @@ struct CashRows: View {
 
     private func move(_ account: CashAccount, to index: Int) {
         do { try CashAccountStore.move(account, to: index, in: modelContext) }
+        catch { saveError = error.localizedDescription }
+    }
+
+    private func toggle(_ account: CashAccount) {
+        do { try CashAccountStore.setCountsInFreedom(!account.countsInFreedom, for: account, in: modelContext) }
         catch { saveError = error.localizedDescription }
     }
 

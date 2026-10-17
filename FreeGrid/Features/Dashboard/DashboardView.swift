@@ -12,6 +12,8 @@ struct DashboardView: View {
     @Query private var assetsArr: [UserAssets]
     /// Pro 逐项开关：哪些资产项不计入自由天数
     @Query private var assetItems: [AssetItem]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
     /// Pro 每月还款
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
@@ -21,7 +23,7 @@ struct DashboardView: View {
         DashboardContent(
             expenses: expenses, incomes: incomes, loans: loans,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                        assetItems: assetItems, loans: loans, countsAssets: countsAssets),
+                                        assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets),
             // 和日均比的是日常开销，自动扣的房租、月供不算
             todaySpending: expenses.filter { $0.countsInBurn && Calendar.current.isDateInToday($0.date) }
                 .reduce(0) { $0 + $1.amount }
@@ -476,7 +478,10 @@ private struct DashboardContent: View {
         if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
             legendDot(color: .assetGold, label: "资产")
         }
-        legendDot(color: .cashBlue, label: "现金")
+        // 蓝色图例同理：现金账户全部不计入时格子里没有蓝色
+        if snapshot.countedCash > 0 || snapshot.excludedCash == 0 {
+            legendDot(color: .cashBlue, label: "现金")
+        }
         if !state.paymentCells.isEmpty || state.showsMissedPayment {
             HStack(spacing: 6) {
                 PunchedCell(cornerRadius: 1)

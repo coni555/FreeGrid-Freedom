@@ -20,6 +20,21 @@ enum TransferStore {
         }
     }
 
+    /// 从算进自由天数的地方调进不算的资产项或现金账户：返回目的地的名字，界面提醒「自由天数会变少」。
+    /// 两边都不算、或者是往算的地方调，返回 nil。没拆的总数按「算」处理（资产总开关另有提示）。
+    static func uncountedDestinationName(from source: Place, to destination: Place,
+                                         assetItems: [AssetItem], cashAccounts: [CashAccount]) -> String? {
+        func uncounted(_ place: Place) -> String? {
+            switch place {
+            case .assetItem(let id): return assetItems.first { $0.id == id && !$0.countsInFreedom }?.name
+            case .cashAccount(let id): return cashAccounts.first { $0.id == id && !$0.countsInFreedom }?.name
+            case .assetsTotal, .cashTotal: return nil
+            }
+        }
+        guard uncounted(source) == nil else { return nil }
+        return uncounted(destination)
+    }
+
     enum TransferError: Error, LocalizedError {
         case samePlace
         case missingPlace

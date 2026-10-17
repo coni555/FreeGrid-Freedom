@@ -330,4 +330,83 @@ struct CashAccountTests {
             try DataIO.previewJSON(data: data, context: try TestSupport.makeContext())
         }
     }
+
+    // MARK: - 计入自由天数
+
+    private func snapshot(_ context: ModelContext, now: Date) throws -> FinancialSnapshot {
+        FinancialSnapshot(expenses: try context.fetch(FetchDescriptor<Expense>()), passiveSources: [],
+                          assets: try assets(context), cashAccounts: try accounts(context), now: now, countsAssets: true)
+    }
+
+    @Test func newAccountsCountAndAnUncountedOneLeavesFreedomButNotNetWorth() throws {
+        let context = try threeAccounts()
+        #expect(try accounts(context).allSatisfy(\.countsInFreedom))
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        // 日均 100：10 天里花了 1000（从支付宝扣）
+        try LedgerStore.add(.expense(Expense(amount: 1000, category: "午餐",
+                                              date: TestSupport.day("2026-10-06"))), in: context)
+        let before = try snapshot(context, now: now)
+        #expect(before.freedomBase == before.netWorth && before.excludedCash == 0)
+        #expect(before.uncountedAssetsNote == nil)
+
+        try CashAccountStore.setCountsInFreedom(false, for: try account("招行卡", context), in: context)
+        let after = try snapshot(context, now: now)
+        #expect(after.netWorth == before.netWorth)
+        #expect(after.excludedCash == 5_080)
+        #expect(after.freedomBase == before.freedomBase - 5_080)
+        #expect(after.freedom == .finite(days: (before.freedomBase - 5_080) / 100))
+        #expect(after.uncountedAssetsNote == "部分现金未计入")
+        #expect(after.hasUncountedMoney)
+        #expect(CashRows.countsSummary(accounts: try accounts(context)) == "计入自由天数 ¥\((32.0 + 7_600).formatted(.number))")
+    }
+
+    @Test func togglingRollsBackWhenSavingFails() throws {
+        let context = try threeAccounts()
+        let card = try account("招行卡", context)
+        #expect(throws: Failure.self) {
+            try CashAccountStore.setCountsInFreedom(false, for: card, in: context, save: failingSave)
+        }
+        #expect(card.countsInFreedom)
+    }
+
+    @Test func aPaymentFromAnUncountedAccountLeavesThePreviewBaseAlone() throws {
+        let context = try threeAccounts()
+        try CashAccountStore.setCountsInFreedom(false, for: try account("招行卡", context), in: context)
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        try LedgerStore.add(.expense(Expense(amount: 100, category: "午餐", date: now)), in: context)
+        let s = try snapshot(context, now: now)
+        let counted = TransactionImpact(snapshot: s, kind: .expense, amount: 50)
+        let uncounted = TransactionImpact(snapshot: s, kind: .expense, amount: 50, countsInFreedom: false)
+        #expect(counted.newFreedomBase == s.freedomBase - 50)
+        #expect(uncounted.newFreedomBase == s.freedomBase)
+        #expect(uncounted.newNetWorth == s.netWorth - 50)
+        #expect(uncounted.newDailyBurn == counted.newDailyBurn)
+    }
+
+    @Test func transferIntoAnUncountedAccountIsFlagged() throws {
+        let context = try threeAccounts()
+        let card = try account("招行卡", context)
+        let wechat = try account("微信", context)
+        try CashAccountStore.setCountsInFreedom(false, for: card, in: context)
+        let all = try accounts(context)
+        #expect(TransferStore.uncountedDestinationName(from: .cashAccount(wechat.id), to: .cashAccount(card.id),
+                                                       assetItems: [], cashAccounts: all) == "招行卡")
+        #expect(TransferStore.uncountedDestinationName(from: .cashAccount(card.id), to: .cashAccount(wechat.id),
+                                                       assetItems: [], cashAccounts: all) == nil)
+    }
+
+    @Test func countingFlagsRoundTripAndOldBackupsDefaultToCounted() throws {
+        let source = try threeAccounts()
+        try CashAccountStore.setCountsInFreedom(false, for: try account("招行卡", source), in: source)
+        let data = try DataIO.exportJSON(context: source)
+        let text = String(decoding: data, as: UTF8.self)
+        // 只有不计入的那个写了字段
+        #expect(text.components(separatedBy: "\"counts_in_freedom\" : false").count == 2)
+
+        let target = try TestSupport.makeContext()
+        _ = try DataIO.commitImport(preview: try DataIO.previewJSON(data: data, context: target),
+                                    strategy: .replace, context: target)
+        let restored = try accounts(target)
+        #expect(restored.map(\.countsInFreedom) == [true, true, false])
+    }
 }

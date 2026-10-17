@@ -9,6 +9,8 @@ struct CheckView: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
     @Query private var assetItems: [AssetItem]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
@@ -18,6 +20,7 @@ struct CheckView: View {
                                   passiveSources: passiveSources,
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
+                                  cashAccounts: cashAccounts,
                                   loans: loans,
                                   countsAssets: countsAssets)
     }

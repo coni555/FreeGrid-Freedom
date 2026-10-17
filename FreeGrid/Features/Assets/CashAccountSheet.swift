@@ -1,4 +1,4 @@
-// 新增或编辑一个现金账户（名称 + 余额）；保存由父页面处理。
+// 新增或编辑一个现金账户（名称 + 余额 + 算不算进自由天数）；保存由父页面处理。
 // 新增时可以选这笔钱从哪来：新的钱让现金总数变大，从已有账户里分出来则总数不变。
 
 import SwiftUI
@@ -20,7 +20,7 @@ struct CashAccountSheet: View {
     let existing: CashAccount?
     var sources: [SourceOption] = []
     var initialSource: CashAccountStore.Source? = nil
-    let onSave: (String, Double, CashAccountStore.Source?) throws -> Void
+    let onSave: (String, Double, Bool, CashAccountStore.Source?) throws -> Void
     var onDelete: (() throws -> Void)? = nil
 
     @State private var saveError: String?
@@ -28,6 +28,7 @@ struct CashAccountSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var source: CashAccountStore.Source?
+    @State private var countsInFreedom = true
     @State private var confirmingDelete = false
     private enum Field { case name, amount }
     @FocusState private var focus: Field?
@@ -80,6 +81,19 @@ struct CashAccountSheet: View {
                         }
                     }
 
+                    Toggle(isOn: $countsInFreedom) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("计入自由天数")
+                                .font(.system(.body, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                            Text("留着不打算动的储蓄可以不算，只留在净值里。")
+                                .font(.system(.footnote, design: .rounded))
+                                .foregroundStyle(Color.inkMuted)
+                        }
+                    }
+                    .tint(Color.skyDeep)
+                    .accessibilityIdentifier("cash-account-counts-in-freedom-toggle")
+
                     if isEditing, onDelete != nil {
                         Button("删除这个账户") { confirmingDelete = true }
                             .font(.system(.subheadline, design: .rounded))
@@ -124,6 +138,7 @@ struct CashAccountSheet: View {
             .onAppear {
                 if let existing {
                     name = existing.name
+                    countsInFreedom = existing.countsInFreedom
                     amount = existing.amount.formatted(
                         .number.grouping(.never).precision(.fractionLength(0...2))
                             .locale(Locale(identifier: "en_US_POSIX")))
@@ -174,7 +189,7 @@ struct CashAccountSheet: View {
     private func save() {
         guard isValid, let value = enteredAmount else { return }
         do {
-            try onSave(name, value, isEditing ? nil : source)
+            try onSave(name, value, countsInFreedom, isEditing ? nil : source)
             dismiss()
         } catch {
             saveError = error.localizedDescription

@@ -12,6 +12,8 @@ struct FreedomCardSheet: View {
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
     @Query private var assetItems: [AssetItem]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -27,9 +29,9 @@ struct FreedomCardSheet: View {
 
     private var data: FreedomCardData {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, loans: loans, countsAssets: countsAssets)
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
         let summary = FreedomChecklist.evaluate(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                                assetItems: assetItems, loans: loans, countsAssets: countsAssets)
+                                                assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
         return FreedomCardData(snapshot: snapshot, summary: summary)
     }
 

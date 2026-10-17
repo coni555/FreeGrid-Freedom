@@ -34,7 +34,7 @@ struct MoneyTimeAssetsView: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, loans: loans, countsAssets: countsAssets)
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
     }
 
     private var lockedAssets: Double { assetsArr.first?.lockedAssets ?? 0 }
@@ -165,7 +165,8 @@ struct MoneyTimeAssetsView: View {
                 .map { Segment(id: $0.id.uuidString, amount: $0.amount, kind: .asset) }
         let cashParts: [Segment] = cashAccounts.isEmpty
             ? [Segment(id: "cash", amount: cash, kind: .cash)]
-            : cashAccounts.map { Segment(id: $0.id.uuidString, amount: $0.amount, kind: .cash) }
+            : cashAccounts.filter { !isDays || $0.countsInFreedom }
+                .map { Segment(id: $0.id.uuidString, amount: $0.amount, kind: .cash) }
         return (assets + cashParts).filter { $0.amount > 0 }
     }
 
@@ -312,12 +313,15 @@ struct MoneyTimeAssetsView: View {
         let isAssets = which == .assets
         let counted = assetItems.isEmpty ? (countsAssets ? lockedAssets : 0)
             : assetItems.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
+        let countedCash = cash - FreedomSettings.excludedCash(of: cashAccounts)
         let amount = isAssets ? lockedAssets : cash
-        let dayAmount = isAssets ? counted : cash
+        let dayAmount = isAssets ? counted : countedCash
         let subtitle = isAssets
             ? (isDays && counted < lockedAssets && counted > 0 ? "只算计入的部分"
                : AssetRows.summary(items: assetItems, total: lockedAssets, countsAssets: countsAssets) ?? "定期、股票、基金")
-            : (cashAccounts.count > 1 ? "\(cashAccounts.count) 个账户" : "随时能花的钱")
+            : (isDays && countedCash < cash && countedCash > 0 ? "只算计入的部分"
+               : CashRows.countsSummary(accounts: cashAccounts)
+                   ?? (cashAccounts.count > 1 ? "\(cashAccounts.count) 个账户" : "随时能花的钱"))
         return Button {
             withAnimation(.snappy(duration: 0.32)) { tabKey = which.rawValue }
         } label: {

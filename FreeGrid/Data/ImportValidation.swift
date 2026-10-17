@@ -237,6 +237,7 @@ nonisolated struct ValidatedImport: Sendable {
         let sortOrder: Int?
         let createdAt: Date?
         let updatedAt: Date?
+        var countsInFreedom = true
     }
 
     struct LoanRecord: Sendable {
@@ -541,7 +542,8 @@ nonisolated enum ImportValidator {
                 amount: try signedAmount(raw.amount, field: "现金账户", maximum: policy.maximumAmount),
                 sortOrder: raw.sortOrder,
                 createdAt: try raw.createdAt.map { try timestamp($0, field: "现金账户创建时间", now: now) },
-                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "现金账户更新时间", now: now) }
+                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "现金账户更新时间", now: now) },
+                countsInFreedom: raw.countsInFreedom ?? true
             )
         }
         if policy.checksAssetItemTotal, !cashAccounts.isEmpty {

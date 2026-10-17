@@ -272,7 +272,8 @@ enum DataIO {
                     amount: $0.amount,
                     sortOrder: $0.sortOrder,
                     createdAt: iso.string(from: $0.createdAt),
-                    updatedAt: iso.string(from: $0.updatedAt)
+                    updatedAt: iso.string(from: $0.updatedAt),
+                    countsInFreedom: $0.countsInFreedom ? nil : false
                 )
             }
         )
@@ -833,7 +834,8 @@ enum DataIO {
                 // 现金账户同理：整体换成备份里的
                 for existing in try context.fetch(FetchDescriptor<CashAccount>()) { context.delete(existing) }
                 for (index, record) in plan.cashAccounts.enumerated() {
-                    let account = CashAccount(name: record.name, amount: record.amount, sortOrder: index)
+                    let account = CashAccount(name: record.name, amount: record.amount, sortOrder: index,
+                                              countsInFreedom: record.countsInFreedom)
                     if let id = record.id { account.id = id }
                     if let createdAt = record.createdAt { account.createdAt = createdAt }
                     account.updatedAt = record.updatedAt ?? record.createdAt ?? .now

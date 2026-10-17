@@ -25,6 +25,8 @@ struct SettingsView: View {
     @Query private var assetsArr: [UserAssets]
     /// Pro 逐项开关：不计入自由天数的资产项
     @Query private var assetItems: [AssetItem]
+    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
+    private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
 
     @Environment(\.openURL) private var openURL
@@ -56,6 +58,7 @@ struct SettingsView: View {
                                   passiveSources: passiveSources,
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
+                                  cashAccounts: cashAccounts,
                                   loans: loans,
                                   countsAssets: countsAssets)
     }
@@ -195,7 +198,7 @@ struct SettingsView: View {
     // MARK: - 第 2 张：自由卡（全页唯一用材质的卡，材质就是用户现在的等级）
     private var freedomCardCard: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, loans: loans, countsAssets: countsAssets)
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
         let data = FreedomCardData(snapshot: snapshot, summary: summary)
         let material = FreedomCardMaterial.of(data.tier)
         let isFinite: Bool = { if case .finite = data.freedom { return true } else { return false } }()

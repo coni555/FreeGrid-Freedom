@@ -1244,6 +1244,17 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(wechat.waitForExistence(timeout: 3))
         XCTAssertEqual(wechat.value as? String, "¥280")
         XCTAssertEqual(app.buttons["cash-account-现金"].value as? String, "¥9,700")
+
+        // 点「微信」的序号：不计入自由天数，现金总数不变，首页图例旁写「部分现金未计入」
+        let counts = app.switches["cash-account-counts-微信"]
+        XCTAssertEqual(counts.value as? String, "计入")
+        counts.tap()
+        XCTAssertEqual(counts.value as? String, "不计入")
+        XCTAssertTrue((app.buttons["cash-drawer"].value as? String ?? "").hasPrefix("¥9,980"))
+        app.tabBars.buttons["Dashboard"].tap()
+        let note = app.staticTexts["uncounted-assets-note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 3))
+        XCTAssertEqual(note.label, "部分现金未计入")
     }
 
     /// Assets 新版「钱与时间」：录入现金和资产、记一笔，换成「天」后大数字是自由天数、两张标签按日均换算；
