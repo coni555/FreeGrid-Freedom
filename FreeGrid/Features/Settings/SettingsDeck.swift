@@ -9,6 +9,17 @@ enum SettingsDeck {
     static let radius: CGFloat = 22
     /// 每张卡露出来的卡头高度（大字号时跟着长）
     static let headerHeight: CGFloat = 52
+    /// 都收着时，每张卡最多露出多高（屏幕高时铺开，像 Wallet）
+    static let maxPeek: CGFloat = 92
+    /// 露出这么高以上，卡头下面多写一行「里面有什么」
+    static let detailPeek: CGFloat = 76
+
+    /// 都收着时每张卡露出多高：把可视高度分给后面 5 张，夹在 52…92 之间。有一张抽出来时都是 52
+    static func peek(viewport: CGFloat, cover: CGFloat, anyOpen: Bool) -> CGFloat {
+        guard !anyOpen, viewport > 0, cover > 0 else { return headerHeight }
+        return min(maxPeek, max(headerHeight, (viewport - cover - 64) / 5))
+    }
+
     /// 抽出、收回：弹一下就停
     static let spring = Animation.spring(response: 0.42, dampingFraction: 0.86)
 
@@ -33,12 +44,15 @@ struct DeckCard<Content: View>: View {
     var fill: AnyShapeStyle = AnyShapeStyle(SettingsDeck.paper(0))
     var edge: Color = SettingsDeck.edge
     var tucked = true
+    /// 露在上一张下面的高度；内容不够高时卡本身撑到这么高（卡头在上，下面空着，像 Wallet）
+    var peek: CGFloat = 0
     @ViewBuilder var content: Content
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: SettingsDeck.radius, style: .continuous)
         content
+            .frame(maxWidth: .infinity, minHeight: peek, alignment: .topLeading)
             .padding(.top, tucked ? SettingsDeck.tuck : 0)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(shape.fill(fill))
@@ -56,6 +70,8 @@ struct DeckCard<Content: View>: View {
 struct DeckHeader<Leading: View, Trailing: View>: View {
     let title: String
     var titleColor: Color = .ink
+    /// 卡头下面一行「里面有什么」，卡叠铺开时才写
+    var detail: String?
     /// nil：这张卡不展开（点了跳走），不画箭头
     var isOpen: Bool?
     var chevronColor: Color = .inkGhost
@@ -64,11 +80,20 @@ struct DeckHeader<Leading: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.md) {
-            HStack(spacing: Spacing.sm) {
-                leading
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(titleColor)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: Spacing.sm) {
+                    leading
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(titleColor)
+                }
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(titleColor.opacity(0.5))
+                        .lineLimit(1)
+                        .transition(.opacity)
+                }
             }
             Spacer(minLength: Spacing.sm)
             trailing
@@ -92,10 +117,28 @@ struct DeckReading: View {
     var color: Color = .ink
     var unitColor: Color = .inkFaint
 
+    /// 读数用哪种数字（Debug 下 `-deckDigits rounded|pro|mono|serif` 换着看，定下来后删）
+    static let digits: String = {
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-deckDigits"), arguments.indices.contains(index + 1) {
+            return arguments[index + 1]
+        }
+        return "rounded"
+    }()
+
+    private var valueFont: Font {
+        switch Self.digits {
+        case "pro": return .system(size: 21, weight: .light, design: .default).monospacedDigit()
+        case "mono": return .system(size: 18, weight: .light, design: .monospaced)
+        case "serif": return .system(size: 23, weight: .regular, design: .serif).monospacedDigit()
+        default: return .system(size: 22, weight: .thin, design: .rounded).monospacedDigit()
+        }
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(value)
-                .font(.system(size: 22, weight: .thin, design: .rounded).monospacedDigit())
+                .font(valueFont)
                 .foregroundStyle(color)
             if let unit {
                 Text(unit)

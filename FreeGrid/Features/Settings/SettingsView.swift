@@ -36,6 +36,9 @@ struct SettingsView: View {
     /// 一叠卡里现在抽出来的是哪张（look / ledger / pro / about，空 = 都收着）。同一时间只开一张，下次进来还是它
     @SceneStorage("settingsOpenCard") private var openCard = "look"
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 屏幕上能放卡的高度、自检卡的高度：都收着时按这两个数把卡叠铺开
+    @State private var viewportHeight: CGFloat = 0
+    @State private var coverHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
     /// 账本卡上写有几个分类
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
@@ -65,6 +68,7 @@ struct SettingsView: View {
                 // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
                 VStack(spacing: -SettingsDeck.tuck) {
                     checkCard
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coverHeight = $0 }
                         .guideTarget(.check, in: guide)
                         .zIndex(6)
                     freedomCardCard
@@ -83,6 +87,7 @@ struct SettingsView: View {
                 .padding()
                 .padding(.bottom, Spacing.lg)
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
@@ -110,6 +115,16 @@ struct SettingsView: View {
 
     /// 展开的内容出现、消失的方式
     private var reveal: AnyTransition { .opacity }
+
+    /// 收着的卡露出多高；都收着时铺满屏幕，抽出一张时都收回卡头的高度
+    private var peek: CGFloat {
+        SettingsDeck.peek(viewport: viewportHeight, cover: coverHeight, anyOpen: !openCard.isEmpty)
+    }
+
+    /// 卡叠铺开时，卡头下面写一行「里面有什么」
+    private func detail(_ text: String) -> String? {
+        peek >= SettingsDeck.detailPeek ? text : nil
+    }
 
     // MARK: - 第 1 张：自检（封面，点了 push 完整自检）
     private var checkCard: some View {
@@ -174,7 +189,7 @@ struct SettingsView: View {
         let material = FreedomCardMaterial.of(data.tier)
         let isFinite: Bool = { if case .finite = data.freedom { return true } else { return false } }()
         return DeckCard(fill: material.background,
-                        edge: colorScheme == .dark ? .white.opacity(0.18) : .black.opacity(0.08)) {
+                        edge: colorScheme == .dark ? .white.opacity(0.18) : .black.opacity(0.08), peek: peek) {
             Button { showingFreedomCard = true } label: {
                 DeckHeader(title: "我的自由卡", titleColor: material.ink) {
                     EmptyView()
@@ -197,10 +212,10 @@ struct SettingsView: View {
     // MARK: - 第 3 张：外观（默认抽出来；三行分段按钮）
     private var lookCard: some View {
         let isOpen = openCard == "look"
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(1))) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(1)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("look") } label: {
-                    DeckHeader(title: "外观", isOpen: isOpen) {
+                    DeckHeader(title: "外观", detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
                         ThemeCapsule(isDark: isDarkMode)
@@ -246,6 +261,13 @@ struct SettingsView: View {
         }
     }
 
+    /// 外观卡收着时写的那一行：现在的三个选择
+    private var lookSummary: String {
+        [isDarkMode ? "深色" : "浅色",
+         heroLayout == "vertical" ? "居中" : "靠右",
+         assetsLayout == AssetsLayout.classic ? "经典" : "钱与时间"].joined(separator: " · ")
+    }
+
     /// 外观里的一行：左边名字，右边同样宽的分段按钮，三行右边缘对齐
     private func segmentRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
         HStack {
@@ -286,10 +308,10 @@ struct SettingsView: View {
     private var ledgerCard: some View {
         let isOpen = openCard == "ledger"
         let records = expenses.count + incomes.count
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(2))) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(2)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("ledger") } label: {
-                    DeckHeader(title: "账本", isOpen: isOpen) {
+                    DeckHeader(title: "账本", detail: isOpen ? nil : detail("\(categoryCount) 个分类 · 备份与恢复"), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
                         DeckReading(value: records.formatted(.number), unit: "笔")
@@ -346,10 +368,12 @@ struct SettingsView: View {
     private var proCard: some View {
         let isOpen = openCard == "pro"
         let unlocked = ProStore.shared.isUnlocked
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(3))) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(3)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("pro") } label: {
-                    DeckHeader(title: "FreeGrid Pro", isOpen: isOpen) {
+                    DeckHeader(title: "FreeGrid Pro",
+                               detail: isOpen ? nil : detail(unlocked ? "五项权益都已解锁" : "五项权益 · 一次买断"),
+                               isOpen: isOpen) {
                         RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
                     } trailing: {
                         if unlocked {
@@ -419,10 +443,10 @@ struct SettingsView: View {
     // MARK: - 最后一张：FreeGrid（使用指引、关于、评价）
     private var aboutCard: some View {
         let isOpen = openCard == "about"
-        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(4))) {
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(4)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("about") } label: {
-                    DeckHeader(title: "FreeGrid", isOpen: isOpen) {
+                    DeckHeader(title: "FreeGrid", detail: isOpen ? nil : detail("使用指引 · 关于 · 评价"), isOpen: isOpen) {
                         VStack(spacing: 1.5) {
                             HStack(spacing: 1.5) { logoCell(Color.inkFaint); logoCell(Color.assetGold) }
                             HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color.inkFaint) }
