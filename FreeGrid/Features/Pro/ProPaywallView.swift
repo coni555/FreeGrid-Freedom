@@ -43,9 +43,12 @@ struct ProPaywallView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
             .inlineNavTitle()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
-                        .accessibilityIdentifier("pro-close")
+                // 关闭按钮不要系统那块玻璃底：触控区域不变，只剩一行淡字
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    ToolbarItem(placement: .cancellationAction) { closeButton }
+                        .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .cancellationAction) { closeButton }
                 }
             }
             .task { await store.loadProduct() }
@@ -53,6 +56,18 @@ struct ProPaywallView: View {
                 if let info = row.info { InfoSheet(info: info) }
             }
         }
+    }
+
+    private var closeButton: some View {
+        Button { dismiss() } label: {
+            Text("关闭")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("pro-close")
     }
 
     private var header: some View {
@@ -84,33 +99,25 @@ struct ProPaywallView: View {
         .accessibilityIdentifier(store.isUnlocked ? "pro-unlocked" : "pro-header")
     }
 
-    /// 品牌一行：格子标、FreeGrid、描边的 PRO 胶囊。超细大字放英文字标会显得单薄，
-    /// 这里用 App 自己的记号（设置页 FreeGrid 卡同款格子标、描边胶囊、等宽带字距小字）把名字立起来
+    /// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
+    /// 超细大字放英文字标会显得单薄，所以名字用半粗
     private var brandLockup: some View {
         HStack(spacing: 10) {
-            VStack(spacing: 2) {
-                HStack(spacing: 2) { logoCell(Color.inkFaint); logoCell(Color.assetGold) }
-                HStack(spacing: 2) { logoCell(Color.cashBlue); logoCell(Color.inkFaint) }
-            }
             Text("FreeGrid")
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.ink)
             Text("PRO")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .tracking(2)
                 .foregroundStyle(Color.skyDeep)
-                .padding(.leading, 9)
-                .padding(.trailing, 7)
-                .frame(height: 22)
+                .padding(.leading, 10)
+                .padding(.trailing, 8)
+                .frame(height: 24)
                 .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("FreeGrid Pro")
         .accessibilityAddTraits(.isHeader)
-    }
-
-    private func logoCell(_ color: Color) -> some View {
-        RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(color).frame(width: 8, height: 8)
     }
 
     // MARK: - 对照卡
