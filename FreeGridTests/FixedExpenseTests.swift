@@ -122,6 +122,14 @@ struct FixedExpenseTests {
         #expect(abs(s.passiveRatio - 100 / (100 + 2500.0 / 30)) < 1e-9)
     }
 
+    /// 首页写的日均含固定支出折成的每天（押一付三按每月折）；推演用的日常日均不变，房租仍在到期日另扣
+    @Test func displayedDailyCostAddsFixedCosts() {
+        let s = snapshot(loans: [rent(7500, interval: 3)])
+        #expect(s.dailyBurn == 100)
+        #expect(abs(s.dailyCost - (100 + 2500.0 / 30)) < 1e-9)
+        #expect(snapshot(loans: []).dailyCost == 100)
+    }
+
     // MARK: - 写入
 
     private func context(cash: Double) throws -> ModelContext {

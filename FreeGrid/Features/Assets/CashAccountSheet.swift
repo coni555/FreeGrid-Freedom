@@ -1,24 +1,17 @@
 // 新增或编辑一个现金账户（名称 + 余额 + 算不算进自由天数）；保存由父页面处理。
-// 新增时可以选这笔钱从哪来：新的钱让现金总数变大，从已有账户里分出来则总数不变。
+// 新增时可以选这笔钱从哪来：新增的钱让现金总数变大，从已有账户里分出来则总数不变。
 
 import SwiftUI
 
 struct CashAccountSheet: View {
 
-    struct SourceOption: Identifiable {
-        let source: CashAccountStore.Source
-        let name: String
-        let amount: Double
-        var id: String {
-            switch source {
-            case .unsplitTotal: return "total"
-            case .account(let id): return id.uuidString
-            }
-        }
-    }
+    /// 新增时可以从这里拆出来的一项
+    typealias SourceOption = MoneySourcePicker<CashAccountStore.Source>.Option
 
     let existing: CashAccount?
     var sources: [SourceOption] = []
+    /// 现在的总数，写「保存后总数变成多少」用
+    var total: Double = 0
     var initialSource: CashAccountStore.Source? = nil
     let onSave: (String, Double, Bool, CashAccountStore.Source?) throws -> Void
     var onDelete: (() throws -> Void)? = nil
@@ -77,7 +70,10 @@ struct CashAccountSheet: View {
                             }
                         }
                         if !isEditing, !sources.isEmpty {
-                            sourceMenu
+                            MoneySourcePicker(options: sources, selection: $source, amount: enteredAmount,
+                                              total: total, bucket: "现金", splitVerb: "分出",
+                                              identifierPrefix: "cash-account")
+                                .padding(.top, Spacing.md)
                         }
                     }
 
@@ -150,36 +146,6 @@ struct CashAccountSheet: View {
         }
         .saveErrorAlert($saveError)
         .iosSheetDetents()
-    }
-
-    private var sourceMenu: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Menu {
-                Picker("从哪来", selection: $source) {
-                    Text("新的钱").tag(CashAccountStore.Source?.none)
-                    ForEach(sources) { option in
-                        Text("从「\(option.name)」分出 · ¥\(option.amount.formatted(.number))")
-                            .tag(Optional(option.source))
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(pickedSource.map { "从「\($0.name)」分出，现金总数不变" } ?? "新的钱，现金总数会增加")
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 9, weight: .medium))
-                }
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Color.inkMuted)
-                .contentShape(Rectangle())
-            }
-            .menuIndicator(.hidden)
-            .accessibilityIdentifier("cash-account-source-menu")
-            if exceedsSource, let pickedSource {
-                Text("「\(pickedSource.name)」只有 ¥\(pickedSource.amount.formatted(.number))")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.flame)
-            }
-        }
     }
 
     private var isValid: Bool {

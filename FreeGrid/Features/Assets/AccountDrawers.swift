@@ -455,7 +455,7 @@ struct AssetRows: View {
             }, onOpenItems: { splitAfterTotalSheet = true })
         }
         .sheet(item: $adding) { adding in
-            AssetItemSheet(existing: nil, sources: sources, initialSource: adding.initialSource) {
+            AssetItemSheet(existing: nil, sources: sources, total: total, initialSource: adding.initialSource) {
                 name, amount, counts, source in
                 try AssetItemStore.save(nil, name: name, amount: amount, countsInFreedom: counts,
                                         source: source, totalCounts: countsAssets, in: modelContext)
@@ -656,7 +656,7 @@ struct CashRows: View {
             }, onOpenItems: { splitAfterTotalSheet = true })
         }
         .sheet(item: $adding) { adding in
-            CashAccountSheet(existing: nil, sources: sources, initialSource: adding.initialSource) { name, amount, counts, source in
+            CashAccountSheet(existing: nil, sources: sources, total: total, initialSource: adding.initialSource) { name, amount, counts, source in
                 try CashAccountStore.save(nil, name: name, amount: amount, countsInFreedom: counts, source: source,
                                           in: modelContext)
             }

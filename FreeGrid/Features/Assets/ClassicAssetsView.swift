@@ -284,7 +284,7 @@ struct ClassicAssetsView: View {
                         .font(.system(size: 20, weight: .ultraLight, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                     Spacer()
-                    Text(snapshot.passiveRatio >= 1 ? "已覆盖日常消费" : "覆盖日常消费")
+                    Text(snapshot.passiveRatio >= 1 ? "已覆盖日均消费" : "覆盖日均消费")
                         .font(.system(.caption2, design: .monospaced))
                         .tracking(0.5)
                         .foregroundStyle(snapshot.passiveRatio >= 1 ? Color.mossGreen : Color.inkFaint)
@@ -301,10 +301,10 @@ struct ClassicAssetsView: View {
                         Text("日均 ¥\(String(format: "%.1f", snapshot.dailyPassive))")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
-                        if snapshot.dailyBurn > 0 {
+                        if snapshot.dailyCost > 0 {
                             Text("·")
                                 .foregroundStyle(Color.inkFaint)
-                            Text("日均消费 ¥\(String(format: "%.1f", snapshot.dailyBurn))")
+                            Text("日均消费 ¥\(String(format: "%.1f", snapshot.dailyCost))")
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
                         }

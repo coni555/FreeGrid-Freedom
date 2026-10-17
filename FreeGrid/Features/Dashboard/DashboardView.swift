@@ -299,9 +299,12 @@ private struct DashboardContent: View {
 
     private var statsRow: some View {
         HStack(spacing: Spacing.md) {
+            // 日均含固定支出折成的每天；有固定支出时小字拆开写，和下面只比日常的 Today 对得上
             statCard(label: "Daily",
-                     value: snapshot.dailyBurn.isFinite ? String(format: "%.1f", snapshot.dailyBurn) : "—",
-                     unit: "元/天")
+                     value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
+                     unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
+                         ? "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))"
+                         : "元/天")
             // 没有被动收入时这张卡永远是 0%, 不占位置
             if snapshot.dailyPassive > 0 {
                 statCard(label: "Passive",
@@ -333,6 +336,8 @@ private struct DashboardContent: View {
                 Text(unit)
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
     }
@@ -380,7 +385,7 @@ private struct DashboardContent: View {
                         Text(snapshot.dailyBurn.isFinite ? String(format: "¥%.1f", snapshot.dailyBurn) : "¥—")
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkMuted)
-                        KickerLabel(text: "avg")
+                        KickerLabel(text: averageWord == "日均" ? "avg" : "日常")
                     }
                     .frame(minWidth: 60, alignment: .trailing)
                 }
@@ -414,12 +419,15 @@ private struct DashboardContent: View {
         )
         if todaySpending > snapshot.dailyBurn {
             let over = todaySpending - snapshot.dailyBurn
-            return "高于日均 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
+            return "高于\(averageWord) \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
         } else {
             let savings = snapshot.dailyBurn - todaySpending
-            return "低于日均 \(diffPct)% · 节省 ¥\(String(format: "%.1f", savings))"
+            return "低于\(averageWord) \(diffPct)% · 节省 ¥\(String(format: "%.1f", savings))"
         }
     }
+
+    /// Today 只和日常开销比。有固定支出时上面 Daily 卡的日均含固定，这里换个叫法免得两个数对不上
+    private var averageWord: String { snapshot.dailyFixed > 0 ? "日常均值" : "日均" }
 
     /// 今日花费占日均的百分比(用于颜色判断)
     private var todayPercent: Double {

@@ -53,12 +53,6 @@ struct AddExpenseSheet: View {
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 } header: {
                     Text("金额 (元)")
-                } footer: {
-                    if looksLikeRepayment {
-                        Text("这笔会在到期日自动扣，不用再记")
-                            .font(.system(.caption2, design: .rounded))
-                            .accessibilityIdentifier("repayment-hint")
-                    }
                 }
                 // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复。
                 // 管理分类的入口收在菜单最后一项：只在用户找分类时出现，平时表单里没有任何推销
@@ -143,14 +137,6 @@ struct AddExpenseSheet: View {
         CashAccountSection(accounts: cashAccounts, kind: .expense,
                            amount: Double(amount).flatMap { FinancialFormatting.validAmount($0) ? $0 : nil },
                            picked: $pickedAccount)
-    }
-
-    /// 金额等于某笔固定支出或月供、日期离它的到期日不超过 3 天：多半是在手动记它
-    private var looksLikeRepayment: Bool {
-        guard let value = Double(amount), FinancialFormatting.validAmount(value) else { return false }
-        return loans.contains {
-            abs($0.monthlyAmount - value) < 0.005 && LoanSchedule.isNearDueDate(date, of: $0)
-        }
     }
 
     private var snapshot: FinancialSnapshot {

@@ -6,21 +6,13 @@ import SwiftUI
 struct AssetItemSheet: View {
 
     /// 新增时可以从这里拆出来的一项
-    struct SourceOption: Identifiable {
-        let source: AssetItemStore.Source
-        let name: String
-        let amount: Double
-        var id: String {
-            switch source {
-            case .unsplitTotal: return "total"
-            case .item(let id): return id.uuidString
-            }
-        }
-    }
+    typealias SourceOption = MoneySourcePicker<AssetItemStore.Source>.Option
 
     let existing: AssetItem?
     /// 新增时可选的来源；为空时不显示这一行
     var sources: [SourceOption] = []
+    /// 现在的总数，写「保存后总数变成多少」用
+    var total: Double = 0
     /// 打开时默认选中的来源（拆分时是原来的总数）
     var initialSource: AssetItemStore.Source? = nil
     let onSave: (String, Double, Bool, AssetItemStore.Source?) throws -> Void
@@ -83,7 +75,10 @@ struct AssetItemSheet: View {
                             }
                         }
                         if !isEditing, !sources.isEmpty {
-                            sourceMenu
+                            MoneySourcePicker(options: sources, selection: $source, amount: enteredAmount,
+                                              total: total, bucket: "资产", splitVerb: "拆出",
+                                              identifierPrefix: "asset-item")
+                                .padding(.top, Spacing.md)
                         }
                     }
 
@@ -157,39 +152,6 @@ struct AssetItemSheet: View {
         }
         .saveErrorAlert($saveError)
         .iosSheetDetents()
-    }
-
-    // MARK: - 从哪来
-
-    /// 金额下面一行小字，点开选「新增的钱」或「从某一项拆出」
-    private var sourceMenu: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Menu {
-                Picker("从哪来", selection: $source) {
-                    Text("新增的钱").tag(AssetItemStore.Source?.none)
-                    ForEach(sources) { option in
-                        Text("从「\(option.name)」拆出 · ¥\(option.amount.formatted(.number))")
-                            .tag(Optional(option.source))
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(pickedSource.map { "从「\($0.name)」拆出，资产总数不变" } ?? "新增的钱，资产总数会增加")
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 9, weight: .medium))
-                }
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Color.inkMuted)
-                .contentShape(Rectangle())
-            }
-            .menuIndicator(.hidden)
-            .accessibilityIdentifier("asset-item-source-menu")
-            if exceedsSource, let pickedSource {
-                Text("「\(pickedSource.name)」只有 ¥\(pickedSource.amount.formatted(.number))")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.flame)
-            }
-        }
     }
 
     // MARK: - 保存

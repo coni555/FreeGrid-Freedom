@@ -15,11 +15,12 @@ struct TransactionImpactView: View {
                 color: changeColor(impact.cashChange)
             )
             if impact.kind == .expense {
+                // 和首页 Daily 卡同一个数：日常加固定支出折成的每天。一笔支出只改日常那部分
                 let burnChange = impact.newDailyBurn - impact.before.dailyBurn
                 ImpactRow(
                     label: "KILL 2 日均",
-                    from: FinancialFormatting.yuan(impact.before.dailyBurn, precision: 1),
-                    to: FinancialFormatting.yuan(impact.newDailyBurn, precision: 2),
+                    from: FinancialFormatting.yuan(impact.before.dailyCost, precision: 1),
+                    to: FinancialFormatting.yuan(impact.newDailyBurn + impact.before.dailyFixed, precision: 2),
                     delta: FinancialFormatting.signedYuan(burnChange, precision: 2),
                     color: changeColor(-burnChange)
                 )

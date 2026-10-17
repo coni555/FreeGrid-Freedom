@@ -623,7 +623,11 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(split.waitForExistence(timeout: 3))
         split.tap()
         fill("车", "30000")
-        XCTAssertTrue(app.buttons["asset-item-source-menu"].label.contains("拆出"))
+        if let output = ProcessInfo.processInfo.environment["FIXED_SHOTS_DIR"] {
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent("5-拆成多项.png"))
+        }
+        XCTAssertEqual(app.staticTexts["asset-item-source-result"].label, "「资产」¥100,000 → ¥70,000，资产总数不变")
         app.buttons["save-asset-item"].tap()
         XCTAssertTrue(app.buttons["asset-item-车"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["asset-item-资产"].exists)
@@ -632,6 +636,7 @@ final class FreeGridUITests: XCTestCase {
         // 「添加资产项」加的是新的钱：总数变大
         app.buttons["add-asset-item"].tap()
         fill("基金", "5000")
+        XCTAssertEqual(app.staticTexts["asset-item-source-result"].label, "资产总数 ¥100,000 → ¥105,000")
         app.buttons["save-asset-item"].tap()
         XCTAssertTrue(app.buttons["asset-item-基金"].waitForExistence(timeout: 3))
         XCTAssertEqual(total(), "¥105,000")
@@ -853,7 +858,7 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("2500")
         XCTAssertFalse(app.textFields["loan-periods-field"].exists)
-        XCTAssertTrue(app.staticTexts["fixed-schedule"].label.contains("不算进日均"))
+        XCTAssertTrue(app.staticTexts["fixed-schedule"].label.contains("自动从现金扣"))
         try shoot("1-添加固定支出")
         app.buttons["保存"].tap()
         XCTAssertTrue(app.buttons["loan-row"].waitForExistence(timeout: 3))
@@ -869,6 +874,12 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["199"].waitForNonExistence(timeout: 3))
         XCTAssertFalse(app.descendants(matching: .any)["repayment-day-legend"].exists)
         try shoot("3-首页")
+
+        // Daily 卡的日均含房租折成的每天（100 + 2500 ÷ 30），小字拆开写；Today 只和日常比
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["183.3"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["日常 100 · 固定 83"].exists)
+        try shoot("4-首页日均")
     }
 
     /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。
@@ -1215,7 +1226,7 @@ final class FreeGridUITests: XCTestCase {
         let amount = app.textFields["cash-account-amount-field"]
         amount.tap()
         amount.typeText("300")
-        XCTAssertTrue(app.buttons["cash-account-source-menu"].label.contains("分出"))
+        XCTAssertEqual(app.staticTexts["cash-account-source-result"].label, "「现金」¥10,000 → ¥9,700，现金总数不变")
         app.buttons["save-cash-account"].tap()
         let wechat = app.buttons["cash-account-微信"]
         XCTAssertTrue(wechat.waitForExistence(timeout: 3))

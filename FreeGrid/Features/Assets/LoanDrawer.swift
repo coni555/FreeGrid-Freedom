@@ -94,7 +94,7 @@ struct LoanRows: View {
                 let lockedLoans = !canManageLoans && loans.contains(where: \.punchesGrid)
                 DrawerFooter(text: lockedLoans
                              ? "管理贷款是 Pro 功能，已经加的照常自动扣。点贷款那一行可以删除。"
-                             : "到日子自动从现金扣，不算进日均。自由天数会把每期的钱先留出来。",
+                             : "到日子自动从现金扣，折成每天算进日均。自由天数会把每期的钱先留出来。",
                              locked: lockedLoans, showsActions: false)
             }
         }

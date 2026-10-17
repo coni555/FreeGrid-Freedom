@@ -71,7 +71,7 @@ flowchart TD
 
 [FreedomMath](FreeGrid/Logic/FreedomMath.swift) 负责这些规则。追踪天数从最早一笔支出算到今天，包含今天；只有收入或资产时，还没有消费基线。
 
-日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。
+日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。界面上写的「日均消费」是 `FinancialSnapshot.dailyCost`：这个日常日均再加上固定支出和月供折成的每天（`dailyFixed`）；自由天数的推演只用日常日均，固定支出按日历在到期日另扣，不算两遍。
 
 自由状态有四种，代码用 `FreedomState` 区分：
 

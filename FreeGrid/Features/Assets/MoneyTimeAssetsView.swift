@@ -251,7 +251,8 @@ struct MoneyTimeAssetsView: View {
     private func legendNote(_ snapshot: FinancialSnapshot) -> String {
         if isDays {
             guard snapshot.dailyBurn > 0 else { return "记几天账就能换算" }
-            let perDay = "日均 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))"
+            // 换算成天用的是日常开销，固定支出另算在「留出 N 天」里
+            let perDay = "日常 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天"
             if let reserved = reservedDays(snapshot) { return "固定支出留出 \(reserved) 天 · \(perDay)" }
             return "按\(perDay)换算"
         }

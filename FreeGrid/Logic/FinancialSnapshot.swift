@@ -82,10 +82,12 @@ struct FinancialSnapshot {
     }
     /// 有不计入自由天数的钱（资产或现金）。趋势往回推时这部分算不清，早期的 0 不写出来
     var hasUncountedMoney: Bool { !countsAssets || uncountedAssets > 0 || excludedCash > 0 }
+    /// 界面上写的日均消费：日常开销加上固定支出和月供折成的每天（用户 2026-10-17 定：固定支出也是支出）。
+    /// 自由天数不用它——固定支出按日历在到期日另扣，再折进日均就算了两遍；「今日对比」也只和日常开销比
+    var dailyCost: Double { dailyBurn.isFinite ? dailyBurn + dailyFixed : dailyBurn }
     /// 被动收入能盖住多少开销：日常开销加上固定支出和月供。只比日常会在有房租、贷款时虚高
     var passiveRatio: Double {
-        FreedomMath.passiveRatio(dailyPassive: dailyPassive,
-                                 dailyBurn: dailyBurn.isFinite ? dailyBurn + dailyFixed : dailyBurn)
+        FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyCost)
     }
     /// 有固定支出或贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」
     var freedomRun: FreedomMath.FreedomRun {

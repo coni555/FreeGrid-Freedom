@@ -1,5 +1,5 @@
 // 新增或编辑一笔固定支出或贷款（拆了现金账户时多一项：从哪个账户扣）。
-// - 固定支出（免费）：名称、每次多少、多久一次、下次哪天付。下面写出之后哪天扣，方便核对。
+// - 固定支出（免费）：名称、每次多少、几个月付一次、下次哪天付。下面写出之后哪天扣，方便核对。
 // - 贷款（Pro）：名称、月供、每月几号还、还剩几期。期数下面实时写出最后一期是哪天。
 // 账本里有金额正好等于这一期的旧支出时，问一句是不是以前记的。
 
@@ -193,7 +193,7 @@ struct LoanSheet: View {
         }
     }
 
-    // MARK: - 固定支出：多久一次、下次哪天
+    // MARK: - 固定支出：几个月付一次、下次哪天
 
     /// 默认下个月的今天
     static var defaultNextDue: Date {
@@ -211,9 +211,19 @@ struct LoanSheet: View {
     static func intervalLabel(_ months: Int) -> String {
         switch months {
         case 1: return "每月"
+        case 3: return "每季度"
         case 6: return "每半年"
         case 12: return "每年"
         default: return "每 \(months) 个月"
+        }
+    }
+
+    /// 选项里多一句常见叫法，帮人对上自己的情况
+    static func intervalOption(_ months: Int) -> String {
+        switch months {
+        case 1: return "每月（押一付一）"
+        case 3: return "每季度（押一付三）"
+        default: return intervalLabel(months)
         }
     }
 
@@ -221,11 +231,11 @@ struct LoanSheet: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .top, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    KickerLabel(text: "多久一次")
+                    KickerLabel(text: "几个月付一次")
                     UnderlinedField(isFocused: false) {
                         Menu {
-                            Picker("多久一次", selection: $intervalMonths) {
-                                ForEach(LoanSchedule.intervals, id: \.self) { Text(Self.intervalLabel($0)).tag($0) }
+                            Picker("几个月付一次", selection: $intervalMonths) {
+                                ForEach(LoanSchedule.intervals, id: \.self) { Text(Self.intervalOption($0)).tag($0) }
                             }
                         } label: {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -267,11 +277,13 @@ struct LoanSheet: View {
         }
     }
 
-    /// 「之后每月 5 日自动扣，不算进日均」
+    /// 「到日子自动从现金扣，之后每月 5 日一次」；不按月付时先说清金额填的是一次付的总数
     private var scheduleText: String {
-        let day = Calendar.current.component(.day, from: nextDue)
-        let when = intervalMonths == 1 ? "每月 \(day) 日" : "\(Self.intervalLabel(intervalMonths))的 \(day) 日"
-        return "到日子自动从现金扣，之后\(when)一次，不算进日均"
+        guard intervalMonths != 1 else {
+            let day = Calendar.current.component(.day, from: nextDue)
+            return "到日子自动从现金扣，之后每月 \(day) 日一次"
+        }
+        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。到日子自动从现金扣，之后\(Self.intervalLabel(intervalMonths))一次"
     }
 
     // MARK: - 从哪个账户扣
@@ -348,7 +360,7 @@ struct LoanSheet: View {
                         if expense.id != candidates.last?.id { Hairline(color: .hairlineSoft) }
                     }
                 }
-                Text("勾上的不再算进日均消费，记录照样留在 History。")
+                Text("勾上的不再另算进日均消费（固定支出已经折进去了），记录照样留在 History。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }
