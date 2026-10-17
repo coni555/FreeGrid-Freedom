@@ -218,7 +218,7 @@ struct SettingsView: View {
                     DeckHeader(title: "外观", detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
-                        ThemeCapsule(isDark: isDarkMode)
+                        ThemeGlyph(isDark: isDarkMode)
                     }
                 }
                 .buttonStyle(.plain)

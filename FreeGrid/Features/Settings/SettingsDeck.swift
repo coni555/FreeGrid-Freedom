@@ -110,35 +110,17 @@ struct DeckHeader<Leading: View, Trailing: View>: View {
     }
 }
 
-/// 卡头右边的读数：超细数字 + 等宽小单位
+/// 卡头右边的读数：SF Pro Light 数字 + 等宽小单位（圆体 Thin 在这个字号下发飘，用户 2026-10-17 选了 SF Pro）
 struct DeckReading: View {
     let value: String
     var unit: String?
     var color: Color = .ink
     var unitColor: Color = .inkFaint
 
-    /// 读数用哪种数字（Debug 下 `-deckDigits rounded|pro|mono|serif` 换着看，定下来后删）
-    static let digits: String = {
-        let arguments = ProcessInfo.processInfo.arguments
-        if let index = arguments.firstIndex(of: "-deckDigits"), arguments.indices.contains(index + 1) {
-            return arguments[index + 1]
-        }
-        return "rounded"
-    }()
-
-    private var valueFont: Font {
-        switch Self.digits {
-        case "pro": return .system(size: 21, weight: .light, design: .default).monospacedDigit()
-        case "mono": return .system(size: 18, weight: .light, design: .monospaced)
-        case "serif": return .system(size: 23, weight: .regular, design: .serif).monospacedDigit()
-        default: return .system(size: 22, weight: .thin, design: .rounded).monospacedDigit()
-        }
-    }
-
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(value)
-                .font(valueFont)
+                .font(.system(size: 21, weight: .light).monospacedDigit())
                 .foregroundStyle(color)
             if let unit {
                 Text(unit)
@@ -149,26 +131,27 @@ struct DeckReading: View {
     }
 }
 
-/// 外观卡头上的小胶囊：左半浅、右半深，当前主题那一半描一圈蓝
-struct ThemeCapsule: View {
+/// 外观卡头上的主题记号：和首页左上角那个切换按钮同一个样子，浅色是细圈里一颗蓝点，深色是月亮
+struct ThemeGlyph: View {
     let isDark: Bool
 
     var body: some View {
-        HStack(spacing: 0) {
-            half(Color(red: 0.957, green: 0.961, blue: 0.969), selected: !isDark)
-            half(Color(red: 0.078, green: 0.086, blue: 0.165), selected: isDark)
+        ZStack {
+            Circle()
+                .stroke(Color.ink, lineWidth: 1)
+                .frame(width: 20, height: 20)
+            if isDark {
+                Image(systemName: "moon.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color.sky)
+            } else {
+                Circle()
+                    .fill(Color.sky)
+                    .frame(width: 8, height: 8)
+            }
         }
-        .frame(width: 28, height: 16)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
         .accessibilityElement()
         .accessibilityLabel(isDark ? "现在是深色" : "现在是浅色")
-    }
-
-    private func half(_ color: Color, selected: Bool) -> some View {
-        Rectangle()
-            .fill(color)
-            .overlay(Rectangle().strokeBorder(Color.skyDeep, lineWidth: 1).opacity(selected ? 1 : 0))
     }
 }
 

@@ -1046,31 +1046,6 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
-    /// 设置页卡叠都收着时铺开的样子，以及读数的几种字体（Debug 的 -deckDigits）。只在给了环境变量时运行。
-    @MainActor
-    func testCaptureSettingsDeckDigits() throws {
-        let environment = ProcessInfo.processInfo.environment
-        guard let ledger = environment["SETTINGS_LEDGER"], let output = environment["SETTINGS_SHOTS_DIR"] else {
-            throw XCTSkip("只在拍设置页字体对比时运行")
-        }
-        for (digits, dark) in [("rounded", false), ("pro", false), ("mono", false), ("serif", false), ("rounded", true)] {
-            let app = XCUIApplication()
-            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-historyGuideCompleted", "YES",
-                                   "-setupGuideCompleted", "YES", "-proPreview", "NO", "-deckDigits", digits,
-                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
-            app.launch()
-            app.tabBars.buttons["Settings"].tap()
-            XCTAssertTrue(app.buttons["settings-freedom-card"].waitForExistence(timeout: 5))
-            if app.segmentedControls["assets-layout-picker"].waitForExistence(timeout: 2) {
-                app.buttons["settings-card-look"].tap()
-            }
-            Thread.sleep(forTimeInterval: 1.2)
-            let url = URL(fileURLWithPath: output).appendingPathComponent("\(dark ? "深色" : "浅色")-收起-\(digits).png")
-            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
-            app.terminate()
-        }
-    }
-
     /// 自由卡截图：首页提示、卡（Pro 能分享）、海报分享面板、设置页那一行，浅色深色各一套。只在给了环境变量时运行。
     @MainActor
     func testCaptureFreedomCardScreens() throws {
