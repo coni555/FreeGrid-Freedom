@@ -1,4 +1,5 @@
-// Pro 购买页：一张免费和 Pro 的对照表，加上价格、购买、恢复购买。从设置和各个 Pro 功能的锁定页进入。
+// Pro 购买页：一张免费和 Pro 的对照表，底部固定价格、购买、恢复购买。从设置和各个 Pro 功能的锁定页进入。
+// 对照表的两列只放勾，字都留给左边的名字和说明，读起来不挤。
 
 import StoreKit
 import SwiftUI
@@ -17,33 +18,27 @@ struct ProPaywallView: View {
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
+    /// 对照表右边两列的宽度：只放勾，窄一点就够
+    private let freeWidth: CGFloat = 44
+    private let proWidth: CGFloat = 56
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
                     comparisonTable
-                    if !store.isUnlocked {
-                        purchaseSection
-                    }
-                    if let notice {
-                        Text(notice)
-                            .font(.system(.footnote, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, Spacing.sm)
-                            .accessibilityIdentifier("pro-notice")
-                    }
-                    footer
                     #if DEBUG
                     previewCard
                     #endif
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.lg)
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
-            .navigationTitle("FreeGrid Pro")
+            .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
             .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -57,10 +52,11 @@ struct ProPaywallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(store.isUnlocked ? "Pro 已解锁" : "一次买断，永久使用")
-                .font(.system(.title2, design: .rounded))
+            KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
+            Text(store.isUnlocked ? "Pro 已解锁" : "把自由，算得更完整")
+                .font(.system(size: 30, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            Text(store.isUnlocked ? "谢谢你支持 FreeGrid。右边一列现在都是你的。" : "免费的功能一直免费，Pro 只加新的。")
+            Text(store.isUnlocked ? "谢谢你支持 FreeGrid，下面这些现在都是你的。" : "一次买断，永久拥有。账本照旧只在你的手机上。")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -72,45 +68,17 @@ struct ProPaywallView: View {
 
     // MARK: - 对照表
 
-    private let freeWidth: CGFloat = 76
-    private let proWidth: CGFloat = 92
-
-    /// 每行一项功能，左列免费、右列 Pro。右列整列用一道细线框起来，是这一页唯一有颜色的东西
+    /// 先列 Pro 专属，再列免费就有的。右边一列整列用一道细线框起来，是这一页唯一有颜色的块
     private var comparisonTable: some View {
         VStack(spacing: 0) {
-            tableRow(height: 44, highlighted: false) {
-                Color.clear
-            } free: {
-                KickerLabel(text: "免费")
-            } pro: {
-                KickerLabel(text: "Pro", color: .skyDeep)
+            columnHeader
+            groupLabel("Pro 专属")
+            ForEach(ProFeatures.proRows) { row in
+                tableRow(row)
             }
-            ForEach(ProFeatures.comparison) { row in
-                rowDivider
-                tableRow(height: 50, highlighted: topic != nil && row.topic == topic) {
-                    Text(row.title)
-                        .font(.system(size: 15, design: .rounded))
-                        .foregroundStyle(Color.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                } free: {
-                    cell(row.free, pro: false)
-                } pro: {
-                    cell(row.pro, pro: true)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
-            }
-            rowDivider
-            tableRow(height: 68, highlighted: false) {
-                Text("价格")
-                    .font(.system(size: 15, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-            } free: {
-                Text("免费")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-            } pro: {
-                priceCell
+            groupLabel("免费就有")
+            ForEach(ProFeatures.freeRows) { row in
+                tableRow(row)
             }
         }
         // 底色垫在下面，细线框压在最上面：标出来的那一行不会把框盖断
@@ -129,160 +97,156 @@ struct ProPaywallView: View {
         .accessibilityIdentifier("pro-comparison")
     }
 
-    private func tableRow<Title: View, Free: View, Pro: View>(height: CGFloat, highlighted: Bool,
-                                                              @ViewBuilder title: () -> Title,
-                                                              @ViewBuilder free: () -> Free,
-                                                              @ViewBuilder pro: () -> Pro) -> some View {
+    private var columnHeader: some View {
         HStack(spacing: 0) {
-            title()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, Spacing.sm)
-            free().frame(width: freeWidth)
-            pro().frame(width: proWidth)
+            Spacer(minLength: 0)
+            KickerLabel(text: "免费").frame(width: freeWidth)
+            KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
         }
-        .frame(minHeight: height)
-        .background {
-            if highlighted {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.skyFaint)
-            }
-        }
+        .frame(height: 44)
     }
 
-    /// 行间细线只画到 Pro 列前面，Pro 列里干干净净，像一张立在表上的卡
-    private var rowDivider: some View {
-        Hairline().padding(.trailing, proWidth)
-    }
-
-    @ViewBuilder
-    private func cell(_ cell: ProFeatures.Cell, pro: Bool) -> some View {
-        switch cell {
-        case .yes:
-            Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: .light))
-                .foregroundStyle(pro ? Color.skyDeep : Color.inkFaint)
-        case .no:
-            Text("—")
-                .font(.system(size: 13, design: .rounded))
-                .foregroundStyle(Color.inkGhost)
-        case .text(let text):
+    /// 组名写在左边，跟行之间隔一道细线；细线只画到 Pro 列前面
+    private func groupLabel(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text(text)
-                .font(.system(size: 14, design: .rounded))
-                .foregroundStyle(pro ? Color.skyDeep : Color.inkMuted)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+                .padding(.leading, Spacing.sm)
+                .padding(.top, Spacing.lg)
+                .padding(.bottom, Spacing.sm)
+            Hairline().padding(.trailing, proWidth)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func spoken(_ cell: ProFeatures.Cell) -> String {
-        switch cell {
-        case .yes: return "有"
-        case .no: return "没有"
-        case .text(let text): return text
-        }
-    }
-
-    /// Pro 列最底下一格：价格；已解锁写「已解锁」。价格用 App Store 返回的本地化文字，不在代码里写死
-    @ViewBuilder
-    private var priceCell: some View {
-        if store.isUnlocked {
-            Text("已解锁")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundStyle(Color.skyDeep)
-        } else {
-            switch store.productState {
-            case .loading:
-                ProgressView().controlSize(.small)
-            case .loaded(let product):
-                Text(product.displayPrice)
-                    .font(.system(size: 20, weight: .light).monospacedDigit())
-                    .foregroundStyle(Color.skyDeep)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .padding(.horizontal, 10)
-                    .accessibilityIdentifier("pro-price")
-            case .unavailable:
-                Text("—")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(Color.inkGhost)
-            }
-        }
-    }
-
-    // MARK: - 购买
-
-    private var purchaseSection: some View {
-        VStack(spacing: Spacing.md) {
-            if case .unavailable = store.productState {
+    private func tableRow(_ row: ProFeatures.Row) -> some View {
+        let highlighted = topic.map { row.topics.contains($0) } ?? false
+        return VStack(spacing: 0) {
+            HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("暂时读不到价格")
-                        .font(.system(.body, design: .rounded))
+                    Text(row.title)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    Text("可能是网络不通。已经买过的话，点下面的「恢复购买」。")
-                        .font(.system(.footnote, design: .rounded))
+                    Text(row.detail)
+                        .font(.system(size: 12.5, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.sm)
+                .padding(.leading, Spacing.sm)
+                .padding(.trailing, Spacing.xs)
+                .padding(.vertical, 12)
+                mark(row.inFree, pro: false).frame(width: freeWidth)
+                mark(true, pro: true).frame(width: proWidth)
+            }
+            .background {
+                if highlighted {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.skyFaint)
+                }
+            }
+            Hairline().padding(.trailing, proWidth)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(row.title)，\(row.detail)\(row.inFree ? "免费版和 Pro 都有" : "Pro 专属")")
+    }
+
+    @ViewBuilder
+    private func mark(_ has: Bool, pro: Bool) -> some View {
+        if has {
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: pro ? .regular : .light))
+                .foregroundStyle(pro ? Color.skyDeep : Color.inkFaint)
+        } else {
+            Text("—")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(Color.inkGhost)
+        }
+    }
+
+    // MARK: - 底部：价格和购买，滚到哪都在
+
+    private var bottomBar: some View {
+        VStack(spacing: Spacing.sm) {
+            if let notice {
+                Text(notice)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("pro-notice")
+            }
+            if store.isUnlocked {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 18, weight: .light))
+                        .foregroundStyle(Color.mossGreen)
+                    Text("Pro 已解锁")
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.sm)
+            } else if case .unavailable = store.productState {
+                Text("暂时读不到价格，可能是网络不通。已经买过的话，点「恢复购买」。")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 VaultButton(title: "重试", icon: "arrow.clockwise", style: .secondary) {
                     Task { await store.loadProduct() }
                 }
                 .accessibilityIdentifier("pro-retry")
             } else {
-                VaultButton(title: "解锁 Pro", icon: "lock.open") {
+                VaultButton(title: purchaseTitle, icon: "lock.open") {
                     Task { await buy() }
                 }
                 .disabled(!canBuy)
                 .opacity(canBuy ? 1 : 0.4)
                 .accessibilityIdentifier("pro-purchase")
-                Text("一次购买，没有订阅，不会自动续费。")
-                    .font(.system(.footnote, design: .rounded))
+                Text("一次购买 · 没有订阅 · 不会自动续费")
+                    .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
             }
-            Button {
-                Task { await restore() }
-            } label: {
-                Text("恢复购买")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Spacing.sm)
-                    .contentShape(Rectangle())
+            HStack(spacing: Spacing.lg) {
+                if !store.isUnlocked {
+                    Button { Task { await restore() } } label: { footerLabel("恢复购买") }
+                        .buttonStyle(.plain)
+                        .disabled(store.isWorking)
+                        .accessibilityIdentifier("pro-restore")
+                }
+                Button { openURL(privacyURL) } label: { footerLabel("隐私政策") }
+                    .buttonStyle(.plain)
+                Button { openURL(termsURL) } label: { footerLabel("使用条款") }
+                    .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .disabled(store.isWorking)
-            .accessibilityIdentifier("pro-restore")
         }
-        .padding(.top, Spacing.sm)
+        .padding(.horizontal)
+        .padding(.top, Spacing.md)
+        .padding(.bottom, Spacing.sm)
+        .background(Color.paper)
+        .overlay(alignment: .top) { Hairline() }
+    }
+
+    private func footerLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(.caption, design: .rounded))
+            .foregroundStyle(Color.inkFaint)
+            .padding(.vertical, Spacing.xs)
+            .contentShape(Rectangle())
+    }
+
+    /// 「永久解锁 · ¥18」：价格用 App Store 返回的本地化文字，不在代码里写死
+    private var purchaseTitle: String {
+        if case .loaded(let product) = store.productState {
+            return "永久解锁 · \(product.displayPrice)"
+        }
+        return "永久解锁"
     }
 
     private var canBuy: Bool {
         guard case .loaded = store.productState else { return false }
         return !store.isWorking
-    }
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("购买和恢复通过 Apple 完成。账本仍然只保存在这台设备上。")
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Color.inkFaint)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Spacing.lg) {
-                linkButton("隐私政策", url: privacyURL)
-                linkButton("使用条款", url: termsURL)
-            }
-        }
-        .padding(.horizontal, Spacing.sm)
-    }
-
-    private func linkButton(_ title: String, url: URL) -> some View {
-        Button { openURL(url) } label: {
-            Text(title)
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Color.skyDeep)
-                .padding(.vertical, Spacing.xs)
-        }
-        .buttonStyle(.plain)
     }
 
     #if DEBUG

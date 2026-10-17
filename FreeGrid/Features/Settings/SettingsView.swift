@@ -32,6 +32,8 @@ struct SettingsView: View {
     @Environment(AppGuide.self) private var guide
     @State private var icpCopied = false
     @State private var showingPro = false
+    /// 从外观里点了「钱与时间」进的购买页，标出那一行；从 Pro 卡进来时为空
+    @State private var proTopic: ProFeatures.Topic?
     @State private var showingFreedomCard = false
     /// 一叠卡里现在抽出来的是哪张（look / ledger / about，空 = 都收着）。同一时间只开一张，下次进来还是它
     @SceneStorage("settingsOpenCard") private var openCard = "look"
@@ -100,7 +102,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
             .onAppear { if openCard == "pro" { openCard = "" } }
-            .sheet(isPresented: $showingPro) { ProPaywallView() }
+            .sheet(isPresented: $showingPro) { ProPaywallView(topic: proTopic) }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sensoryFeedback(.selection, trigger: isDarkMode)
             .sensoryFeedback(.selection, trigger: heroLayout)
@@ -253,11 +255,18 @@ struct SettingsView: View {
                             }
                         }
                         DeckDivider()
-                        // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
-                        segmentRow("Assets 页面") {
+                        // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样。「钱与时间」是 Pro 的，没有 Pro 点了去购买页
+                        segmentRow("Assets 页面", pro: !ProFeatures.canUseMoneyTimeAssets) {
                             Picker("Assets 页面", selection: Binding(
-                                get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
-                                set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
+                                get: { AssetsLayout.effective(assetsLayout) },
+                                set: { newValue in
+                                    if newValue == AssetsLayout.moneyTime && !ProFeatures.canUseMoneyTimeAssets {
+                                        proTopic = .assetsView
+                                        showingPro = true
+                                        return
+                                    }
+                                    withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue }
+                                }
                             )) {
                                 Text("钱与时间").tag(AssetsLayout.moneyTime)
                                 Text("经典").tag(AssetsLayout.classic)
@@ -276,15 +285,22 @@ struct SettingsView: View {
     private var lookSummary: String {
         [isDarkMode ? "深色" : "浅色",
          heroLayout == "vertical" ? "居中" : "靠右",
-         assetsLayout == AssetsLayout.classic ? "经典" : "钱与时间"].joined(separator: " · ")
+         AssetsLayout.effective(assetsLayout) == AssetsLayout.classic ? "经典" : "钱与时间"].joined(separator: " · ")
     }
 
     /// 外观里的一行：左边名字，右边同样宽的分段按钮，三行右边缘对齐
-    private func segmentRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
-        HStack {
+    private func segmentRow<Control: View>(_ title: String, pro: Bool = false, @ViewBuilder control: () -> Control) -> some View {
+        HStack(spacing: Spacing.sm) {
             Text(title)
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(Color.ink)
+            // 和账本卡里「支出分类」旁边的标记一样
+            if pro {
+                Text("PRO")
+                    .font(.system(size: 10, design: .monospaced))
+                    .tracking(2)
+                    .foregroundStyle(Color.skyDeep)
+            }
             Spacer(minLength: Spacing.sm)
             control()
                 .pickerStyle(.segmented)
@@ -378,7 +394,10 @@ struct SettingsView: View {
     // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的价格胶囊；点了直接弹出对照表，不抽出来）
     private func proCard(depth: Int) -> some View {
         DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
-            Button { showingPro = true } label: {
+            Button {
+                proTopic = nil
+                showingPro = true
+            } label: {
                 DeckHeader(title: "FreeGrid Pro",
                            detail: detail(proUnlocked ? "全部功能已解锁" : ProFeatures.headline)) {
                     RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)

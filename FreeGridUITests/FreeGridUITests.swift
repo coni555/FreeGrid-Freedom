@@ -1192,7 +1192,7 @@ final class FreeGridUITests: XCTestCase {
     func testMoneyTimeAssetsShowsDaysTransfersAndSwitchesToClassic() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-UseInMemoryStore"]
+                               "-proPreview", "YES", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
         // 还没录钱时先打开的是现金标签
