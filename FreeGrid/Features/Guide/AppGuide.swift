@@ -71,7 +71,7 @@ final class AppGuide {
                 Step(target: .pro, text: "Pro 一次买断，不订阅。\n点「了解 Pro」，看免费版和 Pro 各有什么。"),
                 Step(target: .appearance, text: "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和 Assets 页的样式。"),
                 Step(target: .data, text: "「账本」里管支出分类和备份。\n换手机前，先在这里导出一份 JSON 备份。"),
-                Step(target: .about, text: "想再看一遍这些讲解，\n来「FreeGrid」→「使用指引」。"),
+                Step(target: .about, text: "想再看一遍这些讲解，或者查使用说明，\n都在「FreeGrid」这张卡里。"),
             ]
         case .history:
             return [

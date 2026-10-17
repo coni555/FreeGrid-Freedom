@@ -398,6 +398,36 @@ final class FreeGridUITests: XCTestCase {
         finishGuide(next, steps: 5)
     }
 
+    /// 使用说明空账本也能看：设置 → FreeGrid → 使用说明 → 一章。给了 GUIDE_SHOTS_DIR 时顺便拍图
+    @MainActor
+    func testUserManualOpensFromSettingsEvenWithAnEmptyLedger() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        let output = ProcessInfo.processInfo.environment["GUIDE_SHOTS_DIR"]
+        func shoot(_ name: String) throws {
+            guard let output else { return }
+            Thread.sleep(forTimeInterval: 0.8)
+            try XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent(name + ".png"))
+        }
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settings-card-about"].tap()
+        XCTAssertTrue(app.buttons["user-manual"].waitForExistence(timeout: 3))
+        try shoot("说明-0-FreeGrid卡")
+        app.tapSettingsRow("user-manual", inCard: "settings-card-about")
+        XCTAssertTrue(app.navigationBars["使用说明"].waitForExistence(timeout: 5))
+        try shoot("说明-1-目录")
+        for (index, name) in [(0, "怎么算"), (2, "Assets")] {
+            app.buttons["manual-chapter-\(index)"].tap()
+            XCTAssertTrue(app.navigationBars.element.waitForExistence(timeout: 3))
+            try shoot("说明-2-\(name)")
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            XCTAssertTrue(app.navigationBars["使用说明"].waitForExistence(timeout: 3))
+        }
+    }
+
     /// 各页讲解逐步截图：免费（经典 Assets）和 Pro（钱与时间）各一套，浅色。只在给了环境变量时运行。
     @MainActor
     func testCaptureGuideScreens() throws {

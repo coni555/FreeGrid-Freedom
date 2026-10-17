@@ -459,13 +459,13 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 最后一张：FreeGrid（使用指引、关于、评价）
+    // MARK: - 最后一张：FreeGrid（使用指引、使用说明、关于、评价）
     private var aboutCard: some View {
         let isOpen = openCard == "about"
         return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(4)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("about") } label: {
-                    DeckHeader(title: "FreeGrid", detail: isOpen ? nil : detail("使用指引 · 关于 · 评价"), isOpen: isOpen) {
+                    DeckHeader(title: "FreeGrid", detail: isOpen ? nil : detail("指引 · 说明 · 关于 · 评价"), isOpen: isOpen) {
                         VStack(spacing: 1.5) {
                             HStack(spacing: 1.5) { logoCell(Color.inkFaint); logoCell(Color.assetGold) }
                             HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color.inkFaint) }
@@ -481,6 +481,15 @@ struct SettingsView: View {
                     VStack(spacing: 0) {
                         DeckDivider()
                         guideRow
+                        DeckDivider()
+                        // 说明书不用圈页面上的东西，空账本也能看
+                        NavigationLink {
+                            UserManualPage()
+                        } label: {
+                            DeckRow(title: "使用说明") { EmptyView() }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("user-manual")
                         DeckDivider()
                         NavigationLink {
                             aboutPage
