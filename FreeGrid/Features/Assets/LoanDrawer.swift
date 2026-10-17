@@ -1,10 +1,11 @@
-// Pro 每月还款：资产页上和「资产」「现金」同样的抽屉。标题行是每月一共还多少，下面一行写下次哪天扣哪笔；
-// 展开后一笔贷款一行（点开编辑或删除），没扣成的那期在行下面给出处理入口。
+// 固定支出：资产页上和「资产」「现金」同样的抽屉。标题行是每月一共付多少，下面一行写下次哪天扣哪笔；
+// 展开后一笔一行（点开编辑或删除），没扣成的那期在行下面给出处理入口。
+// 房租这类固定支出免费；房贷、车贷这类带期数的贷款是 Pro，行首的色块打孔，和首页格子上的还款日同一个记号。
 
 import SwiftUI
 import SwiftData
 
-/// 经典版的还款抽屉：标题行 + `LoanRows`
+/// 经典版的固定支出抽屉：标题行 + `LoanRows`
 struct LoanDrawer: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
@@ -13,16 +14,17 @@ struct LoanDrawer: View {
 
     var body: some View {
         let summary = LoanRows.Summary(loans: loans, expenses: expenses)
-        AccountDrawer(title: "每月还款", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
-                      total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: "/月", punched: true,
-                      subtitle: loans.isEmpty ? "房贷、车贷、分期，到期自动扣" : summary.line,
+        AccountDrawer(title: "固定支出", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
+                      total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: "/月",
+                      punched: loans.contains(where: \.punchesGrid),
+                      subtitle: loans.isEmpty ? LoanRows.emptyLine : summary.line,
                       isOpen: $isOpen, headerID: "loans-drawer") {
             LoanRows()
         }
     }
 }
 
-/// 还款的各行：一笔一行（点开编辑，退款后点开问删不删），没扣成的那期在行下面给处理入口；最后是添加和说明。
+/// 固定支出的各行：一笔一行（点开编辑；贷款在退款后点开问删不删），没扣成的那期在行下面给处理入口；最后是添加和说明。
 struct LoanRows: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
@@ -32,7 +34,8 @@ struct LoanRows: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.amountUnit) private var unit
 
-    @State private var adding = false
+    @State private var adding: LoanSheet.Kind?
+    @State private var showingPro = false
     @State private var editing: Loan?
     @State private var pendingDelete: Loan?
     /// 没扣成的那一期，等用户选「从现金扣」还是「从别处还的」
@@ -45,10 +48,15 @@ struct LoanRows: View {
         var id: String { "\(loan.id)-\(dueDate.timeIntervalSince1970)" }
     }
 
-    private var canManage: Bool { ProFeatures.canManageLoans }
+    /// 能不能加、改贷款（Pro）。固定支出谁都能管
+    private var canManageLoans: Bool { ProFeatures.canManageLoans }
 
-    /// 每月一共还多少、下次哪天扣哪笔、有几期没扣成：标题行和新版「每月」里用
+    /// 还没加过时，标题下面那行
+    static let emptyLine = "房租、水电、会员，到日子自动扣"
+
+    /// 每月一共付多少、下次哪天扣哪笔、有几期没扣成：标题行和新版「每月」里用
     struct Summary {
+        /// 每 3 个月一次的折成每月
         let monthlyTotal: Double
         /// 「有 1 期没扣成，展开处理」或「下次 10月25日 扣「车贷」」
         let line: String
@@ -57,7 +65,7 @@ struct LoanRows: View {
             let payments = expenses.filter { $0.loanID != nil }
             let statuses = loans.map { LoanSchedule.status(of: $0, payments: payments, now: now) }
             let active = zip(loans, statuses).filter { !$0.1.isPaidOff }
-            monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyAmount }
+            monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyEquivalent }
             let pending = statuses.reduce(0) { $0 + $1.pending.count }
             if pending > 0 {
                 line = "有 \(pending) 期没扣成，展开处理"
@@ -78,20 +86,22 @@ struct LoanRows: View {
             ForEach(Array(zip(loans, statuses)), id: \.0.id) { loan, status in
                 loanRow(loan, status: status)
             }
-            if canManage {
-                DrawerAddRow(title: loans.isEmpty ? "添加房贷、车贷" : "添加还款", showsPro: false,
-                             identifier: "add-loan-button") { adding = true }
+            DrawerAddRow(title: "添加固定支出", showsPro: false, identifier: "add-fixed-button") { adding = .fixed }
+            DrawerAddRow(title: "添加房贷、车贷", showsPro: !canManageLoans, identifier: "add-loan-button") {
+                if canManageLoans { adding = .loan } else { showingPro = true }
             }
             if !loans.isEmpty {
-                DrawerFooter(text: canManage
-                             ? "到期那天自动从现金扣，自由天数会把每期的钱先留出来。"
-                             : "管理还款是 Pro 功能，已经加的照常自动扣。点一行可以删除。",
-                             locked: !canManage, showsActions: false)
+                let lockedLoans = !canManageLoans && loans.contains(where: \.punchesGrid)
+                DrawerFooter(text: lockedLoans
+                             ? "管理贷款是 Pro 功能，已经加的照常自动扣。点贷款那一行可以删除。"
+                             : "到日子自动从现金扣，不算进日均。自由天数会把每期的钱先留出来。",
+                             locked: lockedLoans, showsActions: false)
             }
         }
         .saveErrorAlert($saveError)
-        .sheet(isPresented: $adding) { LoanSheet(existing: nil) }
+        .sheet(item: $adding) { LoanSheet(existing: nil, kind: $0) }
         .sheet(item: $editing) { LoanSheet(existing: $0) }
+        .proPaywall(isPresented: $showingPro, topic: .loans)
         .confirmationDialog("删除「\(pendingDelete?.name ?? "")」？",
                             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                             titleVisibility: .visible, presenting: pendingDelete) { loan in
@@ -102,7 +112,7 @@ struct LoanRows: View {
             }
             Button("取消", role: .cancel) { pendingDelete = nil }
         } message: { _ in
-            Text("以后不再自动扣。已经扣过的月供留在 History。")
+            Text("以后不再自动扣。已经扣过的留在 History。")
         }
         .confirmationDialog(
             resolving.map { "\(Self.monthDay($0.dueDate))这期 ¥\(FinancialFormatting.wholeNumber($0.loan.monthlyAmount))" } ?? "",
@@ -122,23 +132,35 @@ struct LoanRows: View {
     }
 
 
-    // MARK: - 一行贷款
+    // MARK: - 一行
 
     private func loanRow(_ loan: Loan, status: LoanSchedule.Status) -> some View {
         let paidOff = status.isPaidOff
-        var detail = paidOff ? "已还清" : "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期"
+        var detail: String
+        if loan.isOngoing {
+            detail = loan.intervalMonths == 1 ? "每月 \(loan.dueDay) 日"
+                : "\(LoanSheet.intervalLabel(loan.intervalMonths)) · 下次 \(status.nextDue.map(Self.monthDay) ?? "—")"
+        } else {
+            detail = paidOff ? "已还清" : "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期"
+        }
         if !paidOff, let account = boundAccount(of: loan) { detail += " · \(account.name)" }
         return VStack(alignment: .leading, spacing: 0) {
             Hairline()
             Button {
-                if canManage { editing = loan } else { pendingDelete = loan }
+                if loan.isOngoing || canManageLoans { editing = loan } else { pendingDelete = loan }
             } label: {
                 HStack(spacing: 0) {
-                    // 和首页格子上的还款日同一个记号
-                    PunchedCell(cornerRadius: 1.5)
-                        .fill(paidOff ? Color.inkGhost : Color.cashBlue, style: FillStyle(eoFill: true))
-                        .frame(width: 9, height: 9)
-                        .frame(width: 19, alignment: .leading)
+                    // 贷款和首页格子上的还款日同一个记号；固定支出不打孔
+                    Group {
+                        if loan.punchesGrid {
+                            PunchedCell(cornerRadius: 1.5)
+                                .fill(paidOff ? Color.inkGhost : Color.cashBlue, style: FillStyle(eoFill: true))
+                        } else {
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(Color.cashBlue)
+                        }
+                    }
+                    .frame(width: 9, height: 9)
+                    .frame(width: 19, alignment: .leading)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(loan.name)
                             .font(.system(.subheadline, design: .rounded).weight(.medium))

@@ -1,7 +1,7 @@
 // Assets 新版「钱与时间」：从上到下是
 //   净值（右上角 ¥ / 天 换单位；天的时候就是自由天数）+ 按账户分段的横线；
 //   「资产 | 现金」两张标签，选中的那张和下面的面板连成一块，两张中间的圆钮是调拨；
-//   「每月」：被动收入（进）和每月还款（出）放在一起比。
+//   「每月」：被动收入（进）和固定支出、贷款（出）放在一起比。
 // 切到「天」时，整页的金额都换成「够日常花几天」。各行和增删改都用和经典版同一套 AssetRows / CashRows / LoanRows。
 
 import SwiftUI
@@ -169,20 +169,20 @@ struct MoneyTimeAssetsView: View {
         return (assets + cashParts).filter { $0.amount > 0 }
     }
 
-    /// 天的单位下，这些钱光够日常花几天（不算月供和被动收入）
+    /// 天的单位下，这些钱光够日常花几天（不算固定支出、月供和被动收入）
     private func plainDays(_ snapshot: FinancialSnapshot) -> Double? {
         guard snapshot.dailyBurn > 0 else { return nil }
         return snapshot.freedomBase / snapshot.dailyBurn
     }
 
-    /// 月供留出了几天：光够日常花的天数 − 大数字。没有这回事时为 nil
+    /// 固定支出和月供留出了几天：光够日常花的天数 − 大数字。没有这回事时为 nil
     private func reservedDays(_ snapshot: FinancialSnapshot) -> Int? {
         guard isDays, case .finite(let days) = snapshot.freedom, let plain = plainDays(snapshot) else { return nil }
         let reserved = Int(plain.rounded(.down)) - Int(max(0, days).rounded(.down))
         return reserved > 0 ? reserved : nil
     }
 
-    /// 天的单位下，横线末尾接一段淡灰：被月供留出去的那些天。实心部分的长度正好对应大数字，两边对得上
+    /// 天的单位下，横线末尾接一段淡灰：被固定支出和月供留出去的那些天。实心部分的长度正好对应大数字，两边对得上
     private func strataParts(_ snapshot: FinancialSnapshot) -> [Segment] {
         let parts = segments
         guard let reserved = reservedDays(snapshot), let plain = plainDays(snapshot), plain > 0 else { return parts }
@@ -251,7 +251,7 @@ struct MoneyTimeAssetsView: View {
         if isDays {
             guard snapshot.dailyBurn > 0 else { return "记几天账就能换算" }
             let perDay = "日均 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))"
-            if let reserved = reservedDays(snapshot) { return "月供留出 \(reserved) 天 · \(perDay)" }
+            if let reserved = reservedDays(snapshot) { return "固定支出留出 \(reserved) 天 · \(perDay)" }
             return "按\(perDay)换算"
         }
         guard netWorth != 0 else { return "点下面的资产、现金录入金额" }
@@ -391,21 +391,18 @@ struct MoneyTimeAssetsView: View {
     private func monthly(_ snapshot: FinancialSnapshot, unit: AmountUnit) -> some View {
         let income = passiveSources.reduce(0) { $0 + $1.monthlyAmount }
         let loanSummary = LoanRows.Summary(loans: loans, expenses: expenses)
-        let showsLoans = ProFeatures.canManageLoans || !loans.isEmpty
-        let outflow = showsLoans ? loanSummary.monthlyTotal : 0
+        let outflow = loanSummary.monthlyTotal
         let largest = max(income, outflow, 1)
         let net = income - outflow
         return VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
                 KickerLabel(text: "Monthly · 每月")
                 Spacer()
-                if showsLoans {
-                    Text("净 " + unit.text(abs(net), sign: net >= 0 ? "+" : "−") + " / 月")
-                        .font(.system(.footnote, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.inkMuted)
-                        .contentTransition(.numericText())
-                        .accessibilityIdentifier("monthly-net")
-                }
+                Text("净 " + unit.text(abs(net), sign: net >= 0 ? "+" : "−") + " / 月")
+                    .font(.system(.footnote, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.inkMuted)
+                    .contentTransition(.numericText())
+                    .accessibilityIdentifier("monthly-net")
             }
             .padding(.horizontal, 2)
 
@@ -420,20 +417,20 @@ struct MoneyTimeAssetsView: View {
                         .padding(.horizontal, 18)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                if showsLoans {
-                    Hairline(color: .hairlineSoft).padding(.horizontal, 18)
-                    flowRow(isOpen: $loansOpen, marker: .punched, title: "出",
-                            // 有没扣成的就说出来（收起时也得看得到），平时只写是什么
-                            caption: loans.isEmpty ? "房贷、车贷、分期"
-                                : (loanSummary.line.hasPrefix("有") ? loanSummary.line : "每月还款"),
-                            amount: unit.text(outflow, sign: "−"), amountColor: .ink,
-                            share: outflow / largest, shareColor: .cashBlue, identifier: "monthly-loans")
-                        .guideTarget(.loans, in: guide)
-                    if loansOpen {
-                        LoanRows()
-                            .padding(.horizontal, 18)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
+                Hairline(color: .hairlineSoft).padding(.horizontal, 18)
+                // 有贷款时记号打孔，和首页格子上的还款日一样；只有房租这类固定支出时不打
+                flowRow(isOpen: $loansOpen, marker: loans.contains(where: \.punchesGrid) ? .punched : .plain,
+                        title: "出",
+                        // 有没扣成的就说出来（收起时也得看得到），平时只写是什么
+                        caption: loans.isEmpty ? "房租、房贷、会员"
+                            : (loanSummary.line.hasPrefix("有") ? loanSummary.line : "固定支出"),
+                        amount: unit.text(outflow, sign: "−"), amountColor: .ink,
+                        share: outflow / largest, shareColor: .cashBlue, identifier: "monthly-loans")
+                    .guideTarget(.loans, in: guide)
+                if loansOpen {
+                    LoanRows()
+                        .padding(.horizontal, 18)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
             .padding(.bottom, Spacing.xs)
@@ -443,7 +440,7 @@ struct MoneyTimeAssetsView: View {
         }
     }
 
-    private enum Marker { case moss, punched }
+    private enum Marker { case moss, plain, punched }
 
     /// 一行：记号、进 / 出、一句说明、每月多少、展开箭头；下面一条长短条，进和出按同一个比例画
     private func flowRow(isOpen: Binding<Bool>, marker: Marker, title: String, caption: String,
@@ -458,6 +455,8 @@ struct MoneyTimeAssetsView: View {
                         switch marker {
                         case .moss:
                             RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(Color.mossGreen)
+                        case .plain:
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(Color.cashBlue)
                         case .punched:
                             PunchedCell(cornerRadius: 1.5).fill(Color.cashBlue, style: FillStyle(eoFill: true))
                         }

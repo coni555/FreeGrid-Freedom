@@ -22,7 +22,7 @@ struct DashboardView: View {
             expenses: expenses, incomes: incomes, loans: loans,
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                         assetItems: assetItems, loans: loans, countsAssets: countsAssets),
-            // 和日均比的是日常开销，自动扣的月供不算
+            // 和日均比的是日常开销，自动扣的房租、月供不算
             todaySpending: expenses.filter { $0.countsInBurn && Calendar.current.isDateInToday($0.date) }
                 .reduce(0) { $0 + $1.amount }
         )

@@ -31,19 +31,19 @@ FreeGrid is a **fully local, account-free, offline-only** expense tracker for iO
 
 That number is your **Freedom Days**. FreeGrid derives it automatically from your real records — the longer you track, the more representative it becomes. No goals or budgets are required.
 
-**The real cost of a computer:** suppose you have tracked expenses for one month, spend ¥30 per day on average, and have a net worth of ¥10,000. FreeGrid gives you **333 Freedom Days**. Now imagine buying a ¥6,000 computer. Other apps only show your balance dropping by ¥6,000; FreeGrid also spreads that purchase across your recorded time and reveals the sharper consequence:
+**The real cost of a computer:** suppose you have tracked expenses for one month, spend ¥30 per day on average, and have a net worth of ¥10,000. FreeGrid gives you **333 Freedom Days**. Now imagine buying a ¥6,000 computer. Other apps only show your balance dropping by ¥6,000; FreeGrid also spreads that purchase across your recorded time (at least three months while you have tracked less than that) and reveals the sharper consequence:
 
 | | Before Purchase | After Purchase |
 |---|---|---|
-| Average Daily Cost | ¥30 | **¥230** |
-| Freedom Days | 333 days | **17 days** |
+| Average Daily Cost | ¥30 | **about ¥97** |
+| Freedom Days | 333 days | **41 days** |
 
 You can run this scenario with **Simulate Decision** before placing the order. FreeGrid is not telling you not to spend — it is helping you **spend with clarity**.
 
 ## Three Core Ideas
 
 1. **See the real cost** — spread the hidden impact of a major purchase across your daily average, so every decision has visible weight.
-2. **Think long term** — the longer you track, the less a single purchase dominates the average. The same computer raises your daily average by ¥200 after one month, but by only about ¥10 after 600 days. Start earlier, and future big purchases become easier to absorb.
+2. **Think long term** — the longer you track, the less a single purchase dominates the average. The same computer raises your daily average by about ¥67 after one month, but by only about ¥10 after 600 days. Start earlier, and future big purchases become easier to absorb.
 3. **Earn more, spend less** — every amount earned and every expense avoided lights up more Freedom Grid cells.
 
 ```

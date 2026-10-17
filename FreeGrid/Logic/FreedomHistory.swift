@@ -58,24 +58,15 @@ extension FreedomMath {
             }
             return low
         }
-        // burn 是算日均的支出，cashOut 是全部扣过现金的支出（含月供）
-        var burnSums = Array(repeating: 0.0, count: dates.count + 1)
-        var expenseCounts = Array(repeating: 0, count: dates.count + 1)
+        // cashOut 是全部扣过现金的支出（含房租、月供），用来往回推现金；日均只看 burnEntries
         var cashOutSums = Array(repeating: 0.0, count: dates.count + 1)
         var incomeSums = Array(repeating: 0.0, count: dates.count + 1)
-        var totalExpenses = 0.0
-        var hasBurnExpenses = false
         for expense in expenses {
             let amount = expense.amount
             guard amount.isFinite else { return [] }
-            let index = bucket(for: expense.date)
-            cashOutSums[index] += amount
-            guard expense.countsInBurn else { continue }
-            burnSums[index] += amount
-            expenseCounts[index] += 1
-            totalExpenses += amount
-            hasBurnExpenses = true
+            cashOutSums[bucket(for: expense.date)] += amount
         }
+        let burnEntries = burnEntries(expenses)
         for income in incomes {
             let amount = income.amount
             guard amount.isFinite else { return [] }
@@ -95,25 +86,20 @@ extension FreedomMath {
         }
 
         let payments = loans.isEmpty ? [] : expenses.filter { $0.loanID != nil }
-        var spent = 0.0
-        var count = 0
         return dates.indices.map { index in
-            spent += burnSums[index]
-            count += expenseCounts[index]
-            // 终点与 FinancialSnapshot 使用同一累计顺序，避免浮点累加顺序造成差异。
+            // 终点用全部记录（含时钟调快时记下的未来日期），和 FinancialSnapshot 一分不差
             let isCurrent = index == dates.count - 1
-            let expenseTotal = isCurrent ? totalExpenses : spent
+            let entries = isCurrent ? burnEntries : burnEntries.filter { $0.date < boundaries[index] }
             let netWorth = isCurrent ? currentNetWorth
                 : currentNetWorth + expensesAfter[index] - incomesAfter[index]
-            let burn = dailyBurn(totalExpenses: expenseTotal,
-                                 trackDays: trackDays(firstRecordDate: firstDay, now: dates[index], calendar: calendar))
+            let burn = burnEstimate(entries, now: dates[index], calendar: calendar).dailyBurn
             let plan = loans.isEmpty ? LoanSchedule.Plan() : LoanSchedule.plan(
                 loans: loans,
                 payments: payments.filter { $0.date < boundaries[index] },
                 now: dates[index], calendar: calendar)
             return HistoryPoint(date: dates[index], state: freedomRun(
                 netWorth: netWorth, dailyBurn: burn, dailyPassive: dailyPassive,
-                hasExpenses: isCurrent ? hasBurnExpenses : count > 0, loans: plan
+                hasExpenses: !entries.isEmpty, loans: plan
             ).state, isFloored: netWorth < 0)
         }
     }

@@ -32,10 +32,16 @@ struct FinancialSnapshot {
     let firstExpenseDate: Date?
     let trackDays: Int
     let dailyBurn: Double
+    /// 记账不满 90 天、有大额支出被摊开算时，摊开的那几笔加起来是多少；否则是 0（见 `FreedomMath.burnEstimate`）
+    let spreadLumps: Double
+    /// 算日均的那些支出。记一笔的预览要在它上面加一笔重新估日均
+    let burnEntries: [FreedomMath.BurnEntry]
     let dailyPassive: Double
     let hasExpenses: Bool
-    /// Pro 每月还款：今天之后要扣的月供。没有贷款时为空，自由天数和以前一分不差
+    /// 固定支出和贷款：今天之后要扣的钱。没有时为空，自由天数和以前一分不差
     let loanPlan: LoanSchedule.Plan
+    /// 固定支出和还没还清的贷款折成每天多少（每月 ÷ 30，和被动收入同一个折法）
+    let dailyFixed: Double
     let now: Date
 
     var netWorth: Double { lockedAssets + cash }
@@ -55,10 +61,12 @@ struct FinancialSnapshot {
         guard uncountedAssets > 0 else { return nil }
         return countedAssets > 0 ? "部分资产未计入" : "资产未计入"
     }
+    /// 被动收入能盖住多少开销：日常开销加上固定支出和月供。只比日常会在有房租、贷款时虚高
     var passiveRatio: Double {
-        FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyBurn)
+        FreedomMath.passiveRatio(dailyPassive: dailyPassive,
+                                 dailyBurn: dailyBurn.isFinite ? dailyBurn + dailyFixed : dailyBurn)
     }
-    /// 有贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」
+    /// 有固定支出或贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」
     var freedomRun: FreedomMath.FreedomRun {
         FreedomMath.freedomRun(
             netWorth: freedomBase, dailyBurn: dailyBurn,
@@ -68,7 +76,7 @@ struct FinancialSnapshot {
     var freedom: FreedomState { freedomRun.state }
 
     /// `assetItems` 只用来知道哪些项不计入；资产总数仍以 `assets.lockedAssets` 为准。
-    /// 日均消费只算 `countsInBurn` 的支出：自动扣的月供和确认过的旧月供扣了现金，但不算日常开销。
+    /// 日均消费只算 `countsInBurn` 的支出：自动扣的房租、月供和确认过的旧记录扣了现金，但不算日常开销。
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
          assetItems: [AssetItem] = [], loans: [Loan] = [], now: Date = .now,
          countsAssets: Bool = FreedomSettings.countsAssets) {
@@ -76,14 +84,17 @@ struct FinancialSnapshot {
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0
-        let burnExpenses = expenses.filter(\.countsInBurn)
-        totalExpenses = burnExpenses.reduce(0) { $0 + $1.amount }
-        firstExpenseDate = FreedomMath.earliestExpenseDate(burnExpenses)
-        trackDays = FreedomMath.trackDays(firstRecordDate: firstExpenseDate, now: now)
-        dailyBurn = FreedomMath.dailyBurn(totalExpenses: totalExpenses, trackDays: trackDays)
+        burnEntries = FreedomMath.burnEntries(expenses)
+        let burn = FreedomMath.burnEstimate(burnEntries, now: now)
+        totalExpenses = burn.total
+        firstExpenseDate = burn.firstDate
+        trackDays = burn.trackDays
+        dailyBurn = burn.dailyBurn
+        spreadLumps = burn.spreadLumps
         dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-        hasExpenses = !burnExpenses.isEmpty
+        hasExpenses = !burnEntries.isEmpty
         loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
+        dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now) / 30
         self.now = now
     }
 }

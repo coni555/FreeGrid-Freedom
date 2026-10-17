@@ -1,11 +1,25 @@
-// Pro 每月还款：新增或编辑一笔贷款。只填名称、月供、每月几号还、还剩几期（拆了现金账户时多一项：从哪个账户扣）；
-// 期数下面实时写出最后一期是哪天，方便核对。账本里有金额正好等于月供的旧支出时，问一句是不是以前记的月供。
+// 新增或编辑一笔固定支出或贷款（拆了现金账户时多一项：从哪个账户扣）。
+// - 固定支出（免费）：名称、每次多少、多久一次、下次哪天付。下面写出之后哪天扣，方便核对。
+// - 贷款（Pro）：名称、月供、每月几号还、还剩几期。期数下面实时写出最后一期是哪天。
+// 账本里有金额正好等于这一期的旧支出时，问一句是不是以前记的。
 
 import SwiftUI
 import SwiftData
 
 struct LoanSheet: View {
+    enum Kind: Identifiable {
+        case fixed, loan
+        var id: Self { self }
+    }
+
     let existing: Loan?
+    let kind: Kind
+
+    /// 编辑时按记录本身的类型；新增时由入口决定
+    init(existing: Loan?, kind: Kind = .loan) {
+        self.existing = existing
+        self.kind = existing.map { $0.isOngoing ? .fixed : .loan } ?? kind
+    }
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +32,9 @@ struct LoanSheet: View {
     @State private var monthly = ""
     @State private var dueDay = Calendar.current.component(.day, from: .now)
     @State private var periods = ""
+    /// 固定支出：隔几个月一次、下次哪天付
+    @State private var intervalMonths = 1
+    @State private var nextDue = LoanSheet.defaultNextDue
     /// 月供固定从哪个账户扣；nil = 按扣款顺序
     @State private var cashAccountID: UUID?
     @State private var confirmingDelete = false
@@ -28,6 +45,7 @@ struct LoanSheet: View {
     @FocusState private var focus: Field?
 
     private var isEditing: Bool { existing != nil }
+    private var isFixed: Bool { kind == .fixed }
 
     var body: some View {
         NavigationStack {
@@ -36,7 +54,7 @@ struct LoanSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         KickerLabel(text: "名称")
                         UnderlinedField(isFocused: focus == .name) {
-                            TextField("房贷、车贷…", text: $name)
+                            TextField(isFixed ? "房租、水电、会员…" : "房贷、车贷…", text: $name)
                                 .font(.system(.title3, design: .rounded))
                                 .foregroundStyle(Color.ink)
                                 .focused($focus, equals: .name)
@@ -47,7 +65,7 @@ struct LoanSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "每月还多少")
+                        KickerLabel(text: isFixed ? (intervalMonths == 1 ? "每月付多少" : "每次付多少") : "每月还多少")
                         UnderlinedField(isFocused: focus == .monthly) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("¥")
@@ -64,6 +82,7 @@ struct LoanSheet: View {
                         }
                     }
 
+                    if isFixed { fixedScheduleFields } else {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack(alignment: .top, spacing: Spacing.xl) {
                         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -119,13 +138,14 @@ struct LoanSheet: View {
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
                     }
+                    }
 
                     if !cashAccounts.isEmpty { accountField }
 
                     if !candidates.isEmpty { candidatesSection }
 
                     if isEditing {
-                        Button("删除这笔还款") { confirmingDelete = true }
+                        Button(isFixed ? "删除这笔固定支出" : "删除这笔还款") { confirmingDelete = true }
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.flame)
                             .buttonStyle(.plain)
@@ -136,7 +156,7 @@ struct LoanSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
-            .navigationTitle(isEditing ? "编辑每月还款" : "添加每月还款")
+            .navigationTitle(title)
             .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -156,12 +176,102 @@ struct LoanSheet: View {
                 Button("删除", role: .destructive) { delete() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("以后不再自动扣。已经扣过的月供留在 History。")
+                Text("以后不再自动扣。已经扣过的留在 History。")
             }
             .onChange(of: monthly) { excluded = Set(candidates.filter { !$0.countsInBurn }.map(\.id)) }
         }
         .saveErrorAlert($saveError)
         .iosSheetDetents()
+    }
+
+    private var title: String {
+        switch (isFixed, isEditing) {
+        case (true, true): return "编辑固定支出"
+        case (true, false): return "添加固定支出"
+        case (false, true): return "编辑每月还款"
+        case (false, false): return "添加每月还款"
+        }
+    }
+
+    // MARK: - 固定支出：多久一次、下次哪天
+
+    /// 默认下个月的今天
+    static var defaultNextDue: Date {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .month, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+    }
+
+    private var nextDueRange: ClosedRange<Date> {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        return tomorrow...(calendar.date(byAdding: .year, value: 1, to: today) ?? tomorrow)
+    }
+
+    static func intervalLabel(_ months: Int) -> String {
+        switch months {
+        case 1: return "每月"
+        case 6: return "每半年"
+        case 12: return "每年"
+        default: return "每 \(months) 个月"
+        }
+    }
+
+    private var fixedScheduleFields: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .top, spacing: Spacing.xl) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    KickerLabel(text: "多久一次")
+                    UnderlinedField(isFocused: false) {
+                        Menu {
+                            Picker("多久一次", selection: $intervalMonths) {
+                                ForEach(LoanSchedule.intervals, id: \.self) { Text(Self.intervalLabel($0)).tag($0) }
+                            }
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(Self.intervalLabel(intervalMonths))
+                                    .font(.system(.title3, design: .rounded))
+                                    .foregroundStyle(Color.ink)
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Color.inkFaint)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .menuIndicator(.hidden)
+                        .accessibilityIdentifier("fixed-interval-picker")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    KickerLabel(text: "下次哪天付")
+                    UnderlinedField(isFocused: false) {
+                        HStack {
+                            DatePicker("下次哪天付", selection: $nextDue, in: nextDueRange, displayedComponents: .date)
+                                .labelsHidden()
+                                .tint(Color.skyDeep)
+                                // 和 App 里其他日期一样写中文，不跟系统语言
+                                .environment(\.locale, Locale(identifier: "zh_CN"))
+                                .accessibilityIdentifier("fixed-next-due")
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Text(scheduleText)
+                .font(.system(.caption, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.inkMuted)
+                .accessibilityIdentifier("fixed-schedule")
+        }
+    }
+
+    /// 「之后每月 5 日自动扣，不算进日均」
+    private var scheduleText: String {
+        let day = Calendar.current.component(.day, from: nextDue)
+        let when = intervalMonths == 1 ? "每月 \(day) 日" : "\(Self.intervalLabel(intervalMonths))的 \(day) 日"
+        return "到日子自动从现金扣，之后\(when)一次，不算进日均"
     }
 
     // MARK: - 从哪个账户扣
@@ -216,7 +326,7 @@ struct LoanSheet: View {
                 focus = nil
             } label: {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("找到 \(candidates.count) 笔 ¥\(FinancialFormatting.wholeNumber(Double(monthly) ?? 0)) 的支出，是以前记的月供吗？")
+                    Text("找到 \(candidates.count) 笔 ¥\(FinancialFormatting.wholeNumber(Double(monthly) ?? 0)) 的支出，是以前记的\(isFixed ? "吗" : "月供吗")？")
                         .font(.system(.footnote, design: .rounded))
                         .foregroundStyle(Color.ink)
                         .multilineTextAlignment(.leading)
@@ -295,7 +405,7 @@ struct LoanSheet: View {
     private var isValid: Bool {
         (try? LoanStore.cleanName(name)) != nil
             && Double(monthly).map { FinancialFormatting.validAmount($0) } == true
-            && periodCount != nil
+            && (isFixed || periodCount != nil)
     }
 
     private func load() {
@@ -308,18 +418,32 @@ struct LoanSheet: View {
             // 指定的账户后来删了，就当没指定
             cashAccountID = cashAccounts.contains { $0.id == existing.cashAccountID } ? existing.cashAccountID : nil
             let status = LoanSchedule.status(of: existing, payments: expenses)
-            periods = String(max(1, status.remaining))
+            if existing.isOngoing {
+                intervalMonths = existing.intervalMonths
+                // 下次付款日过了一年的范围（理论上不会）就退回默认
+                if let next = status.nextDue, nextDueRange.contains(next) { nextDue = next }
+            } else {
+                periods = String(max(1, status.remaining))
+            }
         }
         excluded = Set(candidates.filter { !$0.countsInBurn }.map(\.id))
         focus = isEditing ? nil : .name
     }
 
     private func save() {
-        guard isValid, let value = Double(monthly), let count = periodCount else { return }
+        guard isValid, let value = Double(monthly) else { return }
+        let account = cashAccounts.isEmpty ? nil : cashAccountID
         do {
-            try LoanStore.save(existing, name: name, monthlyAmount: value, dueDay: dueDay, remaining: count,
-                               cashAccountID: cashAccounts.isEmpty ? nil : cashAccountID,
-                               pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
+            if isFixed {
+                try LoanStore.saveFixed(existing, name: name, amount: value, intervalMonths: intervalMonths,
+                                        nextDue: nextDue, cashAccountID: account,
+                                        pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
+            } else {
+                guard let count = periodCount else { return }
+                try LoanStore.save(existing, name: name, monthlyAmount: value, dueDay: dueDay, remaining: count,
+                                   cashAccountID: account,
+                                   pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
+            }
             dismiss()
         } catch {
             saveError = error.localizedDescription

@@ -251,6 +251,8 @@ nonisolated struct ValidatedImport: Sendable {
         let sortOrder: Int?
         let createdAt: Date?
         var cashAccountID: UUID? = nil
+        var isOngoing = false
+        var intervalMonths = 1
     }
 
     struct ExpenseCategoryRecord: Sendable, Equatable {
@@ -560,22 +562,32 @@ nonisolated enum ImportValidator {
             if let id, !seenLoanIDs.insert(id).inserted {
                 throw ImportValidationError.duplicateLoanID
             }
+            let isOngoing = raw.isOngoing ?? false
+            let intervalMonths = raw.intervalMonths ?? 1
             guard (1...31).contains(raw.dueDay),
-                  (0...FinancialLimits.loanPeriods).contains(raw.periodsAtStart) else {
+                  (0...FinancialLimits.loanPeriods).contains(raw.periodsAtStart),
+                  isOngoing ? LoanSchedule.intervals.contains(intervalMonths) : intervalMonths == 1 else {
                 throw ImportValidationError.invalidLoan
             }
+            // 固定支出的起算日是「下次付款日的前一天」，最多在一年以后
+            let startDate = try day(raw.startDate, field: "每月还款起算日期",
+                                    now: isOngoing ? Calendar.current.date(byAdding: .day, value: 400, to: now) ?? now : now)
             return ValidatedImport.LoanRecord(
                 id: id,
                 name: name,
                 monthlyAmount: try amount(raw.monthlyAmount, field: "月供", allowsZero: false, policy: policy),
                 dueDay: raw.dueDay,
                 periodsAtStart: raw.periodsAtStart,
-                startDate: try day(raw.startDate, field: "每月还款起算日期", now: now),
-                processedThrough: try raw.processedThrough.map { try day($0, field: "每月还款处理日期", now: now) },
+                startDate: startDate,
+                processedThrough: try raw.processedThrough.map {
+                    try day($0, field: "每月还款处理日期", now: max(now, startDate))
+                },
                 settledDates: try (raw.settledDates ?? []).map { try day($0, field: "每月还款已还日期", now: now) },
                 sortOrder: raw.sortOrder,
                 createdAt: try raw.createdAt.map { try timestamp($0, field: "每月还款创建时间", now: now) },
-                cashAccountID: try identifier(raw.cashAccountId, field: "每月还款扣款账户")
+                cashAccountID: try identifier(raw.cashAccountId, field: "每月还款扣款账户"),
+                isOngoing: isOngoing,
+                intervalMonths: intervalMonths
             )
         }
 

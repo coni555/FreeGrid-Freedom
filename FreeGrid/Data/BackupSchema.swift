@@ -160,8 +160,8 @@ nonisolated struct BackupEnvelope: Codable {
         }
     }
 
-    /// Pro 每月还款。可选字段：没有贷款时不写，旧版本读到也只会忽略它。
-    /// 已经扣过的月供是普通支出（带 `loan_id`），不在这里。
+    /// 固定支出和贷款。可选字段：都没有时不写，旧版本读到也只会忽略它。
+    /// 已经扣过的是普通支出（带 `loan_id`），不在这里。
     struct LoanJSON: Codable {
         let id: String?
         let name: String
@@ -175,10 +175,15 @@ nonisolated struct BackupEnvelope: Codable {
         let createdAt: String?
         /// Pro 现金账户：月供固定从哪个账户扣。可选：没指定时不写
         let cashAccountId: String?
+        /// 固定支出（一直有）。只在为真时写；没有这个字段的都是贷款
+        let isOngoing: Bool?
+        /// 隔几个月一次。只在不是 1 时写
+        let intervalMonths: Int?
 
         init(id: String? = nil, name: String, monthlyAmount: Double, dueDay: Int, periodsAtStart: Int,
              startDate: String, processedThrough: String? = nil, settledDates: [String]? = nil,
-             sortOrder: Int? = nil, createdAt: String? = nil, cashAccountId: String? = nil) {
+             sortOrder: Int? = nil, createdAt: String? = nil, cashAccountId: String? = nil,
+             isOngoing: Bool? = nil, intervalMonths: Int? = nil) {
             self.id = id
             self.name = name
             self.monthlyAmount = monthlyAmount
@@ -190,6 +195,8 @@ nonisolated struct BackupEnvelope: Codable {
             self.sortOrder = sortOrder
             self.createdAt = createdAt
             self.cashAccountId = cashAccountId
+            self.isOngoing = isOngoing
+            self.intervalMonths = intervalMonths
         }
     }
 

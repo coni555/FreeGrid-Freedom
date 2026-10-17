@@ -14,7 +14,7 @@ struct ClassicAssetsView: View {
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]             // Pro 现金账户
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
-    private var loans: [Loan]                           // Pro 每月还款
+    private var loans: [Loan]                           // 固定支出和贷款
     @Environment(\.modelContext) private var modelContext
     /// 起步引导要圈出现金卡
     @Environment(AppGuide.self) private var guide
@@ -55,10 +55,8 @@ struct ClassicAssetsView: View {
                         CashDrawer()
                     }
                     .guideTarget(.buckets, in: guide)
-                    if ProFeatures.canManageLoans || !loans.isEmpty {
-                        LoanDrawer()
-                            .guideTarget(.loans, in: guide)
-                    }
+                    LoanDrawer()
+                        .guideTarget(.loans, in: guide)
                     passiveCard
                         .guideTarget(.passive, in: guide)
                 }

@@ -255,7 +255,9 @@ enum DataIO {
                     settledDates: $0.settledDates.isEmpty ? nil : $0.settledDates.sorted().map { day.string(from: $0) },
                     sortOrder: $0.sortOrder,
                     createdAt: iso.string(from: $0.createdAt),
-                    cashAccountId: $0.cashAccountID?.uuidString
+                    cashAccountId: $0.cashAccountID?.uuidString,
+                    isOngoing: $0.isOngoing ? true : nil,
+                    intervalMonths: $0.intervalMonths == 1 ? nil : $0.intervalMonths
                 )
             },
             expenseCategories: categoryOptions.map { options in
@@ -764,7 +766,8 @@ enum DataIO {
             }).map(\.element) {
                 let loan = Loan(name: record.name, monthlyAmount: record.monthlyAmount, dueDay: record.dueDay,
                                 periodsAtStart: record.periodsAtStart, startDate: record.startDate,
-                                sortOrder: nextLoanOrder)
+                                sortOrder: nextLoanOrder, isOngoing: record.isOngoing,
+                                intervalMonths: record.intervalMonths)
                 nextLoanOrder += 1
                 if let id = record.id { loan.id = id }
                 loan.processedThrough = record.processedThrough

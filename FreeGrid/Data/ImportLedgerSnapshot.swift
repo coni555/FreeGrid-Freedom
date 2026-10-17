@@ -130,6 +130,8 @@ struct ImportLedgerSnapshot: Equatable {
         let processedThrough: Date?
         let settledDates: [Date]
         let sortOrder: Int
+        let isOngoing: Bool
+        let intervalMonths: Int
 
         init(_ record: Loan) {
             id = record.id
@@ -141,6 +143,8 @@ struct ImportLedgerSnapshot: Equatable {
             processedThrough = record.processedThrough
             settledDates = record.settledDates
             sortOrder = record.sortOrder
+            isOngoing = record.isOngoing
+            intervalMonths = record.intervalMonths
         }
     }
 

@@ -55,7 +55,7 @@ struct AddExpenseSheet: View {
                     Text("金额 (元)")
                 } footer: {
                     if looksLikeRepayment {
-                        Text("月供会在到期日自动扣，不用再记")
+                        Text("这笔会在到期日自动扣，不用再记")
                             .font(.system(.caption2, design: .rounded))
                             .accessibilityIdentifier("repayment-hint")
                     }
@@ -144,11 +144,11 @@ struct AddExpenseSheet: View {
                            picked: $pickedAccount)
     }
 
-    /// 金额等于某笔贷款的月供、日期离它的还款日不超过 3 天：多半是在手动记月供
+    /// 金额等于某笔固定支出或月供、日期离它的到期日不超过 3 天：多半是在手动记它
     private var looksLikeRepayment: Bool {
         guard let value = Double(amount), FinancialFormatting.validAmount(value) else { return false }
         return loans.contains {
-            abs($0.monthlyAmount - value) < 0.005 && LoanSchedule.isNearDueDate(date, dueDay: $0.dueDay)
+            abs($0.monthlyAmount - value) < 0.005 && LoanSchedule.isNearDueDate(date, of: $0)
         }
     }
 

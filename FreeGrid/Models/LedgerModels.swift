@@ -224,11 +224,15 @@ final class CashAccount: Identifiable {
 }
 
 // ============================================================================
-// MARK: - Loan (Pro 每月还款)
+// MARK: - Loan (固定支出与贷款)
 // ============================================================================
-// 房贷、车贷这类按月固定还的钱。到期那天自动从现金扣（扣款是一笔 `loanID` 指向它的支出），
-// 自由天数按日历往后推：每天扣日常开销，到还款日再扣月供（见 `LoanSchedule`）。
+// 隔一段时间固定付一次的钱。两种：
+// - 固定支出（`isOngoing`）：房租、保险、订阅，没有尽头，可以每 1/2/3/6/12 个月一次。免费。
+// - 贷款：房贷、车贷、分期，每月一次、还剩几期（Pro）。只有贷款在首页格子上打孔。
+// 到期那天自动从现金扣（扣款是一笔 `loanID` 指向它的支出），
+// 自由天数按日历往后推：每天扣日常开销，到期日再扣这笔钱（见 `LoanSchedule`）。
 // 还了几期、还剩几期、哪期没扣成，都由扣款记录推出来，不另存计数。
+// 类型名沿用最早的「Loan」，SwiftData 和备份都认这个名字。
 
 @Model
 final class Loan: Identifiable {
@@ -237,16 +241,23 @@ final class Loan: Identifiable {
     /// 1–20 个字符，例如「房贷」
     var name: String = ""
 
-    /// 每月还多少(元)，> 0
+    /// 每期付多少(元)，> 0。字段名是贷款时代留下的；固定支出每 3 个月一次时，这里是 3 个月付的那一笔
     var monthlyAmount: Double = 0
 
-    /// 每月几号还，1–31。当月没有这一天时按月底
+    /// 几号付，1–31。当月没有这一天时按月底
     var dueDay: Int = 1
 
-    /// 从 `startDate` 之后算起一共几期（后来扣掉的也算在内）。还剩几期 = 它 − 已经还了的
+    /// 贷款：从 `startDate` 之后算起一共几期（后来扣掉的也算在内）。还剩几期 = 它 − 已经还了的。固定支出是 0
     var periodsAtStart: Int = 0
 
-    /// 添加那天的零点；改了还款日或期数会重新从改的那天算。这一天及以前的到期日都不归它管
+    /// 固定支出：一直有，没有期数。旧库和旧备份里的都是贷款，升级后为 false
+    var isOngoing: Bool = false
+
+    /// 隔几个月付一次：1、2、3、6、12。贷款恒为 1
+    var intervalMonths: Int = 1
+
+    /// 这一天及以前的到期日都不归它管。贷款是添加（或改了还款日、期数）那天的零点；
+    /// 固定支出是用户填的「下次哪天付」的前一天，所以可能在未来，到期日从那天往后每隔 `intervalMonths` 个月一次
     var startDate: Date = Date.now
 
     /// 自动扣款已经处理到的最后一个到期日。在它之后的到期日还没尝试过
@@ -262,12 +273,14 @@ final class Loan: Identifiable {
     var createdAt: Date = Date.now
 
     init(name: String, monthlyAmount: Double, dueDay: Int, periodsAtStart: Int,
-         startDate: Date, sortOrder: Int) {
+         startDate: Date, sortOrder: Int, isOngoing: Bool = false, intervalMonths: Int = 1) {
         self.id = UUID()
         self.name = name
         self.monthlyAmount = monthlyAmount
         self.dueDay = dueDay
         self.periodsAtStart = periodsAtStart
+        self.isOngoing = isOngoing
+        self.intervalMonths = intervalMonths
         self.startDate = startDate
         self.processedThrough = startDate
         self.settledDates = []

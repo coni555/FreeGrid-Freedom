@@ -47,9 +47,9 @@ FreeGrid/
 | `PassiveSource` | 持续的月均被动收入源 | `monthlyAmount` 每月金额 |
 | `Device` | 旧账里的持有物/设备 | 价格、购买日期、卖出信息；目前通过备份保留 |
 | `AssetItem` | Pro：资产桶里的一项（房、车、定期…） | `name` 名称（1–20 字）、`amount` 金额、`sortOrder` 顺序、`countsInFreedom` 自由天数开关 |
-| `Loan` | Pro：每月还款（房贷、车贷） | `monthlyAmount` 月供、`dueDay` 每月几号、`periodsAtStart` 起算时的期数、`startDate` 起算日、`processedThrough` 自动扣到哪天、`settledDates` 从别处还的到期日 |
+| `Loan` | 固定支出（房租、保险、订阅，免费）和贷款（房贷、车贷，Pro） | `monthlyAmount` 每期金额、`dueDay` 几号、`isOngoing` 是不是没有尽头的固定支出、`intervalMonths` 隔几个月一次（贷款恒为 1）、`periodsAtStart` 贷款起算时的期数（固定支出是 0）、`startDate` 起算日（固定支出是「下次付款日」的前一天，可能在未来）、`processedThrough` 自动扣到哪天、`settledDates` 从别处付的到期日 |
 
-`Expense` 的 `loanID` 指向贷款时，这笔是到期自动扣的月供；`countsInBurn` 为 false 的支出扣过现金，但不算进日均消费（自动扣的月供，和用户确认过「以前记的月供」）。
+`Expense` 的 `loanID` 指向 `Loan` 时，这笔是到期自动扣的房租或月供；`countsInBurn` 为 false 的支出扣过现金，但不算进日均消费（自动扣的，和用户确认过「以前记的」）。
 
 `id` 是记录的身份证；`date` 是这笔钱发生的日期；`createdAt` 是创建记录的时间。补录去年消费时，后两者不同。
 
@@ -60,7 +60,7 @@ FreeGrid/
 ```mermaid
 flowchart TD
     A[支出记录] --> B[总支出与最早支出日期]
-    B --> C[日均消费 = 总支出 ÷ 追踪天数]
+    B --> C[日均消费 = 总支出 ÷ 追踪天数（不满 90 天时大额按 90 天摊）]
     D[月均被动收入源] --> E[日均被动收入 = 月金额 ÷ 30 后相加]
     F[资产桶 + 现金桶] --> G[净值]
     C --> H[自由天数 = 净值 ÷ 每日净消耗]
@@ -70,6 +70,8 @@ flowchart TD
 ```
 
 [FreedomMath](FreeGrid/Logic/FreedomMath.swift) 负责这些规则。追踪天数从最早一笔支出算到今天，包含今天；只有收入或资产时，还没有消费基线。
+
+日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额，要同时达到「有花销的日子每天合计的中位数」和「其余支出的日均」的 30 倍）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。
 
 自由状态有四种，代码用 `FreedomState` 区分：
 
@@ -139,10 +141,11 @@ flowchart TD
 | 两版共用的各行（增删改、拖动排序、退款后只读、弹窗） | `Features/Assets/AccountDrawers.swift`（`AssetRows`、`CashRows`，以及经典版的抽屉外壳 `AssetDrawer`、`CashDrawer`）、`LoanDrawer.swift`（`LoanRows`）、`MoneyTimeAssetsView.swift` 里的 `PassiveRows`。行里的金额按环境值 `amountUnit` 写成钱或天 |
 | 资产逐项记录（Pro）：新增/编辑/删除一项 | `Features/Assets/AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
 | 现金账户（Pro）：新增/编辑/删除、扣款顺序、记账时选账户 | `Features/Assets/CashAccountSheet.swift`、`Features/Transactions/CashAccountSection.swift` → `Data/CashAccountStore.swift`；调拨 → `Data/TransferStore.swift` |
-| 每月还款（Pro）：Assets 里的还款卡、添加表单、没扣成的那期 | `Features/Assets/AssetsView.swift`（`loansCard`）、`LoanSheet.swift` → `Data/LoanStore.swift` |
+| 固定支出（免费）和每月还款（Pro）：Assets 里的「固定支出」抽屉、添加表单、没扣成的那期 | `Features/Assets/LoanDrawer.swift`（`LoanDrawer`、`LoanRows`）、`LoanSheet.swift`（`Kind.fixed` / `.loan`）→ `Data/LoanStore.swift`（`saveFixed` / `save`） |
 | 设置页（一叠卡：自检、自由卡、外观、账本、Pro、FreeGrid；点卡头抽出，同一时间只开一张） | `Features/Settings/SettingsView.swift` 摆卡和每张卡的内容；卡、卡头、读数、主题小胶囊、行的样子在 `SettingsDeck.swift` |
 | 自由卡（Pro 分享）：卡面、竖版海报、卡片页，三个入口 | `Features/FreedomCard/FreedomCardView.swift`（材质 `FreedomCardMaterial`、卡面、海报）、`FreedomCardSheet.swift`（晃手机的光、等级、昵称、`ImageRenderer` 导出分享）；等级、卡面数据、首页只提示一次的规则在 `Logic/FreedomCard.swift`。入口：设置页那叠卡的第二张、首页大数字下的升级提示、长按首页大数字 |
 | 到期日、还了几期、按日历推演自由天数 | `Logic/LoanSchedule.swift`（`LoanSchedule.status`、`plan`、`FreedomMath.freedomRun`） |
+| 日均消费怎么估（大额摊开） | `Logic/DailyBurn.swift`（`FreedomMath.burnEstimate`） |
 | 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
@@ -172,6 +175,8 @@ Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 
 **现金账户（Pro）** 和资产项是同一套做法：模型 `CashAccount`，写入走 `Data/CashAccountStore.swift`，不变量是「只要有账户，`UserAssets.cash` 等于各账户余额之和」。账户的先后（`sortOrder`）就是扣款顺序。输入——记支出、记收入、改账的表单里多一行 `CashAccountSection`（没拆账户时不出现）：支出默认按顺序挑第一个单独够付的账户（`CashAccountStore.payer`，都不够就扣第一个、扣成负数），收入默认进上次用过的账户（偏好 `lastIncomeCashAccountID`）；保存——`LedgerStore.add / undo / edit` 和月供扣款都调 `CashAccountStore.applyCashChange`，把这笔记在哪个账户写进 `Expense.cashAccountID` / `Income.cashAccountID`，撤销时退回原账户（账户删了就退回第一个），改账换账户时整笔挪过去；`LedgerStore.updateAssets` 会连各账户余额一起保留和恢复，所以任何动现金的路径失败都整体回滚。月供到期时要有一个账户单独够付才自动扣（每笔只从一个账户扣），否则留着等用户处理。调拨统一走 `TransferStore`：资产项、现金账户、或没拆的总数之间任意两处挪钱。备份：可选字段 `cash_accounts`、支出和收入上的可选 `cash_account_id`，没拆账户时都不写；导入时各账户之和必须等于现金桶；「替换」整体换账户，「加到现金」加进第一个账户。
 
 **资产自由天数开关** 沿这条路径工作：资产没拆分时，总开关就是资产抽屉里那一行前面的方格，把偏好 `countAssetsInFreedom` 写进本机（默认开，不进备份）；拆成多项（Pro）后每一项前面的方格就是它的「计入自由天数」（`AssetItemStore.setCountsInFreedom`，编辑表单里也有同一个开关），总开关不再参与——`FinancialSnapshot` 在有资产项时把 `countsAssets` 当成开。拆分、合并、删到一项不剩、导入带资产项时，资产页和数据管理页顺手把偏好拨回合适的值；早期开发版里「拆过但总开关关着」的旧状态在启动时由 `adoptSwitchOff` 交给各项。`FinancialSnapshot` 计算 `countedAssets` 与 `uncountedAssets`：没拆分且总开关关闭时全部资产不计入，提示「资产未计入」；有资产项关掉时，只将关掉的项从自由天数底数扣除，净值不变，首页图例旁提示「部分资产未计入」，调拨选择未计入项时也会给出预警。首页大数字、格子、趋势、交易影响预览（`TransactionImpact.newFreedomBase`）、模拟和自检（`FreedomChecklist`）统一使用 `freedomBase`。关掉后趋势的起点如果是从现金往回推得负数、被压成 0 的，摘要行不写「0 天 →」（`FreedomMath.trendSummaryText`）。没计入的资产不画在格子里，只在图例旁用一行字说明。
+
+**固定支出（免费）** 和每月还款共用下面这条路径，区别只在：`LoanSheet(kind: .fixed)` 填名称、每次多少、多久一次（每 1/2/3/6/12 个月）、下次哪天付（明天到一年内），保存走 `LoanStore.saveFixed`，`isOngoing = true`，`startDate` 设成下次付款日的前一天；改了下次付款日或周期从新日子重新起算，没扣成的旧期不再追。到期日没有尽头：`LoanSchedule.status` 只往后列 400 天，推演时 `Plan.recurring` 按需往后展开（`Plan.events(through:)`）。`freedomRun` 判断已覆盖时把固定支出折成每天算进去：算上以后每天净消耗仍 ≤ 0、推过贷款最后一期再两年都付得起才是 ∞；> 0 就一路推，100 年后还有钱也算 ∞。固定支出的扣款日不打孔（`Event.punched` 为 false），付不起房租时停在前一天，但不在最后一格后面补淡孔。被动覆盖率的分母是日常开销加上固定支出和没还清的月供折成的日均（`FinancialSnapshot.dailyFixed`）。免费用户也能看到「固定支出」抽屉，加房贷、车贷那一行标 PRO，点了打开购买页。备份多两个可选字段 `is_ongoing`（只在为真时写）和 `interval_months`（只在不是 1 时写）；导入时固定支出的起算日允许在 400 天以内的未来。
 
 **每月还款（Pro）** 沿这条路径工作：输入——在 `LoanSheet` 填名称、月供、每月几号还、还剩几期，期数下面实时写出最后一期的日期；账本里有金额正好等于月供的旧支出时，问用户是不是以前记的月供，勾上的设成 `countsInBurn = false`（记录不删）。保存——`LoanStore.save`；改了还款日或期数时从今天重新起算，只改名称金额不动进度。到期自动扣——`ContentView` 在打开 App 和回到前台时调 `LoanStore.processDue`：每个「上次处理之后、今天及以前」的到期日，现金够就写一笔 `loanID` 指向贷款、不算日均的支出并扣现金，不够就留成待处理，同一个到期日只处理一次。待处理的那期在 Assets 的贷款行下显示，用户选「从现金扣」或「从别处还的」（`resolvePending`）。History 里撤销一笔扣款，那一期变回待处理，不会再自动扣。计算——还了几期、还剩几期、哪期待处理都由扣款记录推出（`LoanSchedule.status`），不另存计数。`FinancialSnapshot` 有贷款时用 `FreedomMath.freedomRun` 按日历往后推：每天扣「日均消费 − 日均被动收入」，到还款日扣月供，付不起的那天停在前一天，钱在两次还款之间花完就停在花完那刻；到期没还的当作今天就要付。没有贷款（或全还清）时直接走原来的公式，一分不差。首页大数字、格子、趋势的每个周点、记一笔的预览、模拟、自检都走这条。显示——推演里扣了月供的那几天，按天显示的格子上打一个孔（`PunchedCell`），图例多一项「还款日」。备份——有贷款时导出可选字段 `loans`；支出多两个可选字段 `loan_id`、`counts_in_burn`（只在不算日均时写 false）；没有贷款的账本导出和以前一字不差。导入时贷款按 ID 合并，同一份导两次不会重复。没有 Pro 时已有的贷款照常显示、照常自动扣，可以删、可以处理待处理的那期，不能新增和编辑。
 
@@ -230,6 +235,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
+- [FixedExpenseTests](FreeGridTests/FixedExpenseTests.swift)：每 3 个月的到期日、没有最后一期、按日历推演（期望天数由 `_local/plans/2026-10-17/fixed-expenses-expected.py` 算出）、交租当天只少一天、房租不打孔而同日的车贷打孔、被动收入只盖住日常时照样被房租耗尽、盖住全部时 ∞、覆盖率分母含固定支出、到期自动扣、改日期重新起算、输入校验、备份往返；大额摊开：第一周买电脑、满 90 天回到原公式、月记一次和只有两天不算大额、每周买菜不算大额、预览同口径。
 - [LoanTests](FreeGridTests/LoanTests.swift)：计划里 A–K 十一组期望天数（月底、两笔贷款、被动收入、资产开关、没有贷款时和原公式一致）、格子打孔位置、预览与趋势同口径、补扣与幂等、撤销后待处理、现金不够、当天到期的那期、改期数重新起算、旧月供不计日均、备份往返和重复导入。
 - [FreedomAssetSwitchTests](FreeGridTests/FreedomAssetSwitchTests.swift)：资产总开关开/关时的天数、格子、记一笔的预览、自检和趋势摘要，以及没有资产、被动收入覆盖的边界。
 

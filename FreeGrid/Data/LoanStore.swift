@@ -1,5 +1,5 @@
-// Pro 每月还款的写入边界：增删改、到期自动扣、没扣成的那期怎么处理。
-// 扣款就是一笔 `loanID` 指向贷款、不算日均的支出，和现金在同一次保存里改，失败一起回滚。
+// 固定支出和贷款的写入边界：增删改、到期自动扣、没扣成的那期怎么处理。
+// 扣款就是一笔 `loanID` 指向它、不算日均的支出，和现金在同一次保存里改，失败一起回滚。
 
 import Foundation
 import SwiftData
@@ -9,14 +9,18 @@ enum LoanError: Error, LocalizedError, Equatable {
     case invalidAmount
     case invalidDueDay
     case invalidPeriods
+    case invalidInterval
+    case invalidNextDue
     case notPending
 
     var errorDescription: String? {
         switch self {
         case .invalidName: return "名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "月供金额无效或超出允许范围。"
+        case .invalidAmount: return "金额无效或超出允许范围。"
         case .invalidDueDay: return "还款日请选 1–31 号。"
         case .invalidPeriods: return "剩余期数请填 1–\(LoanSchedule.maxPeriods) 之间的整数。"
+        case .invalidInterval: return "请选每 1、2、3、6 或 12 个月一次。"
+        case .invalidNextDue: return "下次付款请选明天到一年以内的日子。"
         case .notPending: return "这一期已经处理过了。"
         }
     }
@@ -51,7 +55,7 @@ enum LoanStore {
         try context.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.loanID != nil }))
     }
 
-    /// 以前手动记的、金额正好等于月供的支出，新的在前。添加贷款时问用户是不是月供。
+    /// 以前手动记的、金额正好等于这一期的支出，新的在前。添加时问用户是不是以前记的。
     static func pastRepaymentCandidates(monthlyAmount: Double, in expenses: [Expense]) -> [Expense] {
         guard FinancialFormatting.validAmount(monthlyAmount) else { return [] }
         return expenses
@@ -61,7 +65,7 @@ enum LoanStore {
 
     // MARK: - 增删改
 
-    /// 新增（existing 为 nil）或修改。`remaining` 是「还剩几期」，今天到期的那期算已经还过。
+    /// 贷款：新增（existing 为 nil）或修改。`remaining` 是「还剩几期」，今天到期的那期算已经还过。
     /// 改了还款日或期数时从今天重新起算：之前没扣成的那几期并进新填的期数里。只改名称、金额不动进度。
     /// `pastRepayments` 是表单里列出的旧支出，在 `excludedFromBurn` 里的不再算进日均，其余的算回去。
     @discardableResult
@@ -73,43 +77,91 @@ enum LoanStore {
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> Loan {
-        let name = try cleanName(name)
-        guard FinancialFormatting.validAmount(monthlyAmount) else { throw LoanError.invalidAmount }
         guard (1...31).contains(dueDay) else { throw LoanError.invalidDueDay }
         guard (1...LoanSchedule.maxPeriods).contains(remaining) else { throw LoanError.invalidPeriods }
-
         let today = calendar.startOfDay(for: now)
-        let all = try loans(in: context)
-        let loan = existing ?? Loan(name: name, monthlyAmount: monthlyAmount, dueDay: dueDay,
-                                    periodsAtStart: remaining, startDate: today,
-                                    sortOrder: (all.map(\.sortOrder).max() ?? -1) + 1)
-        let restartsSchedule: Bool
-        if existing != nil {
+        return try write(existing, name: name, amount: monthlyAmount, cashAccountID: cashAccountID,
+                         pastRepayments: pastRepayments, excludedFromBurn: excludedFromBurn,
+                         isOngoing: false, in: context, save: save,
+                         schedule: Schedule(dueDay: dueDay, periods: remaining, intervalMonths: 1, startDate: today),
+                         restarts: { loan in
             let status = LoanSchedule.status(of: loan, payments: try payments(in: context), now: now, calendar: calendar)
-            restartsSchedule = loan.dueDay != dueDay || status.remaining != remaining
-        } else {
-            restartsSchedule = false
-        }
+            return loan.dueDay != dueDay || status.remaining != remaining
+        })
+    }
+
+    /// 固定支出（房租、保险、订阅）：新增或修改。`nextDue` 是下次哪天付，之后每隔 `intervalMonths` 个月一次。
+    /// 改了下次付款日或周期时从新的日子重新起算，之前没扣成的那几期不再追。只改名称、金额不动进度。
+    @discardableResult
+    static func saveFixed(
+        _ existing: Loan?, name: String, amount: Double, intervalMonths: Int, nextDue: Date,
+        cashAccountID: UUID? = nil,
+        pastRepayments: [Expense] = [], excludedFromBurn: Set<UUID> = [],
+        now: Date = .now, calendar: Calendar = .current,
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws -> Loan {
+        guard LoanSchedule.intervals.contains(intervalMonths) else { throw LoanError.invalidInterval }
+        let today = calendar.startOfDay(for: now)
+        let due = calendar.startOfDay(for: nextDue)
+        guard due > today, let latest = calendar.date(byAdding: .year, value: 1, to: today), due <= latest,
+              let start = calendar.date(byAdding: .day, value: -1, to: due) else { throw LoanError.invalidNextDue }
+        let dueDay = calendar.component(.day, from: due)
+        return try write(existing, name: name, amount: amount, cashAccountID: cashAccountID,
+                         pastRepayments: pastRepayments, excludedFromBurn: excludedFromBurn,
+                         isOngoing: true, in: context, save: save,
+                         schedule: Schedule(dueDay: dueDay, periods: 0, intervalMonths: intervalMonths, startDate: start),
+                         restarts: { loan in
+            let status = LoanSchedule.status(of: loan, payments: try payments(in: context), now: now, calendar: calendar)
+            return loan.intervalMonths != intervalMonths || status.nextDue != due
+        })
+    }
+
+    private struct Schedule {
+        let dueDay: Int
+        let periods: Int
+        let intervalMonths: Int
+        let startDate: Date
+    }
+
+    private static func write(
+        _ existing: Loan?, name: String, amount: Double, cashAccountID: UUID?,
+        pastRepayments: [Expense], excludedFromBurn: Set<UUID>, isOngoing: Bool,
+        in context: ModelContext, save: LedgerStore.SaveAction,
+        schedule: Schedule, restarts: (Loan) throws -> Bool
+    ) throws -> Loan {
+        let name = try cleanName(name)
+        guard FinancialFormatting.validAmount(amount) else { throw LoanError.invalidAmount }
+
+        let all = try loans(in: context)
+        let loan = existing ?? Loan(name: name, monthlyAmount: amount, dueDay: schedule.dueDay,
+                                    periodsAtStart: schedule.periods, startDate: schedule.startDate,
+                                    sortOrder: (all.map(\.sortOrder).max() ?? -1) + 1,
+                                    isOngoing: isOngoing, intervalMonths: schedule.intervalMonths)
+        let restartsSchedule = existing != nil ? try restarts(loan) : false
 
         let previousLoan = (loan.name, loan.monthlyAmount, loan.dueDay, loan.periodsAtStart,
                             loan.startDate, loan.processedThrough, loan.settledDates)
+        let previousInterval = loan.intervalMonths
         let previousAccount = loan.cashAccountID
         let previousFlags = pastRepayments.map { ($0, $0.countsInBurn) }
         try LedgerStore.perform(in: context, save: save, restore: {
             (loan.name, loan.monthlyAmount, loan.dueDay, loan.periodsAtStart,
              loan.startDate, loan.processedThrough, loan.settledDates) = previousLoan
             loan.cashAccountID = previousAccount
+            loan.intervalMonths = previousInterval
             for (expense, flag) in previousFlags { expense.countsInBurn = flag }
         }) {
             if existing == nil { context.insert(loan) }
             loan.name = name
-            loan.monthlyAmount = monthlyAmount
+            loan.monthlyAmount = amount
             loan.cashAccountID = cashAccountID
             if restartsSchedule {
-                loan.dueDay = dueDay
-                loan.periodsAtStart = remaining
-                loan.startDate = today
-                loan.processedThrough = today
+                loan.dueDay = schedule.dueDay
+                loan.periodsAtStart = schedule.periods
+                loan.intervalMonths = schedule.intervalMonths
+                loan.startDate = schedule.startDate
+                loan.processedThrough = schedule.startDate
                 loan.settledDates = []
             }
             for expense in pastRepayments where expense.loanID == nil {
@@ -119,7 +171,7 @@ enum LoanStore {
         return loan
     }
 
-    /// 删掉贷款。已经扣过的月供留在 History，照样不算日均。
+    /// 删掉。已经扣过的留在 History，照样不算日均。
     static func delete(
         _ loan: Loan,
         in context: ModelContext,
@@ -130,7 +182,7 @@ enum LoanStore {
 
     // MARK: - 到期自动扣
 
-    /// 补齐每笔贷款「上次处理之后、今天及以前」的到期日：现金够就扣一期并写一笔扣款，
+    /// 补齐每一笔「上次处理之后、今天及以前」的到期日：现金够就扣一期并写一笔扣款，
     /// 不够就留着等用户处理。同一个到期日只处理一次，重复调用不会重复扣。
     /// 返回这次扣了几期。没有要处理的就不保存；账本里有别的未保存修改时跳过，下次再来。
     @discardableResult
@@ -171,7 +223,7 @@ enum LoanStore {
         return paid
     }
 
-    /// 处理一期没扣成的月供：`fromCash` 为真时现在从现金扣并写一笔扣款；
+    /// 处理没扣成的一期：`fromCash` 为真时现在从现金扣并写一笔扣款；
     /// 为假表示用户从别处还了，只记成已还，不动现金。
     static func resolvePending(
         _ loan: Loan, dueDate: Date, fromCash: Bool,

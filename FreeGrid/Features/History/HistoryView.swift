@@ -452,11 +452,7 @@ struct HistoryView: View {
     /// 只在按月查看时折算；全部时间折出来就是追踪天数，没有信息
     private func equivalentDays(_ summary: HistorySummary) -> Double? {
         guard case .month = scope else { return nil }
-        let firstDate = FreedomMath.earliestExpenseDate(expenses)
-        let dailyBurn = FreedomMath.dailyBurn(
-            totalExpenses: expenses.reduce(0) { $0 + $1.amount },
-            trackDays: FreedomMath.trackDays(firstRecordDate: firstDate)
-        )
+        let dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses)).dailyBurn
         return HistoryLedger.equivalentDays(expense: summary.expense, dailyBurn: dailyBurn)
     }
 
