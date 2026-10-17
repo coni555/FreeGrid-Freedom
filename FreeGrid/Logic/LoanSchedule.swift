@@ -11,11 +11,29 @@ extension Loan {
     var monthlyEquivalent: Double { monthlyAmount / Double(max(1, intervalMonths)) }
 }
 
+extension PassiveSource {
+    /// 不按月到账时写「每年 ¥6,000」，列表里放在名字旁边；每月到账时为 nil
+    var intervalNote: String? {
+        guard intervalMonths > 1 else { return nil }
+        return "\(LoanSchedule.intervalLabel(intervalMonths)) ¥\(FinancialFormatting.wholeNumber(monthlyAmount * Double(intervalMonths)))"
+    }
+}
+
 enum LoanSchedule {
     /// 一笔贷款最多填 600 期（50 年）
     static let maxPeriods = FinancialLimits.loanPeriods
-    /// 固定支出可选的周期（月）
+    /// 固定支出和被动收入可选的周期（月）
     static let intervals = [1, 2, 3, 6, 12]
+
+    static func intervalLabel(_ months: Int) -> String {
+        switch months {
+        case 1: return "每月"
+        case 3: return "每季度"
+        case 6: return "每半年"
+        case 12: return "每年"
+        default: return "每 \(months) 个月"
+        }
+    }
     /// 固定支出没有最后一期；界面上的状态（下次哪天、哪期没扣）只往后看这么多天，够看到一年一次的下一期
     static let statusHorizonDays = 400
     /// 推演最多往后推 100 年，和格子年档的上限（99 年）对应

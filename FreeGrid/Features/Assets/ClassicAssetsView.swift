@@ -85,13 +85,13 @@ struct ClassicAssetsView: View {
             .saveErrorAlert($saveError)
             .proPaywall(isPresented: $showingPro, topic: assetItems.isEmpty ? .cash : .assets)
             .sheet(isPresented: $showingAddPassive) {
-                PassiveSourceSheet(existing: nil) { name, monthly in
-                    try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, in: modelContext)
+                PassiveSourceSheet(existing: nil) { name, monthly, interval in
+                    try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, intervalMonths: interval, in: modelContext)
                 }
             }
             .sheet(item: $editingPassiveSource) { source in
-                PassiveSourceSheet(existing: source) { name, monthly in
-                    try LedgerStore.savePassiveSource(source, name: name, monthlyAmount: monthly, in: modelContext)
+                PassiveSourceSheet(existing: source) { name, monthly, interval in
+                    try LedgerStore.savePassiveSource(source, name: name, monthlyAmount: monthly, intervalMonths: interval, in: modelContext)
                 }
             }
             .alert(
@@ -342,7 +342,7 @@ struct ClassicAssetsView: View {
                         Text(s.name)
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.ink)
-                        Text("¥\(FinancialFormatting.wholeNumber(s.monthlyAmount))/月 · ¥\(s.monthlyAmount.isFinite ? String(format: "%.1f", s.monthlyAmount / 30) : "—")/天")
+                        Text((s.intervalNote.map { $0 + " · " } ?? "") + "¥\(FinancialFormatting.wholeNumber(s.monthlyAmount))/月 · ¥\(s.monthlyAmount.isFinite ? String(format: "%.1f", s.monthlyAmount / 30) : "—")/天")
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(Color.inkFaint)
                     }

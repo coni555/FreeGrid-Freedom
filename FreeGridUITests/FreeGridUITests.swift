@@ -882,6 +882,40 @@ final class FreeGridUITests: XCTestCase {
         try shoot("4-首页日均")
     }
 
+    /// 被动收入选「每年」：填一次到账的总数，下面折成每月和每天；列表行写「每年 ¥6,000」。
+    /// 给了 FIXED_SHOTS_DIR 时拍一张表单。
+    @MainActor
+    func testPassiveIncomeCanBePaidOutYearly() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-assetsLayout", "classic", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["Assets"].tap()
+        let add = app.buttons["添加被动收入源"]
+        if !add.isHittable { app.swipeUp() }
+        XCTAssertTrue(add.waitForExistence(timeout: 3))
+        add.tap()
+        XCTAssertTrue(app.navigationBars["添加被动收入"].waitForExistence(timeout: 3))
+        app.typeText("分红")
+        app.buttons["passive-interval-picker"].tap()
+        let yearly = app.buttons["每年"]
+        XCTAssertTrue(yearly.waitForExistence(timeout: 3))
+        yearly.tap()
+        let amount = app.textFields["passive-monthly-field"]
+        amount.tap()
+        amount.typeText("6000")
+        XCTAssertEqual(app.staticTexts["passive-summary"].label, "折合每月 ¥500 · 每天 ¥16.7")
+        if let output = ProcessInfo.processInfo.environment["FIXED_SHOTS_DIR"] {
+            Thread.sleep(forTimeInterval: 1.2)
+            try XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent("6-被动收入每年.png"))
+        }
+        app.buttons["保存"].tap()
+        let row = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "每年 ¥6,000")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        XCTAssertTrue(row.label.contains("¥500/月"))
+    }
+
     /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。
     @MainActor
     func testCaptureCategoryScreens() throws {

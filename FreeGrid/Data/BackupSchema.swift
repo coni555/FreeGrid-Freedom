@@ -106,14 +106,19 @@ nonisolated struct BackupEnvelope: Codable {
     struct PassiveSourceJSON: Codable {
         let id: String?
         let name: String
+        /// 折合的每月，不管几个月到账一次
         let monthlyAmount: Double
         let createdAt: String?
+        /// 几个月到账一次。可选：每月时不写，旧版本读到也只会忽略它，`monthlyAmount` 照样对
+        let intervalMonths: Int?
 
-        init(id: String? = nil, name: String, monthlyAmount: Double, createdAt: String? = nil) {
+        init(id: String? = nil, name: String, monthlyAmount: Double, createdAt: String? = nil,
+             intervalMonths: Int? = nil) {
             self.id = id
             self.name = name
             self.monthlyAmount = monthlyAmount
             self.createdAt = createdAt
+            self.intervalMonths = intervalMonths
         }
     }
 

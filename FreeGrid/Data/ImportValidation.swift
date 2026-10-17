@@ -110,6 +110,7 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     case duplicateCashAccountID
     case duplicateLoanID
     case invalidLoan
+    case invalidPassiveInterval
     case invalidExpenseCategories
 
     var isResourceLimit: Bool {
@@ -161,6 +162,8 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
             return "每月还款的记录 ID 重复"
         case .invalidLoan:
             return "每月还款的还款日或期数无效"
+        case .invalidPassiveInterval:
+            return "被动收入的到账周期无效"
         case .invalidExpenseCategories:
             return "支出分类设置无效：名称为空、重复或图标名称不对"
         }
@@ -216,6 +219,7 @@ nonisolated struct ValidatedImport: Sendable {
         let name: String
         let monthlyAmount: Double
         let createdAt: Date?
+        var intervalMonths = 1
     }
 
     struct AssetItemRecord: Sendable {
@@ -479,7 +483,11 @@ nonisolated enum ImportValidator {
         }
 
         let passiveSources = try (envelope.passiveSources ?? []).map { raw in
-            ValidatedImport.PassiveSourceRecord(
+            let intervalMonths = raw.intervalMonths ?? 1
+            guard LoanSchedule.intervals.contains(intervalMonths) else {
+                throw ImportValidationError.invalidPassiveInterval
+            }
+            return ValidatedImport.PassiveSourceRecord(
                 id: try identifier(raw.id, field: "被动收入源"),
                 name: try text(raw.name, field: "被动收入源名称", maximum: policy.maxNameCharacters),
                 monthlyAmount: try amount(
@@ -488,7 +496,8 @@ nonisolated enum ImportValidator {
                     allowsZero: false,
                     policy: policy
                 ),
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "被动收入源创建时间", now: now) }
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "被动收入源创建时间", now: now) },
+                intervalMonths: intervalMonths
             )
         }
 

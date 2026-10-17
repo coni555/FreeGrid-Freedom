@@ -44,7 +44,7 @@ FreeGrid/
 | `Expense` | 一笔支出 | `amount` 金额、`category` 分类、`date` 消费日期、`note` 备注 |
 | `Income` | 一笔收入 | `amount` 金额、`source` 来源、`date` 日期 |
 | `UserAssets` | 资产和现金的当前余额，约定只有一行 | `lockedAssets` 资产、`cash` 现金 |
-| `PassiveSource` | 持续的月均被动收入源 | `monthlyAmount` 每月金额 |
+| `PassiveSource` | 持续的月均被动收入源 | `monthlyAmount` 折合的每月金额；`intervalMonths` 几个月到账一次（只用来填写和显示，备份里每月时不写） |
 | `Device` | 旧账里的持有物/设备 | 价格、购买日期、卖出信息；目前通过备份保留 |
 | `AssetItem` | Pro：资产桶里的一项（房、车、定期…） | `name` 名称（1–20 字）、`amount` 金额、`sortOrder` 顺序、`countsInFreedom` 自由天数开关 |
 | `Loan` | 固定支出（房租、保险、订阅，免费）和贷款（房贷、车贷，Pro） | `monthlyAmount` 每期金额、`dueDay` 几号、`isOngoing` 是不是没有尽头的固定支出、`intervalMonths` 隔几个月一次（贷款恒为 1）、`periodsAtStart` 贷款起算时的期数（固定支出是 0）、`startDate` 起算日（固定支出是「下次付款日」的前一天，可能在未来）、`processedThrough` 自动扣到哪天、`settledDates` 从别处付的到期日 |
@@ -237,6 +237,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
+- [PassiveIntervalTests](FreeGridTests/PassiveIntervalTests.swift)：被动收入一年一次 6,000 按每月 500 算、周期校验、备份带上周期而旧备份按每月读、导入拒绝未知周期。
 - [FixedExpenseTests](FreeGridTests/FixedExpenseTests.swift)：每 3 个月的到期日、没有最后一期、按日历推演（期望天数由 `_local/plans/2026-10-17/fixed-expenses-expected.py` 算出）、交租当天只少一天、房租不打孔而同日的车贷打孔、被动收入只盖住日常时照样被房租耗尽、盖住全部时 ∞、覆盖率分母含固定支出、到期自动扣、改日期重新起算、输入校验、备份往返；大额摊开：第一周买电脑、满 90 天回到原公式、月记一次和只有两天不算大额、房租当普通支出记时日均平滑上涨、预览同口径。
 - [LoanTests](FreeGridTests/LoanTests.swift)：计划里 A–K 十一组期望天数（月底、两笔贷款、被动收入、资产开关、没有贷款时和原公式一致）、格子打孔位置、预览与趋势同口径、补扣与幂等、撤销后待处理、现金不够、当天到期的那期、改期数重新起算、旧月供不计日均、备份往返和重复导入。
 - [FreedomAssetSwitchTests](FreeGridTests/FreedomAssetSwitchTests.swift)：资产总开关开/关时的天数、格子、记一笔的预览、自检和趋势摘要，以及没有资产、被动收入覆盖的边界。

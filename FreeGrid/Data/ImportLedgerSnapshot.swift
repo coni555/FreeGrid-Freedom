@@ -76,12 +76,14 @@ struct ImportLedgerSnapshot: Equatable {
         let id: UUID
         let name: String
         let monthlyAmount: UInt64
+        let intervalMonths: Int
         let createdAt: Date
 
         init(_ record: PassiveSource) {
             id = record.id
             name = record.name
             monthlyAmount = record.monthlyAmount.bitPattern
+            intervalMonths = record.intervalMonths
             createdAt = record.createdAt
         }
     }

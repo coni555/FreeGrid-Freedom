@@ -208,15 +208,7 @@ struct LoanSheet: View {
         return tomorrow...(calendar.date(byAdding: .year, value: 1, to: today) ?? tomorrow)
     }
 
-    static func intervalLabel(_ months: Int) -> String {
-        switch months {
-        case 1: return "每月"
-        case 3: return "每季度"
-        case 6: return "每半年"
-        case 12: return "每年"
-        default: return "每 \(months) 个月"
-        }
-    }
+    static func intervalLabel(_ months: Int) -> String { LoanSchedule.intervalLabel(months) }
 
     private var fixedScheduleFields: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {

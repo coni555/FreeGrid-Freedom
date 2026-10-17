@@ -621,6 +621,12 @@ struct PassiveRows: View {
                                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                                 .foregroundStyle(Color.ink)
                                 .lineLimit(1)
+                            if let note = source.intervalNote {
+                                Text(note)
+                                    .font(.system(.caption2, design: .rounded).monospacedDigit())
+                                    .foregroundStyle(Color.inkFaint)
+                                    .lineLimit(1)
+                            }
                             Spacer(minLength: Spacing.sm)
                             Text(unit.text(source.monthlyAmount, sign: "+") + "/月")
                                 .font(.system(.footnote, design: .rounded).monospacedDigit())
@@ -637,13 +643,13 @@ struct PassiveRows: View {
             DrawerAddRow(title: "添加被动收入", showsPro: false, identifier: "add-passive-source") { adding = true }
         }
         .sheet(isPresented: $adding) {
-            PassiveSourceSheet(existing: nil) { name, monthly in
-                try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, in: modelContext)
+            PassiveSourceSheet(existing: nil) { name, monthly, interval in
+                try LedgerStore.savePassiveSource(nil, name: name, monthlyAmount: monthly, intervalMonths: interval, in: modelContext)
             }
         }
         .sheet(item: $editing) { source in
-            PassiveSourceSheet(existing: source, onSave: { name, monthly in
-                try LedgerStore.savePassiveSource(source, name: name, monthlyAmount: monthly, in: modelContext)
+            PassiveSourceSheet(existing: source, onSave: { name, monthly, interval in
+                try LedgerStore.savePassiveSource(source, name: name, monthlyAmount: monthly, intervalMonths: interval, in: modelContext)
             }, onDelete: {
                 try LedgerStore.perform(in: modelContext) { modelContext.delete(source) }
             })

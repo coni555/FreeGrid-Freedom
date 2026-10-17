@@ -74,19 +74,22 @@ enum LedgerStore {
         }
     }
 
+    /// `monthlyAmount` 是折合的每月；`intervalMonths` 只记几个月到账一次，方便下次按「每次到账多少」改
     static func savePassiveSource(
-        _ existing: PassiveSource?, name: String, monthlyAmount: Double,
+        _ existing: PassiveSource?, name: String, monthlyAmount: Double, intervalMonths: Int = 1,
         in context: ModelContext,
         save: SaveAction = { try $0.save() }
     ) throws {
-        let source = existing ?? PassiveSource(name: name, monthlyAmount: monthlyAmount)
-        let previous = (source.name, source.monthlyAmount)
+        guard LoanSchedule.intervals.contains(intervalMonths) else { throw LoanError.invalidInterval }
+        let source = existing ?? PassiveSource(name: name, monthlyAmount: monthlyAmount, intervalMonths: intervalMonths)
+        let previous = (source.name, source.monthlyAmount, source.intervalMonths)
         try perform(in: context, save: save, restore: {
-            (source.name, source.monthlyAmount) = previous
+            (source.name, source.monthlyAmount, source.intervalMonths) = previous
         }) {
             if existing == nil { context.insert(source) }
             source.name = name
             source.monthlyAmount = monthlyAmount
+            source.intervalMonths = intervalMonths
         }
     }
 

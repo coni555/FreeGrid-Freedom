@@ -228,7 +228,8 @@ enum DataIO {
                     id: $0.id.uuidString,
                     name: $0.name,
                     monthlyAmount: $0.monthlyAmount,
-                    createdAt: iso.string(from: $0.createdAt)
+                    createdAt: iso.string(from: $0.createdAt),
+                    intervalMonths: $0.intervalMonths == 1 ? nil : $0.intervalMonths
                 )
             },
             firstRecordDate: firstExpenseDate.map { day.string(from: $0) },
@@ -809,7 +810,8 @@ enum DataIO {
             }
 
             for record in plan.passiveSources {
-                let source = PassiveSource(name: record.name, monthlyAmount: record.monthlyAmount)
+                let source = PassiveSource(name: record.name, monthlyAmount: record.monthlyAmount,
+                                           intervalMonths: record.intervalMonths)
                 if let id = record.id { source.id = id }
                 if let createdAt = record.createdAt { source.createdAt = createdAt }
                 context.insert(source)

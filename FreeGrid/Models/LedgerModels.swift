@@ -140,14 +140,19 @@ final class PassiveSource: Identifiable {
     var name: String = ""
 
     /// 月均收入(元/月)。日均换算: monthlyAmount ÷ 30
+    /// 不按月到账时这里存折合的每月（一年一次 6,000 存 500），计算处都不用管周期，旧版本读备份也照样对
     var monthlyAmount: Double = 0
+
+    /// 几个月到账一次（1/2/3/6/12）。只用来填写和显示「每次到账多少」
+    var intervalMonths: Int = 1
 
     var createdAt: Date = Date.now
 
-    init(name: String, monthlyAmount: Double) {
+    init(name: String, monthlyAmount: Double, intervalMonths: Int = 1) {
         self.id = UUID()
         self.name = name
         self.monthlyAmount = monthlyAmount
+        self.intervalMonths = intervalMonths
         self.createdAt = .now
     }
 }
