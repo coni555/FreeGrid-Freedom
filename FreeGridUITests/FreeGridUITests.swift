@@ -31,7 +31,7 @@ final class FreeGridUITests: XCTestCase {
                                "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES"]
         app.launch()
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["expense-categories-settings"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let addCategory = app.buttons["add-expense-category"]
         XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
         for _ in 0..<6 {
@@ -71,7 +71,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["expense-categories-settings"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let row = app.buttons["category-row-咖啡"]
         for _ in 0..<6 {
             if row.isHittable { break }
@@ -112,7 +112,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()   // 默认分类「早餐」
 
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["expense-categories-settings"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let row = app.buttons["category-row-早餐"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
@@ -180,7 +180,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()   // 默认分类「早餐」
 
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["expense-categories-settings"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let row = app.buttons["category-row-早餐"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
@@ -243,7 +243,7 @@ final class FreeGridUITests: XCTestCase {
                                "-ResetExpenseCategories", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["expense-categories-settings"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         // 没有 Pro：看不到管理界面，只有去购买页的入口
         let openPro = app.buttons["open-pro-from-categories"]
         XCTAssertTrue(openPro.waitForExistence(timeout: 5))
@@ -280,6 +280,7 @@ final class FreeGridUITests: XCTestCase {
         app.launch()
         // 空账本没有可圈的位置，入口只说明原因
         app.tabBars.buttons["Settings"].tap()
+        app.buttons["settings-card-about"].tap()
         XCTAssertTrue(app.staticTexts["记一笔后可看"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["replay-history-guide"].exists)
 
@@ -292,7 +293,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["guide-list"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-history-guide"].tap()
         // 跳到 History 并从第一步重放，四步走完后消失
         let next = app.buttons["guide-next"]
@@ -324,7 +325,7 @@ final class FreeGridUITests: XCTestCase {
         let next = app.buttons["guide-next"]
         // Assets 讲四处：净值、调拨、两张卡、被动收入
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["guide-list"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-assets-guide"].tap()
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Assets"].exists)
@@ -332,7 +333,7 @@ final class FreeGridUITests: XCTestCase {
 
         // Settings 讲三处；讲之前指引列表那一页要先退回去
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["guide-list"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-settings-guide"].tap()
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Settings"].exists)
@@ -832,7 +833,7 @@ final class FreeGridUITests: XCTestCase {
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
             app.tabBars.buttons["Settings"].tap()
-            app.buttons["expense-categories-settings"].tap()
+            app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
             let addCategory = app.buttons["add-expense-category"]
             XCTAssertTrue(addCategory.waitForExistence(timeout: 5))
             for _ in 0..<6 {
@@ -1026,10 +1027,21 @@ final class FreeGridUITests: XCTestCase {
             app.launch()
             app.tabBars.buttons["Settings"].tap()
             XCTAssertTrue(app.buttons["settings-freedom-card"].waitForExistence(timeout: 5))
-            try shoot("\(mode)-1-上")
+            if !app.segmentedControls["assets-layout-picker"].waitForExistence(timeout: 2) {
+                app.buttons["settings-card-look"].tap()
+            }
+            try shoot("\(mode)-1-外观")
+            app.buttons["settings-card-ledger"].tap()
+            try shoot("\(mode)-2-账本")
+            app.buttons["settings-card-pro"].tap()
             app.swipeUp()
+            try shoot("\(mode)-3-Pro")
+            app.buttons["settings-card-about"].tap()
             app.swipeUp()
-            try shoot("\(mode)-2-下")
+            try shoot("\(mode)-4-FreeGrid")
+            app.buttons["settings-card-about"].tap()
+            app.swipeDown()
+            try shoot("\(mode)-5-都收起")
             app.terminate()
         }
     }
@@ -1450,5 +1462,18 @@ final class FreeGridUITests: XCTestCase {
         )
         XCTAssertTrue(app.buttons["store-retry-button"].exists)
         XCTAssertTrue(app.staticTexts["本地数据暂时无法打开"].exists)
+    }
+}
+
+extension XCUIApplication {
+    /// 设置页是一叠卡：要点的那一行在收着的卡里时，先点卡头把卡抽出来；在屏幕下面就往上滑
+    func tapSettingsRow(_ identifier: String, inCard card: String) {
+        let row = buttons[identifier]
+        if !row.waitForExistence(timeout: 2) {
+            buttons[card].tap()
+            XCTAssertTrue(row.waitForExistence(timeout: 3))
+        }
+        for _ in 0..<3 where !row.isHittable { swipeUp() }
+        row.tap()
     }
 }

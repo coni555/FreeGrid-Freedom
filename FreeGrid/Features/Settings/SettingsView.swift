@@ -2,6 +2,7 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 #if os(iOS)
 import UIKit
 #elseif canImport(AppKit)
@@ -32,6 +33,12 @@ struct SettingsView: View {
     @State private var icpCopied = false
     @State private var showingPro = false
     @State private var showingFreedomCard = false
+    /// 一叠卡里现在抽出来的是哪张（look / ledger / pro / about，空 = 都收着）。同一时间只开一张，下次进来还是它
+    @SceneStorage("settingsOpenCard") private var openCard = "look"
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    /// 账本卡上写有几个分类
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
@@ -55,24 +62,35 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                // 四张卡：你走到哪了 → 外观 → 账本 → FreeGrid，最下面一行版本号
-                VStack(spacing: Spacing.xl) {
-                    freedomCard
+                // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
+                VStack(spacing: -SettingsDeck.tuck) {
+                    checkCard
                         .guideTarget(.check, in: guide)
-                    appearanceSection
+                        .zIndex(6)
+                    freedomCardCard
+                        .zIndex(5)
+                    lookCard
                         .guideTarget(.appearance, in: guide)
-                    ledgerSection
+                        .zIndex(4)
+                    ledgerCard
                         .guideTarget(.data, in: guide)
-                    freeGridSection
-                    footer
+                        .zIndex(3)
+                    proCard
+                        .zIndex(2)
+                    aboutCard
+                        .zIndex(1)
                 }
                 .padding()
+                .padding(.bottom, Spacing.lg)
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
             .sheet(isPresented: $showingPro) { ProPaywallView() }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sensoryFeedback(.selection, trigger: isDarkMode)
+            .sensoryFeedback(.selection, trigger: heroLayout)
+            .sensoryFeedback(.selection, trigger: assetsLayout)
             // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
             .task(id: guide.replays(of: .settings)) {
                 guard guide.takeReplay(.settings) else { return }
@@ -83,16 +101,19 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 第一张卡：自检（push 完整自检子页）+ 自由卡
-    /// 自检是「走到哪了」，自由卡是「把这一刻拿出去晒」，放进同一张卡，上下两个入口
-    private var freedomCard: some View {
-        VaultCard(emphasis: .high, padding: 0) {
-            VStack(spacing: 0) {
-                checkRow
-                Hairline().padding(.leading, Spacing.lg)
-                freedomCardRow
-            }
+    /// 抽出或收回一张卡；同一时间只开一张。减弱动态效果时只淡入淡出
+    private func toggle(_ card: String) {
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : SettingsDeck.spring) {
+            openCard = openCard == card ? "" : card
         }
+    }
+
+    /// 展开的内容出现、消失的方式
+    private var reveal: AnyTransition { .opacity }
+
+    // MARK: - 第 1 张：自检（封面，点了 push 完整自检）
+    private var checkCard: some View {
+        DeckCard(tucked: false) { checkRow }
     }
 
     private var checkRow: some View {
@@ -145,72 +166,100 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    /// 左边是当前材质的小卡，和上面的圆环同宽对齐
-    private var freedomCardRow: some View {
+    // MARK: - 第 2 张：自由卡（全页唯一用材质的卡，材质就是用户现在的等级）
+    private var freedomCardCard: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, loans: loans, countsAssets: countsAssets)
-        let tier = FreedomCardTier.tier(for: snapshot.freedom)
-        return Button { showingFreedomCard = true } label: {
-            HStack(spacing: Spacing.lg) {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(FreedomCardMaterial.of(tier).background)
-                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-                    .frame(width: 56, height: 35)
-                Text("我的自由卡")
-                    .font(.system(.body, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                Spacer(minLength: Spacing.sm)
-                Text(tier.name)
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                chevron
+        let data = FreedomCardData(snapshot: snapshot, summary: summary)
+        let material = FreedomCardMaterial.of(data.tier)
+        let isFinite: Bool = { if case .finite = data.freedom { return true } else { return false } }()
+        return DeckCard(fill: material.background,
+                        edge: colorScheme == .dark ? .white.opacity(0.18) : .black.opacity(0.08)) {
+            Button { showingFreedomCard = true } label: {
+                DeckHeader(title: "我的自由卡", titleColor: material.ink) {
+                    EmptyView()
+                } trailing: {
+                    Text(data.tier.label)
+                        .font(.system(size: 10, design: .monospaced))
+                        .tracking(2)
+                        .foregroundStyle(material.muted)
+                    Spacer().frame(width: Spacing.xs)
+                    DeckReading(value: data.daysText, unit: isFinite ? "天" : nil,
+                                color: material.ink, unitColor: material.muted)
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("我的自由卡，\(data.tier.name)，\(data.daysText) 天")
+            .accessibilityIdentifier("settings-freedom-card")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("settings-freedom-card")
     }
 
-    // MARK: - 分组
-    private var appearanceSection: some View {
-        settingsSection("外观") {
-            settingsRow(icon: "moon", title: "主题") {
-                // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
-                // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
-                // 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
-                Picker("主题", selection: themeBinding) {
-                    Text("浅色").tag(false)
-                    Text("深色").tag(true)
+    // MARK: - 第 3 张：外观（默认抽出来；三行分段按钮）
+    private var lookCard: some View {
+        let isOpen = openCard == "look"
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(1))) {
+            VStack(spacing: 0) {
+                Button { toggle("look") } label: {
+                    DeckHeader(title: "外观", isOpen: isOpen) {
+                        EmptyView()
+                    } trailing: {
+                        ThemeCapsule(isDark: isDarkMode)
+                    }
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
-            }
-            rowDivider
-            settingsRow(icon: "rectangle.split.2x1", title: "首页大数字") {
-                Picker("首页大数字", selection: heroLayoutBinding) {
-                    Text("靠右").tag("leading")
-                    Text("居中").tag("vertical")
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings-card-look")
+                if isOpen {
+                    VStack(spacing: 0) {
+                        DeckDivider()
+                        // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
+                        // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
+                        segmentRow("主题") {
+                            Picker("主题", selection: themeBinding) {
+                                Text("浅色").tag(false)
+                                Text("深色").tag(true)
+                            }
+                        }
+                        DeckDivider()
+                        segmentRow("首页大数字") {
+                            Picker("首页大数字", selection: heroLayoutBinding) {
+                                Text("靠右").tag("leading")
+                                Text("居中").tag("vertical")
+                            }
+                        }
+                        DeckDivider()
+                        // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
+                        segmentRow("Assets 页面") {
+                            Picker("Assets 页面", selection: Binding(
+                                get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
+                                set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
+                            )) {
+                                Text("钱与时间").tag(AssetsLayout.moneyTime)
+                                Text("经典").tag(AssetsLayout.classic)
+                            }
+                            .accessibilityIdentifier("assets-layout-picker")
+                        }
+                    }
+                    .padding(.bottom, Spacing.xs)
+                    .transition(reveal)
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
-            }
-            rowDivider
-            // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
-            settingsRow(icon: "square.split.1x2", title: "Assets 页面") {
-                Picker("Assets 页面", selection: Binding(
-                    get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
-                    set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
-                )) {
-                    Text("钱与时间").tag(AssetsLayout.moneyTime)
-                    Text("经典").tag(AssetsLayout.classic)
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-                .accessibilityIdentifier("assets-layout-picker")
             }
         }
+    }
+
+    /// 外观里的一行：左边名字，右边同样宽的分段按钮，三行右边缘对齐
+    private func segmentRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 15, design: .rounded))
+                .foregroundStyle(Color.ink)
+            Spacer(minLength: Spacing.sm)
+            control()
+                .pickerStyle(.segmented)
+                .frame(width: 150)
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 14)
+        .frame(minHeight: 48)
     }
 
     private var heroLayoutBinding: Binding<String> {
@@ -233,83 +282,187 @@ struct SettingsView: View {
         )
     }
 
-    /// 支出分类 + 备份与恢复：都是账本本身的事
-    private var ledgerSection: some View {
-        settingsSection("账本") {
-            NavigationLink {
-                ExpenseCategoriesView()
-            } label: {
-                settingsRow(icon: "list.bullet", title: "支出分类") {
-                    // 已经解锁就不必再标
-                    if !ProStore.shared.isUnlocked {
-                        Text("PRO")
-                            .font(.system(.caption2, design: .monospaced))
-                            .tracking(2)
-                            .foregroundStyle(Color.skyDeep)
+    // MARK: - 第 4 张：账本（读数是一共记了几笔）
+    private var ledgerCard: some View {
+        let isOpen = openCard == "ledger"
+        let records = expenses.count + incomes.count
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(2))) {
+            VStack(spacing: 0) {
+                Button { toggle("ledger") } label: {
+                    DeckHeader(title: "账本", isOpen: isOpen) {
+                        EmptyView()
+                    } trailing: {
+                        DeckReading(value: records.formatted(.number), unit: "笔")
                     }
-                    chevron
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings-card-ledger")
+                if isOpen {
+                    VStack(spacing: 0) {
+                        DeckDivider()
+                        NavigationLink {
+                            ExpenseCategoriesView()
+                        } label: {
+                            DeckRow(title: "支出分类") {
+                                Text("\(categoryCount) 类")
+                                    .font(.system(size: 13, design: .rounded))
+                                    .foregroundStyle(Color.inkFaint)
+                                // 已经解锁就不必再标
+                                if !ProStore.shared.isUnlocked {
+                                    Text("PRO")
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .tracking(2)
+                                        .foregroundStyle(Color.skyDeep)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("expense-categories-settings")
+                        DeckDivider()
+                        // 导出、导入、清空集中在这一页
+                        NavigationLink {
+                            DataManagementView()
+                        } label: {
+                            DeckRow(title: "备份与恢复") { EmptyView() }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-data")
+                    }
+                    .padding(.bottom, Spacing.xs)
+                    .transition(reveal)
                 }
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("expense-categories-settings")
-            rowDivider
-            // 导出、导入、清空集中在这一页
-            NavigationLink {
-                DataManagementView()
-            } label: {
-                settingsRow(icon: "externaldrive", title: "备份与恢复") { chevron }
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("settings-data")
         }
     }
 
-    /// 和 App 本身有关的：Pro、使用指引、关于、评价
-    private var freeGridSection: some View {
-        settingsSection("FreeGrid") {
-            settingsRow(icon: "sparkles", title: "FreeGrid Pro",
-                        action: { showingPro = true }) {
-                Text(ProStore.shared.isUnlocked ? "已解锁" : "永久买断")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                chevron
-            }
-            .accessibilityIdentifier("settings-pro")
-            rowDivider
-            guideRow
-            rowDivider
-            NavigationLink {
-                aboutPage
-            } label: {
-                settingsRow(icon: "info.circle", title: "关于") { chevron }
-            }
-            .buttonStyle(.plain)
-            rowDivider
-            settingsRow(icon: "star", title: "评价与反馈",
-                        action: { openURL(rateURL) }) {
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.inkGhost)
+    /// 记支出时能选的分类有几个（月供扣款的分类是贷款名，不算）
+    private var categoryCount: Int {
+        ExpenseCategoryStorage.decode(encodedCategories)
+            .including(expenses.filter { $0.loanID == nil }.map(\.category))
+            .activeItems.count
+    }
+
+    // MARK: - 第 5 张：Pro（和别的卡同一种纸，只多一道蓝；不推销）
+    private var proCard: some View {
+        let isOpen = openCard == "pro"
+        let unlocked = ProStore.shared.isUnlocked
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(3))) {
+            VStack(spacing: 0) {
+                Button { toggle("pro") } label: {
+                    DeckHeader(title: "FreeGrid Pro", isOpen: isOpen) {
+                        RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
+                    } trailing: {
+                        if unlocked {
+                            Text("PRO")
+                                .font(.system(size: 10, design: .monospaced))
+                                .tracking(2)
+                                .foregroundStyle(Color.skyDeep)
+                        } else {
+                            DeckReading(value: "\(ProFeatures.benefits.count)", unit: "项")
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings-card-pro")
+                if isOpen {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(ProFeatures.benefits.enumerated()), id: \.offset) { index, benefit in
+                            DeckDivider()
+                            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                                Text(String(format: "%02d", index + 1))
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(Color.inkFaint)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(benefit.title)
+                                        .font(.system(size: 15, design: .rounded))
+                                        .foregroundStyle(Color.ink)
+                                    Text(benefit.brief)
+                                        .font(.system(size: 13, design: .rounded))
+                                        .foregroundStyle(Color.inkMuted)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 9)
+                            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                        }
+                        if !unlocked {
+                            Button { showingPro = true } label: {
+                                Text(proPriceTitle)
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(Color.skyDeep)
+                                    .padding(.horizontal, 18)
+                                    .frame(height: 40)
+                                    .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 20)
+                            .padding(.top, Spacing.md)
+                            .accessibilityIdentifier("settings-pro")
+                        }
+                    }
+                    .padding(.bottom, Spacing.lg)
+                    .transition(reveal)
+                }
             }
         }
     }
 
-    /// 页底：FreeGrid 的 2×2 小格子记号和版本号
-    private var footer: some View {
-        HStack(spacing: Spacing.sm) {
-            VStack(spacing: 1.5) {
-                HStack(spacing: 1.5) { footerMark(Color.inkFaint); footerMark(Color.assetGold) }
-                HStack(spacing: 1.5) { footerMark(Color.cashBlue); footerMark(Color.inkFaint) }
-            }
-            KickerLabel(text: "FreeGrid \(appVersion)")
+    /// 「永久买断 ¥18」：价格用 App Store 给的本地化文字，读不到时不写数
+    private var proPriceTitle: String {
+        if case .loaded(let product) = ProStore.shared.productState {
+            return "永久买断 \(product.displayPrice)"
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.sm)
-        .padding(.bottom, Spacing.lg)
-        .accessibilityElement(children: .combine)
+        return "永久买断"
     }
 
-    private func footerMark(_ color: Color) -> some View {
+    // MARK: - 最后一张：FreeGrid（墨色封底：使用指引、关于、评价）
+    private var aboutCard: some View {
+        let isOpen = openCard == "about"
+        return DeckCard(fill: AnyShapeStyle(SettingsDeck.inkCard),
+                        edge: colorScheme == .dark ? SettingsDeck.edge : .black.opacity(0.2)) {
+            VStack(spacing: 0) {
+                Button { toggle("about") } label: {
+                    DeckHeader(title: "FreeGrid", titleColor: SettingsDeck.inkCardText, isOpen: isOpen,
+                               chevronColor: SettingsDeck.inkCardFaint) {
+                        VStack(spacing: 1.5) {
+                            HStack(spacing: 1.5) { logoCell(Color(white: 0.8)); logoCell(Color.assetGold) }
+                            HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color(white: 0.8)) }
+                        }
+                        .accessibilityHidden(true)
+                    } trailing: {
+                        DeckReading(value: appVersion, color: SettingsDeck.inkCardText)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings-card-about")
+                if isOpen {
+                    VStack(spacing: 0) {
+                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        guideRow
+                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        NavigationLink {
+                            aboutPage
+                        } label: {
+                            DeckRow(title: "关于", titleColor: SettingsDeck.inkCardText,
+                                    chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
+                        }
+                        .buttonStyle(.plain)
+                        DeckDivider(color: SettingsDeck.inkCardLine)
+                        Button { openURL(rateURL) } label: {
+                            DeckRow(title: "评价与反馈", titleColor: SettingsDeck.inkCardText,
+                                    chevron: "arrow.up.right", chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, Spacing.xs)
+                    .transition(reveal)
+                }
+            }
+        }
+    }
+
+    private func logoCell(_ color: Color) -> some View {
         RoundedRectangle(cornerRadius: 1, style: .continuous).fill(color).frame(width: 5, height: 5)
     }
 
@@ -318,17 +471,17 @@ struct SettingsView: View {
     @ViewBuilder
     private var guideRow: some View {
         if expenses.isEmpty && incomes.isEmpty {
-            settingsRow(icon: "questionmark.circle", title: "使用指引",
-                        iconColor: .inkGhost, titleColor: .inkFaint) {
+            DeckRow(title: "使用指引", titleColor: SettingsDeck.inkCardFaint, chevron: nil) {
                 Text("记一笔后可看")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundStyle(SettingsDeck.inkCardFaint)
             }
         } else {
             NavigationLink {
                 GuideListPage(onReplay: onReplayGuide)
             } label: {
-                settingsRow(icon: "questionmark.circle", title: "使用指引") { chevron }
+                DeckRow(title: "使用指引", titleColor: SettingsDeck.inkCardText,
+                        chevronColor: SettingsDeck.inkCardFaint) { EmptyView() }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("guide-list")
