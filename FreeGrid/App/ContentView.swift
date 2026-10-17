@@ -122,7 +122,7 @@ extension ContentView {
     private func tab(for tour: AppGuide.Tour) -> AppTab {
         switch tour {
         case .dashboard: return .dashboard
-        case .assets: return .assets
+        case .assets, .moneyTimeAssets: return .assets
         case .history: return .history
         case .settings: return .settings
         }

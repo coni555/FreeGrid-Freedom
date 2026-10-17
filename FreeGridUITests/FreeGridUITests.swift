@@ -342,18 +342,13 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Assets"].exists)
         finishGuide(next, steps: 5)
 
-        // Settings 讲三处；讲之前指引列表那一页要先退回去
+        // Settings 讲六处（没有 Pro 时多讲 Pro 卡）；讲之前指引列表那一页要先退回去
         app.tabBars.buttons["Settings"].tap()
         app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-settings-guide"].tap()
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Settings"].exists)
-        for _ in 0..<2 { next.tap() }
-        expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
-        waitForExpectations(timeout: 3)
-        Thread.sleep(forTimeInterval: 0.4)
-        next.tap()
-        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+        finishGuide(next, steps: 6)
 
         // 看过一遍之后，再回到这两页不会自己重放
         app.tabBars.buttons["Assets"].tap()
@@ -362,6 +357,86 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(next.waitForExistence(timeout: 2))
         app.tabBars.buttons["Assets"].tap()
         XCTAssertFalse(next.waitForExistence(timeout: 2))
+    }
+
+    /// 有 Pro 时：Assets 是「钱与时间」，讲它自己的六处；Settings 不讲 Pro 卡，五处
+    @MainActor
+    func testProGuidesFollowTheMoneyTimeAssetsAndSkipTheProCard() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-proPreview", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5))
+        amount.tap()
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+
+        let next = app.buttons["guide-next"]
+        let text = app.staticTexts["guide-text"]
+        app.tabBars.buttons["Settings"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
+        app.buttons["replay-assets-guide"].tap()
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["unit-days"].exists)
+        // 第二步讲 ¥ / 天，最后一步讲「出」
+        next.tap()
+        XCTAssertTrue(text.label.hasPrefix("切到钟"))
+        for _ in 0..<4 { next.tap() }
+        expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
+        waitForExpectations(timeout: 3)
+        XCTAssertTrue(text.label.hasPrefix("「出」"))
+        Thread.sleep(forTimeInterval: 0.4)
+        next.tap()
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
+        app.buttons["replay-settings-guide"].tap()
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        finishGuide(next, steps: 5)
+    }
+
+    /// 各页讲解逐步截图：免费（经典 Assets）和 Pro（钱与时间）各一套，浅色。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureGuideScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["STORE_SHOTS_LEDGER"], let split = environment["ACCOUNTS_SPLIT_LEDGER"],
+              let output = environment["GUIDE_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍讲解截图时运行")
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 0.9)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for pro in [false, true] {
+            let edition = pro ? "Pro" : "免费"
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                                   "-setupGuideCompleted", "YES", "-proPreview", pro ? "YES" : "NO",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", pro ? split : ledger]
+            app.launch()
+            XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+            let next = app.buttons["guide-next"]
+            for (tour, page) in [("replay-dashboard-guide", "首页"), ("replay-assets-guide", "Assets"),
+                                 ("replay-history-guide", "History"), ("replay-settings-guide", "Settings")] {
+                app.tabBars.buttons["Settings"].tap()
+                app.tapSettingsRow("guide-list", inCard: "settings-card-about")
+                app.buttons[tour].tap()
+                XCTAssertTrue(next.waitForExistence(timeout: 5))
+                var step = 1
+                while next.exists {
+                    try shoot("\(edition)-\(page)-\(step)")
+                    next.tap()
+                    Thread.sleep(forTimeInterval: 0.5)
+                    step += 1
+                    if step > 8 { break }
+                }
+            }
+            app.terminate()
+        }
     }
 
     @MainActor

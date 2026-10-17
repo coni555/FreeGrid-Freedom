@@ -79,24 +79,28 @@ struct SettingsView: View {
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coverHeight = $0 }
                         .guideTarget(.check, in: guide)
                         .zIndex(6)
+                    // 后面几张卡顶上一截压在上一张底下，讲解只圈露出来的部分
                     freedomCardCard
+                        .guideTarget(.freedomCard, in: guide, hiddenTop: SettingsDeck.tuck)
                         .zIndex(5)
                     // 没买时 Pro 紧跟在自由卡后面；买过了退到 FreeGrid 前面，不再占前排
                     if !proUnlocked {
                         proCard(depth: 1)
+                            .guideTarget(.pro, in: guide, hiddenTop: SettingsDeck.tuck)
                             .zIndex(4.5)
                     }
                     lookCard(depth: proUnlocked ? 1 : 2)
-                        .guideTarget(.appearance, in: guide)
+                        .guideTarget(.appearance, in: guide, hiddenTop: SettingsDeck.tuck)
                         .zIndex(4)
                     ledgerCard(depth: proUnlocked ? 2 : 3)
-                        .guideTarget(.data, in: guide)
+                        .guideTarget(.data, in: guide, hiddenTop: SettingsDeck.tuck)
                         .zIndex(3)
                     if proUnlocked {
                         proCard(depth: 3)
                             .zIndex(2)
                     }
                     aboutCard
+                        .guideTarget(.about, in: guide, hiddenTop: SettingsDeck.tuck)
                         .zIndex(1)
                 }
                 .padding()
@@ -118,9 +122,12 @@ struct SettingsView: View {
             .sensoryFeedback(.selection, trigger: themeChoice)
             .sensoryFeedback(.selection, trigger: heroLayout)
             .sensoryFeedback(.selection, trigger: assetsLayout)
-            // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
+            // 「Settings 怎么用」: 把卡都收起来铺满一屏，等指引列表那一页退回来、位置排好再开始。
+            // 买过 Pro 就不讲 Pro 卡（它退到了后排，卡面只写已解锁）
             .task(id: guide.replays(of: .settings)) {
                 guard guide.takeReplay(.settings) else { return }
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : SettingsDeck.spring) { openCard = "" }
+                if proUnlocked { guide.forget(.pro) }
                 try? await Task.sleep(for: .milliseconds(800))
                 guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.settings) }

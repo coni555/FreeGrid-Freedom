@@ -1,5 +1,5 @@
 // 全 App 的指引：压暗页面、圈出位置、逐步说明。
-// 两种：看着学的讲解（首页、History），和带新用户做完头两步的起步引导。
+// 两种：看着学的讲解（每页一个），和带新用户做完头两步的起步引导。
 
 import SwiftUI
 
@@ -7,9 +7,11 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppGuide {
-    /// 看着学的讲解，各属于一个页面
+    /// 看着学的讲解，各属于一个页面。Assets 两版长得不一样，各讲各的：
+    /// 经典版（免费用户只有这一版）是 `assets`，「钱与时间」（Pro）是 `moneyTimeAssets`。
+    /// 重看时两版都用 `assets` 这一个请求，由当时显示的那一版决定讲哪套。
     enum Tour: Hashable {
-        case dashboard, assets, history, settings
+        case dashboard, assets, moneyTimeAssets, history, settings
     }
 
     enum Target: Hashable {
@@ -18,9 +20,9 @@ final class AppGuide {
         // 首页
         case number, grid, repaymentDays, simulate, trend
         // Assets
-        case netWorth, transfer, buckets, passive, loans
+        case netWorth, unitSwitch, transfer, buckets, passive, loans
         // Settings
-        case check, appearance, data
+        case check, freedomCard, pro, appearance, data, about
         // 起步引导里要用户真的去点的两处
         case cashCard, expenseButton
     }
@@ -36,26 +38,40 @@ final class AppGuide {
         switch tour {
         case .dashboard:
             return [
-                Step(target: .number, text: "按现在的花法，不工作你还能撑这么多天。\n下面写着大约能撑到哪一天。"),
+                Step(target: .number, text: "按现在的花法，你的财富还能撑这么多天。\n下面写着大约能撑到哪一天。"),
                 Step(target: .grid, text: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。"),
-                // 只有填了每月还款、格子上有孔时才出现
+                // 只有填了贷款、格子上有孔时才出现
                 Step(target: .repaymentDays, text: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。"),
                 Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
                 Step(target: .trend, text: "点这一行，展开或收起最近几周的变化。"),
             ]
         case .assets:
             return [
-                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线按账户分段，金色是资产，蓝色是现金。"),
-                Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
-                Step(target: .buckets, text: "资产是定期、股票这类不打算马上花的钱，现金是随时能花的。\n点标题收起或展开，点一行改金额。"),
-                Step(target: .loans, text: "房租、月供填在这里，到日子自动扣；\n自由天数会提前把每期的钱留出来。"),
-                Step(target: .passive, text: "租金、利息这类不靠上班的收入加在这里。\n它覆盖全部开销时，首页显示 ∞。"),
+                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线里，金色是资产，蓝色是现金。"),
+                Step(target: .transfer, text: "钱在资产和现金之间挪，用调拨，净值不变。\n点这一行展开。"),
+                Step(target: .buckets, text: "资产是定期、股票这类不打算马上花的钱，现金是随时能花的。\n点一行改金额；资产前面的方格，管它算不算进自由天数。"),
+                Step(target: .loans, text: "房租、水电、会员这类固定支出加在这里。\n到日子自动记一笔，自由天数会提前留出这笔钱。"),
+                Step(target: .passive, text: "租金、利息这类不靠上班的收入加在这里。\n它覆盖开销时，首页显示 ∞。"),
+            ]
+        // 顺序跟屏幕从上到下走：净值、单位、两张标签、调拨、每月的进和出
+        case .moneyTimeAssets:
+            return [
+                Step(target: .netWorth, text: "净值 = 资产 + 现金。\n下面这条线一段是一个账户，点一段跳到它那一边。"),
+                Step(target: .unitSwitch, text: "切到钟，整页的金额换成「够日常花几天」，\n大数字就是你的自由天数。"),
+                Step(target: .buckets, text: "点「资产」或「现金」切换，一个账户一行。\n点一行修改；点前面的方格或序号，选它算不算进自由天数。"),
+                Step(target: .transfer, text: "中间的圆钮是调拨：\n钱在资产和现金之间挪，净值不变。"),
+                Step(target: .passive, text: "「进」是租金、利息这类不靠上班的收入。\n它覆盖开销时，首页显示 ∞。"),
+                Step(target: .loans, text: "「出」是房租、会员这类固定支出，和房贷、车贷。\n到日子自动记一笔，自由天数会提前留出这笔钱。"),
             ]
         case .settings:
             return [
                 Step(target: .check, text: "八个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项。"),
-                Step(target: .appearance, text: "深色还是浅色、首页大数字靠右还是居中，在这里改。"),
-                Step(target: .data, text: "导出备份、从备份恢复、清空数据都在这里。\n换手机前先导出一份 JSON。"),
+                Step(target: .freedomCard, text: "你的自由卡：30 天银卡，180 天香槟金，一年黑卡。\n点开看整张卡。"),
+                // 只有还没买 Pro 时才出现
+                Step(target: .pro, text: "Pro 一次买断，不订阅。\n点「了解 Pro」，看免费版和 Pro 各有什么。"),
+                Step(target: .appearance, text: "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和 Assets 页的样式。"),
+                Step(target: .data, text: "「账本」里管支出分类和备份。\n换手机前，先在这里导出一份 JSON 备份。"),
+                Step(target: .about, text: "想再看一遍这些讲解，\n来「FreeGrid」→「使用指引」。"),
             ]
         case .history:
             return [
@@ -137,9 +153,23 @@ final class AppGuide {
 }
 
 extension View {
-    /// 把这个视图在屏幕上的位置报给指引
-    func guideTarget(_ target: AppGuide.Target, in guide: AppGuide) -> some View {
-        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { guide.report(target, $0) }
+    /// 把这个视图在屏幕上的位置报给指引。`hiddenTop`：顶上被别的东西盖住的那一截（设置页叠着的卡），不圈进去
+    func guideTarget(_ target: AppGuide.Target, in guide: AppGuide, hiddenTop: CGFloat = 0) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            var visible = frame
+            visible.origin.y += hiddenTop
+            visible.size.height -= hiddenTop
+            guide.report(target, visible)
+        }
+    }
+
+    /// 讲解走到一处不在屏幕里的位置时，把它滚到眼前。`anchors` 给出每一处滚到哪个 id、停在屏幕哪儿
+    func guideScroll(_ guide: AppGuide, tour: AppGuide.Tour, scroller: ScrollViewProxy,
+                     anchors: [AppGuide.Target: (id: AnyHashable, at: UnitPoint)]) -> some View {
+        onChange(of: guide.tour == tour ? guide.current?.target : nil) { _, target in
+            guard let target, let anchor = anchors[target] else { return }
+            withAnimation(.easeInOut(duration: 0.35)) { scroller.scrollTo(anchor.id, anchor: anchor.at) }
+        }
     }
 }
 
@@ -384,7 +414,7 @@ struct SetupGuideOverlay: View {
 
     private var text: String {
         switch step {
-        case .welcome: return "FreeGrid 算的是：不工作，你现在的钱还能撑多少天。\n先告诉它你有多少钱。"
+        case .welcome: return "FreeGrid 算的是：按现在的花法，你的钱还能撑多少天。\n先告诉它你有多少钱。"
         case .cash: return "活期、微信、支付宝里随时能花的钱，填在「现金」。\n点一下这一行。"
         case .backHome: return "记下了。\n再回首页记一笔支出，格子就会点亮。"
         case .expense: return "记一笔今天的支出，多少都行。\n点「记支出」。"

@@ -62,15 +62,21 @@ struct MoneyTimeAssetsView: View {
                     .environment(\.drawerHints, false)
                 }
                 .hardTopScrollEdge()
-                // 「Assets 怎么用」：回到顶部、换回钱的单位，等位置排好再开始
+                // 「Assets 怎么用」：回到顶部、换回钱的单位，等位置排好再开始。讲这一版自己的那套
                 .task(id: guide.replays(of: .assets)) {
                     guard guide.takeReplay(.assets) else { return }
                     unitKey = "money"
                     scroller.scrollTo(Self.topID, anchor: .top)
                     try? await Task.sleep(for: .milliseconds(600))
                     guard !Task.isCancelled, !showingTransfer else { return }
-                    withAnimation(.easeInOut(duration: 0.25)) { guide.start(.assets) }
+                    withAnimation(.easeInOut(duration: 0.25)) { guide.start(.moneyTimeAssets) }
                 }
+                // 讲到「每月」时它在屏幕下面，先滚上来
+                .guideScroll(guide, tour: .moneyTimeAssets, scroller: scroller, anchors: [
+                    .netWorth: (Self.topID, .top), .unitSwitch: (Self.topID, .top),
+                    .buckets: (Self.topID, .top), .transfer: (Self.topID, .top),
+                    .passive: (AppGuide.Target.passive, .center), .loans: (AppGuide.Target.loans, .center),
+                ])
             }
             .scrollContentBackground(.hidden)
             .dismissKeyboardOnScroll()
@@ -96,6 +102,7 @@ struct MoneyTimeAssetsView: View {
                     get: { isDays },
                     set: { newValue in withAnimation(.snappy(duration: 0.4)) { unitKey = newValue ? "days" : "money" } }
                 ))
+                .guideTarget(.unitSwitch, in: guide)
             }
 
             Group {
@@ -417,6 +424,7 @@ struct MoneyTimeAssetsView: View {
                         amount: unit.text(income, sign: "+"), amountColor: .mossGreen,
                         share: income / largest, shareColor: .mossGreen, identifier: "monthly-income")
                     .guideTarget(.passive, in: guide)
+                    .id(AppGuide.Target.passive)
                 if incomeOpen {
                     PassiveRows()
                         .padding(.horizontal, 18)
@@ -432,6 +440,7 @@ struct MoneyTimeAssetsView: View {
                         amount: unit.text(outflow, sign: "−"), amountColor: .ink,
                         share: outflow / largest, shareColor: .cashBlue, identifier: "monthly-loans")
                     .guideTarget(.loans, in: guide)
+                    .id(AppGuide.Target.loans)
                 if loansOpen {
                     LoanRows()
                         .padding(.horizontal, 18)

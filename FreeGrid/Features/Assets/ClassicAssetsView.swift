@@ -55,10 +55,13 @@ struct ClassicAssetsView: View {
                         CashDrawer()
                     }
                     .guideTarget(.buckets, in: guide)
+                    .id(AppGuide.Target.buckets)
                     LoanDrawer()
                         .guideTarget(.loans, in: guide)
+                        .id(AppGuide.Target.loans)
                     passiveCard
                         .guideTarget(.passive, in: guide)
+                        .id(AppGuide.Target.passive)
                 }
                 .padding()
                 // 点击卡片之外的空白处收起调拨键盘(decimalPad 无 return 键)。
@@ -77,6 +80,12 @@ struct ClassicAssetsView: View {
                 guard !Task.isCancelled, !showingAddPassive, editingPassiveSource == nil else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.assets) }
             }
+            // 讲到下面几张卡时它们可能在屏幕外，先滚过去
+            .guideScroll(guide, tour: .assets, scroller: scroller, anchors: [
+                .netWorth: (Self.topID, .top), .transfer: (Self.topID, .top),
+                .buckets: (AppGuide.Target.buckets, .top),
+                .loans: (AppGuide.Target.loans, .center), .passive: (AppGuide.Target.passive, .center),
+            ])
             }
             .scrollContentBackground(.hidden)
             .dismissKeyboardOnScroll()
