@@ -53,10 +53,10 @@ struct ProPaywallView: View {
     private var header: some View {
         VStack(spacing: Spacing.sm) {
             KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
-            Text(store.isUnlocked ? "Pro 已解锁" : "把自由，算得更完整")
+            Text(store.isUnlocked ? "Pro 已解锁" : "让自由天数，更接近真实")
                 .font(.system(size: 30, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            Text(store.isUnlocked ? "谢谢你支持 FreeGrid，右边一列现在都是你的。" : "一次买断，永久拥有。账本照旧只在你的手机上。")
+            Text(store.isUnlocked ? "谢谢你支持 FreeGrid，右边一列现在都是你的。" : "把每月还款、各个账户和难变现的资产都算清楚，看见你真正能自由的天数。")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

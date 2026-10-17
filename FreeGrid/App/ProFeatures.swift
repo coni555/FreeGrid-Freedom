@@ -29,7 +29,8 @@ enum ProFeatures {
         Row(title: "支出分类", free: .text("默认九类"), pro: .text("随你定义"), topics: [.categories]),
         Row(title: "资产与现金", free: .text("一个总数"), pro: .text("拆成子账户"), topics: [.assets, .cash, .freedomSwitch]),
         Row(title: "资产视图", free: .text("经典"), pro: .text("钱与时间"), topics: [.assetsView]),
-        Row(title: "每月还款", free: .no, pro: .text("算进自由"), topics: [.loans]),
+        // 给背着贷款的人：还款照常进行时，扣掉每期月供还剩多少自由天数（不是还清倒计时）
+        Row(title: "房贷车贷 · 每月还款", free: .no, pro: .text("还款后的自由"), topics: [.loans]),
         Row(title: "自由名片", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
     ]
 
