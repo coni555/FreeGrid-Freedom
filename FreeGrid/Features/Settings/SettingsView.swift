@@ -102,7 +102,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
             .onAppear { if openCard == "pro" { openCard = "" } }
-            .sheet(isPresented: $showingPro) { ProPaywallView(topic: proTopic) }
+            .proPaywall(isPresented: $showingPro, topic: proTopic)
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sensoryFeedback(.selection, trigger: isDarkMode)
             .sensoryFeedback(.selection, trigger: heroLayout)
@@ -256,7 +256,7 @@ struct SettingsView: View {
                         }
                         DeckDivider()
                         // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样。「钱与时间」是 Pro 的，没有 Pro 点了去购买页
-                        segmentRow("Assets 页面", pro: !ProFeatures.canUseMoneyTimeAssets) {
+                        segmentRow("Assets 页面") {
                             Picker("Assets 页面", selection: Binding(
                                 get: { AssetsLayout.effective(assetsLayout) },
                                 set: { newValue in
@@ -272,6 +272,18 @@ struct SettingsView: View {
                                 Text("经典").tag(AssetsLayout.classic)
                             }
                             .accessibilityIdentifier("assets-layout-picker")
+                            // 「钱与时间」那一格的右上角挂一个小 PRO
+                            .overlay(alignment: .topLeading) {
+                                if !ProFeatures.canUseMoneyTimeAssets {
+                                    HStack(spacing: 0) {
+                                        Spacer(minLength: 0)
+                                        ProBadge(fill: SettingsDeck.paper(depth))
+                                    }
+                                    .frame(width: 75)
+                                    .offset(x: 4, y: -7)
+                                    .allowsHitTesting(false)
+                                }
+                            }
                         }
                     }
                     .padding(.bottom, Spacing.xs)
@@ -289,18 +301,11 @@ struct SettingsView: View {
     }
 
     /// 外观里的一行：左边名字，右边同样宽的分段按钮，三行右边缘对齐
-    private func segmentRow<Control: View>(_ title: String, pro: Bool = false, @ViewBuilder control: () -> Control) -> some View {
+    private func segmentRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
         HStack(spacing: Spacing.sm) {
             Text(title)
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(Color.ink)
-            // 和账本卡里「支出分类」旁边的标记一样
-            if pro {
-                Text("PRO")
-                    .font(.system(size: 10, design: .monospaced))
-                    .tracking(2)
-                    .foregroundStyle(Color.skyDeep)
-            }
             Spacer(minLength: Spacing.sm)
             control()
                 .pickerStyle(.segmented)
@@ -681,5 +686,21 @@ private struct GuideListPage: View {
         .background(Color.paper)
         .navigationTitle("使用指引")
         .inlineNavTitle()
+    }
+}
+
+/// 分段按钮角上的小 PRO：描边胶囊，底色和卡面一样，盖住分段按钮的边
+private struct ProBadge: View {
+    var fill: Color
+
+    var body: some View {
+        Text("PRO")
+            .font(.system(size: 8, weight: .semibold, design: .monospaced))
+            .tracking(1)
+            .foregroundStyle(Color.skyDeep)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1.5)
+            .background(Capsule().fill(fill))
+            .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 0.75))
     }
 }

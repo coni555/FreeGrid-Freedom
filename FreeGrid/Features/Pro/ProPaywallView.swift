@@ -1,5 +1,5 @@
-// Pro 购买页：一张免费和 Pro 的对照表，底部固定价格、购买、恢复购买。从设置和各个 Pro 功能的锁定页进入。
-// 对照表的两列只放勾，字都留给左边的名字和说明，读起来不挤。
+// Pro 购买页：整屏弹出，居中的标题，一张铺满宽度的免费 / Pro 对照卡，底部固定价格、购买、恢复购买。
+// 从设置和各个 Pro 功能的锁定页进入，都用 `.proPaywall(isPresented:topic:)`。
 
 import StoreKit
 import SwiftUI
@@ -18,14 +18,14 @@ struct ProPaywallView: View {
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
-    /// 对照表右边两列的宽度：只放勾，窄一点就够
-    private let freeWidth: CGFloat = 44
-    private let proWidth: CGFloat = 56
+    /// 对照卡右边两列的宽度：放得下五个字
+    private let freeWidth: CGFloat = 80
+    private let proWidth: CGFloat = 96
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
+                VStack(spacing: Spacing.xl) {
                     header
                     comparisonTable
                     #if DEBUG
@@ -51,116 +51,109 @@ struct ProPaywallView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(spacing: Spacing.sm) {
             KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
             Text(store.isUnlocked ? "Pro 已解锁" : "把自由，算得更完整")
                 .font(.system(size: 30, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            Text(store.isUnlocked ? "谢谢你支持 FreeGrid，下面这些现在都是你的。" : "一次买断，永久拥有。账本照旧只在你的手机上。")
+            Text(store.isUnlocked ? "谢谢你支持 FreeGrid，右边一列现在都是你的。" : "一次买断，永久拥有。账本照旧只在你的手机上。")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, Spacing.sm)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.lg)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(store.isUnlocked ? "pro-unlocked" : "pro-header")
     }
 
-    // MARK: - 对照表
+    // MARK: - 对照卡
 
-    /// 先列 Pro 专属，再列免费就有的。右边一列整列用一道细线框起来，是这一页唯一有颜色的块
+    /// 一张卡铺满宽度：左边功能名，右边免费、Pro 两列。Pro 列垫一块淡蓝，不画高高的细框
     private var comparisonTable: some View {
         VStack(spacing: 0) {
-            columnHeader
-            groupLabel("Pro 专属")
-            ForEach(ProFeatures.proRows) { row in
-                tableRow(row)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                KickerLabel(text: "免费").frame(width: freeWidth)
+                KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
             }
-            groupLabel("免费就有")
-            ForEach(ProFeatures.freeRows) { row in
+            .frame(height: 48)
+            ForEach(ProFeatures.comparison) { row in
+                rowDivider
                 tableRow(row)
             }
         }
-        // 底色垫在下面，细线框压在最上面：标出来的那一行不会把框盖断
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
         .background(alignment: .trailing) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.skyDeep.opacity(0.05))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.skyDeep.opacity(0.08))
                 .frame(width: proWidth)
+                .padding(.vertical, Spacing.sm)
+                .padding(.trailing, Spacing.md)
         }
-        .overlay(alignment: .trailing) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.skyDeep, lineWidth: 1)
-                .frame(width: proWidth)
-                .allowsHitTesting(false)
-        }
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.mist))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.hairline, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pro-comparison")
     }
 
-    private var columnHeader: some View {
-        HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            KickerLabel(text: "免费").frame(width: freeWidth)
-            KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
-        }
-        .frame(height: 44)
-    }
-
-    /// 组名写在左边，跟行之间隔一道细线；细线只画到 Pro 列前面
-    private func groupLabel(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(text)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(Color.inkFaint)
-                .padding(.leading, Spacing.sm)
-                .padding(.top, Spacing.lg)
-                .padding(.bottom, Spacing.sm)
-            Hairline().padding(.trailing, proWidth)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    /// 行间细线只画到 Pro 列前面，淡蓝那一块里干干净净
+    private var rowDivider: some View {
+        Hairline().padding(.trailing, proWidth)
     }
 
     private func tableRow(_ row: ProFeatures.Row) -> some View {
         let highlighted = topic.map { row.topics.contains($0) } ?? false
-        return VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(row.title)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.ink)
-                    Text(row.detail)
-                        .font(.system(size: 12.5, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        return HStack(spacing: 0) {
+            Text(row.title)
+                .font(.system(size: 15, design: .rounded))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, Spacing.sm)
-                .padding(.trailing, Spacing.xs)
-                .padding(.vertical, 12)
-                mark(row.inFree, pro: false).frame(width: freeWidth)
-                mark(true, pro: true).frame(width: proWidth)
+                .padding(.leading, Spacing.xs)
+            cell(row.free, pro: false).frame(width: freeWidth)
+            cell(row.pro, pro: true).frame(width: proWidth)
+        }
+        .frame(minHeight: 52)
+        .background {
+            if highlighted {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.skyFaint)
+                    .padding(.horizontal, -Spacing.xs)
             }
-            .background {
-                if highlighted {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.skyFaint)
-                }
-            }
-            Hairline().padding(.trailing, proWidth)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(row.title)，\(row.detail)\(row.inFree ? "免费版和 Pro 都有" : "Pro 专属")")
+        .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
     }
 
     @ViewBuilder
-    private func mark(_ has: Bool, pro: Bool) -> some View {
-        if has {
+    private func cell(_ cell: ProFeatures.Cell, pro: Bool) -> some View {
+        switch cell {
+        case .yes:
             Image(systemName: "checkmark")
                 .font(.system(size: 13, weight: pro ? .regular : .light))
                 .foregroundStyle(pro ? Color.skyDeep : Color.inkFaint)
-        } else {
+        case .no:
             Text("—")
                 .font(.system(size: 13, design: .rounded))
                 .foregroundStyle(Color.inkGhost)
+        case .text(let text):
+            Text(text)
+                .font(.system(size: 14, weight: pro ? .medium : .regular, design: .rounded))
+                .foregroundStyle(pro ? Color.skyDeep : Color.inkMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private func spoken(_ cell: ProFeatures.Cell) -> String {
+        switch cell {
+        case .yes: return "有"
+        case .no: return "没有"
+        case .text(let text): return text
         }
     }
 
@@ -285,5 +278,16 @@ struct ProPaywallView: View {
         case .nothingToRestore: notice = "这个 Apple 账户下没有找到 Pro 的购买记录。"
         case .failed(let message): notice = message
         }
+    }
+}
+
+extension View {
+    /// 打开购买页：iOS 上整屏弹出（显得开阔，像大多数 App 的升级页），macOS 没有整屏弹出，用普通的 sheet
+    func proPaywall(isPresented: Binding<Bool>, topic: ProFeatures.Topic? = nil) -> some View {
+        #if os(iOS)
+        fullScreenCover(isPresented: isPresented) { ProPaywallView(topic: topic) }
+        #else
+        sheet(isPresented: isPresented) { ProPaywallView(topic: topic) }
+        #endif
     }
 }

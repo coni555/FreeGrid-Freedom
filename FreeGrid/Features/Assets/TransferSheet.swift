@@ -100,7 +100,7 @@ struct TransferSheet: View {
             .onAppear { amountFocused = !locked }
         }
         .saveErrorAlert($saveError)
-        .sheet(isPresented: $showingPro) { ProPaywallView(topic: assetItems.isEmpty ? .cash : .assets) }
+        .proPaywall(isPresented: $showingPro, topic: assetItems.isEmpty ? .cash : .assets)
         .iosSheetDetents()
     }
 

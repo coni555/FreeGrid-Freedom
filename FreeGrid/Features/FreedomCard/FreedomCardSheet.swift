@@ -75,7 +75,7 @@ struct FreedomCardSheet: View {
                         .fontWeight(.medium)
                 }
             }
-            .sheet(isPresented: $showingPro) { ProPaywallView(topic: .freedomCard) }
+            .proPaywall(isPresented: $showingPro, topic: .freedomCard)
             // 看过这张卡：首页那行升级提示到这个等级为止
             .onAppear {
                 highestSeen = max(highestSeen, data.tier.rawValue)

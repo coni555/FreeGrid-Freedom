@@ -116,7 +116,7 @@ struct AddExpenseSheet: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationDestination(isPresented: $showingCategories) { ExpenseCategoriesView() }
-            .sheet(isPresented: $showingPro) { ProPaywallView(topic: .categories) }
+            .proPaywall(isPresented: $showingPro, topic: .categories)
             .navigationTitle("添加支出")
             .inlineNavTitle()
             .saveErrorAlert($saveError)

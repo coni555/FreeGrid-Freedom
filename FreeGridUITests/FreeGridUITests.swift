@@ -257,8 +257,10 @@ final class FreeGridUITests: XCTestCase {
         add(paywall)
 
         // 解锁后购买页换成已解锁，关掉就能管理分类
+        // 底部固定的购买栏会盖住调试开关的一部分，先滑到底让它露出来
         let preview = app.switches["pro-preview-toggle"]
-        for _ in 0..<4 {
+        app.swipeUp()
+        for _ in 0..<3 {
             if preview.isHittable { break }
             app.swipeUp()
         }
@@ -736,14 +738,14 @@ final class FreeGridUITests: XCTestCase {
         split.tap()
         let restore = app.buttons["pro-restore"]
         XCTAssertTrue(restore.waitForExistence(timeout: 5))
-        app.swipeDown(velocity: .fast)
+        app.buttons["pro-close"].tap()
         XCTAssertTrue(restore.waitForNonExistence(timeout: 5))
 
         let fromSwitch = app.buttons["add-asset-item"]
         XCTAssertTrue(fromSwitch.waitForExistence(timeout: 3))
         fromSwitch.tap()
         XCTAssertTrue(restore.waitForExistence(timeout: 5))
-        app.swipeDown(velocity: .fast)
+        app.buttons["pro-close"].tap()
         XCTAssertTrue(restore.waitForNonExistence(timeout: 5))
 
         XCTAssertFalse(app.buttons["asset-item-资产"].exists)
