@@ -170,6 +170,12 @@ extension Font {
 // ============================================================================
 
 /// kicker 标签:uppercase mono tracking,默认 inkFaint
+/// 主题偏好：老的 `isDarkMode` 仍记着固定时选的浅色或深色，另用一个开关记「跟随系统」，
+/// 这样老用户升级后外观不变。存在 `AppPreferences.store`：UI 测试里是临时偏好、默认不跟随，`-isDarkMode` 启动参数照常有效
+enum AppTheme {
+    static let followsSystemKey = "themeFollowsSystem"
+}
+
 struct KickerLabel: View {
     let text: String
     var color: Color = .inkFaint

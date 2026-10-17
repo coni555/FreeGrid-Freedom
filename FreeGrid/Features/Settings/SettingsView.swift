@@ -15,6 +15,7 @@ struct SettingsView: View {
 
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
     /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
     @AppStorage(AssetsLayout.key, store: AppPreferences.store) private var assetsLayout = AssetsLayout.moneyTime
@@ -107,7 +108,7 @@ struct SettingsView: View {
             .onAppear { if openCard == "pro" { openCard = "" } }
             .proPaywall(isPresented: $showingPro, topic: proTopic)
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
-            .sensoryFeedback(.selection, trigger: isDarkMode)
+            .sensoryFeedback(.selection, trigger: themeChoice)
             .sensoryFeedback(.selection, trigger: heroLayout)
             .sensoryFeedback(.selection, trigger: assetsLayout)
             // 「Settings 怎么用」: 等指引列表那一页退回来、位置排好再开始
@@ -234,7 +235,7 @@ struct SettingsView: View {
                     DeckHeader(title: "外观", detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
-                        ThemeGlyph(isDark: isDarkMode)
+                        ThemeGlyph(isDark: colorScheme == .dark)
                     }
                 }
                 .buttonStyle(.plain)
@@ -246,9 +247,11 @@ struct SettingsView: View {
                         // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
                         segmentRow("主题") {
                             Picker("主题", selection: themeBinding) {
-                                Text("浅色").tag(false)
-                                Text("深色").tag(true)
+                                Text("浅色").tag("light")
+                                Text("深色").tag("dark")
+                                Text("系统").tag("system")
                             }
+                            .accessibilityIdentifier("theme-picker")
                         }
                         DeckDivider()
                         segmentRow("首页大数字") {
@@ -298,7 +301,7 @@ struct SettingsView: View {
 
     /// 外观卡收着时写的那一行：现在的三个选择
     private var lookSummary: String {
-        [isDarkMode ? "深色" : "浅色",
+        [followsSystem ? "跟随系统" : (isDarkMode ? "深色" : "浅色"),
          heroLayout == "vertical" ? "居中" : "靠右",
          AssetsLayout.effective(assetsLayout) == AssetsLayout.classic ? "经典" : "钱与时间"].joined(separator: " · ")
     }
@@ -330,14 +333,20 @@ struct SettingsView: View {
 
     /// 主题绑定: setter 包在 withAnimation 里 — 切换时整页换色走 0.25s 缓动交叉淡入,
     /// 不是单帧硬重绘。这是消除"切主题突然卡顿"的关键。
-    private var themeBinding: Binding<Bool> {
+    private var themeBinding: Binding<String> {
         Binding(
-            get: { isDarkMode },
+            get: { themeChoice },
             set: { newValue in
-                withAnimation(.easeInOut(duration: 0.25)) { isDarkMode = newValue }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    followsSystem = newValue == "system"
+                    if newValue != "system" { isDarkMode = newValue == "dark" }
+                }
             }
         )
     }
+
+    /// 「light」「dark」或「system」
+    private var themeChoice: String { followsSystem ? "system" : (isDarkMode ? "dark" : "light") }
 
     // MARK: - 账本（读数是一共记了几笔）
     private func ledgerCard(depth: Int) -> some View {

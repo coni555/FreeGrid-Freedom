@@ -78,6 +78,10 @@ private struct DashboardContent: View {
 
     // ===== 主题切换 (与 ContentView 共享同一 key) =====
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
+    /// 现在实际是深色还是浅色（跟随系统时看系统）
+    @Environment(\.colorScheme) private var colorScheme
+    private var showsDark: Bool { colorScheme == .dark }
 
     /// Hero 布局偏好: "leading" (mockup hero-a, 副标左 + 数字右) 或 "vertical" (居中堆叠)
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
@@ -101,7 +105,7 @@ private struct DashboardContent: View {
                     topBar           // 一行 wordmark
                         .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
-                                  isDarkMode: isDarkMode, heroLayout: heroLayout, needsSavings: needsSavings,
+                                  isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
                                   cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
                     gridSection      // 按天、月或年显示自由网格
                         .guideTarget(.grid, in: guide)
@@ -242,15 +246,17 @@ private struct DashboardContent: View {
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
             Button(action: {
+                // 首页这个开关只在浅色、深色之间切；跟随系统时点它，就固定成和现在相反的那个
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    isDarkMode.toggle()
+                    isDarkMode = !showsDark
+                    followsSystem = false
                 }
             }) {
                 ZStack {
                     Circle()
                         .stroke(Color.ink, lineWidth: 1)
                         .frame(width: 22, height: 22)
-                    if isDarkMode {
+                    if showsDark {
                         Image(systemName: "moon.fill")
                             .font(.system(size: 10))
                             .foregroundStyle(Color.sky)
@@ -263,7 +269,7 @@ private struct DashboardContent: View {
                 .contentShape(Rectangle())   // 扩大点击区
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isDarkMode ? "切换浅色模式" : "切换深色模式")
+            .accessibilityLabel(showsDark ? "切换浅色模式" : "切换深色模式")
 
             Text("FreeGrid")
                 .font(.system(.subheadline, design: .rounded).weight(.medium))

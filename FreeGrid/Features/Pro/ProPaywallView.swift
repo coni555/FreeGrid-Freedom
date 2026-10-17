@@ -123,8 +123,13 @@ struct ProPaywallView: View {
         let highlighted = topic.map { row.topics.contains($0) } ?? false
         return HStack(spacing: 0) {
             HStack(spacing: 5) {
+                // 从哪个功能点进来，那一行前面一道蓝竖线（和设置页 Pro 卡同一个记号），不把整行涂蓝
+                if highlighted {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
+                        .accessibilityHidden(true)
+                }
                 Text(row.title)
-                    .font(.system(size: 15, design: .rounded))
+                    .font(.system(size: 15, weight: highlighted ? .medium : .regular, design: .rounded))
                     .foregroundStyle(Color.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -150,13 +155,6 @@ struct ProPaywallView: View {
             cell(row.pro, pro: true).frame(width: proWidth).accessibilityHidden(true)
         }
         .frame(minHeight: 50)
-        .background {
-            if highlighted {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.skyFaint)
-                    .padding(.horizontal, -Spacing.xs)
-            }
-        }
     }
 
     @ViewBuilder

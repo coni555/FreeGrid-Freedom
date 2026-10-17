@@ -11,8 +11,9 @@ private enum AppTab: Hashable {
 }
 
 struct ContentView: View {
-    /// 跨启动持久化主题选择
+    /// 跨启动持久化主题选择：跟随系统时不指定，否则按 isDarkMode 固定浅色或深色
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
     @State private var selectedTab: AppTab = .dashboard
 
     /// 全 App 的指引；遮罩要盖住导航栏和 Tab 栏，所以由这里持有
@@ -112,8 +113,8 @@ struct ContentView: View {
         }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
-        // 用户在 topBar 切换 dark/light,全 app 自动重绘
-        .preferredColorScheme(isDarkMode ? .dark : .light)
+        // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
+        .preferredColorScheme(followsSystem ? nil : (isDarkMode ? .dark : .light))
     }
 }
 

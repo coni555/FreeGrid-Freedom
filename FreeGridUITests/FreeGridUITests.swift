@@ -755,6 +755,11 @@ final class FreeGridUITests: XCTestCase {
         split.tap()
         let restore = app.buttons["pro-restore"]
         XCTAssertTrue(restore.waitForExistence(timeout: 5))
+        if let output = ProcessInfo.processInfo.environment["FIXED_SHOTS_DIR"] {
+            Thread.sleep(forTimeInterval: 1.2)
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent("7-购买页-从资产进.png"))
+        }
         app.buttons["pro-close"].tap()
         XCTAssertTrue(restore.waitForNonExistence(timeout: 5))
 
@@ -767,6 +772,34 @@ final class FreeGridUITests: XCTestCase {
 
         XCTAssertFalse(app.buttons["asset-item-资产"].exists)
         XCTAssertTrue(app.switches["counts-assets-toggle"].exists)
+    }
+
+    /// 主题选「系统」：外观卡收起后写「跟随系统」，首页的深浅开关跟着系统（模拟器是浅色）；
+    /// 在首页点开关，就固定成深色、不再跟随。
+    @MainActor
+    func testThemeCanFollowTheSystem() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "YES", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-UseInMemoryStore"]
+        app.launch()
+        XCTAssertTrue(app.buttons["切换浅色模式"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        let picker = app.segmentedControls["theme-picker"]
+        if !picker.waitForExistence(timeout: 2) { app.buttons["settings-card-look"].tap() }
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        picker.buttons["系统"].tap()
+        app.buttons["settings-card-look"].tap()
+        let summary = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "跟随系统")).firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["Dashboard"].tap()
+        let toDark = app.buttons["切换深色模式"]
+        XCTAssertTrue(toDark.waitForExistence(timeout: 3))
+        toDark.tap()
+        XCTAssertTrue(app.buttons["切换浅色模式"].waitForExistence(timeout: 3))
+        app.tabBars.buttons["Settings"].tap()
+        let fixed = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "深色")).firstMatch
+        XCTAssertTrue(fixed.waitForExistence(timeout: 3))
     }
 
     /// Pro 每月还款：Assets 里加一笔房贷，首页数字变小、格子上出现还款日的孔和图例。
