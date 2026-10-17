@@ -244,12 +244,9 @@ final class FreeGridUITests: XCTestCase {
         app.launch()
         app.tabBars.buttons["Settings"].tap()
         app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
-        // 没有 Pro：看不到管理界面，只有去购买页的入口
-        let openPro = app.buttons["open-pro-from-categories"]
-        XCTAssertTrue(openPro.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["add-expense-category"].exists)
-        openPro.tap()
+        // 没有 Pro：直接打开购买页，不经过中间页
         XCTAssertTrue(app.buttons["pro-restore"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["add-expense-category"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["pro-comparison"].exists)
         let paywall = XCTAttachment(screenshot: app.screenshot())
         paywall.name = "Pro购买页-未解锁"

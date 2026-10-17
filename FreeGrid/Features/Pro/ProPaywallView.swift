@@ -56,11 +56,14 @@ struct ProPaywallView: View {
     }
 
     private var header: some View {
-        VStack(spacing: Spacing.sm) {
-            KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
+        VStack(spacing: Spacing.xs) {
+            // 产品名是主角：和首页大数字同一种超细字，Pro 用主色
+            (Text("FreeGrid ").foregroundColor(.ink) + Text("Pro").foregroundColor(.skyDeep))
+                .font(.system(size: 40, weight: .ultraLight, design: .rounded))
+                .accessibilityAddTraits(.isHeader)
             // 标题和副标题是用户 2026-10-17 定的原话
             Text(store.isUnlocked ? "关于自由，故事继续" : "让自由，有迹可循")
-                .font(.system(size: 30, weight: .light, design: .rounded))
+                .font(.system(size: 18, weight: .regular, design: .rounded))
                 .foregroundStyle(Color.ink)
             if store.isUnlocked {
                 VStack(spacing: Spacing.md) {
@@ -78,7 +81,7 @@ struct ProPaywallView: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.lg)
+        .padding(.top, Spacing.xs)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(store.isUnlocked ? "pro-unlocked" : "pro-header")
     }

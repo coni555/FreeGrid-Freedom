@@ -37,6 +37,8 @@ struct SettingsView: View {
     @State private var showingPro = false
     /// 从外观里点了「钱与时间」进的购买页，标出那一行；从 Pro 卡进来时为空
     @State private var proTopic: ProFeatures.Topic?
+    /// 有 Pro 时点「支出分类」进管理页
+    @State private var showingCategories = false
     @State private var showingFreedomCard = false
     /// 一叠卡里现在抽出来的是哪张（look / ledger / about，空 = 都收着）。同一时间只开一张，下次进来还是它
     @SceneStorage("settingsOpenCard") private var openCard = "look"
@@ -107,6 +109,11 @@ struct SettingsView: View {
             // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
             .onAppear { if openCard == "pro" { openCard = "" } }
             .proPaywall(isPresented: $showingPro, topic: proTopic)
+            // 从「支出分类」去购买页并且买了：关掉购买页就接着进分类管理
+            .onChange(of: showingPro) { _, isShowing in
+                if !isShowing, proTopic == .categories, ProStore.shared.isUnlocked { showingCategories = true }
+            }
+            .navigationDestination(isPresented: $showingCategories) { ExpenseCategoriesView() }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sensoryFeedback(.selection, trigger: themeChoice)
             .sensoryFeedback(.selection, trigger: heroLayout)
@@ -366,8 +373,13 @@ struct SettingsView: View {
                 if isOpen {
                     VStack(spacing: 0) {
                         DeckDivider()
-                        NavigationLink {
-                            ExpenseCategoriesView()
+                        Button {
+                            if ProStore.shared.isUnlocked {
+                                showingCategories = true
+                            } else {
+                                proTopic = .categories
+                                showingPro = true
+                            }
                         } label: {
                             DeckRow(title: "支出分类") {
                                 Text("\(categoryCount) 类")
@@ -408,7 +420,7 @@ struct SettingsView: View {
             .activeItems.count
     }
 
-    // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的「看看」胶囊；点了直接弹出对照表，不抽出来）
+    // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的「了解 Pro」胶囊；点了直接弹出对照表，不抽出来）
     private func proCard(depth: Int) -> some View {
         DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             Button {
@@ -426,7 +438,7 @@ struct SettingsView: View {
                             .foregroundStyle(Color.skyDeep)
                     } else {
                         // 卡面不写价格：设置页是看一眼的地方，钱留到购买页再说
-                        Text("看看")
+                        Text("了解 Pro")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Color.skyDeep)
                             .padding(.horizontal, 12)
