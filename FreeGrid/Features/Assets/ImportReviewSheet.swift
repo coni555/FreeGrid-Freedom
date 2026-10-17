@@ -73,7 +73,7 @@ struct ImportReviewSheet: View {
                     summaryRow("新增设备", "\(preview.devicesNew.count) 个")
                 }
                 if preview.passiveSourcesNew.count > 0 {
-                    summaryRow("新增被动源", "\(preview.passiveSourcesNew.count) 个")
+                    summaryRow("新增被动收入", "\(preview.passiveSourcesNew.count) 个")
                 }
                 let existingDuplicates = preview.expenseDuplicates.existing
                     + preview.incomeDuplicates.existing

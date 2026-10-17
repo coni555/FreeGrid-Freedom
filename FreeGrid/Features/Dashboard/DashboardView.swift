@@ -313,7 +313,7 @@ private struct DashboardContent: View {
             }
             statCard(label: "Track",
                      value: "\(snapshot.trackDays)",
-                     unit: "天追踪")
+                     unit: "天记账")
         }
     }
 
@@ -417,12 +417,16 @@ private struct DashboardContent: View {
             abs((1 - todayPercent) * 100),
             range: 0...9_999
         )
+        // 差不到一毛钱时说持平，不写「低 0% · 少花 ¥0.0」
+        if abs(todaySpending - snapshot.dailyBurn) < 0.05 {
+            return "和\(averageWord)差不多"
+        }
         if todaySpending > snapshot.dailyBurn {
             let over = todaySpending - snapshot.dailyBurn
-            return "高于\(averageWord) \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
+            return "比\(averageWord)高 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
         } else {
             let savings = snapshot.dailyBurn - todaySpending
-            return "低于\(averageWord) \(diffPct)% · 节省 ¥\(String(format: "%.1f", savings))"
+            return "比\(averageWord)低 \(diffPct)% · 少花 ¥\(String(format: "%.1f", savings))"
         }
     }
 

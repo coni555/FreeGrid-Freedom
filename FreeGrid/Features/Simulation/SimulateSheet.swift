@@ -124,7 +124,7 @@ struct SimulateSheet: View {
             HStack(spacing: 6) {
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 11, weight: .light))
-                Text("只是看看：不会扣资产，也不会写入账本。")
+                Text("只是模拟：不会改余额，也不会记进账本。")
                     .font(.system(.caption2, design: .rounded))
             }
             .foregroundStyle(Color.inkFaint)
@@ -169,13 +169,13 @@ struct SimulateSheet: View {
     private func previewCard(impact: TransactionImpact) -> some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: mode == .expense ? "戴维斯三杀预览" : "自由增长预览")
+                KickerLabel(text: mode == .expense ? "这笔支出的影响" : "这笔收入的影响")
 
                 TransactionImpactView(impact: impact)
 
                 Text(mode == .expense
-                     ? "这笔消费对自由天数的传导效应。"
-                     : "这笔收入对自由天数的回血效应。")
+                     ? "花掉之后，净值、日均和自由天数会怎么变。"
+                     : "收到之后，净值和自由天数会怎么变。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }

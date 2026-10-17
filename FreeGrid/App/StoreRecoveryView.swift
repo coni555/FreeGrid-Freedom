@@ -34,7 +34,7 @@ struct StoreRecoveryView: View {
                         KickerLabel(text: "下一步")
                         recoveryStep("1", "点“重试打开”再次连接本地数据库。")
                         recoveryStep("2", "若仍失败，分享诊断文本给开发者；诊断不含金额、备注、路径或备份内容。")
-                        recoveryStep("3", "如你有 JSON 备份，待数据库恢复可打开后，在 Assets · 数据管理中导入。")
+                        recoveryStep("3", "如果有 JSON 备份，等 App 能打开后，去 Settings → 账本 → 备份与恢复导入。")
                     }
                 }
 

@@ -46,11 +46,11 @@ struct DataManagementView: View {
         ) { result in
             handleImport(result)
         }
-        .alert("清空所有数据?", isPresented: $showingPurgeAlert) {
+        .alert("清空记账数据？", isPresented: $showingPurgeAlert) {
             Button("取消", role: .cancel) {}
             Button("清空", role: .destructive) { purgeData() }
         } message: {
-            Text("将删除所有支出、收入、被动收入源、设备记录和资产数据。此操作不可撤销。")
+            Text("会删除所有支出、收入、被动收入、固定支出、贷款、资产和现金，不能撤销。")
         }
         .sheet(isPresented: $showingImportReview) {
             if let p = pendingImport {
@@ -86,7 +86,7 @@ struct DataManagementView: View {
                     compactDataButton("导出 CSV", icon: "tablecells") { exportNow(.csv) }
                     compactDataButton("导出 JSON", icon: "curlybraces") { exportNow(.json) }
                 }
-                Text("CSV 用 Excel / Numbers 打开，JSON 是完整备份，可以再导回来")
+                Text("CSV 用 Excel / Numbers 打开看；JSON 用来备份和恢复记账数据，外观这类本机设置要重新选")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }
@@ -126,7 +126,7 @@ struct DataManagementView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "trash").font(.system(size: 12))
-                        Text("清空所有数据").font(.system(.subheadline, design: .rounded))
+                        Text("清空记账数据").font(.system(.subheadline, design: .rounded))
                     }
                     .foregroundStyle(Color.flame)
                     .frame(maxWidth: .infinity)
@@ -261,7 +261,7 @@ struct DataManagementView: View {
             lines.append("设备 +\(result.devicesAdded)")
         }
         if result.passiveSourcesAdded > 0 {
-            lines.append("被动源 +\(result.passiveSourcesAdded)")
+            lines.append("被动收入 +\(result.passiveSourcesAdded)")
         }
         switch strategy {
         case .replace:
@@ -278,7 +278,7 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            importStatus = "✓ 已清空所有数据"
+            importStatus = "✓ 已清空记账数据"
         } catch {
             importStatus = "✗ 清空失败: \(error.localizedDescription)"
         }

@@ -8,7 +8,7 @@ struct TransactionImpactView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ImpactRow(
-                label: impact.kind == .expense ? "KILL 1 净值" : "GAIN 1 净值",
+                label: "净值",
                 from: FinancialFormatting.yuan(impact.before.netWorth),
                 to: FinancialFormatting.yuan(impact.newNetWorth),
                 delta: FinancialFormatting.signedYuan(impact.cashChange),
@@ -18,7 +18,7 @@ struct TransactionImpactView: View {
                 // 和首页 Daily 卡同一个数：日常加固定支出折成的每天。一笔支出只改日常那部分
                 let burnChange = impact.newDailyBurn - impact.before.dailyBurn
                 ImpactRow(
-                    label: "KILL 2 日均",
+                    label: "日均",
                     from: FinancialFormatting.yuan(impact.before.dailyCost, precision: 1),
                     to: FinancialFormatting.yuan(impact.newDailyBurn + impact.before.dailyFixed, precision: 2),
                     delta: FinancialFormatting.signedYuan(burnChange, precision: 2),
@@ -26,7 +26,7 @@ struct TransactionImpactView: View {
                 )
             }
             ImpactRow(
-                label: impact.kind == .expense ? "KILL 3 自由天数" : "GAIN 2 自由天数",
+                label: "自由天数",
                 from: FreedomMath.freedomDescription(impact.before.freedom),
                 to: FreedomMath.freedomDescription(impact.newFreedom),
                 delta: FinancialFormatting.daysChange(impact.freedomChange),

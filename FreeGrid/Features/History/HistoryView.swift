@@ -782,7 +782,7 @@ struct HistoryView: View {
             Text("还没有记录")
                 .font(.system(.title3, design: .rounded).weight(.thin))
                 .foregroundStyle(Color.ink)
-            Text("回 Dashboard 添加第一笔支出或收入")
+            Text("回首页，记下第一笔支出或收入")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .multilineTextAlignment(.center)

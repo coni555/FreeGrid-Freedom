@@ -340,7 +340,7 @@ nonisolated enum ImportValidator {
         let passiveCount = envelope.passiveSources?.count ?? 0
         guard passiveCount <= policy.maxPassiveSourceRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "被动收入源",
+                kind: "被动收入",
                 count: passiveCount,
                 maximum: policy.maxPassiveSourceRecords
             )
@@ -488,15 +488,15 @@ nonisolated enum ImportValidator {
                 throw ImportValidationError.invalidPassiveInterval
             }
             return ValidatedImport.PassiveSourceRecord(
-                id: try identifier(raw.id, field: "被动收入源"),
-                name: try text(raw.name, field: "被动收入源名称", maximum: policy.maxNameCharacters),
+                id: try identifier(raw.id, field: "被动收入"),
+                name: try text(raw.name, field: "被动收入名称", maximum: policy.maxNameCharacters),
                 monthlyAmount: try amount(
                     raw.monthlyAmount,
                     field: "被动收入",
                     allowsZero: false,
                     policy: policy
                 ),
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "被动收入源创建时间", now: now) },
+                createdAt: try raw.createdAt.map { try timestamp($0, field: "被动收入创建时间", now: now) },
                 intervalMonths: intervalMonths
             )
         }

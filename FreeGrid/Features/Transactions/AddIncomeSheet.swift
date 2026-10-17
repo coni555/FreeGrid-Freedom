@@ -59,9 +59,9 @@ struct AddIncomeSheet: View {
                             countsInFreedom: accountSection.chosen?.countsInFreedom ?? true
                         ))
                     } header: {
-                        Text("自由增长预览")
+                        Text("这笔收入的影响")
                     } footer: {
-                        Text("这笔收入对自由天数的回血效应。")
+                        Text("记下之后，净值和自由天数会怎么变。还没保存。")
                             .font(.system(.caption2, design: .rounded))
                     }
                 }

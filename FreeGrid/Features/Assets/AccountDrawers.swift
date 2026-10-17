@@ -431,7 +431,7 @@ struct AssetRows: View {
                              identifier: "add-asset-item", action: startAdding)
             }
             if !items.isEmpty && !canManage {
-                DrawerFooter(text: "逐项管理是 Pro 功能，各项照常计算，暂时只能查看。", locked: true,
+                DrawerFooter(text: "编辑资产项需要 Pro。已有的各项照常显示、照常计算。", locked: true,
                              onPro: { showingPro = true }, onMerge: { confirmingMerge = true },
                              mergeID: "merge-asset-items")
             } else {
@@ -630,7 +630,7 @@ struct CashRows: View {
                              identifier: "add-cash-account", action: startAdding)
             }
             if !accounts.isEmpty && !canManage {
-                DrawerFooter(text: "账户管理是 Pro 功能。记支出仍按这个顺序扣，暂时只能查看。", locked: true,
+                DrawerFooter(text: "编辑账户需要 Pro。已有的账户照常显示，记支出仍按这个顺序扣。", locked: true,
                              onPro: { showingPro = true }, onMerge: { confirmingMerge = true },
                              mergeID: "merge-cash-accounts")
             } else if accounts.isEmpty {

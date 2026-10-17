@@ -858,7 +858,7 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("2500")
         XCTAssertFalse(app.textFields["loan-periods-field"].exists)
-        XCTAssertTrue(app.staticTexts["fixed-schedule"].label.contains("自动从现金扣"))
+        XCTAssertTrue(app.staticTexts["fixed-schedule"].label.contains("自动记一笔支出"))
         try shoot("1-添加固定支出")
         app.buttons["保存"].tap()
         XCTAssertTrue(app.buttons["loan-row"].waitForExistence(timeout: 3))
@@ -891,7 +891,7 @@ final class FreeGridUITests: XCTestCase {
                                "-assetsLayout", "classic", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
-        let add = app.buttons["添加被动收入源"]
+        let add = app.buttons["添加被动收入"]
         if !add.isHittable { app.swipeUp() }
         XCTAssertTrue(add.waitForExistence(timeout: 3))
         add.tap()
@@ -923,7 +923,7 @@ final class FreeGridUITests: XCTestCase {
         expense.tap()
         expense.typeText("10")
         app.buttons["保存"].tap()
-        XCTAssertTrue(app.staticTexts["按 1 天记账的日均, 被动已覆盖"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["按 1 天记账估算，被动收入已覆盖开销"].waitForExistence(timeout: 3))
     }
 
     /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。

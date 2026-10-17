@@ -61,16 +61,16 @@ enum FreedomChecklist {
 
         let items: [FreedomCheckItem] = [
             FreedomCheckItem(
-                id: 1, title: "记录天数超过 30 天", shortTitle: "记录满 30 天",
+                id: 1, title: "开始记账满 30 天", shortTitle: "记账满 30 天",
                 done: days >= 30,
                 progress: min(1, Double(days) / 30),
                 detail: "当前 \(days) / 30 天",
-                hint: "继续每天记账,还差 \(max(0, 30 - days)) 天"),
+                hint: "离第一笔支出满 30 天，还差 \(max(0, 30 - days)) 天"),
             FreedomCheckItem(
                 id: 2, title: "了解自己的日均消费", shortTitle: "了解日均消费",
                 done: days >= 7 && dailyBurn > 0,
                 progress: nil, detail: "",
-                hint: "记满 7 天且有支出记录后自动达成"),
+                hint: "离第一笔支出满 7 天后自动达成"),
             FreedomCheckItem(
                 id: 3, title: "记录了可变现资产", shortTitle: "记录可变现资产",
                 done: netWorth > 0,
@@ -92,7 +92,7 @@ enum FreedomChecklist {
                 id: 6, title: "有被动收入来源", shortTitle: "添加被动收入",
                 done: !passiveSources.isEmpty,
                 progress: nil, detail: "",
-                hint: "在 Assets 添加一个被动收入源(房租 / 股息 / 利息…)"),
+                hint: "在 Assets 添加一项被动收入（租金、股息、利息…）"),
             FreedomCheckItem(
                 id: 7, title: "被动覆盖率超过 50%", shortTitle: "被动覆盖率 50%",
                 done: passiveRatio >= 0.5,

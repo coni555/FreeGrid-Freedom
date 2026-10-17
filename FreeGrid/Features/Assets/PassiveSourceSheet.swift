@@ -35,7 +35,7 @@ struct PassiveSourceSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         KickerLabel(text: "名称")
                         UnderlinedField(isFocused: focus == .name) {
-                            TextField("房租、股息、利息、副业…", text: $name)
+                            TextField("租金、利息、股息、版税…", text: $name)
                                 .font(.system(.title3, design: .rounded))
                                 .foregroundStyle(Color.ink)
                                 .focused($focus, equals: .name)
@@ -157,8 +157,8 @@ struct PassiveSourceSheet: View {
                 .foregroundStyle(Color.mossGreen)
                 .accessibilityIdentifier("passive-summary")
         } else {
-            Text(intervalMonths == 1 ? "不用持续工作也能稳定拿到的钱，按每月的金额填"
-                                     : "不用持续工作也能稳定拿到的钱，填一次到账的总数")
+            Text(intervalMonths == 1 ? "不靠上班、预计能一直到账的钱，按每月的金额填"
+                                     : "不靠上班、预计能一直到账的钱，填一次到账的总数")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .fixedSize(horizontal: false, vertical: true)

@@ -52,7 +52,7 @@ struct LoanRows: View {
     private var canManageLoans: Bool { ProFeatures.canManageLoans }
 
     /// 还没加过时，标题下面那行
-    static let emptyLine = "房租、水电、会员，到日子自动扣"
+    static let emptyLine = "房租、水电、会员，到日子自动记账"
 
     /// 每月一共付多少、下次哪天扣哪笔、有几期没扣成：标题行和新版「每月」里用
     struct Summary {
@@ -73,7 +73,7 @@ struct LoanRows: View {
                         .min(by: { $0.1 < $1.1 }) {
                 line = "下次 \(LoanRows.monthDay(date)) 扣「\(loan.name)」"
             } else {
-                line = "都还清了"
+                line = "没有要付的了"
             }
         }
     }
@@ -94,7 +94,7 @@ struct LoanRows: View {
                 let lockedLoans = !canManageLoans && loans.contains(where: \.punchesGrid)
                 DrawerFooter(text: lockedLoans
                              ? "管理贷款是 Pro 功能，已经加的照常自动扣。点贷款那一行可以删除。"
-                             : "到日子自动从现金扣，折成每天算进日均。自由天数会把每期的钱先留出来。",
+                             : "到日子在 App 里自动记一笔，从现金扣，不会动你的银行卡。自由天数会把每期的钱先留出来。",
                              locked: lockedLoans, showsActions: false)
             }
         }

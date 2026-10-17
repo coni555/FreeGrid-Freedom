@@ -48,7 +48,7 @@ struct DashboardHero: View {
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
                 } else {
-                    Text("净值 ÷ 每日净消耗")
+                    Text("按现在的收支估算")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Color.inkGhost)
                 }
@@ -128,8 +128,8 @@ struct DashboardHero: View {
     /// 已覆盖时的小字。记账不满 90 天时日均还不稳（和大额摊开同一个门槛），写出按几天算的，让人自己掂量这句「财富自由」
     private var coveredNote: String {
         snapshot.trackDays < FreedomMath.lumpSpreadDays
-            ? "按 \(snapshot.trackDays) 天记账的日均, 被动已覆盖"
-            : "按当前日均消费, 被动已覆盖"
+            ? "按 \(snapshot.trackDays) 天记账估算，被动收入已覆盖开销"
+            : "按目前的记账估算，被动收入已覆盖开销"
     }
 
     /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
@@ -169,7 +169,7 @@ struct DashboardHero: View {
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
                     if let d = deplete {
-                        Text("约 \(depleteDateString(d)) 见底")
+                        Text("大约撑到 \(depleteDateString(d))")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .padding(.top, 4)
@@ -229,7 +229,7 @@ struct DashboardHero: View {
             case .finite:
                 emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
                 if let d = deplete {
-                    Text("约 \(depleteDateString(d)) 见底")
+                    Text("大约撑到 \(depleteDateString(d))")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 2)

@@ -254,7 +254,7 @@ struct MoneyTimeAssetsView: View {
             // 换算成天用的是日常开销，固定支出另算在「留出 N 天」里
             let perDay = "日常 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天"
             if let reserved = reservedDays(snapshot) { return "固定支出留出 \(reserved) 天 · \(perDay)" }
-            return "按\(perDay)换算"
+            return "按日常开销 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天换算"
         }
         guard netWorth != 0 else { return "点下面的资产、现金录入金额" }
         // 钱的单位下也说一句和自由天数有关的：真正算进去的是多少
@@ -401,9 +401,9 @@ struct MoneyTimeAssetsView: View {
         let net = income - outflow
         return VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
-                KickerLabel(text: "Monthly · 每月")
+                KickerLabel(text: "Monthly · 每月固定收支")
                 Spacer()
-                Text("净 " + unit.text(abs(net), sign: net >= 0 ? "+" : "−") + " / 月")
+                Text("差额 " + unit.text(abs(net), sign: net >= 0 ? "+" : "−") + " / 月")
                     .font(.system(.footnote, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.inkMuted)
                     .contentTransition(.numericText())
@@ -413,7 +413,7 @@ struct MoneyTimeAssetsView: View {
 
             VStack(spacing: 0) {
                 flowRow(isOpen: $incomeOpen, marker: .moss, title: "进",
-                        caption: passiveSources.isEmpty ? "房租、利息、股息" : "被动收入",
+                        caption: passiveSources.isEmpty ? "租金、利息、股息" : "被动收入",
                         amount: unit.text(income, sign: "+"), amountColor: .mossGreen,
                         share: income / largest, shareColor: .mossGreen, identifier: "monthly-income")
                     .guideTarget(.passive, in: guide)

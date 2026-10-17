@@ -93,7 +93,7 @@ struct AddExpenseSheet: View {
                         .font(.system(.body, design: .rounded))
                 }
 
-                // ===== 戴维斯三杀实时预览 =====
+                // ===== 这笔支出的影响（实时预览）=====
                 if let amt = Double(amount), FinancialFormatting.validAmount(amt) {
                     Section {
                         TransactionImpactView(impact: TransactionImpact(
@@ -101,9 +101,9 @@ struct AddExpenseSheet: View {
                             countsInFreedom: accountSection.chosen?.countsInFreedom ?? true
                         ))
                     } header: {
-                        Text("戴维斯三杀预览")
+                        Text("这笔支出的影响")
                     } footer: {
-                        Text("这笔消费对自由天数的传导效应。还没保存,只是看看。")
+                        Text("记下之后，净值、日均和自由天数会怎么变。还没保存。")
                             .font(.system(.caption2, design: .rounded))
                     }
                 }

@@ -95,7 +95,7 @@ struct ClassicAssetsView: View {
                 }
             }
             .alert(
-                "删除这个被动收入源?",
+                "删除这个被动收入？",
                 isPresented: Binding(
                     get: { pendingDeletePassive != nil },
                     set: { if !$0 { pendingDeletePassive = nil } }
@@ -112,7 +112,7 @@ struct ClassicAssetsView: View {
                 }
                 Button("取消", role: .cancel) { pendingDeletePassive = nil }
             } message: { src in
-                Text("\(src.name) · 月入 ¥\(FinancialFormatting.wholeNumber(src.monthlyAmount))\n删除后被动覆盖率会下降。")
+                Text("\(src.name) · 每月 ¥\(FinancialFormatting.wholeNumber(src.monthlyAmount))\n删除后被动覆盖率会下降。")
             }
         }
     }
@@ -167,7 +167,7 @@ struct ClassicAssetsView: View {
                 if showingExplain {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Hairline()
-                        Text("净值 = 资产 + 现金，是自动相加的结果，不能直接修改。资产（金色）是锁定的钱，比如定期、股票、基金；现金（蓝色）是可花的钱。收入默认进现金，支出从现金扣。资产和现金之间用「调拨」移动。")
+                        Text("净值是你记下的资产加现金，自动算出来，没有扣掉还没还完的贷款。资产（金色）是不打算马上花的钱，比如定期、股票；现金（蓝色）是随时能花的钱。记收入进现金，记支出从现金扣；两者之间挪钱用「调拨」。")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                             .fixedSize(horizontal: false, vertical: true)
@@ -272,7 +272,7 @@ struct ClassicAssetsView: View {
                             .background(Circle().stroke(Color.skyDeep.opacity(0.5), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("添加被动收入源")
+                    .accessibilityLabel("添加被动收入")
                 }
 
                 // 大数字: 覆盖率
@@ -293,12 +293,12 @@ struct ClassicAssetsView: View {
                 // subtitle: 月入 + 日均
                 if !passiveSources.isEmpty {
                     HStack(spacing: 8) {
-                        Text("月入 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyPassive * 30))")
+                        Text("被动收入 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyPassive * 30))/月")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                         Text("·")
                             .foregroundStyle(Color.inkFaint)
-                        Text("日均 ¥\(String(format: "%.1f", snapshot.dailyPassive))")
+                        Text("¥\(String(format: "%.1f", snapshot.dailyPassive))/天")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                         if snapshot.dailyCost > 0 {
@@ -310,7 +310,7 @@ struct ClassicAssetsView: View {
                         }
                     }
                 } else {
-                    Text("还没有被动收入源, 点击右上 + 添加")
+                    Text("还没有被动收入，点右上角 + 添加")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                 }
@@ -362,7 +362,7 @@ struct ClassicAssetsView: View {
                     .background(Circle().stroke(Color.hairlineSoft, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("删除这个被动源")
+            .accessibilityLabel("删除这个被动收入")
         }
         .padding(.vertical, 6)
     }

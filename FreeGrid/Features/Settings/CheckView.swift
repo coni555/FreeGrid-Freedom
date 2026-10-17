@@ -72,7 +72,7 @@ struct CheckView: View {
                 }
                 .frame(height: 4)
 
-                Text("达成项越多,离财富自由越近")
+                Text("八个里程碑，看看你走到了哪一步")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }

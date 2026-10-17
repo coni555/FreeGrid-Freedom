@@ -31,26 +31,28 @@ enum ProFeatures {
 
     /// 只列已经做好的；新功能做完再加到这里。一屏放得下
     static let comparison: [Row] = [
-        Row(title: "记账 · 历史 · 备份", free: .yes, pro: .yes),
+        Row(title: "记账 · 固定支出 · 备份", free: .yes, pro: .yes),
         Row(title: "自由天数 · 格子 · 模拟", free: .yes, pro: .yes),
         Row(title: "支出分类", free: .text("默认九类"), pro: .text("随你定义"), topics: [.categories]),
         Row(title: "资产与现金", free: .text("一个总数"), pro: .text("拆成子账户"), topics: [.assets, .cash]),
         // 免费版只有资产总开关（整体算或不算），现金总是算；Pro 每个资产项、每个现金账户自己决定
-        Row(title: "子账户计入自由", free: .text("整体开关"), pro: .text("逐个选择"), topics: [.freedomSwitch],
+        Row(title: "计入自由天数", free: .text("资产整体选"), pro: .text("逐个选"), topics: [.freedomSwitch],
             info: Info(title: "按自己的方式算自由", body: [
                 "不是每一笔钱都打算现在动用。",
-                "资产和现金拆成子账户后，每一个都可以单独决定算不算进自由天数：日常花的钱照算，房子、车子、留给以后的储蓄可以不算。",
-                "不算的那一个仍在净值里，只是不进自由天数。新加的子账户默认都算。免费版可以把资产整体算进或不算。",
+                "资产和现金拆成子账户后，每一个都能单独选计不计入自由天数。",
+                "日常花的钱照常计入；房子、车子、留给以后的储蓄可以不计入。",
+                "不计入的仍在净值里，只是不进自由天数。新加的子账户默认计入。免费版只能整体选资产计不计入，现金总是计入。",
             ])),
         Row(title: "资产视图", free: .text("经典"), pro: .text("钱与时间"), topics: [.assetsView]),
         // 给背着贷款的人：还款照常进行时，扣掉每期月供还剩多少自由天数（不是还清倒计时）
-        Row(title: "负债与月供", free: .no, pro: .text("算进自由天数"), topics: [.loans],
+        Row(title: "贷款与分期", free: .no, pro: .text("按还款计划算"), topics: [.loans],
             info: Info(title: "有负债，也能看见自由", body: [
-                "房贷、车贷、分期按期数填进来，到还款日自动从现金扣。",
-                "自由天数会先把每期月供留出来，算的是「还款照常进行时，你还能自由多久」，不是还清倒计时。",
+                "填上房贷、车贷或分期的每期金额、还款日和剩余期数。",
+                "FreeGrid 按以后的还款计划推演，算的是「照常还款时，你还能自由多久」，不是还清倒计时。",
+                "到还款日会在 App 里自动记一笔，不会动你的银行卡。",
                 "房租、水电、会员这类没有期数的固定支出，免费版就能加。",
             ])),
-        Row(title: "自由名片", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
+        Row(title: "自由卡", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
     ]
 
     /// 设置页 Pro 卡头下面那一行：说人话讲能多做什么，不写价格（价格只在购买页出现）

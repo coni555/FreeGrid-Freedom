@@ -133,7 +133,7 @@ struct LoanSheet: View {
                     }
 
                     // 最后一期是哪天：填错了一眼能看出来。紧贴在两栏下面，和它们是一组
-                    Text(lastDueText ?? "今天到期的那期算已经还过")
+                    Text(lastDueText ?? "今天到期的这期算已还，从下一期开始自动扣")
                         .font(.system(.caption, design: .rounded).monospacedDigit())
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
@@ -264,9 +264,9 @@ struct LoanSheet: View {
     private var scheduleText: String {
         guard intervalMonths != 1 else {
             let day = Calendar.current.component(.day, from: nextDue)
-            return "到日子自动从现金扣，之后每月 \(day) 日一次"
+            return "到日子自动记一笔支出，之后每月 \(day) 日一次"
         }
-        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。到日子自动从现金扣，之后\(Self.intervalLabel(intervalMonths))一次"
+        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。到日子自动记一笔支出，之后\(Self.intervalLabel(intervalMonths))一次"
     }
 
     // MARK: - 从哪个账户扣

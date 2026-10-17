@@ -36,8 +36,8 @@ final class AppGuide {
         switch tour {
         case .dashboard:
             return [
-                Step(target: .number, text: "按现在的花法，不工作你还能撑这么多天。\n下面写着大概哪一天见底。"),
-                Step(target: .grid, text: "一格是一天。金色来自资产，蓝色来自现金。\n钱花掉，格子就会少。"),
+                Step(target: .number, text: "按现在的花法，不工作你还能撑这么多天。\n下面写着大约能撑到哪一天。"),
+                Step(target: .grid, text: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。"),
                 // 只有填了每月还款、格子上有孔时才出现
                 Step(target: .repaymentDays, text: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。"),
                 Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
@@ -49,7 +49,7 @@ final class AppGuide {
                 Step(target: .transfer, text: "钱在资产和现金之间挪动时用调拨。\n点这一行展开。"),
                 Step(target: .buckets, text: "资产是定期、股票这类锁定的钱，现金是随时能花的。\n点标题收起或展开，点一行修改金额。"),
                 Step(target: .loans, text: "房租、月供填在这里，到日子自动扣；\n自由天数会提前把每期的钱留出来。"),
-                Step(target: .passive, text: "房租、利息这类不用工作也有的收入加在这里。\n它覆盖全部开销时，就是财富自由。"),
+                Step(target: .passive, text: "租金、利息这类不靠上班的收入加在这里。\n它覆盖全部开销时，首页显示 ∞。"),
             ]
         case .settings:
             return [
