@@ -27,10 +27,13 @@ extension FreedomMath {
     /// 为什么要摊：头几周交一次电脑钱，原来的算法把它当成每天都在花，日均能翻十倍，
     /// 第二天再看又慢慢掉回来。大额支出隔多久来一次，几周的账看不出来，先当它三个月来一次。
     ///
-    /// 一笔算大额，要同时比这两样多 30 倍（大约是平时一个月的花销）：
-    /// - 「平常一天」：有花销的那些天，每天合计的中位数。一周或一个月才记一次总账的人，
-    ///   每次记的都是「平常」，不会被当成大额；只有两天的账时中位数是两天的平均，谁也不会被当成大额。
-    /// - 其余支出的日均：每周一次的买菜钱比每天的咖啡大得多，但放进整本账里不算大。
+    /// 一笔算大额：比「平常一天」多 30 倍（大约是平时一个月的花销）。「平常一天」是有花销的那些天、
+    /// 每天合计的中位数。一周或一个月才记一次总账的人，每次记的都是「平常」，不会被当成大额；
+    /// 只有两天的账时中位数是两天的平均，谁也不会被当成大额。
+    ///
+    /// 没把房租设成固定支出、当普通支出记的：每个月那一笔都算大额，都按 90 天摊，
+    /// 日均每交一次涨一小截，第三次交完（约第 60 多天）就和真实的一样，中间不会忽高忽低。
+    /// （试过再加一条「也要比其余支出的日均大 30 倍」，第二次交租时第一笔会被「认回来」，日均从 88 跳到 195。）
     /// 不摊平日的小钱：前 90 天的日常开销照实算，新用户的日均不会被压低。
     static func burnEstimate(_ entries: [BurnEntry], now: Date = .now,
                              calendar: Calendar = .current) -> BurnEstimate {
@@ -51,13 +54,8 @@ extension FreedomMath {
         let middle = spendingDays.count / 2
         let usualDay = spendingDays.count.isMultiple(of: 2)
             ? (spendingDays[middle - 1] + spendingDays[middle]) / 2 : spendingDays[middle]
-        // 从最大的往下看：摊开一笔，剩下的日均就小一些，下一笔照同样的标准再比
-        var lumps = 0.0
-        for amount in entries.map(\.amount).sorted(by: >) {
-            let othersDaily = (total - lumps - amount) / Double(days)
-            guard amount >= usualDay * lumpMultiple, amount >= othersDaily * lumpMultiple else { break }
-            lumps += amount
-        }
+        let threshold = usualDay * lumpMultiple
+        let lumps = entries.reduce(0) { $1.amount >= threshold ? $0 + $1.amount : $0 }
         guard lumps > 0 else {
             return BurnEstimate(total: total, firstDate: firstDate, trackDays: days, dailyBurn: plain, spreadLumps: 0)
         }

@@ -244,11 +244,18 @@ struct FixedExpenseTests {
         #expect(burn.spreadLumps == 0 && burn.dailyBurn == 101.0 / 10)
     }
 
-    @Test func weeklyGroceriesAmongDailyCoffeeAreNotLumps() {
-        // 每天咖啡 15，每周买菜 500：比咖啡大 30 多倍，但放进整本账里不算大
-        let coffee = (1...14).map { ($0, 15.0) }
-        let burn = FreedomMath.burnEstimate(entries(coffee + [(7, 500), (14, 500)]), now: dayNumber(14))
-        #expect(burn.spreadLumps == 0)
+    /// 房租没设成固定支出、当普通支出记（日常 60，第 7、37、67 天各 2500）：日均一步步涨到真实的 143，不来回跳。
+    /// 期望值见 `_local/plans/2026-10-17/rent-recorded-as-expense.py`
+    @Test func rentRecordedAsAnExpenseClimbsSmoothly() {
+        func ledger(_ t: Int) -> [FreedomMath.BurnEntry] {
+            entries(daily(t) + [7, 37, 67].filter { $0 <= t }.map { ($0, 2500.0) })
+        }
+        func burn(_ t: Int) -> Double { FreedomMath.burnEstimate(ledger(t), now: dayNumber(t)).dailyBurn }
+        #expect(abs(burn(7) - (60 + 2500.0 / 90)) < 1e-9)
+        #expect(abs(burn(36) - (60 + 2500.0 / 90)) < 1e-9)
+        #expect(abs(burn(37) - (60 + 5000.0 / 90)) < 1e-9)
+        #expect(abs(burn(67) - (60 + 7500.0 / 90)) < 1e-9)
+        #expect(burn(90) == (90 * 60 + 7500.0) / 90)
     }
 
     @Test func smallerPurchasesStayAsTheyAre() {
