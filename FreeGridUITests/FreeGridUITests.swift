@@ -1030,8 +1030,6 @@ final class FreeGridUITests: XCTestCase {
             app.swipeUp()
             app.swipeUp()
             try shoot("\(mode)-2-下")
-            app.buttons["hero-layout-picker"].tap()
-            try shoot("\(mode)-3-菜单")
             app.terminate()
         }
     }
@@ -1229,12 +1227,9 @@ final class FreeGridUITests: XCTestCase {
 
         // 设置里换成经典版
         app.tabBars.buttons["Settings"].tap()
-        let picker = app.buttons["assets-layout-picker"]
-        if !picker.waitForExistence(timeout: 3) || !picker.isHittable { app.swipeUp() }
-        picker.tap()
-        let classic = app.buttons["经典"]
-        XCTAssertTrue(classic.waitForExistence(timeout: 3))
-        classic.tap()
+        let picker = app.segmentedControls["assets-layout-picker"]
+        if !picker.waitForExistence(timeout: 3) { app.swipeUp() }
+        picker.buttons["经典"].tap()
         app.tabBars.buttons["Assets"].tap()
         XCTAssertTrue(app.buttons["assets-drawer"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["assets-tab"].exists)

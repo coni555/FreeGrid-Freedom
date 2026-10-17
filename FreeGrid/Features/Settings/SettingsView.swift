@@ -174,107 +174,43 @@ struct SettingsView: View {
     }
 
     // MARK: - 分组
-    /// 主题用两张小预览选，其余两项是菜单：一年改不了几次，不占一整排分段按钮
     private var appearanceSection: some View {
         settingsSection("外观") {
-            HStack(spacing: Spacing.xl) {
-                themeTile(dark: false)
-                themeTile(dark: true)
+            settingsRow(icon: "moon", title: "主题") {
+                // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
+                // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
+                // 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
+                Picker("主题", selection: themeBinding) {
+                    Text("浅色").tag(false)
+                    Text("深色").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.md)
             rowDivider
             settingsRow(icon: "rectangle.split.2x1", title: "首页大数字") {
-                Menu {
-                    Picker("首页大数字", selection: heroLayoutBinding) {
-                        Text("靠右").tag("leading")
-                        Text("居中").tag("vertical")
-                    }
-                } label: {
-                    menuValue(heroLayoutBinding.wrappedValue == "vertical" ? "居中" : "靠右")
+                Picker("首页大数字", selection: heroLayoutBinding) {
+                    Text("靠右").tag("leading")
+                    Text("居中").tag("vertical")
                 }
-                .accessibilityIdentifier("hero-layout-picker")
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
             rowDivider
             // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
             settingsRow(icon: "square.split.1x2", title: "Assets 页面") {
-                let isClassic = assetsLayout == AssetsLayout.classic
-                Menu {
-                    Picker("Assets 页面", selection: Binding(
-                        get: { isClassic ? AssetsLayout.classic : AssetsLayout.moneyTime },
-                        set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
-                    )) {
-                        Text("钱与时间").tag(AssetsLayout.moneyTime)
-                        Text("经典").tag(AssetsLayout.classic)
-                    }
-                } label: {
-                    menuValue(isClassic ? "经典" : "钱与时间")
+                Picker("Assets 页面", selection: Binding(
+                    get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
+                    set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
+                )) {
+                    Text("钱与时间").tag(AssetsLayout.moneyTime)
+                    Text("经典").tag(AssetsLayout.classic)
                 }
+                .pickerStyle(.segmented)
+                .fixedSize()
                 .accessibilityIdentifier("assets-layout-picker")
             }
         }
-    }
-
-    /// 菜单行右边：当前值 + 上下箭头，箭头和别的行的 › 对齐
-    private func menuValue(_ text: String) -> some View {
-        HStack(spacing: 6) {
-            Text(text)
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(Color.inkMuted)
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.inkGhost)
-        }
-        .contentShape(Rectangle())
-    }
-
-    /// 一张缩小的首页：大数字卡 + 几排格子，按浅色或深色画；选中的那张描一圈蓝
-    private func themeTile(dark: Bool) -> some View {
-        let selected = isDarkMode == dark
-        return Button { themeBinding.wrappedValue = dark } label: {
-            VStack(spacing: Spacing.sm) {
-                VStack(alignment: .leading, spacing: 5) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(Color.surfaceHi)
-                        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.hairline, lineWidth: 0.5))
-                        .overlay(alignment: .bottomTrailing) {
-                            Text("148")
-                                .font(.system(size: 17, weight: .ultraLight, design: .rounded))
-                                .foregroundStyle(Color.ink)
-                                .padding(.trailing, 5)
-                        }
-                        .frame(height: 30)
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(5), spacing: 2), count: 8), spacing: 2) {
-                        ForEach(0..<40, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 1)
-                                .fill(index < 22 ? Color.assetGold : index < 34 ? Color.cashBlue : Color.mist2)
-                                .frame(width: 5, height: 5)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(6)
-                .frame(width: 66, height: 100)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.paper))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-                .environment(\.colorScheme, dark ? .dark : .light)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(Color.skyDeep, lineWidth: 1.5)
-                        .padding(-3)
-                        .opacity(selected ? 1 : 0)
-                )
-                Text(dark ? "深色" : "浅色")
-                    .font(.system(.subheadline, design: .rounded).weight(selected ? .medium : .regular))
-                    .foregroundStyle(selected ? Color.skyDeep : Color.inkMuted)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(dark ? "深色" : "浅色")
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier(dark ? "theme-dark" : "theme-light")
     }
 
     private var heroLayoutBinding: Binding<String> {
