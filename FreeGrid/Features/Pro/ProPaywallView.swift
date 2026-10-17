@@ -14,6 +14,8 @@ struct ProPaywallView: View {
     @State private var store = ProStore.shared
     /// 购买或恢复之后给用户的一句话结果
     @State private var notice: String?
+    /// 点了哪一行的 ⓘ
+    @State private var infoRow: ProFeatures.Row?
 
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
@@ -47,6 +49,9 @@ struct ProPaywallView: View {
                 }
             }
             .task { await store.loadProduct() }
+            .sheet(item: $infoRow) { row in
+                if let info = row.info { InfoSheet(info: info) }
+            }
         }
     }
 
@@ -117,17 +122,34 @@ struct ProPaywallView: View {
     private func tableRow(_ row: ProFeatures.Row) -> some View {
         let highlighted = topic.map { row.topics.contains($0) } ?? false
         return HStack(spacing: 0) {
-            Text(row.title)
-                .font(.system(size: 15, design: .rounded))
-                .foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, Spacing.xs)
-            cell(row.free, pro: false).frame(width: freeWidth)
-            cell(row.pro, pro: true).frame(width: proWidth)
+            HStack(spacing: 5) {
+                Text(row.title)
+                    .font(.system(size: 15, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
+                if row.info != nil {
+                    // 低调的说明入口：和小字一个颜色，点击区域比图标大一圈
+                    Button { infoRow = row } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundStyle(Color.inkFaint)
+                            .frame(width: 24, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
+                    .accessibilityLabel("\(row.title)说明")
+                    .accessibilityIdentifier("pro-info-\(row.title)")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, Spacing.xs)
+            cell(row.free, pro: false).frame(width: freeWidth).accessibilityHidden(true)
+            cell(row.pro, pro: true).frame(width: proWidth).accessibilityHidden(true)
         }
-        .frame(minHeight: 52)
+        .frame(minHeight: 50)
         .background {
             if highlighted {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -135,8 +157,6 @@ struct ProPaywallView: View {
                     .padding(.horizontal, -Spacing.xs)
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
     }
 
     @ViewBuilder
@@ -207,7 +227,7 @@ struct ProPaywallView: View {
                 .disabled(!canBuy)
                 .opacity(canBuy ? 1 : 0.4)
                 .accessibilityIdentifier("pro-purchase")
-                Text("一次购买 · 没有订阅 · 不会自动续费")
+                Text("一次购买 · 永久使用 · 不会自动续费")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
             }
@@ -288,6 +308,51 @@ struct ProPaywallView: View {
         case .nothingToRestore: notice = "这个 Apple 账户下没有找到 Pro 的购买记录。"
         case .failed(let message): notice = message
         }
+    }
+}
+
+/// 对照表某一行的说明：标题一句，正文两三段，底部一个「知道了」。iOS 上弹窗高度贴着内容，不留一大块空白
+private struct InfoSheet: View {
+    let info: ProFeatures.Info
+    @Environment(\.dismiss) private var dismiss
+    @State private var height: CGFloat = 320
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
+            Text(info.title)
+                .font(.system(size: 24, weight: .light, design: .rounded))
+                .foregroundStyle(Color.ink)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                ForEach(info.body, id: \.self) { paragraph in
+                    Text(paragraph)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Button("知道了") { dismiss() }
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.skyDeep)
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.top, Spacing.sm)
+                .accessibilityIdentifier("pro-info-close")
+        }
+        .padding(Spacing.xl)
+        .padding(.top, Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(iOS)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color.paper)
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.visible)
+        #else
+        .background(Color.paper)
+        .frame(width: 420, height: 360)
+        #endif
     }
 }
 

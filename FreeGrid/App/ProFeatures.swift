@@ -13,24 +13,43 @@ enum ProFeatures {
         case text(String)
     }
 
+    /// 一行旁边的 ⓘ：点开是一段说明。只给一眼看不懂的行
+    struct Info: Equatable {
+        let title: String
+        let body: [String]
+    }
+
     /// 购买页对照表的一行。前两行两边都有，告诉人免费版本来就够用；往下左边变少，右边一直是满的
     struct Row: Identifiable {
         let title: String
         let free: Cell
         let pro: Cell
         var topics: [Topic] = []
+        var info: Info? = nil
         var id: String { title }
     }
 
-    /// 只列已经做好的；新功能做完再加到这里。一屏放得下，不超过七行
+    /// 只列已经做好的；新功能做完再加到这里。一屏放得下
     static let comparison: [Row] = [
         Row(title: "记账 · 历史 · 备份", free: .yes, pro: .yes),
         Row(title: "自由天数 · 格子 · 模拟", free: .yes, pro: .yes),
         Row(title: "支出分类", free: .text("默认九类"), pro: .text("随你定义"), topics: [.categories]),
-        Row(title: "资产与现金", free: .text("一个总数"), pro: .text("拆成子账户"), topics: [.assets, .cash, .freedomSwitch]),
+        Row(title: "资产与现金", free: .text("一个总数"), pro: .text("拆成子账户"), topics: [.assets, .cash]),
+        // 免费版的资产总开关只能整体算或不算；Pro 每一项资产自己决定。现金账户没有这个开关
+        Row(title: "资产计入自由", free: .text("整体开关"), pro: .text("逐项选择"), topics: [.freedomSwitch],
+            info: Info(title: "按自己的方式算自由", body: [
+                "不是每一笔资产都打算现在动用。",
+                "资产拆成子账户后，每一项都可以单独决定算不算进自由天数：定期、基金照算，房子、车子、留给以后的储蓄可以不算。",
+                "不算的那一项仍在净值里，只是不进自由天数。免费版可以把资产整体算进或不算。",
+            ])),
         Row(title: "资产视图", free: .text("经典"), pro: .text("钱与时间"), topics: [.assetsView]),
         // 给背着贷款的人：还款照常进行时，扣掉每期月供还剩多少自由天数（不是还清倒计时）
-        Row(title: "房贷车贷 · 每月还款", free: .no, pro: .text("还款后的自由"), topics: [.loans]),
+        Row(title: "负债与月供", free: .no, pro: .text("算进自由天数"), topics: [.loans],
+            info: Info(title: "有负债，也能看见自由", body: [
+                "房贷、车贷、分期按期数填进来，到还款日自动从现金扣。",
+                "自由天数会先把每期月供留出来，算的是「还款照常进行时，你还能自由多久」，不是还清倒计时。",
+                "房租、水电、会员这类没有期数的固定支出，免费版就能加。",
+            ])),
         Row(title: "自由名片", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
     ]
 

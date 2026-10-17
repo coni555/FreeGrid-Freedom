@@ -12,11 +12,11 @@ final class FreeGridUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// 走完四步。卡片换位置时有动画，点偏了落在空白处：前三步照样前进，
+    /// 走完 `steps` 步（默认四步）。卡片换位置时有动画，点偏了落在空白处：前面几步照样前进，
     /// 最后一步只有按钮能关，所以等卡片停稳再点「知道了」。
     @MainActor
-    private func finishGuide(_ next: XCUIElement) {
-        for _ in 0..<3 { next.tap() }
+    private func finishGuide(_ next: XCUIElement, steps: Int = 4) {
+        for _ in 0..<(steps - 1) { next.tap() }
         expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
         waitForExpectations(timeout: 3)
         Thread.sleep(forTimeInterval: 0.4)
@@ -256,6 +256,18 @@ final class FreeGridUITests: XCTestCase {
         paywall.lifetime = .keepAlways
         add(paywall)
 
+        // 「负债与月供」旁边的 ⓘ：点开说明，「知道了」关掉
+        let info = app.buttons["pro-info-负债与月供"]
+        XCTAssertTrue(info.exists)
+        info.tap()
+        XCTAssertTrue(app.staticTexts["有负债，也能看见自由"].waitForExistence(timeout: 3))
+        let infoShot = XCTAttachment(screenshot: app.screenshot())
+        infoShot.name = "Pro购买页-说明"
+        infoShot.lifetime = .keepAlways
+        add(infoShot)
+        app.buttons["pro-info-close"].tap()
+        XCTAssertTrue(app.staticTexts["有负债，也能看见自由"].waitForNonExistence(timeout: 3))
+
         // 解锁后购买页换成已解锁，关掉就能管理分类
         // 底部固定的购买栏会盖住调试开关的一部分，先滑到底让它露出来
         let preview = app.switches["pro-preview-toggle"]
@@ -325,13 +337,13 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         let next = app.buttons["guide-next"]
-        // Assets 讲四处：净值、调拨、两张卡、被动收入
+        // Assets 讲五处：净值、调拨、两张卡、固定支出、被动收入
         app.tabBars.buttons["Settings"].tap()
         app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-assets-guide"].tap()
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Assets"].exists)
-        finishGuide(next)
+        finishGuide(next, steps: 5)
 
         // Settings 讲三处；讲之前指引列表那一页要先退回去
         app.tabBars.buttons["Settings"].tap()
@@ -799,18 +811,64 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["199"].exists)
     }
 
-    /// 没有 Pro、也没加过贷款：Assets 里看不到每月还款。
+    /// 没有 Pro 也能加固定支出：Assets 里加一笔房租，首页数字变小，但格子上不打孔；加房贷、车贷会打开购买页。
+    /// 给了 FIXED_SHOTS_DIR 时顺手拍表单、抽屉、首页。
     @MainActor
-    func testLoansAreHiddenWithoutProWhenNoneWereAdded() {
+    func testFreeUsersAddRentAsAFixedExpenseButLoansNeedPro() throws {
+        let output = ProcessInfo.processInfo.environment["FIXED_SHOTS_DIR"]
+        func shoot(_ name: String) throws {
+            guard let output else { return }
+            Thread.sleep(forTimeInterval: 1.2)
+            try XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent(name + ".png"))
+        }
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
-                               "-proPreview", "NO", "-UseInMemoryStore"]
+        app.launchArguments = ["-isDarkMode", "NO", "-heroLayout", "leading", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-proPreview", "NO", "-UseInMemoryStore"]
         app.launch()
         app.tabBars.buttons["Assets"].tap()
-        app.swipeUp()
-        XCTAssertTrue(app.staticTexts["PASSIVE · 被动收入"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["REPAY · 每月还款"].exists)
-        XCTAssertFalse(app.buttons["add-loan-button"].exists)
+        app.buttons["编辑现金"].tap()
+        let cash = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 3))
+        cash.typeText("20000")
+        app.buttons["保存"].tap()
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("100")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.staticTexts["199"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["Assets"].tap()
+        let add = app.buttons["add-fixed-button"]
+        if !add.isHittable { app.swipeUp() }
+        XCTAssertTrue(add.waitForExistence(timeout: 3))
+        add.tap()
+        let name = app.textFields["loan-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("房租")
+        let amount = app.textFields["loan-monthly-field"]
+        amount.tap()
+        amount.typeText("2500")
+        XCTAssertFalse(app.textFields["loan-periods-field"].exists)
+        XCTAssertTrue(app.staticTexts["fixed-schedule"].label.contains("不算进日均"))
+        try shoot("1-添加固定支出")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.buttons["loan-row"].waitForExistence(timeout: 3))
+        try shoot("2-固定支出抽屉")
+
+        let addLoan = app.buttons["add-loan-button"]
+        if !addLoan.isHittable { app.swipeUp() }
+        addLoan.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pro-comparison"].waitForExistence(timeout: 3))
+        app.buttons["pro-close"].tap()
+
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(app.staticTexts["199"].waitForNonExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["repayment-day-legend"].exists)
+        try shoot("3-首页")
     }
 
     /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。
