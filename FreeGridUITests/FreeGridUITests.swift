@@ -1005,6 +1005,37 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(holder.waitForExistence(timeout: 5))
     }
 
+    /// 设置页截图：上半屏、滑到底，浅色深色各一套（免费用户）。只在给了环境变量时运行。
+    @MainActor
+    func testCaptureSettingsScreens() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let ledger = environment["SETTINGS_LEDGER"], let output = environment["SETTINGS_SHOTS_DIR"] else {
+            throw XCTSkip("只在拍设置页截图时运行")
+        }
+        func shoot(_ name: String) throws {
+            Thread.sleep(forTimeInterval: 1.2)
+            let url = URL(fileURLWithPath: output).appendingPathComponent(name + ".png")
+            try XCUIScreen.main.screenshot().pngRepresentation.write(to: url)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "深色" : "浅色"
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", dark ? "YES" : "NO", "-heroLayout", "leading",
+                                   "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES", "-proPreview", "NO",
+                                   "-UseInMemoryStore", "-SeedBackupJSON", ledger]
+            app.launch()
+            app.tabBars.buttons["Settings"].tap()
+            XCTAssertTrue(app.buttons["settings-freedom-card"].waitForExistence(timeout: 5))
+            try shoot("\(mode)-1-上")
+            app.swipeUp()
+            app.swipeUp()
+            try shoot("\(mode)-2-下")
+            app.buttons["hero-layout-picker"].tap()
+            try shoot("\(mode)-3-菜单")
+            app.terminate()
+        }
+    }
+
     /// 自由卡截图：首页提示、卡（Pro 能分享）、海报分享面板、设置页那一行，浅色深色各一套。只在给了环境变量时运行。
     @MainActor
     func testCaptureFreedomCardScreens() throws {
@@ -1198,9 +1229,12 @@ final class FreeGridUITests: XCTestCase {
 
         // 设置里换成经典版
         app.tabBars.buttons["Settings"].tap()
-        let picker = app.segmentedControls["assets-layout-picker"]
-        if !picker.waitForExistence(timeout: 3) { app.swipeUp() }
-        picker.buttons["经典"].tap()
+        let picker = app.buttons["assets-layout-picker"]
+        if !picker.waitForExistence(timeout: 3) || !picker.isHittable { app.swipeUp() }
+        picker.tap()
+        let classic = app.buttons["经典"]
+        XCTAssertTrue(classic.waitForExistence(timeout: 3))
+        classic.tap()
         app.tabBars.buttons["Assets"].tap()
         XCTAssertTrue(app.buttons["assets-drawer"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["assets-tab"].exists)

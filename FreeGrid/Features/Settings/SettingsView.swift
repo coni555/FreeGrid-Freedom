@@ -55,19 +55,16 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
+                // 四张卡：你走到哪了 → 外观 → 账本 → FreeGrid，最下面一行版本号
                 VStack(spacing: Spacing.xl) {
-                    VStack(spacing: Spacing.md) {
-                        checkCard
-                            .guideTarget(.check, in: guide)
-                        freedomCardRow
-                    }
-                    proSection
-                    expenseCategoriesSection
+                    freedomCard
+                        .guideTarget(.check, in: guide)
                     appearanceSection
                         .guideTarget(.appearance, in: guide)
-                    dataSection
+                    ledgerSection
                         .guideTarget(.data, in: guide)
-                    aboutSupportSection
+                    freeGridSection
+                    footer
                 }
                 .padding()
             }
@@ -86,148 +83,198 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 自检收缩卡 → push 完整自检子页
-    private var checkCard: some View {
-        let s = summary   // 整张卡只算一次 evaluate
+    // MARK: - 第一张卡：自检（push 完整自检子页）+ 自由卡
+    /// 自检是「走到哪了」，自由卡是「把这一刻拿出去晒」，放进同一张卡，上下两个入口
+    private var freedomCard: some View {
+        VaultCard(emphasis: .high, padding: 0) {
+            VStack(spacing: 0) {
+                checkRow
+                Hairline().padding(.leading, Spacing.lg)
+                freedomCardRow
+            }
+        }
+    }
+
+    private var checkRow: some View {
+        let s = summary   // 整行只算一次 evaluate
         return NavigationLink {
             CheckView()
         } label: {
-            VaultCard(emphasis: .high) {
-                HStack(spacing: Spacing.lg) {
-                    // 圆环进度
-                    ZStack {
-                        Circle().stroke(Color.mist2, lineWidth: 5)
-                        Circle()
-                            .trim(from: 0, to: s.progress)
-                            .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                        (Text("\(s.doneCount)")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
-                         + Text("/\(s.total)")
-                            .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
-                            .foregroundStyle(Color.ink)
-                    }
-                    .frame(width: 56, height: 56)
+            HStack(spacing: Spacing.lg) {
+                // 圆环进度
+                ZStack {
+                    Circle().stroke(Color.mist2, lineWidth: 5)
+                    Circle()
+                        .trim(from: 0, to: s.progress)
+                        .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    (Text("\(s.doneCount)")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+                     + Text("/\(s.total)")
+                        .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
+                        .foregroundStyle(Color.ink)
+                }
+                .frame(width: 56, height: 56)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("财富自由自检")
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        if let stop = s.nextStopTitle {
-                            Text("下一站 · \(stop)")
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(Color.inkMuted)
-                            if let remain = s.remainText {
-                                Text(remain)
-                                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                    .foregroundStyle(Color.skyDeep)
-                            }
-                        } else {
-                            Text("已全部达成 🎉")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("财富自由自检")
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                    if let stop = s.nextStopTitle {
+                        Text("下一站 · \(stop)")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        if let remain = s.remainText {
+                            Text(remain)
                                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                                 .foregroundStyle(Color.skyDeep)
                         }
+                    } else {
+                        Text("已全部达成 🎉")
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.skyDeep)
                     }
-
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.inkGhost)
                 }
+
+                Spacer(minLength: 0)
+                chevron
             }
+            .padding(20)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    /// 自检是「走到哪了」，自由卡是「把这一刻拿出去晒」，紧挨着放。右边是当前材质的小卡
+    /// 左边是当前材质的小卡，和上面的圆环同宽对齐
     private var freedomCardRow: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, loans: loans, countsAssets: countsAssets)
         let tier = FreedomCardTier.tier(for: snapshot.freedom)
-        return settingsSection("") {
-            settingsRow(icon: "creditcard", title: "我的自由卡", action: { showingFreedomCard = true }) {
+        return Button { showingFreedomCard = true } label: {
+            HStack(spacing: Spacing.lg) {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(FreedomCardMaterial.of(tier).background)
+                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+                    .frame(width: 56, height: 35)
+                Text("我的自由卡")
+                    .font(.system(.body, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Spacer(minLength: Spacing.sm)
                 Text(tier.name)
                     .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .fill(FreedomCardMaterial.of(tier).background)
-                    .overlay(RoundedRectangle(cornerRadius: 2.5, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-                    .frame(width: 24, height: 15)
                 chevron
             }
-            .accessibilityIdentifier("settings-freedom-card")
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings-freedom-card")
     }
 
     // MARK: - 分组
-    private var proSection: some View {
-        settingsSection("") {
-            settingsRow(icon: "sparkles", title: "FreeGrid Pro",
-                        action: { showingPro = true }) {
-                Text(ProStore.shared.isUnlocked ? "已解锁" : "永久买断")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                chevron
-            }
-            .accessibilityIdentifier("settings-pro")
-        }
-    }
-
-    private var expenseCategoriesSection: some View {
-        settingsSection("记账") {
-            NavigationLink {
-                ExpenseCategoriesView()
-            } label: {
-                settingsRow(icon: "list.bullet", title: "支出分类") {
-                    Text("PRO")
-                        .font(.system(.caption2, design: .monospaced))
-                        .tracking(2)
-                        .foregroundStyle(Color.skyDeep)
-                    chevron
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("expense-categories-settings")
-        }
-    }
-
+    /// 主题用两张小预览选，其余两项是菜单：一年改不了几次，不占一整排分段按钮
     private var appearanceSection: some View {
         settingsSection("外观") {
-            settingsRow(icon: "moon", title: "主题") {
-                // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
-                // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
-                // 0.25s 缓动, 且不像 Menu 那样有收起动画叠加。
-                Picker("主题", selection: themeBinding) {
-                    Text("浅色").tag(false)
-                    Text("深色").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
+            HStack(spacing: Spacing.xl) {
+                themeTile(dark: false)
+                themeTile(dark: true)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.md)
             rowDivider
             settingsRow(icon: "rectangle.split.2x1", title: "首页大数字") {
-                Picker("首页大数字", selection: heroLayoutBinding) {
-                    Text("靠右").tag("leading")
-                    Text("居中").tag("vertical")
+                Menu {
+                    Picker("首页大数字", selection: heroLayoutBinding) {
+                        Text("靠右").tag("leading")
+                        Text("居中").tag("vertical")
+                    }
+                } label: {
+                    menuValue(heroLayoutBinding.wrappedValue == "vertical" ? "居中" : "靠右")
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
+                .accessibilityIdentifier("hero-layout-picker")
             }
             rowDivider
             // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样
             settingsRow(icon: "square.split.1x2", title: "Assets 页面") {
-                Picker("Assets 页面", selection: Binding(
-                    get: { assetsLayout == AssetsLayout.classic ? AssetsLayout.classic : AssetsLayout.moneyTime },
-                    set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
-                )) {
-                    Text("钱与时间").tag(AssetsLayout.moneyTime)
-                    Text("经典").tag(AssetsLayout.classic)
+                let isClassic = assetsLayout == AssetsLayout.classic
+                Menu {
+                    Picker("Assets 页面", selection: Binding(
+                        get: { isClassic ? AssetsLayout.classic : AssetsLayout.moneyTime },
+                        set: { newValue in withAnimation(.easeInOut(duration: 0.25)) { assetsLayout = newValue } }
+                    )) {
+                        Text("钱与时间").tag(AssetsLayout.moneyTime)
+                        Text("经典").tag(AssetsLayout.classic)
+                    }
+                } label: {
+                    menuValue(isClassic ? "经典" : "钱与时间")
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
                 .accessibilityIdentifier("assets-layout-picker")
             }
         }
+    }
+
+    /// 菜单行右边：当前值 + 上下箭头，箭头和别的行的 › 对齐
+    private func menuValue(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Text(text)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.inkGhost)
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// 一张缩小的首页：大数字卡 + 几排格子，按浅色或深色画；选中的那张描一圈蓝
+    private func themeTile(dark: Bool) -> some View {
+        let selected = isDarkMode == dark
+        return Button { themeBinding.wrappedValue = dark } label: {
+            VStack(spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 5) {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.surfaceHi)
+                        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.hairline, lineWidth: 0.5))
+                        .overlay(alignment: .bottomTrailing) {
+                            Text("148")
+                                .font(.system(size: 17, weight: .ultraLight, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                                .padding(.trailing, 5)
+                        }
+                        .frame(height: 30)
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(5), spacing: 2), count: 8), spacing: 2) {
+                        ForEach(0..<40, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(index < 22 ? Color.assetGold : index < 34 ? Color.cashBlue : Color.mist2)
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(6)
+                .frame(width: 66, height: 100)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.paper))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+                .environment(\.colorScheme, dark ? .dark : .light)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .stroke(Color.skyDeep, lineWidth: 1.5)
+                        .padding(-3)
+                        .opacity(selected ? 1 : 0)
+                )
+                Text(dark ? "深色" : "浅色")
+                    .font(.system(.subheadline, design: .rounded).weight(selected ? .medium : .regular))
+                    .foregroundStyle(selected ? Color.skyDeep : Color.inkMuted)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(dark ? "深色" : "浅色")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(dark ? "theme-dark" : "theme-light")
     }
 
     private var heroLayoutBinding: Binding<String> {
@@ -250,9 +297,27 @@ struct SettingsView: View {
         )
     }
 
-    /// 导出、导入、清空: 和资产无关的数据操作集中在这一页
-    private var dataSection: some View {
-        settingsSection("数据") {
+    /// 支出分类 + 备份与恢复：都是账本本身的事
+    private var ledgerSection: some View {
+        settingsSection("账本") {
+            NavigationLink {
+                ExpenseCategoriesView()
+            } label: {
+                settingsRow(icon: "list.bullet", title: "支出分类") {
+                    // 已经解锁就不必再标
+                    if !ProStore.shared.isUnlocked {
+                        Text("PRO")
+                            .font(.system(.caption2, design: .monospaced))
+                            .tracking(2)
+                            .foregroundStyle(Color.skyDeep)
+                    }
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("expense-categories-settings")
+            rowDivider
+            // 导出、导入、清空集中在这一页
             NavigationLink {
                 DataManagementView()
             } label: {
@@ -263,10 +328,18 @@ struct SettingsView: View {
         }
     }
 
-    /// 关于(进子页) + 评价与反馈(跳 App Store)。无标题分组 —— 顶层保持精简,
-    /// 后续加新功能时也按"入口行 → push 子页"这套模式往这里 / 新卡里加。
-    private var aboutSupportSection: some View {
-        settingsSection("") {
+    /// 和 App 本身有关的：Pro、使用指引、关于、评价
+    private var freeGridSection: some View {
+        settingsSection("FreeGrid") {
+            settingsRow(icon: "sparkles", title: "FreeGrid Pro",
+                        action: { showingPro = true }) {
+                Text(ProStore.shared.isUnlocked ? "已解锁" : "永久买断")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                chevron
+            }
+            .accessibilityIdentifier("settings-pro")
+            rowDivider
             guideRow
             rowDivider
             NavigationLink {
@@ -283,6 +356,25 @@ struct SettingsView: View {
                     .foregroundStyle(Color.inkGhost)
             }
         }
+    }
+
+    /// 页底：FreeGrid 的 2×2 小格子记号和版本号
+    private var footer: some View {
+        HStack(spacing: Spacing.sm) {
+            VStack(spacing: 1.5) {
+                HStack(spacing: 1.5) { footerMark(Color.inkFaint); footerMark(Color.assetGold) }
+                HStack(spacing: 1.5) { footerMark(Color.cashBlue); footerMark(Color.inkFaint) }
+            }
+            KickerLabel(text: "FreeGrid \(appVersion)")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.lg)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func footerMark(_ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 1, style: .continuous).fill(color).frame(width: 5, height: 5)
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
@@ -371,10 +463,8 @@ struct SettingsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             if !title.isEmpty {
-                Text(title)
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                    .padding(.leading, Spacing.md)
+                KickerLabel(text: title)
+                    .padding(.leading, Spacing.lg)
             }
             VaultCard(padding: 0) {
                 VStack(spacing: 0) { content() }
