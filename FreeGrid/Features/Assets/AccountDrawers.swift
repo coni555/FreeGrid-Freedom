@@ -436,8 +436,8 @@ struct AssetRows: View {
                              mergeID: "merge-asset-items")
             } else {
                 DrawerFooter(text: items.isEmpty
-                             ? "点方格选资产算不算进自由天数。"
-                             : "点方格选这一项算不算进自由天数，拖右边调整先后。")
+                             ? "点方格，选资产计不计入自由天数。"
+                             : "点方格，选这一项计不计入自由天数。拖右边调整顺序。")
             }
         }
         .saveErrorAlert($saveError)
@@ -636,9 +636,9 @@ struct CashRows: View {
             } else if accounts.isEmpty {
                 DrawerFooter(text: "活期、微信、支付宝里随时能花的钱。")
             } else if accounts.count > 1 {
-                DrawerFooter(text: "记支出整笔扣第一个够付的账户，拖右边调整先后。点序号选账户算不算进自由天数。")
+                DrawerFooter(text: "记支出时，从排第一个、钱够的账户扣。拖右边调整顺序，点序号选它计不计入自由天数。")
             } else {
-                DrawerFooter(text: "点序号选这个账户算不算进自由天数。")
+                DrawerFooter(text: "点序号，选这个账户计不计入自由天数。")
             }
         }
         .saveErrorAlert($saveError)

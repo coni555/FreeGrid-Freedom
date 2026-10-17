@@ -74,7 +74,7 @@ struct DataManagementView: View {
                 readImport(request.url, policy: .confirmedBackup(fileBytes: request.bytes), allowLargeRetry: false)
             }
         } message: { request in
-            Text("\(request.reason)\n\n文件大小：\(ByteCountFormatter.string(fromByteCount: Int64(request.bytes), countStyle: .file))。可继续恢复，但需要更多内存和时间。请确认这是你要恢复的备份；检查通过后还会显示导入预览。")
+            Text("\(request.reason)\n\n这份备份有 \(ByteCountFormatter.string(fromByteCount: Int64(request.bytes), countStyle: .file))，恢复会慢一些。确认是这份，就点「继续检查」，之后还会先给你看预览。")
         }
     }
 
@@ -186,7 +186,7 @@ struct DataManagementView: View {
             importStatus = nil
             shareItem = ExportShareItem(url: url)
         } catch {
-            importStatus = "✗ 导出失败: \(error.localizedDescription)"
+            importStatus = "导出失败：\(error.localizedDescription)"
         }
     }
 
@@ -200,7 +200,7 @@ struct DataManagementView: View {
             }
             readImport(url)
         case .failure(let error):
-            importStatus = "✗ 文件读取失败: \(error.localizedDescription)"
+            importStatus = "这个文件读不出来：\(error.localizedDescription)"
         }
     }
 
@@ -234,7 +234,7 @@ struct DataManagementView: View {
                     importStatus = "无法确认备份大小，请重新选择文件。"
                 }
             } catch {
-                importStatus = "✗ 解析失败: \(error.localizedDescription)"
+                importStatus = "导入不了：\(error.localizedDescription)"
             }
         }
     }
@@ -252,11 +252,11 @@ struct DataManagementView: View {
         }
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
-        var lines: [String] = ["✓ 导入完成"]
-        lines.append("支出 +\(result.expensesAdded) (\(preview.expensesSkipped) 重复跳过)")
-        lines.append("收入 +\(result.incomesAdded) (\(preview.incomesSkipped) 重复跳过)")
+        var lines: [String] = ["导入完成"]
+        lines.append("支出 +\(result.expensesAdded)（跳过 \(preview.expensesSkipped) 笔重复）")
+        lines.append("收入 +\(result.incomesAdded)（跳过 \(preview.incomesSkipped) 笔重复）")
         let manuallySkipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices).count
-        if manuallySkipped > 0 { lines.append("疑似重复支出：手动跳过 \(manuallySkipped) 笔") }
+        if manuallySkipped > 0 { lines.append("可能重复的支出：你跳过了 \(manuallySkipped) 笔") }
         if result.devicesAdded > 0 {
             lines.append("设备 +\(result.devicesAdded)")
         }
@@ -278,9 +278,9 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            importStatus = "✓ 已清空记账数据"
+            importStatus = "已清空记账数据"
         } catch {
-            importStatus = "✗ 清空失败: \(error.localizedDescription)"
+            importStatus = "清空失败：\(error.localizedDescription)"
         }
     }
 }

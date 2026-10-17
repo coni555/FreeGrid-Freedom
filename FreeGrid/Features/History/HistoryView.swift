@@ -116,7 +116,7 @@ struct HistoryView: View {
             .saveErrorAlert($saveError)
             .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
             .alert(
-                "撤销这笔记录?",
+                "撤销这笔记录？",
                 isPresented: Binding(
                     get: { pendingDelete != nil },
                     set: { if !$0 { pendingDelete = nil } }

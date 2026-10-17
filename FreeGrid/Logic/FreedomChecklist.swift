@@ -72,10 +72,10 @@ enum FreedomChecklist {
                 progress: nil, detail: "",
                 hint: "离第一笔支出满 7 天后自动达成"),
             FreedomCheckItem(
-                id: 3, title: "记录了可变现资产", shortTitle: "记录可变现资产",
+                id: 3, title: "记下你有多少钱", shortTitle: "记下有多少钱",
                 done: netWorth > 0,
                 progress: nil, detail: "",
-                hint: "去 Assets 填入你的现金 / 可变现资产"),
+                hint: "去 Assets 填上你的现金和资产"),
             FreedomCheckItem(
                 id: 4, title: "自由天数超过 180 天", shortTitle: "自由天数 180 天",
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 180,
@@ -100,11 +100,11 @@ enum FreedomChecklist {
                 detail: "当前 \(pct) / 50%",
                 hint: "提高被动收入或降低日均消费"),
             FreedomCheckItem(
-                id: 8, title: "被动收入覆盖日常消费 (≥100%)", shortTitle: "被动覆盖 100%",
+                id: 8, title: "被动收入覆盖全部开销", shortTitle: "被动覆盖 100%",
                 done: passiveRatio >= 1.0,
                 progress: min(1, passiveRatio),
                 detail: "当前 \(pct) / 100%",
-                hint: "被动收入覆盖全部日常消费即财务自由"),
+                hint: "被动收入覆盖全部开销，就是财富自由"),
         ]
 
         let doneCount = items.filter(\.done).count

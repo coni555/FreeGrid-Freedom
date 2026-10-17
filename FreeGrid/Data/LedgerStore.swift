@@ -13,7 +13,7 @@ enum LedgerStore {
 
         var errorDescription: String? {
             switch self {
-            case .pendingChanges: return "还有尚未保存的修改，请先完成当前编辑，再重试。"
+            case .pendingChanges: return "有一处还没保存。先保存或取消它，再试一次。"
             case .missingRecord: return "这笔记录已经不在账本里，可能刚被撤销。"
             }
         }

@@ -256,8 +256,8 @@ final class FreeGridUITests: XCTestCase {
         paywall.lifetime = .keepAlways
         add(paywall)
 
-        // 「负债与月供」旁边的 ⓘ：点开说明，「知道了」关掉
-        let info = app.buttons["pro-info-负债与月供"]
+        // 「贷款与分期」旁边的 ⓘ：点开说明，「知道了」关掉
+        let info = app.buttons["pro-info-贷款与分期"]
         XCTAssertTrue(info.exists)
         info.tap()
         XCTAssertTrue(app.staticTexts["有负债，也能看见自由"].waitForExistence(timeout: 3))
@@ -432,7 +432,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(amount.waitForExistence(timeout: 3))
         amount.tap()
         amount.typeText("100")
-        XCTAssertTrue(app.staticTexts["先记一笔支出，建立可比较的基线后再推演自由格。"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["先记一笔支出，才能演示格子怎么变。"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["演示这笔熄灭哪几格"].exists)
         app.buttons["关闭"].tap()
         app.tabBars.buttons["History"].tap()
@@ -1567,7 +1567,7 @@ final class FreeGridUITests: XCTestCase {
         if !transfer.isHittable { app.swipeUp() }
         transfer.tap()
         XCTAssertTrue(app.alerts["保存失败"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["资产桶金额无效或超出允许范围"].exists)
+        XCTAssertTrue(app.staticTexts["资产金额不对，或者超出了能记的范围。"].exists)
         app.alerts.buttons["好"].tap()
         app.swipeDown()
         XCTAssertEqual(app.buttons["编辑现金"].value as? String, cashBefore)

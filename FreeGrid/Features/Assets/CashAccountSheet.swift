@@ -71,7 +71,7 @@ struct CashAccountSheet: View {
                         }
                         if !isEditing, !sources.isEmpty {
                             MoneySourcePicker(options: sources, selection: $source, amount: enteredAmount,
-                                              total: total, bucket: "现金", splitVerb: "分出",
+                                              total: total, bucket: "现金", splitVerb: "拆出",
                                               identifierPrefix: "cash-account")
                                 .padding(.top, Spacing.md)
                         }
@@ -82,7 +82,7 @@ struct CashAccountSheet: View {
                             Text("计入自由天数")
                                 .font(.system(.body, design: .rounded))
                                 .foregroundStyle(Color.ink)
-                            Text("留着不打算动的储蓄可以不算，只留在净值里。")
+                            Text("留着不打算动的储蓄可以不计入，只留在净值里。")
                                 .font(.system(.footnote, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                         }

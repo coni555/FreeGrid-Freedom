@@ -19,7 +19,7 @@ struct StoreRecoveryView: View {
                     .foregroundStyle(Color.flame)
 
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    KickerLabel(text: "Store Recovery")
+                    KickerLabel(text: "数据打不开")
                     Text("本地数据暂时无法打开")
                         .font(.system(.title, design: .rounded).weight(.medium))
                         .foregroundStyle(Color.ink)
@@ -32,8 +32,8 @@ struct StoreRecoveryView: View {
                 VaultCard {
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         KickerLabel(text: "下一步")
-                        recoveryStep("1", "点“重试打开”再次连接本地数据库。")
-                        recoveryStep("2", "若仍失败，分享诊断文本给开发者；诊断不含金额、备注、路径或备份内容。")
+                        recoveryStep("1", "点「重试打开」，再试一次。")
+                        recoveryStep("2", "还是打不开，就点「分享安全诊断」发给开发者。诊断里没有金额、备注和备份内容。")
                         recoveryStep("3", "如果有 JSON 备份，等 App 能打开后，去 Settings → 账本 → 备份与恢复导入。")
                     }
                 }
@@ -53,7 +53,7 @@ struct StoreRecoveryView: View {
                 .foregroundStyle(Color.ink)
                 .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
 
-                Text("诊断代码 · \(failure.code)")
+                Text("出错编号 · \(failure.code)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Color.inkFaint)
                     .frame(maxWidth: .infinity, alignment: .center)

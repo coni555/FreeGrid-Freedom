@@ -87,7 +87,7 @@ struct LoanRows: View {
                 loanRow(loan, status: status)
             }
             DrawerAddRow(title: "添加固定支出", showsPro: false, identifier: "add-fixed-button") { adding = .fixed }
-            DrawerAddRow(title: "添加房贷、车贷", showsPro: !canManageLoans, identifier: "add-loan-button") {
+            DrawerAddRow(title: "添加贷款", showsPro: !canManageLoans, identifier: "add-loan-button") {
                 if canManageLoans { adding = .loan } else { showingPro = true }
             }
             if !loans.isEmpty {

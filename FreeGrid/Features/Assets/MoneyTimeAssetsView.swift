@@ -252,9 +252,9 @@ struct MoneyTimeAssetsView: View {
         if isDays {
             guard snapshot.dailyBurn > 0 else { return "记几天账就能换算" }
             // 换算成天用的是日常开销，固定支出另算在「留出 N 天」里
-            let perDay = "日常 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天"
+            let perDay = "日常开销 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天"
             if let reserved = reservedDays(snapshot) { return "固定支出留出 \(reserved) 天 · \(perDay)" }
-            return "按日常开销 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天换算"
+            return "按\(perDay)换算"
         }
         guard netWorth != 0 else { return "点下面的资产、现金录入金额" }
         // 钱的单位下也说一句和自由天数有关的：真正算进去的是多少

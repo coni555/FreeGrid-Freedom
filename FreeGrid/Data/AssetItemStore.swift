@@ -16,7 +16,7 @@ enum AssetItemError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidName: return "资产项名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "金额无效或超出允许范围。"
+        case .invalidAmount: return "金额不对，或者超出了能记的范围。"
         case .missingItem: return "这一项已经不在账本里。"
         case .hasItems: return "资产已经拆成多项，请在资产明细里修改。"
         case .needsItem: return "请先选择是哪一项资产。"

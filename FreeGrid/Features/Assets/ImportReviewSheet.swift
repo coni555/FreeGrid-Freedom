@@ -84,10 +84,10 @@ struct ImportReviewSheet: View {
                     + preview.deviceDuplicates.inFile
                     + preview.passiveSourceDuplicates.inFile
                 if existingDuplicates > 0 {
-                    summaryRow("库内重复", "\(existingDuplicates) 条")
+                    summaryRow("账本里已有，跳过", "\(existingDuplicates) 条")
                 }
                 if fileDuplicates > 0 {
-                    summaryRow("文件内重复", "\(fileDuplicates) 条")
+                    summaryRow("备份里重复，跳过", "\(fileDuplicates) 条")
                 }
             }
         }
@@ -96,8 +96,8 @@ struct ImportReviewSheet: View {
     private var suspectedDuplicatesCard: some View {
         VaultCard {
             LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "疑似重复 · 请核对")
-                Text("这些旧记录的备注较长，分类来源信息可能不完整，无法确定是否已导入。默认保留；确认是同一笔后，可关闭该笔的保留开关。")
+                KickerLabel(text: "可能重复 · 请核对")
+                Text("这几笔可能已经导入过。是同一笔的，关掉它的开关。")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
                 ForEach(preview.suspectedExpenseIndices, id: \.self) { index in
@@ -196,23 +196,23 @@ struct ImportReviewSheet: View {
     private var strategyCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "净值处理")
-                summaryRow("备份资产桶", "¥\(money(preview.importedAssets.lockedAssets))")
-                summaryRow("备份现金桶", "¥\(money(preview.importedAssets.cash))")
-                summaryRow("备份净值", "¥\(money(preview.importedAssets.total))")
+                KickerLabel(text: "资产和现金怎么办")
+                summaryRow("备份里的资产", "¥\(money(preview.importedAssets.lockedAssets))")
+                summaryRow("备份里的现金", "¥\(money(preview.importedAssets.cash))")
+                summaryRow("备份里的净值", "¥\(money(preview.importedAssets.total))")
                 Hairline()
-                strategyOption(.skipAssets, "只导入交易", "不动现有现金 / 资产桶")
+                strategyOption(.skipAssets, "只导入收支记录", "现在的资产和现金不变")
                 Hairline()
                 strategyOption(
                     .replace,
-                    "替换双桶",
+                    "换成备份里的",
                     "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))" + replaceItemsNote
                 )
                 Hairline()
                 strategyOption(
                     .addToCash,
-                    "加到现金",
-                    "现金桶 +¥\(money(preview.importedAssets.total))"
+                    "加进现金",
+                    "现金 +¥\(money(preview.importedAssets.total))"
                 )
             }
         }

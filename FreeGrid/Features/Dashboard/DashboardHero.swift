@@ -39,12 +39,12 @@ struct DashboardHero: View {
                         trendBadge(delta: d.delta, weeks: history.count - 1)
                     }
                 } else if history.last?.state == .covered {
-                    Text("被动已覆盖")
+                    Text("被动收入已覆盖开销")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
                 } else if history.first?.state == .covered,
                           case .finite = history.last?.state {
-                    Text("覆盖已中断")
+                    Text("被动收入不够覆盖了")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
                 } else {
@@ -153,13 +153,13 @@ struct DashboardHero: View {
                     }
                     Text(needsSavings
                          ? "资产或现金都算，记完再记一笔支出"
-                         : "建立日均消费后开始计算自由天数")
+                         : "再记一笔支出，就能算出自由天数")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 4)
                 case .invalidData:
                     emphasized("检查", "财务数据", "", size: 18)
-                    Text("存在无法计算的金额, 请检查记录")
+                    Text("有一笔金额不对，去 History 找找特别大或负数的")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
                         .padding(.top, 4)
@@ -216,13 +216,13 @@ struct DashboardHero: View {
                 }
                 Text(needsSavings
                      ? "资产或现金都算，记完再记一笔支出"
-                     : "建立日均消费后开始计算自由天数")
+                     : "再记一笔支出，就能算出自由天数")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .padding(.top, 2)
             case .invalidData:
                 emphasized("检查", "财务数据", "", size: 18)
-                Text("存在无法计算的金额, 请检查记录")
+                Text("有一笔金额不对，去 History 找找特别大或负数的")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.flame)
                     .padding(.top, 2)

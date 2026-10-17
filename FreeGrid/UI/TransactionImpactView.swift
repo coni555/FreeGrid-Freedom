@@ -33,7 +33,7 @@ struct TransactionImpactView: View {
                 color: changeColor(impact.freedomChange ?? .nan)
             )
             if impact.changesTrackingStart {
-                Text("补录提前了追踪起点，日均消费与自由天数按新的统计区间重算。")
+                Text("这笔比你第一笔账还早，日均会按更长的天数重算。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
             }

@@ -411,7 +411,7 @@ struct ClassicAssetsView: View {
     /// 拆过的一边没有 Pro：调拨要改其中某一项或某个账户的金额，这是 Pro 的事；先说清楚，再给出路
     private var lockedTransferNote: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("资产或现金已经拆开，调拨要改其中某一项，需要 Pro。也可以在下面把它合并成一个总数，再用原来的调拨。")
+            Text("拆开以后，调拨要 Pro。也可以先合并成一个总数，再调拨。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

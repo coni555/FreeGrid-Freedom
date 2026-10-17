@@ -14,7 +14,7 @@ enum CashAccountError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidName: return "账户名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "金额无效或超出允许范围。"
+        case .invalidAmount: return "金额不对，或者超出了能记的范围。"
         case .hasAccounts: return "现金已经拆成多个账户，请在账户里修改。"
         case .notEnough(let name, let available):
             return "「\(name)」只有 ¥\(available.formatted(.number))，拆不出这么多。"

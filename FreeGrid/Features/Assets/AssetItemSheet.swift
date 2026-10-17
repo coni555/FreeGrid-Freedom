@@ -87,7 +87,7 @@ struct AssetItemSheet: View {
                             Text("计入自由天数")
                                 .font(.system(.body, design: .rounded))
                                 .foregroundStyle(Color.ink)
-                            Text("房、车这类一时卖不掉的可以不算，只留在净值里。")
+                            Text("房、车这类一时卖不掉的可以不计入，只留在净值里。")
                                 .font(.system(.footnote, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                         }

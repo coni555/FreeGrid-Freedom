@@ -226,7 +226,7 @@ struct TransferSheet: View {
 
     private var lockedNote: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("资产或现金已经拆开，调拨要改其中某一项，需要 Pro。也可以先把它合并成一个总数，再调拨。")
+            Text("拆开以后，调拨要 Pro。也可以先合并成一个总数，再调拨。")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

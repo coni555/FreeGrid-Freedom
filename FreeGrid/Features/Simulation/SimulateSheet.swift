@@ -136,7 +136,7 @@ struct SimulateSheet: View {
     private var amountInput: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                KickerLabel(text: mode == .expense ? "假设花掉 (元)" : "假设收入 (元)")
+                KickerLabel(text: mode == .expense ? "假设花掉（元）" : "假设收入（元）")
                 HStack(spacing: 6) {
                     Text("¥")
                         .font(.system(.title3, design: .rounded))
@@ -214,23 +214,23 @@ struct SimulateSheet: View {
                 }
 
                 if isInvalid(o.before.freedom) || isInvalid(o.newFreedom) {
-                    Text("现有财务数据异常, 暂时不能推演自由格。")
+                    Text("有一笔金额不对，暂时演示不了。去 History 找找特别大或负数的。")
                         .font(.system(.callout, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, Spacing.sm)
                 } else if isInsufficient(o.before.freedom) || isInsufficient(o.newFreedom) {
-                    Text("先记一笔支出，建立可比较的基线后再推演自由格。")
+                    Text("先记一笔支出，才能演示格子怎么变。")
                         .font(.system(.callout, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, Spacing.sm)
                 } else if oldGrid.isOverflow || newGrid.isOverflow {
-                    Text("网格已达到当前档位的显示上限，自由天数的变化见上方预览。")
+                    Text("格子放不下了，变化看上面的数字。")
                         .font(.system(.callout, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                 } else if delta == 0 {
-                    Text("变化不足一格，自由天数的变化见上方预览。")
+                    Text("变化不到一格，看上面的数字。")
                         .font(.system(.callout, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)

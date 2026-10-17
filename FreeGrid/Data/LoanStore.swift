@@ -16,7 +16,7 @@ enum LoanError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidName: return "名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "金额无效或超出允许范围。"
+        case .invalidAmount: return "金额不对，或者超出了能记的范围。"
         case .invalidDueDay: return "还款日请选 1–31 号。"
         case .invalidPeriods: return "剩余期数请填 1–\(LoanSchedule.maxPeriods) 之间的整数。"
         case .invalidInterval: return "请选每 1、2、3、6 或 12 个月一次。"

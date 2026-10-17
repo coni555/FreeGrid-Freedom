@@ -10,8 +10,8 @@ struct EditBucketSheet: View {
         var label: String { self == .assets ? "资产" : "现金" }
         var hint: String {
             self == .assets
-                ? "锁定的钱：定期、股票、基金、不动产等"
-                : "可花的钱：活期、钱包余额、微信、支付宝"
+                ? "不打算马上花的钱：定期、股票、基金、房子"
+                : "随时能花的钱：活期、微信、支付宝"
         }
         var color: Color { self == .assets ? .assetGold : .cashBlue }
         var icon: String { self == .assets ? "lock.fill" : "banknote" }

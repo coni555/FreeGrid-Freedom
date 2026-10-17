@@ -145,7 +145,7 @@ struct LoanSheet: View {
                     if !candidates.isEmpty { candidatesSection }
 
                     if isEditing {
-                        Button(isFixed ? "删除这笔固定支出" : "删除这笔还款") { confirmingDelete = true }
+                        Button(isFixed ? "删除这笔固定支出" : "删除这笔贷款") { confirmingDelete = true }
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.flame)
                             .buttonStyle(.plain)
@@ -188,8 +188,8 @@ struct LoanSheet: View {
         switch (isFixed, isEditing) {
         case (true, true): return "编辑固定支出"
         case (true, false): return "添加固定支出"
-        case (false, true): return "编辑每月还款"
-        case (false, false): return "添加每月还款"
+        case (false, true): return "编辑贷款"
+        case (false, false): return "添加贷款"
         }
     }
 
@@ -266,7 +266,7 @@ struct LoanSheet: View {
             let day = Calendar.current.component(.day, from: nextDue)
             return "到日子自动记一笔支出，之后每月 \(day) 日一次"
         }
-        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。到日子自动记一笔支出，之后\(Self.intervalLabel(intervalMonths))一次"
+        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。\n到日子自动记一笔支出，之后\(Self.intervalLabel(intervalMonths))一次"
     }
 
     // MARK: - 从哪个账户扣

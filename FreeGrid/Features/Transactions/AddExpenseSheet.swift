@@ -52,7 +52,7 @@ struct AddExpenseSheet: View {
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 } header: {
-                    Text("金额 (元)")
+                    Text("金额（元）")
                 }
                 // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复。
                 // 管理分类的入口收在菜单最后一项：只在用户找分类时出现，平时表单里没有任何推销
@@ -88,7 +88,7 @@ struct AddExpenseSheet: View {
                 Section("日期") {
                     TransactionDateRow(date: $date)
                 }
-                Section("备注 (可选)") {
+                Section("备注（可选）") {
                     TextField("备注", text: $note)
                         .font(.system(.body, design: .rounded))
                 }

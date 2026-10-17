@@ -289,7 +289,7 @@ private struct DashboardContent: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(heroLayout == "vertical" ? "切换左右布局" : "切换居中堆叠布局")
+            .accessibilityLabel(heroLayout == "vertical" ? "大数字放右边" : "大数字放中间")
         }
     }
 
@@ -309,7 +309,7 @@ private struct DashboardContent: View {
             if snapshot.dailyPassive > 0 {
                 statCard(label: "Passive",
                          value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                         unit: "被动覆盖")
+                         unit: "被动收入覆盖")
             }
             statCard(label: "Track",
                      value: "\(snapshot.trackDays)",
@@ -403,7 +403,7 @@ private struct DashboardContent: View {
     /// today bar 下方的 delta 文案
     private var todayDeltaText: String {
         guard snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0, todaySpending.isFinite else {
-            return "等待有效日均数据"
+            return "再记几笔，就能和平时比"
         }
         if todaySpending == 0 {
             return "今日尚未消费"
@@ -430,8 +430,8 @@ private struct DashboardContent: View {
         }
     }
 
-    /// Today 只和日常开销比。有固定支出时上面 Daily 卡的日均含固定，这里换个叫法免得两个数对不上
-    private var averageWord: String { snapshot.dailyFixed > 0 ? "日常均值" : "日均" }
+    /// Today 只和日常开销比。有固定支出时上面 Daily 卡的日均含固定，这里改叫「日常开销」免得两个数对不上
+    private var averageWord: String { snapshot.dailyFixed > 0 ? "日常开销" : "日均" }
 
     /// 今日花费占日均的百分比(用于颜色判断)
     private var todayPercent: Double {
@@ -556,7 +556,7 @@ private struct DashboardContent: View {
 
     private var gridEmptyText: String {
         switch snapshot.freedom {
-        case .invalidData: return "数据异常, 检查金额后再生成网格"
+        case .invalidData: return "有一笔金额不对，去 History 找找特别大或负数的"
         // 该先做什么上面的大数字卡已经说了, 这里只解释格子是什么
         case .insufficientData: return "每一格是一天自由，有了数据后在这里点亮"
         case .finite, .covered: return "当前净值还没有可点亮的自由格"

@@ -43,7 +43,7 @@ struct EditTransactionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("金额 (元)") {
+                Section("金额（元）") {
                     TextField("0.00", text: $amount)
                         .decimalKeyboard()
                         .font(.system(.body, design: .rounded).monospacedDigit())
@@ -73,7 +73,7 @@ struct EditTransactionSheet: View {
                 Section("日期") {
                     TransactionDateRow(date: $date, latestDate: max(Date.now, transaction.date))
                 }
-                Section("备注 (可选)") {
+                Section("备注（可选）") {
                     TextField("备注", text: $note)
                         .font(.system(.body, design: .rounded))
                         .accessibilityIdentifier("edit-note")
