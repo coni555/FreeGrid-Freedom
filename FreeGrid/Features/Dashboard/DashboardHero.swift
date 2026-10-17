@@ -125,6 +125,13 @@ struct DashboardHero: View {
         }
     }
 
+    /// 已覆盖时的小字。记账不满 90 天时日均还不稳（和大额摊开同一个门槛），写出按几天算的，让人自己掂量这句「财富自由」
+    private var coveredNote: String {
+        snapshot.trackDays < FreedomMath.lumpSpreadDays
+            ? "按 \(snapshot.trackDays) 天记账的日均, 被动已覆盖"
+            : "按当前日均消费, 被动已覆盖"
+    }
+
     /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
     /// 副标 18pt 拆 2 行 (card 内副标可用宽 ~121pt, 22pt 7 字会强行 break)
     @ViewBuilder
@@ -134,7 +141,7 @@ struct DashboardHero: View {
                 switch snapshot.freedom {
                 case .covered:
                     emphasized("你已", "财富", "自由", size: 18)
-                    Text("按当前日均消费, 被动已覆盖")
+                    Text(coveredNote)
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
@@ -197,7 +204,7 @@ struct DashboardHero: View {
             switch snapshot.freedom {
             case .covered:
                 emphasized("你已", "财富", "自由", size: 18)
-                Text("按当前日均消费, 被动已覆盖")
+                Text(coveredNote)
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)

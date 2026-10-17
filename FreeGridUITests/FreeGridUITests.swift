@@ -914,6 +914,16 @@ final class FreeGridUITests: XCTestCase {
         let row = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "每年 ¥6,000")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 3))
         XCTAssertTrue(row.label.contains("¥500/月"))
+
+        // 每天 16.7 盖住了记的 10 块：首页说已覆盖，但写明只按 1 天的账算
+        app.tabBars.buttons["Dashboard"].tap()
+        app.buttons["记支出"].tap()
+        let expense = app.textFields["0.00"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        expense.typeText("10")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(app.staticTexts["按 1 天记账的日均, 被动已覆盖"].waitForExistence(timeout: 3))
     }
 
     /// 自定义分类的截图：管理列表、编辑表单、History 行首图标，深浅各一。只在给了环境变量时运行。
