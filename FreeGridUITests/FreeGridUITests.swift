@@ -657,22 +657,15 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(text.waitForNonExistence(timeout: 3))
     }
 
-    /// 新用户：引导走完不弹；之后第一次进 Settings 弹正常的购买页，关掉后再进 Settings、重开 App 都不再弹
+    /// 新用户：走完起步引导后，首页和 Settings 都不弹 Pro 介绍或购买页
     @MainActor
-    func testNewUserSeesThePaywallOnTheirFirstSettingsVisitAfterTheGuide() throws {
+    func testNewUserIsNeverShownTheProIntro() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO",
                                "-proPreview", "NO", "-UseInMemoryStore", "-proIntro", "-proSamplePrices"]
         app.launch()
-        let paywall = app.descendants(matching: .any)["pro-header"]
-        // 起步引导还没走完：去 Settings 也不弹
-        XCTAssertTrue(app.buttons["setup-guide-go-assets"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Settings"].tap()
-        Thread.sleep(forTimeInterval: 2)
-        XCTAssertFalse(paywall.exists)
-        app.tabBars.buttons["Dashboard"].tap()
         let goAssets = app.buttons["setup-guide-go-assets"]
-        XCTAssertTrue(goAssets.waitForExistence(timeout: 3))
+        XCTAssertTrue(goAssets.waitForExistence(timeout: 5))
         goAssets.tap()
         XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
         app.buttons["编辑现金"].tap()
@@ -692,35 +685,16 @@ final class FreeGridUITests: XCTestCase {
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
         finishGuide(next, steps: 3)
-        // 引导刚走完：首页上不弹
+
+        let paywall = app.descendants(matching: .any)["pro-header"]
+        let intro = app.descendants(matching: .any)["pro-intro-returning"]
         Thread.sleep(forTimeInterval: 3)
         XCTAssertFalse(paywall.exists)
-
-        app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(paywall.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["pro-start-trial"].exists)
-        Thread.sleep(forTimeInterval: 0.8)
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "Pro介绍-新用户-进设置弹购买页"
-        shot.lifetime = .keepAlways
-        add(shot)
-        app.buttons["pro-close"].tap()
-        XCTAssertTrue(paywall.waitForNonExistence(timeout: 3))
-        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertFalse(intro.exists)
         app.tabBars.buttons["Settings"].tap()
         Thread.sleep(forTimeInterval: 2)
         XCTAssertFalse(paywall.exists)
-
-        // 重开 App 也不再弹
-        app.terminate()
-        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES",
-                               "-proPreview", "NO", "-UseInMemoryStore", "-KeepScratchPreferences",
-                               "-proIntro", "-proSamplePrices"]
-        app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Settings"].tap()
-        Thread.sleep(forTimeInterval: 2)
-        XCTAssertFalse(paywall.exists)
+        XCTAssertFalse(intro.exists)
     }
 
     /// 老用户：账本里已经有支出，打开 2.0 就弹整屏的 Pro 介绍，用购买页那张对照卡，可以体验也可以直接买断
