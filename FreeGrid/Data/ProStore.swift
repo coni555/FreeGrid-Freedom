@@ -165,7 +165,7 @@ final class ProStore {
     /// 开始 7 天试用：向 App Store「买」那件 ¥0 的商品，交易时间就是试用开始的时间
     func startTrial() async -> PurchaseOutcome {
         guard case .loaded(let products) = productState, let trial = products.trial else {
-            return .failed("暂时读不到试用，请检查网络后重试。")
+            return .failed("暂时读不到免费体验，请检查网络后重试。")
         }
         return await buy(trial) { [self] transaction in
             setTrialStarted(transaction.purchaseDate)

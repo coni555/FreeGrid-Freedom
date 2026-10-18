@@ -238,15 +238,15 @@ struct SettingsView: View {
         }
     }
 
-    /// 买过才算（试用中 Pro 卡仍留在前排，卡面写试用还剩几天）
+    /// 买过才算（体验中 Pro 卡仍留在前排，卡面写体验还剩几天）
     private var proUnlocked: Bool { ProStore.shared.ownsPro }
 
-    /// Pro 卡头下面那一行：买过、试用中、其余情况各一句。不写价格
+    /// Pro 卡头下面那一行：买过、体验中、其余情况各一句。不写价格
     private var proCardDetail: String {
         let store = ProStore.shared
         if store.ownsPro { return "全部功能已解锁" }
         if store.isTrialActive, let end = store.offer.trialEndsAt {
-            return "试用中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
+            return "体验中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
         }
         return ProFeatures.headline
     }

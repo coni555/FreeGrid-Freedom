@@ -308,19 +308,19 @@ final class FreeGridUITests: XCTestCase {
             case nil:
                 XCTAssertTrue(app.buttons["pro-start-trial"].exists)
                 XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("14 天内买断 ¥19.90，之后 ¥29.90"))
+                XCTAssertTrue(note.label.contains("14 天内，享 ¥19.90 买断优惠价，之后恢复 ¥29.90"))
                 XCTAssertFalse(app.staticTexts["pro-trial-status"].exists)
             case "2":
                 XCTAssertFalse(app.buttons["pro-start-trial"].exists)
-                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用中 · 还剩 5 天")
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验中 · 还剩 5 天")
                 XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("试用专属价还剩 12 天"))
+                XCTAssertTrue(note.label.contains("买断优惠价还剩 12 天"))
             case "10":
-                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用已结束")
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
                 XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("试用专属价还剩 4 天"))
+                XCTAssertTrue(note.label.contains("买断优惠价还剩 4 天"))
             default:
-                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用已结束")
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
                 XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥29.90"))
                 XCTAssertEqual(note.label, "一次购买 · 永久使用 · 不会自动续费")
             }

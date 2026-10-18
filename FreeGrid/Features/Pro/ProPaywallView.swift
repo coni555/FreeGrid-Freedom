@@ -249,14 +249,14 @@ struct ProPaywallView: View {
             } else if let prices {
                 offerStatus
                 if showsTrialButton {
-                    VaultButton(title: "免费试用 \(ProOffer.trialDays) 天", icon: "sparkles") {
+                    VaultButton(title: "免费体验 \(ProOffer.trialDays) 天", icon: "sparkles") {
                         Task { await startTrial() }
                     }
                     .disabled(store.isWorking)
                     .accessibilityIdentifier("pro-start-trial")
                     Button { Task { await buy() } } label: {
-                        Text("直接买断 · \(prices.special)")
-                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        Text("永久解锁 Pro · \(prices.special)")
+                            .font(.system(.body, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.skyDeep)
                             .frame(minHeight: 36)
                             .contentShape(Rectangle())
@@ -265,7 +265,7 @@ struct ProPaywallView: View {
                     .disabled(store.isWorking)
                     .accessibilityIdentifier("pro-purchase")
                 } else {
-                    VaultButton(title: "永久解锁 · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open") {
+                    VaultButton(title: "永久解锁 Pro · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open") {
                         Task { await buy() }
                     }
                     .disabled(store.isWorking)
@@ -319,21 +319,22 @@ struct ProPaywallView: View {
     private var offerStatus: some View {
         if let trialEnd = store.offer.trialEndsAt {
             Text(store.isTrialActive
-                 ? "试用中 · 还剩 \(ProOffer.daysLeft(until: trialEnd, from: store.now)) 天"
-                 : "试用已结束")
+                 ? "体验中 · 还剩 \(ProOffer.daysLeft(until: trialEnd, from: store.now)) 天"
+                 : "体验已结束")
                 .font(.system(.footnote, design: .rounded).weight(.medium).monospacedDigit())
                 .foregroundStyle(store.isTrialActive ? Color.skyDeep : Color.inkMuted)
                 .accessibilityIdentifier("pro-trial-status")
         }
     }
 
-    /// 按钮下面的小字。开始试用之前，审核指南 3.1.1 要求写清：试用多久、到期少了什么、之后要付多少
+    /// 按钮下面的小字。开始体验之前，审核指南 3.1.1 要求写清：体验多久、到期少了什么、之后要付多少。
+    /// 开始体验前的三行是用户 2026-10-18 定的原话
     private func priceNote(_ prices: Prices) -> String {
         if showsTrialButton {
-            return "试用不扣费，\(ProOffer.trialDays) 天后回到免费版，记下的都保留。\n开始试用起 \(ProOffer.specialPriceDays) 天内买断 \(prices.special)，之后 \(prices.regular)。"
+            return "体验期满自动恢复免费版，无自动扣费。\n所有记账数据都会完整保留。\n开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。"
         }
         if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
-            return "试用专属价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后 \(prices.regular) · 不会自动续费"
+            return "买断优惠价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后恢复 \(prices.regular) · 不会自动续费"
         }
         return "一次购买 · 永久使用 · 不会自动续费"
     }
@@ -396,7 +397,7 @@ struct ProPaywallView: View {
         switch await store.startTrial() {
         case .purchased: notice = nil
         case .cancelled: notice = nil
-        case .pending: notice = "试用在等待批准，批准后会自动开始。"
+        case .pending: notice = "体验在等待批准，批准后会自动开始。"
         case .failed(let message): notice = message
         }
     }
