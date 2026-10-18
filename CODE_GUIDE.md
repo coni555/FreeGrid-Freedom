@@ -137,7 +137,7 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、试用、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；试用 7 天和试用专属价 14 天的时间规则在 `Logic/ProOffer.swift`；对照表和权益判断在 `App/ProFeatures.swift` |
-| 2.0 的 Pro 介绍弹窗（新用户温和版、老用户整屏版，各弹一次） | `Features/Pro/ProIntroSheet.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
+| 2.0 的 Pro 介绍（老用户整屏介绍、新用户第一次进 Settings 弹购买页，各一次） | 老用户那页在 `Features/Pro/ProIntroSheet.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
 | Assets 页（按设置选新版或经典版） | `Features/Assets/AssetsView.swift` 只做切换（偏好 `assetsLayout`）。新版「钱与时间」：`MoneyTimeAssetsView.swift`（¥/天 单位开关、净值或自由天数、按账户分段的横线、资产 \| 现金文件夹标签、「每月」进出），调拨弹窗 `TransferSheet.swift`。经典版：`ClassicAssetsView.swift`（三个抽屉 + 被动收入卡 + 内嵌调拨） |
 | 两版共用的各行（增删改、拖动排序、退款后只读、弹窗） | `Features/Assets/AccountDrawers.swift`（`AssetRows`、`CashRows`，以及经典版的抽屉外壳 `AssetDrawer`、`CashDrawer`）、`LoanDrawer.swift`（`LoanRows`）、`MoneyTimeAssetsView.swift` 里的 `PassiveRows`。行里的金额按环境值 `amountUnit` 写成钱或天 |
 | 资产逐项记录（Pro）：新增/编辑/删除一项 | `Features/Assets/AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
@@ -169,7 +169,7 @@ flowchart TD
 
 Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。试用是一件 ¥0 的非消耗型商品（审核指南 3.1.1 的做法），那笔交易的时间就是试用开始时间，存在 `proTrialStartedAt`；`Logic/ProOffer.swift` 据此算试用是否还在（7 天）、买断该用专属价还是原价（从试用开始 14 天内，或者还没试用，用专属价）。买断有专属价、原价两件商品，买哪件都解锁；`ProStore.isUnlocked` 包含试用期，`ownsPro` 只算买过的，购买页和设置页用它决定显示「已解锁」还是继续提供购买。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」；购买页的免费 / Pro 对照表也在这里（`comparison`），各处用 `.proPaywall(isPresented:topic:)` 整屏打开购买页，锁定页打开购买页时传一个 `Topic`，对照表标出那一行。Assets 的「钱与时间」视图也是 Pro：`AssetsLayout.effective` 在没有 Pro 时一律返回经典版。解锁状态不进账本备份。
 
-**Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。老用户在打开时、新用户在起步引导结束后（首页讲解走完时，或者跳过引导后下次打开、回到前台时）调 `offerProIntro`：停 1.2 秒，等商品读完，再用 `ProIntro.shouldOffer` 判断（买过、开始过体验、读不到体验商品都不弹），并且要在首页、没有讲解和起步引导盖着才弹。弹窗真的出现时记 `proIntroShown`，以后不再弹；被别的弹窗挡住没弹成的，下次打开再试。新用户版是贴着内容高度的底部卡，老用户版整屏，逐项列出对照表里 Pro 多出来的行（`ProFeatures.Row` 的 `symbol` 和 `pitch`）。两版都能直接开始体验，条款文字和购买页共用 `ProTrialTerms`；体验开始或买断后弹窗换成「体验已开始 / Pro 已解锁」。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
+**Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。启动、回到前台和切到 Settings 时调 `offerProIntro`：老用户要在首页，新用户要在 Settings 而且起步引导已经结束；停一下、等商品读完，再用 `ProIntro.shouldOffer` 判断（买过、开始过体验、读不到体验商品都不弹）。新用户弹的就是购买页（`.proPaywall`），弹时记 `proIntroShown`；老用户弹 `ProIntroSheet` 的整屏介绍，真的出现时才记，被别的弹窗挡住没弹成的下次打开再试。介绍页的对照卡和购买页共用 `ProComparisonTable`，条款共用 `ProTrialTerms`，能直接开始体验或买断；体验开始或买断后换成「体验已开始 / Pro 已解锁」。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
 
 Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。
 
@@ -232,7 +232,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
 - [ExpenseCategoryTests](FreeGridTests/ExpenseCategoryTests.swift)：名称校验、顺序与可见性持久化、至少一个选项、自定义名称备份恢复及旧分类去重；UI 测试覆盖实际记账、隐藏后历史保留及 Pro 闸门。
 - [ProOfferTests](FreeGridTests/ProOfferTests.swift)：试用 7 天、专属价 14 天、还没试用时按专属价、晚下载的人从自己开始试用算起、「还剩 N 天」不足一天算一天。
-- [ProIntroTests](FreeGridTests/ProIntroTests.swift)：有支出算老用户、新用户等起步引导结束、只弹一次、买过或开始过体验不弹、读不到体验商品时下次再看、老用户版只列 Pro 多出来的行。
+- [ProIntroTests](FreeGridTests/ProIntroTests.swift)：有支出算老用户、新用户等起步引导结束、只弹一次、买过或开始过体验不弹、读不到体验商品时下次再看。
 - [ProStoreTests](FreeGridTests/ProStoreTests.swift)：新安装默认未解锁、本机记住的购买在离线时仍有效、本机记住的试用 7 天内解锁之后锁回、读不到商品时不发起购买也不开始试用、调试预览不改购买记录。真实购买、恢复和退款不在这里测，要用真机沙盒。
 - [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。

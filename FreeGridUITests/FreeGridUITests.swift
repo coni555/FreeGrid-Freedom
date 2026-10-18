@@ -632,19 +632,47 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["19"].exists)   // 950 ÷ 50
     }
 
-    /// 新用户：起步引导和首页讲解都走完，才温和地弹一张 Pro 体验的卡；点「以后再说」后不再出现
+    /// 起步引导任何一步都能跳过；这里测最后一步（记支出），圈里能点、圈外点不动的那一步
+    /// 不带 -setupGuideCompleted：带了的话启动参数压过 App 写的值，点了跳过也读回「没跳过」
     @MainActor
-    func testNewUserSeesTheGentleProIntroOnlyAfterTheGuides() throws {
+    func testSetupGuideCanBeSkippedAtTheExpenseStep() {
         let app = XCUIApplication()
-        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "NO",
-                               "-proPreview", "NO", "-UseInMemoryStore", "-proIntro", "-proSamplePrices"]
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-UseInMemoryStore"]
         app.launch()
-        let intro = app.descendants(matching: .any)["pro-intro-newcomer"]
         let goAssets = app.buttons["setup-guide-go-assets"]
         XCTAssertTrue(goAssets.waitForExistence(timeout: 5))
-        // 起步引导还没走完：不弹
+        goAssets.tap()
+        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
+        app.buttons["编辑现金"].tap()
+        let cash = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 3))
+        cash.typeText("1000")
+        app.buttons["保存"].tap()
+        let goHome = app.buttons["setup-guide-go-home"]
+        XCTAssertTrue(goHome.waitForExistence(timeout: 3))
+        goHome.tap()
+        let text = app.staticTexts["setup-guide-text"]
+        XCTAssertTrue(text.waitForExistence(timeout: 3))
+        app.buttons["setup-guide-skip"].tap()
+        XCTAssertTrue(text.waitForNonExistence(timeout: 3))
+    }
+
+    /// 新用户：引导走完不弹；之后第一次进 Settings 弹正常的购买页，关掉后再进 Settings、重开 App 都不再弹
+    @MainActor
+    func testNewUserSeesThePaywallOnTheirFirstSettingsVisitAfterTheGuide() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO",
+                               "-proPreview", "NO", "-UseInMemoryStore", "-proIntro", "-proSamplePrices"]
+        app.launch()
+        let paywall = app.descendants(matching: .any)["pro-header"]
+        // 起步引导还没走完：去 Settings 也不弹
+        XCTAssertTrue(app.buttons["setup-guide-go-assets"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
         Thread.sleep(forTimeInterval: 2)
-        XCTAssertFalse(intro.exists)
+        XCTAssertFalse(paywall.exists)
+        app.tabBars.buttons["Dashboard"].tap()
+        let goAssets = app.buttons["setup-guide-go-assets"]
+        XCTAssertTrue(goAssets.waitForExistence(timeout: 3))
         goAssets.tap()
         XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
         app.buttons["编辑现金"].tap()
@@ -661,35 +689,41 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("50")
         app.buttons["保存"].tap()
-        // 首页讲解进行中：也不弹
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
-        XCTAssertFalse(intro.exists)
         finishGuide(next, steps: 3)
+        // 引导刚走完：首页上不弹
+        Thread.sleep(forTimeInterval: 3)
+        XCTAssertFalse(paywall.exists)
 
-        XCTAssertTrue(intro.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["pro-intro-start-trial"].exists)
-        XCTAssertFalse(app.buttons["pro-intro-purchase"].exists)
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(paywall.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["pro-start-trial"].exists)
         Thread.sleep(forTimeInterval: 0.8)
         let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "Pro介绍-新用户"
+        shot.name = "Pro介绍-新用户-进设置弹购买页"
         shot.lifetime = .keepAlways
         add(shot)
-        app.buttons["pro-intro-later"].tap()
-        XCTAssertTrue(intro.waitForNonExistence(timeout: 3))
+        app.buttons["pro-close"].tap()
+        XCTAssertTrue(paywall.waitForNonExistence(timeout: 3))
+        app.tabBars.buttons["Dashboard"].tap()
+        app.tabBars.buttons["Settings"].tap()
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertFalse(paywall.exists)
 
-        // 弹过一次就不再弹
+        // 重开 App 也不再弹
         app.terminate()
         app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES",
                                "-proPreview", "NO", "-UseInMemoryStore", "-KeepScratchPreferences",
                                "-proIntro", "-proSamplePrices"]
         app.launch()
-        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 3)
-        XCTAssertFalse(intro.exists)
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertFalse(paywall.exists)
     }
 
-    /// 老用户：账本里已经有支出，打开 2.0 就弹整屏的 Pro 介绍，逐项写 Pro 多了什么，可以体验也可以直接买断
+    /// 老用户：账本里已经有支出，打开 2.0 就弹整屏的 Pro 介绍，用购买页那张对照卡，可以体验也可以直接买断
     @MainActor
     func testReturningUserSeesTheProIntroOnFirstLaunch() throws {
         let backup = FileManager.default.temporaryDirectory.appendingPathComponent("pro-intro-ui-test.json")
@@ -710,6 +744,7 @@ final class FreeGridUITests: XCTestCase {
             // 读得到真实商品的模拟器显示当地价格（FG-UI 是美区），只认按钮在、写的是买断
             XCTAssertTrue(app.buttons["pro-intro-purchase"].label.hasPrefix("永久解锁 Pro · "))
             XCTAssertTrue(app.staticTexts["你在用的功能都还在，一直免费。"].exists)
+            XCTAssertTrue(app.descendants(matching: .any)["pro-comparison"].exists)
             Thread.sleep(forTimeInterval: 0.8)
             let shot = XCTAttachment(screenshot: app.screenshot())
             shot.name = "Pro介绍-老用户-\(dark ? "深色" : "浅色")"

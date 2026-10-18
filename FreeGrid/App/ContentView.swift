@@ -22,10 +22,12 @@ struct ContentView: View {
     /// 起步引导点了「跳过引导」后不再出现
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
 
-    /// 2.0 的 Pro 介绍：新老用户各一版，只弹一次（规则在 ProIntro）。新还是老在第一次打开时记下
+    /// 2.0 的 Pro 介绍：老用户打开时弹介绍页，新用户第一次进 Settings 时弹购买页，各一次（规则在 ProIntro）。
+    /// 新还是老在第一次打开时记下
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(ProIntro.shownKey, store: AppPreferences.store) private var introShown = false
-    @State private var presentedIntro: ProIntro.Audience?
+    @State private var showingReturningIntro = false
+    @State private var showingNewcomerPaywall = false
 
     // 起步引导走到哪一步由账本决定
     @Query private var expenses: [Expense]
@@ -88,8 +90,6 @@ struct ContentView: View {
             if let tour = guide.tour, selectedTab == tab(for: tour) {
                 GuideOverlay(guide: guide) { finished in
                     if finished == .history { historyGuideCompleted = true }
-                    // 新用户讲完首页，起步这一段就结束了
-                    if finished == .dashboard { Task { await offerProIntro() } }
                 }
             } else if let step = setupStep {
                 SetupGuideOverlay(
@@ -122,10 +122,13 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             try? LoanStore.processDue(in: modelContext)
-            // 新用户跳过起步引导后不马上弹，等下次回到 App
             Task { await offerProIntro() }
         }
-        .proIntro($presentedIntro) { introShown = true }
+        .onChange(of: selectedTab) { _, tab in
+            if tab == .settings { Task { await offerProIntro() } }
+        }
+        .returningProIntro(isPresented: $showingReturningIntro) { introShown = true }
+        .proPaywall(isPresented: $showingNewcomerPaywall)
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
         // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
@@ -143,20 +146,30 @@ extension ContentView {
         }
     }
 
-    /// 屏幕空着、轮到了就弹 Pro 介绍。先停一下，让刚结束的讲解或启动时的动画收干净，停完再看一遍。
-    /// 弹出来才记「弹过了」：被别的弹窗挡住没弹成时，下次打开 App 再试
+    /// 轮到了、屏幕也空着就弹：老用户在首页弹介绍页，新用户在 Settings 弹购买页。
+    /// 先停一下，让启动动画或切页收干净，停完再看一遍。
+    /// 老用户的介绍页真的出现才记「弹过了」，被别的弹窗挡住时下次打开再试
     private func offerProIntro() async {
-        guard !introShown, presentedIntro == nil, !ProIntro.isSuppressedForTesting,
+        guard !introShown, !showingReturningIntro, !showingNewcomerPaywall, !ProIntro.isSuppressedForTesting,
               let audience = ProIntro.Audience(rawValue: introAudience) else { return }
-        try? await Task.sleep(for: .seconds(1.2))
+        let page: AppTab = audience == .returning ? .dashboard : .settings
+        guard selectedTab == page else { return }
+        try? await Task.sleep(for: .seconds(audience == .returning ? 1.2 : 0.6))
         let store = ProStore.shared
         await store.loadProducts()
         guard ProIntro.shouldOffer(audience: audience, alreadyShown: introShown, ownsPro: store.ownsPro,
                                    hasStartedTrial: store.offer.hasStartedTrial,
                                    canStartTrial: ProPrices.current(store)?.hasTrial == true,
                                    setupFinished: setupGuideCompleted || !expenses.isEmpty),
-              presentedIntro == nil, selectedTab == .dashboard, guide.tour == nil, setupStep == nil else { return }
-        presentedIntro = audience
+              !showingReturningIntro, !showingNewcomerPaywall,
+              selectedTab == page, guide.tour == nil, setupStep == nil else { return }
+        switch audience {
+        case .returning:
+            showingReturningIntro = true
+        case .newcomer:
+            introShown = true
+            showingNewcomerPaywall = true
+        }
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。

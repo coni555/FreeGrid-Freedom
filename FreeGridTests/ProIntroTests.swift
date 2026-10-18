@@ -42,13 +42,4 @@ struct ProIntroTests {
         #expect(!offer(.returning, canStartTrial: false))
         #expect(!offer(.newcomer, canStartTrial: false, setupFinished: true))
     }
-
-    @Test func theReturningIntroOnlyListsWhatProAdds() {
-        let gains = ProFeatures.comparison.filter { $0.pitch != nil }
-        #expect(gains.count == 6)
-        for row in gains {
-            #expect(row.symbol != nil)
-            if case .yes = row.free { Issue.record("\(row.title) 免费版也有，不该算 Pro 多出来的") }
-        }
-    }
 }
