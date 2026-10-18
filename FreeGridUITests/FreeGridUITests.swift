@@ -1058,10 +1058,10 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["repayment-day-legend"].exists)
         try shoot("3-首页")
 
-        // Daily 卡的日均含房租折成的每天（100 + 2500 ÷ 30），小字拆开写；Today 只和日常比
+        // Daily 卡的日均含房租折成的每天（100 + 2500 ÷ 30.44），小字拆开写；Today 只和日常比
         app.swipeUp()
-        XCTAssertTrue(app.staticTexts["183.3"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["日常 100 · 固定 83"].exists)
+        XCTAssertTrue(app.staticTexts["182.1"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["日常 100 · 固定 82"].exists)
         try shoot("4-首页日均")
     }
 
