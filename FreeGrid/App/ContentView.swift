@@ -113,7 +113,7 @@ struct ContentView: View {
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
             }
-            if ProIntro.Audience(rawValue: introAudience) == nil {
+            if !ProIntro.isSuppressedForTesting, ProIntro.Audience(rawValue: introAudience) == nil {
                 let expenseCount = (try? modelContext.fetchCount(FetchDescriptor<Expense>())) ?? 0
                 introAudience = ProIntro.audience(hasExpenses: expenseCount > 0).rawValue
             }

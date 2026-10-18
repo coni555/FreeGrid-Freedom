@@ -707,7 +707,8 @@ final class FreeGridUITests: XCTestCase {
             let intro = app.descendants(matching: .any)["pro-intro-returning"]
             XCTAssertTrue(intro.waitForExistence(timeout: 10))
             XCTAssertTrue(app.buttons["pro-intro-start-trial"].exists)
-            XCTAssertTrue(app.buttons["pro-intro-purchase"].label.contains("¥19.90"))
+            // 读得到真实商品的模拟器显示当地价格（FG-UI 是美区），只认按钮在、写的是买断
+            XCTAssertTrue(app.buttons["pro-intro-purchase"].label.hasPrefix("永久解锁 Pro · "))
             XCTAssertTrue(app.staticTexts["你在用的功能都还在，一直免费。"].exists)
             Thread.sleep(forTimeInterval: 0.8)
             let shot = XCTAttachment(screenshot: app.screenshot())

@@ -32,9 +32,10 @@ enum ProIntro {
         }
     }
 
-    /// UI 测试和拍图（-UseInMemoryStore）每次都是新的临时偏好，不拦着的话每个用例都会弹。
-    /// 要测或拍这个弹窗时加 -proIntro
+    /// 单元测试的宿主就是 App 本身，用的是这台设备的真实偏好：不判断、不弹，免得把新老用户记错。
+    /// UI 测试和拍图（-UseInMemoryStore）每次都是新的临时偏好，不拦着的话每个用例都会弹；要测或拍这个弹窗时加 -proIntro
     static var isSuppressedForTesting: Bool {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return true }
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("-UseInMemoryStore") && !arguments.contains("-proIntro")
