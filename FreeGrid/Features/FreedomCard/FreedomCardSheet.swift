@@ -29,9 +29,9 @@ struct FreedomCardSheet: View {
 
     private var data: FreedomCardData {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
         let summary = FreedomChecklist.evaluate(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                                assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
+                                                assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
         return FreedomCardData(snapshot: snapshot, summary: summary)
     }
 

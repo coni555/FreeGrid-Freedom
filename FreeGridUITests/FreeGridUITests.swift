@@ -1386,7 +1386,7 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
-    /// 体验刚结束、体验期间拆了资产和现金：首页弹「回到免费版」，两样都合并后写「都整理好了」；
+    /// 体验刚结束、体验期间拆了资产和现金、加了贷款：首页弹「回到免费版」，合并资产和现金、删掉停用的贷款后写「已调整完成」；
     /// 之后从购买页对照表下面还能打开。给了 BACK_TO_FREE_SHOTS_DIR 时拍图。
     @MainActor
     func testBackToFreeGuideAppearsOnceTheTrialEndsAndMergesEverything() throws {
@@ -1395,7 +1395,9 @@ final class FreeGridUITests: XCTestCase {
         {"schema_version":3,"assets":{"total":137000,"locked_assets":135000,"cash":2000},
          "expenses":[{"amount":1000,"category":"咖啡","date":"2026-10-01"}],
          "asset_items":[{"name":"房","amount":100000,"counts_in_freedom":false},{"name":"基金","amount":35000}],
-         "cash_accounts":[{"name":"微信","amount":500},{"name":"招行卡","amount":1500}]}
+         "cash_accounts":[{"name":"微信","amount":500},{"name":"招行卡","amount":1500}],
+         "loans":[{"id":"6f1d2c9a-0b4e-4c55-9a51-1c2f6e4d7a02","name":"车贷","monthly_amount":1200,"due_day":25,
+                   "periods_at_start":18,"start_date":"2026-09-01","processed_through":"2026-09-01","sort_order":0}]}
         """.utf8).write(to: backup)
         defer { try? FileManager.default.removeItem(at: backup) }
         let output = ProcessInfo.processInfo.environment["BACK_TO_FREE_SHOTS_DIR"]
@@ -1412,8 +1414,8 @@ final class FreeGridUITests: XCTestCase {
                                "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["免费体验结束了"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["「房」现在不计入自由天数，合并后资产整体计入。"].exists)
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["「房」目前未计入自由天数。合并后资产统一计入，之后可整体选择是否计入。"].exists)
         try shoot("1-引导")
 
         app.buttons["back-to-free-merge-assets"].tap()
@@ -1424,6 +1426,14 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["back-to-free-merge-cash"].tap()
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
+        XCTAssertTrue(app.buttons["back-to-free-merge-cash"].waitForNonExistence(timeout: 3))
+
+        // 贷款已停用，引导删除
+        XCTAssertTrue(app.staticTexts["已停用"].exists)
+        app.buttons["back-to-free-delete-loans"].tap()
+        let delete = app.buttons["删除"].firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        delete.tap()
         XCTAssertTrue(app.descendants(matching: .any)["back-to-free-finished"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["back-to-free-pro"].exists)
         try shoot("2-整理好了")
@@ -1462,7 +1472,7 @@ final class FreeGridUITests: XCTestCase {
                                "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
         app.launch()
         XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["免费体验结束了"].exists)   // 没有「上次还能用」的记录，不弹
+        XCTAssertFalse(app.staticTexts["Pro 体验已结束"].exists)   // 没有「上次还能用」的记录，不弹
 
         app.tabBars.buttons["Settings"].tap()
         app.buttons["settings-card-pro"].tap()
@@ -1470,7 +1480,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(link.waitForExistence(timeout: 5))
         if !link.isHittable { app.swipeUp() }
         link.tap()
-        XCTAssertTrue(app.staticTexts["免费体验结束了"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["back-to-free-merge-cash"].exists)
         XCTAssertFalse(app.buttons["back-to-free-merge-assets"].exists)
     }

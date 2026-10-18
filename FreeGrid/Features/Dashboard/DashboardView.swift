@@ -21,10 +21,10 @@ struct DashboardView: View {
 
     var body: some View {
         DashboardContent(
-            expenses: expenses, incomes: incomes, loans: loans,
+            expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans),
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                        assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets),
+                                        assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets),
             // 和日均比的是日常开销，自动扣的房租、月供不算
             todaySpending: expenses.filter { $0.countsInBurn && Calendar.current.isDateInToday($0.date) }
                 .reduce(0) { $0 + $1.amount }

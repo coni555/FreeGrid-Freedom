@@ -193,8 +193,11 @@ enum LoanStore {
     /// 不够就留着等用户处理。同一个到期日只处理一次，重复调用不会重复扣。
     /// 返回这次扣了几期。没有要处理的就不保存；账本里有别的未保存修改时跳过，下次再来。
     @discardableResult
+    /// `pausesTermLoans`：没有 Pro 时贷款停用，不扣钱；到期的那几期记成没扣成，重新解锁后由用户选从现金扣还是从别处还的，
+    /// 不会一下子扣掉停用期间的好几期
     static func processDue(
         now: Date = .now, calendar: Calendar = .current,
+        pausesTermLoans: Bool = false,
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> Int {
@@ -217,7 +220,8 @@ enum LoanStore {
         }) { assets in
             paid = 0
             for (loan, dates) in work {
-                for date in dates where canPay(loan, assets: assets, in: context) {
+                let paused = pausesTermLoans && !loan.isOngoing
+                for date in dates where !paused && canPay(loan, assets: assets, in: context) {
                     let payment = insertPayment(for: loan, on: date, in: context)
                     payment.cashAccountID = try CashAccountStore.applyCashChange(
                         -loan.monthlyAmount, accountID: loan.cashAccountID, assets: assets, in: context)?.id

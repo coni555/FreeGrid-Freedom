@@ -33,9 +33,8 @@ struct AddExpenseSheet: View {
 
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
     private var categories: [String] {
-        guard ProFeatures.canCustomizeExpenseCategories else { return ExpenseCategory.canonical }
-        return ExpenseCategoryStorage.decode(encodedOptions)
-            .including(expenses.filter { $0.loanID == nil }.map(\.category)).visibleNames
+        ExpenseCategoryStorage.pickable(encodedOptions, recorded: expenses.filter { $0.loanID == nil }.map(\.category),
+                                        unlocked: ProFeatures.canCustomizeExpenseCategories)
     }
 
     /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
@@ -141,7 +140,7 @@ struct AddExpenseSheet: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loans)
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
     }
 
     private var isAmountValid: Bool {

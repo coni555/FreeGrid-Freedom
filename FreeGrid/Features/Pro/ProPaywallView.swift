@@ -80,7 +80,7 @@ struct ProPaywallView: View {
     private var backToFreeLink: some View {
         Button { showingBackToFree = true } label: {
             HStack(spacing: 6) {
-                Text("不买断也能继续用 · 回到免费版")
+                Text("继续使用免费版")
                 Image(systemName: "arrow.right").font(.system(size: 11))
             }
             .font(.system(.footnote, design: .rounded))

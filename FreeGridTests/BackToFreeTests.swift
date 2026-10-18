@@ -105,4 +105,50 @@ struct BackToFreeTests {
         #expect(before == .finite(days: 100))     // (2000 + 8000) ÷ 100
         #expect(after == .finite(days: 1100))     // (2000 + 108000) ÷ 100
     }
+
+    // MARK: - 没有 Pro 时贷款停用
+
+    @Test func pausedLoansStopCountingButFixedCostsStay() {
+        let rent = Loan(name: "房租", monthlyAmount: 2500, dueDay: 5, periodsAtStart: 0, startDate: .now,
+                        sortOrder: 0, isOngoing: true)
+        let car = Loan(name: "车贷", monthlyAmount: 1200, dueDay: 25, periodsAtStart: 18, startDate: .now, sortOrder: 1)
+        #expect(LoanSchedule.inEffect([rent, car], proUnlocked: true).map(\.name) == ["房租", "车贷"])
+        #expect(LoanSchedule.inEffect([rent, car], proUnlocked: false).map(\.name) == ["房租"])
+    }
+
+    /// 停用期间到期的两期不扣钱，记成没扣成；重新解锁后由用户逐期处理，不会一下子扣掉
+    @Test func pausedLoanIsNotDeductedAndItsPeriodsWaitForTheUser() throws {
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        let context = try TestSupport.makeContext()
+        let assets = UserAssets(total: 0)
+        assets.cash = 10_000
+        context.insert(assets)
+        try context.save()
+        let loan = try LoanStore.save(nil, name: "车贷", monthlyAmount: 1200, dueDay: 20, remaining: 12,
+                                      now: now, in: context)
+        let later = TestSupport.day("2026-12-01").addingTimeInterval(12 * 3600)
+        #expect(try LoanStore.processDue(now: later, pausesTermLoans: true, in: context) == 0)
+        #expect(assets.cash == 10_000)
+        let status = LoanSchedule.status(of: loan, payments: try LoanStore.payments(in: context), now: later)
+        #expect(status.pending.count == 2)
+        // 解锁后再处理一次也不会补扣：那两期已经交给用户选
+        #expect(try LoanStore.processDue(now: later, in: context) == 0)
+        #expect(assets.cash == 10_000)
+    }
+
+    // MARK: - 支出分类
+
+    @Test func customCategoriesStayPickableWithoutPro() throws {
+        var options = ExpenseCategoryOptions.defaults
+        try options.add("咖啡")
+        try options.delete("娱乐")
+        let encoded = try ExpenseCategoryStorage.encode(options)
+        #expect(ExpenseCategoryStorage.isCustomized(encoded))
+        #expect(!ExpenseCategoryStorage.isCustomized(""))
+
+        let locked = ExpenseCategoryStorage.pickable(encoded, recorded: ["猫粮"], unlocked: false)
+        #expect(locked.contains("咖啡") && !locked.contains("娱乐") && !locked.contains("猫粮"))
+        #expect(ExpenseCategoryStorage.pickable(encoded, recorded: ["猫粮"], unlocked: true).contains("猫粮"))
+        #expect(ExpenseCategoryStorage.pickable("", recorded: ["猫粮"], unlocked: false) == ExpenseCategory.canonical)
+    }
 }

@@ -62,7 +62,7 @@ struct SettingsView: View {
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
                                   cashAccounts: cashAccounts,
-                                  loans: loans,
+                                  loans: ProFeatures.loansInEffect(loans),
                                   countsAssets: countsAssets)
     }
 
@@ -213,7 +213,7 @@ struct SettingsView: View {
     // MARK: - 第 2 张：自由卡（全页唯一用材质的卡，材质就是用户现在的等级）
     private var freedomCardCard: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
         let data = FreedomCardData(snapshot: snapshot, summary: summary)
         let material = FreedomCardMaterial.of(data.tier)
         let isFinite: Bool = { if case .finite = data.freedom { return true } else { return false } }()
@@ -392,7 +392,8 @@ struct SettingsView: View {
                     VStack(spacing: 0) {
                         DeckDivider()
                         Button {
-                            if ProStore.shared.isUnlocked {
+                            // 体验期间改过分类的人还能进去看；从没改过的直接看 Pro 介绍
+                            if ProStore.shared.isUnlocked || ExpenseCategoryStorage.isCustomized(encodedCategories) {
                                 showingCategories = true
                             } else {
                                 proTopic = .categories
@@ -433,9 +434,8 @@ struct SettingsView: View {
 
     /// 记支出时能选的分类有几个（月供扣款的分类是贷款名，不算）
     private var categoryCount: Int {
-        ExpenseCategoryStorage.decode(encodedCategories)
-            .including(expenses.filter { $0.loanID == nil }.map(\.category))
-            .activeItems.count
+        ExpenseCategoryStorage.pickable(encodedCategories, recorded: expenses.filter { $0.loanID == nil }.map(\.category),
+                                        unlocked: ProStore.shared.isUnlocked).count
     }
 
     // MARK: - Pro（和别的卡同一种纸，只多一道蓝竖线和一个描边的「了解 Pro」胶囊；点了直接弹出对照表，不抽出来）

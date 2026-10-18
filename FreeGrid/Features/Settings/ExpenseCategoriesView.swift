@@ -1,4 +1,5 @@
 // Pro 支出分类管理：拖动排序、左滑删除、点一行改名换图标。只有改名会改写旧账（一起改成新名字）。
+// 没有 Pro、但体验期间改过分类的人：列表照常显示、记账照常能选，只是不能改。
 import SwiftUI
 import SwiftData
 
@@ -46,6 +47,9 @@ struct ExpenseCategoriesView: View {
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.horizontal, Spacing.sm)
+                } else if ExpenseCategoryStorage.isCustomized(encodedOptions) {
+                    categoryList
+                    readOnlyNote
                 } else {
                     lockedCard
                 }
@@ -92,8 +96,22 @@ struct ExpenseCategoriesView: View {
         }
     }
 
+    /// 体验结束后：分类继续可用，修改要 Pro
+    private var readOnlyNote: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("这些分类继续可用。修改分类需要 Pro。")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+                .padding(.horizontal, Spacing.sm)
+            VaultButton(title: "解锁 Pro", icon: "sparkles") { showingPro = true }
+                .accessibilityIdentifier("open-pro-from-categories")
+        }
+    }
+
     private var categoryList: some View {
-        let items = options.activeItems
+        let canEdit = ProFeatures.canCustomizeExpenseCategories
+        // 没有 Pro 时只看存下的那份，和记支出时能选的一样
+        let items = canEdit ? options.activeItems : ExpenseCategoryStorage.decode(encodedOptions).activeItems
         let counts = recordCounts
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
@@ -109,30 +127,32 @@ struct ExpenseCategoriesView: View {
                     ForEach(items) { item in
                         categoryRow(item, count: counts[item.name, default: 0])
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if items.count > 1 {
+                                if canEdit && items.count > 1 {
                                     Button("删除") { update { try $0.delete(item.name) } }
                                         .tint(Color.flame)
                                 }
                             }
                     }
-                    .onMove { offsets, destination in
+                    .onMove(perform: canEdit ? { offsets, destination in
                         update { $0.move(fromOffsets: offsets, toOffset: destination) }
+                    } : nil)
+                    if canEdit {
+                        addRow
+                            .moveDisabled(true)
                     }
-                    addRow
-                        .moveDisabled(true)
                 }
                 .listStyle(.plain)
                 .scrollDisabled(true)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, Self.rowHeight)
-                .frame(height: Self.rowHeight * CGFloat(items.count + 1))
+                .frame(height: Self.rowHeight * CGFloat(items.count + (canEdit ? 1 : 0)))
             }
         }
     }
 
     private func categoryRow(_ item: ExpenseCategoryOptions.Item, count: Int) -> some View {
         Button {
-            editing = .existing(item.name)
+            if ProFeatures.canCustomizeExpenseCategories { editing = .existing(item.name) } else { showingPro = true }
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: options.icon(for: item.name))

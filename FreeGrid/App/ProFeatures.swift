@@ -59,8 +59,12 @@ enum ProFeatures {
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
     /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。
     static var canManageAssetItems: Bool { ProStore.shared.isUnlocked }
-    /// 增、改每月还款。已经加过的不管有没有 Pro 都照常显示、照常到期自动扣，也能删和处理没扣成的那期。
+    /// 增、改、用贷款。没有 Pro 时已经加的贷款停用：照常显示、能删，但不自动扣、不算进自由天数（见 `LoanSchedule.inEffect`）
     static var canManageLoans: Bool { ProStore.shared.isUnlocked }
+    /// 算自由天数、日均、首页格子时用的贷款：没有 Pro 时去掉停用的那些
+    static func loansInEffect(_ loans: [Loan]) -> [Loan] {
+        LoanSchedule.inEffect(loans, proUnlocked: canManageLoans)
+    }
     /// 增、删、改现金账户和扣款顺序。已经拆好的账户不管有没有 Pro 都照常显示、照常按顺序扣。
     static var canManageCashAccounts: Bool { ProStore.shared.isUnlocked }
     /// Assets 的「钱与时间」视图。没有 Pro 时一律显示经典版

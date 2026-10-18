@@ -101,9 +101,9 @@ struct ContentView: View {
             setupGuideCompleted = true
             guide.requestReplay(.dashboard)
         }
-        // Pro 每月还款：打开 App 和回到前台时补扣到期的月供。失败时什么都不改，下次再来
+        // 打开 App 和回到前台时补扣到期的房租、月供（没有 Pro 时贷款停用，不扣）。失败时什么都不改，下次再来
         .task {
-            try? LoanStore.processDue(in: modelContext)
+            try? LoanStore.processDue(pausesTermLoans: !ProFeatures.canManageLoans, in: modelContext)
             // 早期开发版里资产拆分后总开关还管着各项；现在由各项自己决定，旧的「关」交给各项接手
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
@@ -111,7 +111,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            try? LoanStore.processDue(in: modelContext)
+            try? LoanStore.processDue(pausesTermLoans: !ProFeatures.canManageLoans, in: modelContext)
             checkProLapse()
         }
         .task { checkProLapse() }

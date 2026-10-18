@@ -1,5 +1,6 @@
-// 「回到免费版」：体验结束或退款后，一条条说清体验期间加的东西现在怎样、要不要整理，能合并的当场合并。
+// 「回到免费版」：体验结束或退款后，逐项写清体验期间加的东西现在怎样，能合并的当场合并，贷款引导删除。
 // Pro 刚失效时首页弹一次（`ProStore.takeLapse`），之后从购买页对照表下面再打开。
+// 文案按用户 2026-10-18 给的参考文风：先一句状态，再一句做什么、结果是什么。
 
 import SwiftUI
 import SwiftData
@@ -9,19 +10,19 @@ struct BackToFreeSheet: View {
     private var assetItems: [AssetItem]
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
-    @Query(sort: \Loan.sortOrder) private var loans: [Loan]
+    @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)]) private var loans: [Loan]
     @Query private var expenses: [Expense]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @State private var confirming: Bucket?
+    @State private var confirming: Step?
     @State private var showingPro = false
     @State private var saveError: String?
 
-    private enum Bucket: String, Identifiable {
-        case assets, cash
+    private enum Step: String, Identifiable {
+        case mergeAssets, mergeCash, deleteLoans
         var id: String { rawValue }
     }
 
@@ -38,32 +39,15 @@ struct BackToFreeSheet: View {
                         if !plan.assetItems.isEmpty { assetsCard }
                         if !plan.cashAccounts.isEmpty { cashCard }
                         if !plan.loans.isEmpty { loansCard }
-                        if !plan.hasProContent {
-                            // 和购买页「Pro 已解锁」同一种写法
-                            HStack(spacing: Spacing.sm) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 18, weight: .light))
-                                    .foregroundStyle(Color.mossGreen)
-                                Text("都整理好了，现在就是免费版。")
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundStyle(Color.ink)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityIdentifier("back-to-free-finished")
-                        }
+                        if !plan.hasProContent { finished }
                     }
-                    Text("分类、视图和自由卡不用管：旧账保留原来的分类，Assets 换回经典视图，自由卡照常能看。")
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                    others
                     VStack(spacing: Spacing.md) {
-                        VaultButton(title: "好了", style: .secondary) { dismiss() }
+                        VaultButton(title: "继续使用免费版") { dismiss() }
                             .accessibilityIdentifier("back-to-free-done")
-                        // 都合并完就没有可保留的了
+                        // 都调整完就没有可保留的了
                         if plan.hasProContent {
-                            Button("想保留这些，买断 Pro") { showingPro = true }
+                            Button("解锁 Pro，继续使用全部功能") { showingPro = true }
                                 .font(.system(.subheadline, design: .rounded))
                                 .foregroundStyle(Color.skyDeep)
                                 .buttonStyle(.plain)
@@ -82,15 +66,17 @@ struct BackToFreeSheet: View {
         .accessibilityIdentifier("back-to-free-sheet")
         .proPaywall(isPresented: $showingPro, offersBackToFree: false)
         .saveErrorAlert($saveError)
-        .confirmationDialog("合并成一个总数？", isPresented: Binding(
+        .confirmationDialog(confirmTitle, isPresented: Binding(
             get: { confirming != nil }, set: { if !$0 { confirming = nil } }
-        ), titleVisibility: .visible, presenting: confirming) { bucket in
-            Button("合并", role: .destructive) { merge(bucket) }
+        ), titleVisibility: .visible, presenting: confirming) { step in
+            Button(step == .deleteLoans ? "删除" : "合并", role: .destructive) { run(step) }
             Button("取消", role: .cancel) {}
-        } message: { bucket in
-            Text(bucket == .assets
-                 ? "各项会删除，资产总数 ¥\(lockedAssets.formatted(.number)) 不变。"
-                 : "各账户会删除，现金总数 ¥\(cash.formatted(.number)) 不变。")
+        } message: { step in
+            switch step {
+            case .mergeAssets: Text("资产总额 ¥\(lockedAssets.formatted(.number)) 保持不变。")
+            case .mergeCash: Text("现金总额 ¥\(cash.formatted(.number)) 保持不变。")
+            case .deleteLoans: Text("已记的还款保留在 History。")
+            }
         }
     }
 
@@ -100,10 +86,10 @@ struct BackToFreeSheet: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             KickerLabel(text: "FreeGrid", color: .skyDeep)
                 .padding(.bottom, Spacing.xs)
-            Text(ProStore.shared.offer.hasStartedTrial ? "免费体验结束了" : "Pro 已不可用")
+            Text(ProStore.shared.offer.hasStartedTrial ? "Pro 体验已结束" : "Pro 已失效")
                 .font(.system(size: 26, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            Text("体验期间加的内容都还在，照常计算，只是不能再改。不买断也能继续用，整理一下就好。")
+            Text("账本和体验期间添加的数据都已保留。你可以继续免费使用 FreeGrid，部分 Pro 功能已暂停。")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
                 .lineSpacing(4)
@@ -114,62 +100,74 @@ struct BackToFreeSheet: View {
     // MARK: - 三张卡
 
     private var assetsCard: some View {
-        var lines = ["合并成一个总数，总额 ¥\(lockedAssets.formatted(.number)) 不变，之后直接改总数。"]
+        var lines = ["把各项合并为一个资产总额，金额不变。"]
         if !plan.excludedAssets.isEmpty {
-            lines.append("\(Self.quoted(plan.excludedAssets))现在不计入自由天数，合并后资产整体计入。")
+            lines.append("\(Self.quoted(plan.excludedAssets))目前未计入自由天数。合并后资产统一计入，之后可整体选择是否计入。")
         }
-        return itemCard(title: "资产", count: "\(plan.assetItems.count) 项", names: plan.assetItems,
-                        lines: lines, change: change(mergingAssets: true),
-                        action: ("合并", "back-to-free-merge-assets", { confirming = .assets }))
+        return card(title: "资产", count: "\(plan.assetItems.count) 项", names: plan.assetItems,
+                    status: "合并后可继续编辑", lines: lines, change: change(mergingAssets: true),
+                    action: Action(title: "合并资产", id: "back-to-free-merge-assets") { confirming = .mergeAssets })
     }
 
     private var cashCard: some View {
-        var lines = ["合并成一个总数，总额 ¥\(cash.formatted(.number)) 不变，记支出直接从现金扣。"]
+        var lines = ["把各账户合并为一个现金总额，余额不变。收支直接计入现金。"]
         if !plan.excludedCash.isEmpty {
-            lines.append("\(Self.quoted(plan.excludedCash))现在不计入自由天数，合并后现金全部计入。")
+            lines.append("\(Self.quoted(plan.excludedCash))目前未计入自由天数，合并后现金全部计入。")
         }
-        return itemCard(title: "现金", count: "\(plan.cashAccounts.count) 个账户", names: plan.cashAccounts,
-                        lines: lines, change: change(mergingAssets: false),
-                        action: ("合并", "back-to-free-merge-cash", { confirming = .cash }))
+        return card(title: "现金", count: "\(plan.cashAccounts.count) 个账户", names: plan.cashAccounts,
+                    status: "合并后可继续编辑", lines: lines, change: change(mergingAssets: false),
+                    action: Action(title: "合并账户", id: "back-to-free-merge-cash") { confirming = .mergeCash })
     }
 
     private var loansCard: some View {
-        itemCard(title: "贷款", count: "\(plan.loans.count) 笔", names: plan.loans,
-                 lines: ["不用处理，照常按期自动扣。不想要了，在 Assets 里点那一行删除。"],
-                 change: nil, action: nil)
+        card(title: "贷款", count: "\(plan.loans.count) 笔", names: plan.loans, status: "已停用",
+             lines: ["不再自动记账，也不计入自由天数。免费版不支持贷款，建议删除；已记的还款保留在 History。"],
+             change: nil,
+             action: Action(title: "删除贷款", id: "back-to-free-delete-loans", color: .flame) { confirming = .deleteLoans })
     }
 
-    private func itemCard(title: String, count: String, names: [String], lines: [String], change: String?,
-                          action: (title: String, id: String, run: () -> Void)?) -> some View {
+    private struct Action {
+        let title: String
+        let id: String
+        var color: Color = .skyDeep
+        let run: () -> Void
+    }
+
+    private func card(title: String, count: String, names: [String], status: String, lines: [String],
+                      change: String?, action: Action) -> some View {
         VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(title)
-                        .font(.system(.body, design: .rounded).weight(.medium))
-                        .foregroundStyle(Color.ink)
-                    Text(count)
-                        .font(.system(.footnote, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer(minLength: Spacing.sm)
-                    if let action {
-                        Button(action: action.run) {
-                            Text(action.title)
-                                .font(.system(.footnote, design: .rounded).weight(.medium))
-                                .foregroundStyle(Color.skyDeep)
-                                .padding(.horizontal, 12)
-                                .frame(height: 28)
-                                .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
-                                .frame(minHeight: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier(action.id)
+                HStack(alignment: .center) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                        Text(title)
+                            .font(.system(.body, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.ink)
+                        Text(count)
+                            .font(.system(.footnote, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkFaint)
                     }
+                    Spacer(minLength: Spacing.sm)
+                    Button(action: action.run) {
+                        Text(action.title)
+                            .font(.system(.footnote, design: .rounded).weight(.medium))
+                            .foregroundStyle(action.color)
+                            .padding(.horizontal, 12)
+                            .frame(height: 28)
+                            .overlay(Capsule().stroke(action.color, lineWidth: 1))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier(action.id)
                 }
                 Text(names.joined(separator: " · "))
                     .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
                     .fixedSize(horizontal: false, vertical: true)
+                Text(status)
+                    .font(.system(.footnote, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
+                    .padding(.top, Spacing.xs)
                 ForEach(lines, id: \.self) { line in
                     Text(line)
                         .font(.system(.footnote, design: .rounded))
@@ -187,33 +185,75 @@ struct BackToFreeSheet: View {
         }
     }
 
+    /// 都调整完：和购买页「Pro 已解锁」同一种写法
+    private var finished: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 18, weight: .light))
+                .foregroundStyle(Color.mossGreen)
+            Text("已调整完成，可以正常使用免费版。")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.ink)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("back-to-free-finished")
+    }
+
+    private var others: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("其他功能")
+                .font(.system(.footnote, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.inkMuted)
+            ForEach([("支出分类", "体验期间设置的分类继续可用，修改需 Pro。"),
+                     ("资产视图", "恢复经典视图。"),
+                     ("自由卡", "可以查看，分享需 Pro。")], id: \.0) { name, text in
+                (Text(name + "：").foregroundStyle(Color.inkMuted) + Text(text).foregroundStyle(Color.inkFaint))
+                    .font(.system(.footnote, design: .rounded))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     // MARK: - 数字
 
     private var lockedAssets: Double { assetsArr.first?.lockedAssets ?? 0 }
     private var cash: Double { assetsArr.first?.cash ?? 0 }
 
-    /// 合并后自由天数会变时写一行「合并后自由天数 146 天 → 3.2 年」；不变就不写
+    private var confirmTitle: String {
+        switch confirming {
+        case .mergeAssets: return "合并 \(plan.assetItems.count) 项资产？"
+        case .mergeCash: return "合并 \(plan.cashAccounts.count) 个现金账户？"
+        case .deleteLoans: return "删除 \(plan.loans.count) 笔贷款？"
+        case nil: return ""
+        }
+    }
+
+    /// 合并后自由天数会变时写一行「自由天数 146 天 → 26.5 年」；不变就不写。停用的贷款本来就不算
     private func change(mergingAssets: Bool) -> String? {
+        let loansInEffect = ProFeatures.loansInEffect(loans)
         let before = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                       assetItems: assetItems, cashAccounts: cashAccounts, loans: loans).freedom
+                                       assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect).freedom
         let after = BackToFreePlan.freedomAfterMerging(
             assets: mergingAssets, cash: !mergingAssets, expenses: expenses, passiveSources: passiveSources,
-            assets: assetsArr.first, assetItems: assetItems, cashAccounts: cashAccounts, loans: loans)
+            assets: assetsArr.first, assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect)
         let beforeText = FreedomMath.freedomDescription(before)
         let afterText = FreedomMath.freedomDescription(after)
         guard beforeText != afterText else { return nil }
-        return "合并后自由天数 \(beforeText) → \(afterText)"
+        return "自由天数 \(beforeText) → \(afterText)"
     }
 
     private static func quoted(_ names: [String]) -> String {
         names.map { "「\($0)」" }.joined(separator: "、")
     }
 
-    private func merge(_ bucket: Bucket) {
+    private func run(_ step: Step) {
         do {
-            switch bucket {
-            case .assets: try AssetItemStore.mergeIntoTotalKeepingSwitch(in: modelContext)
-            case .cash: try CashAccountStore.mergeIntoTotal(in: modelContext)
+            switch step {
+            case .mergeAssets: try AssetItemStore.mergeIntoTotalKeepingSwitch(in: modelContext)
+            case .mergeCash: try CashAccountStore.mergeIntoTotal(in: modelContext)
+            case .deleteLoans:
+                for loan in loans where !loan.isOngoing { try LoanStore.delete(loan, in: modelContext) }
             }
         } catch {
             saveError = error.localizedDescription

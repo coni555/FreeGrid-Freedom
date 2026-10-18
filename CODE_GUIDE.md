@@ -168,7 +168,9 @@ flowchart TD
 
 Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。试用是一件 ¥0 的非消耗型商品（审核指南 3.1.1 的做法），那笔交易的时间就是试用开始时间，存在 `proTrialStartedAt`；`Logic/ProOffer.swift` 据此算试用是否还在（7 天）、买断该用专属价还是原价（从试用开始 14 天内，或者还没试用，用专属价）。买断有专属价、原价两件商品，买哪件都解锁；`ProStore.isUnlocked` 包含试用期，`ownsPro` 只算买过的，购买页和设置页用它决定显示「已解锁」还是继续提供购买。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」；购买页的免费 / Pro 对照表也在这里（`comparison`），各处用 `.proPaywall(isPresented:topic:)` 整屏打开购买页，锁定页打开购买页时传一个 `Topic`，对照表标出那一行。Assets 的「钱与时间」视图也是 Pro：`AssetsLayout.effective` 在没有 Pro 时一律返回经典版。解锁状态不进账本备份。
 
-**回到免费版**：Pro 从能用变成不能用（体验到期、退款）时，`ContentView` 调 `ProStore.takeLapse`（本机记着上次能不能用，同一次变化只报一次），账本里有资产项、现金账户或带期数的贷款（`BackToFreePlan.hasProContent`）就弹 `Features/Pro/BackToFreeSheet.swift`：逐项说明现状，资产、现金当场合并（资产走 `AssetItemStore.mergeIntoTotalKeepingSwitch`，和 Assets 抽屉同一个入口），并用 `BackToFreePlan.freedomAfterMerging` 写出合并后的自由天数。关掉后，购买页对照表下面的「不买断也能继续用」还能打开它。
+**回到免费版**：Pro 从能用变成不能用（体验到期、退款）时，`ContentView` 调 `ProStore.takeLapse`（本机记着上次能不能用，同一次变化只报一次），账本里有资产项、现金账户或带期数的贷款（`BackToFreePlan.hasProContent`）就弹 `Features/Pro/BackToFreeSheet.swift`：逐项说明现状，资产、现金当场合并（资产走 `AssetItemStore.mergeIntoTotalKeepingSwitch`，和 Assets 抽屉同一个入口），并用 `BackToFreePlan.freedomAfterMerging` 写出合并后的自由天数；贷款引导删除。关掉后，购买页对照表下面的「继续使用免费版」还能打开它。
+
+**没有 Pro 时**：带期数的贷款停用——算自由天数、日均、格子、预览的地方都用 `ProFeatures.loansInEffect`（`LoanSchedule.inEffect`）去掉它们，`LoanStore.processDue(pausesTermLoans:)` 到期不扣钱、把那几期记成没扣成，重新解锁后由用户逐期选从现金扣还是从别处还的；抽屉里那一行写「已停用」，点了问删不删。支出分类用 `ExpenseCategoryStorage.pickable`：体验期间改过的那份照常能选，管理页只读（`isCustomized` 为真时进得去、改不了），从没改过的就是默认九类。
 
 Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。
 

@@ -21,7 +21,7 @@ struct CheckView: View {
                                   assets: assetsArr.first,
                                   assetItems: assetItems,
                                   cashAccounts: cashAccounts,
-                                  loans: loans,
+                                  loans: ProFeatures.loansInEffect(loans),
                                   countsAssets: countsAssets)
     }
 
