@@ -39,6 +39,7 @@ struct SettingsView: View {
     @State private var proTopic: ProFeatures.Topic?
     /// 有 Pro 时点「支出分类」进管理页
     @State private var showingCategories = false
+    @State private var showingBackToFree = false
     @State private var showingFreedomCard = false
     /// 一叠卡里现在抽出来的是哪张（look / ledger / about，空 = 都收着）。同一时间只开一张，下次进来还是它
     @SceneStorage("settingsOpenCard") private var openCard = "look"
@@ -119,6 +120,7 @@ struct SettingsView: View {
             }
             .navigationDestination(isPresented: $showingCategories) { ExpenseCategoriesView() }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
             .sensoryFeedback(.selection, trigger: themeChoice)
             .sensoryFeedback(.selection, trigger: heroLayout)
             .sensoryFeedback(.selection, trigger: assetsLayout)
@@ -241,14 +243,24 @@ struct SettingsView: View {
     /// 买过才算（体验中 Pro 卡仍留在前排，卡面写体验还剩几天）
     private var proUnlocked: Bool { ProStore.shared.ownsPro }
 
-    /// Pro 卡头下面那一行：买过、体验中、其余情况各一句。不写价格
+    /// Pro 卡头下面那一行：买过、体验中、失效后还有待调整的、其余情况各一句。不写价格
     private var proCardDetail: String {
         let store = ProStore.shared
         if store.ownsPro { return "全部功能已解锁" }
         if store.isTrialActive, let end = store.offer.trialEndsAt {
             return "体验中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
         }
+        if let plan = backToFreePlan {
+            return "\(store.offer.hasStartedTrial ? "体验已结束" : "Pro 已失效") · \(plan.pendingCount) 项待调整"
+        }
         return ProFeatures.headline
+    }
+
+    /// Pro 失效后账本里还有体验期间加的子账户或贷款：点 Pro 卡打开「回到免费版」，不进购买页（那里也能买）
+    private var backToFreePlan: BackToFreePlan? {
+        guard !ProStore.shared.isUnlocked else { return nil }
+        let plan = BackToFreePlan(assetItems: assetItems, cashAccounts: cashAccounts, loans: loans)
+        return plan.hasProContent ? plan : nil
     }
 
     // MARK: - 外观（默认抽出来；三行分段按钮）
@@ -442,8 +454,12 @@ struct SettingsView: View {
     private func proCard(depth: Int) -> some View {
         DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             Button {
-                proTopic = nil
-                showingPro = true
+                if backToFreePlan != nil {
+                    showingBackToFree = true
+                } else {
+                    proTopic = nil
+                    showingPro = true
+                }
             } label: {
                 DeckHeader(title: "FreeGrid Pro",
                            detail: detail(proCardDetail)) {
@@ -455,8 +471,9 @@ struct SettingsView: View {
                             .tracking(2)
                             .foregroundStyle(Color.skyDeep)
                     } else {
-                        // 卡面不写价格：设置页是看一眼的地方，钱留到购买页再说
-                        Text("了解 Pro")
+                        // 卡面不写价格：设置页是看一眼的地方，钱留到购买页再说。
+                        // Pro 失效后还有没调整的，胶囊改写待调整几项：卡头下面那行小字在小屏上不显示，这里一直看得见
+                        Text(backToFreePlan.map { "\($0.pendingCount) 项待调整" } ?? "了解 Pro")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Color.skyDeep)
                             .padding(.horizontal, 12)

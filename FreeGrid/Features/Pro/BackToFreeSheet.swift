@@ -2,6 +2,7 @@
 // Pro 刚失效时首页弹一次（`ProStore.takeLapse`），之后从购买页对照表下面再打开。
 // 文案按用户 2026-10-18 给的参考文风：先一句状态，再一句做什么、结果是什么。
 
+import StoreKit
 import SwiftUI
 import SwiftData
 
@@ -43,17 +44,10 @@ struct BackToFreeSheet: View {
                     }
                     others
                     VStack(spacing: Spacing.md) {
+                        // 都调整完就没有可保留的了
+                        if plan.hasProContent { proCard }
                         VaultButton(title: "继续使用免费版") { dismiss() }
                             .accessibilityIdentifier("back-to-free-done")
-                        // 都调整完就没有可保留的了
-                        if plan.hasProContent {
-                            Button("解锁 Pro，继续使用全部功能") { showingPro = true }
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(Color.skyDeep)
-                                .buttonStyle(.plain)
-                                .frame(minHeight: 44)
-                                .accessibilityIdentifier("back-to-free-pro")
-                        }
                     }
                 }
                 .padding(.horizontal, Spacing.xl)
@@ -64,6 +58,7 @@ struct BackToFreeSheet: View {
             .inlineNavTitle()
         }
         .accessibilityIdentifier("back-to-free-sheet")
+        .task { await ProStore.shared.loadProducts() }
         .proPaywall(isPresented: $showingPro, offersBackToFree: false)
         .saveErrorAlert($saveError)
         .confirmationDialog(confirmTitle, isPresented: Binding(
@@ -183,6 +178,67 @@ struct BackToFreeSheet: View {
                 }
             }
         }
+    }
+
+    /// 买 Pro 的那张卡：和购买页对照表 Pro 列同一种淡蓝底，细蓝线描边。点了进购买页，在那里买或开始体验。
+    /// 放在「继续使用免费版」上面但不挡它：主按钮仍是免费版
+    private var proCard: some View {
+        Button { showingPro = true } label: {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Color.skyDeep)
+                }
+                Text(plan.keepLine)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let price {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                        Text(price.now)
+                            .font(.system(size: 28, weight: .light, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.skyDeep)
+                        if let was = price.was {
+                            Text(was)
+                                .font(.system(.footnote, design: .rounded).monospacedDigit())
+                                .strikethrough()
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                        Text(price.was == nil ? "一次买断" : "买断优惠价")
+                            .font(.system(.footnote, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                    }
+                    .padding(.top, Spacing.xs)
+                }
+            }
+            .padding(Spacing.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.skyDeep.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.skyDeep.opacity(0.45), lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("back-to-free-pro")
+    }
+
+    /// 现在买要多少：优惠期内给优惠价和划掉的原价。读不到商品时不写价格
+    private var price: (now: String, was: String?)? {
+        let store = ProStore.shared
+        if case .loaded(let products) = store.productState {
+            return store.hasSpecialPrice
+                ? (products.special.displayPrice, products.regular.displayPrice)
+                : (products.regular.displayPrice, nil)
+        }
+        #if DEBUG
+        // 和购买页一样：模拟器里读不到商品，拍图时用示例价格
+        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
+            return store.hasSpecialPrice ? ("¥19.90", "¥29.90") : ("¥29.90", nil)
+        }
+        #endif
+        return nil
     }
 
     /// 都调整完：和购买页「Pro 已解锁」同一种写法

@@ -1417,6 +1417,11 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["「房」目前未计入自由天数。合并后资产统一计入，之后可整体选择是否计入。"].exists)
         try shoot("1-引导")
+        if output != nil {
+            app.swipeUp()
+            try shoot("1b-引导底部")
+            app.swipeDown()
+        }
 
         app.buttons["back-to-free-merge-assets"].tap()
         let confirm = app.buttons["合并"].firstMatch
@@ -1456,7 +1461,7 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.buttons["pro-back-to-free"].exists)
     }
 
-    /// 已经关掉引导、还没整理的人，从购买页对照表下面能再打开
+    /// 已经关掉引导、还没整理的人：设置里 Pro 卡提示待调整、点了打开引导；从引导进购买页，那里不再套一层入口
     @MainActor
     func testPaywallReopensTheBackToFreeGuide() throws {
         let backup = FileManager.default.temporaryDirectory.appendingPathComponent("back-to-free-paywall-ui-test.json")
@@ -1474,8 +1479,24 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["Pro 体验已结束"].exists)   // 没有「上次还能用」的记录，不弹
 
+        // 设置里 Pro 卡写「1 项待调整」，点了直接打开引导
         app.tabBars.buttons["Settings"].tap()
-        app.buttons["settings-card-pro"].tap()
+        let proCard = app.buttons["settings-card-pro"]
+        XCTAssertTrue(proCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(proCard.label.contains("1 项待调整"))
+        proCard.tap()
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["back-to-free-pro"].label.contains("保留子账户"))
+        // 从引导进购买页：那里不再套一层「继续使用免费版」
+        app.buttons["back-to-free-pro"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["pro-back-to-free"].exists)
+        app.buttons["pro-close"].tap()
+        app.buttons["back-to-free-done"].tap()
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForNonExistence(timeout: 5))
+
+        // 从别的地方进购买页（这里是「支出分类」），对照表下面能打开引导
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let link = app.buttons["pro-back-to-free"]
         XCTAssertTrue(link.waitForExistence(timeout: 5))
         if !link.isHittable { app.swipeUp() }

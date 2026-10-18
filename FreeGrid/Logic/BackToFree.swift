@@ -24,6 +24,19 @@ struct BackToFreePlan: Equatable {
     /// 有要整理或要说明的东西。只用了分类、视图、自由卡的人什么都不用做，不弹引导
     var hasProContent: Bool { !assetItems.isEmpty || !cashAccounts.isEmpty || !loans.isEmpty }
 
+    /// 还剩几样要调整（资产、现金、贷款各算一样）。设置页 Pro 卡写「2 项待调整」
+    var pendingCount: Int { [!assetItems.isEmpty, !cashAccounts.isEmpty, !loans.isEmpty].filter { $0 }.count }
+
+    /// 购买卡上那句：保留的是哪些
+    var keepLine: String {
+        let accounts = !assetItems.isEmpty || !cashAccounts.isEmpty
+        switch (accounts, !loans.isEmpty) {
+        case (true, true): return "保留子账户和贷款，继续使用全部功能"
+        case (true, false): return "保留子账户，继续使用全部功能"
+        default: return "保留贷款，继续使用全部功能"
+        }
+    }
+
     /// 合并后的自由天数：资产或现金换回一个总数，原来不计入的那部分也算进去。
     /// 资产总开关按合并时的规则接回去：只要有一项算着就开（见 `AssetItemStore.mergeIntoTotalKeepingSwitch`）
     static func freedomAfterMerging(assets mergeAssets: Bool, cash mergeCash: Bool,
