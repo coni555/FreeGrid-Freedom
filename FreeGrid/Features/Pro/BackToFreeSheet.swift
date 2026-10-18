@@ -43,10 +43,10 @@ struct BackToFreeSheet: View {
                         if !plan.hasProContent { finished }
                     }
                     others
-                    VStack(spacing: Spacing.md) {
+                    VStack(spacing: Spacing.lg) {
                         // 都调整完就没有可保留的了
                         if plan.hasProContent { proCard }
-                        VaultButton(title: "继续使用免费版") { dismiss() }
+                        VaultButton(title: "继续使用免费版", style: .secondary) { dismiss() }
                             .accessibilityIdentifier("back-to-free-done")
                     }
                 }
@@ -68,9 +68,9 @@ struct BackToFreeSheet: View {
             Button("取消", role: .cancel) {}
         } message: { step in
             switch step {
-            case .mergeAssets: Text("资产总额 ¥\(lockedAssets.formatted(.number)) 保持不变。")
-            case .mergeCash: Text("现金总额 ¥\(cash.formatted(.number)) 保持不变。")
-            case .deleteLoans: Text("已记的还款保留在 History。")
+            case .mergeAssets: Text("资产总额 ¥\(lockedAssets.formatted(.number)) 保持不变。合并后无法恢复原来的拆分，之后解锁 Pro 需要重新拆分。")
+            case .mergeCash: Text("现金总额 ¥\(cash.formatted(.number)) 保持不变。合并后无法恢复原来的拆分，之后解锁 Pro 需要重新拆分。")
+            case .deleteLoans: Text("已记的还款保留在 History。删除后无法恢复。")
             }
         }
     }
@@ -180,47 +180,67 @@ struct BackToFreeSheet: View {
         }
     }
 
-    /// 买 Pro 的那张卡：和购买页对照表 Pro 列同一种淡蓝底，细蓝线描边。点了进购买页，在那里买或开始体验。
-    /// 放在「继续使用免费版」上面但不挡它：主按钮仍是免费版
+    /// 买 Pro 的那张卡：白底细线卡，只有描边用一道蓝，和购买页头部同一个「FreeGrid PRO」字标；
+    /// 下半截是超细的价格和「解锁」。底下的「继续使用免费版」用墨色描边，两块蓝不抢
     private var proCard: some View {
         Button { showingPro = true } label: {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack {
-                    KickerLabel(text: "FreeGrid Pro", color: .skyDeep)
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(Color.skyDeep)
-                }
-                Text(plan.keepLine)
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let price {
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-                        Text(price.now)
-                            .font(.system(size: 28, weight: .light, design: .rounded).monospacedDigit())
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("FreeGrid")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        Text("PRO")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .tracking(2)
                             .foregroundStyle(Color.skyDeep)
-                        if let was = price.was {
-                            Text(was)
-                                .font(.system(.footnote, design: .rounded).monospacedDigit())
-                                .strikethrough()
+                            .padding(.leading, 8)
+                            .padding(.trailing, 6)
+                            .frame(height: 18)
+                            .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
+                    }
+                    Text(plan.keepLine)
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Hairline()
+                HStack(alignment: .lastTextBaseline) {
+                    if let price {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                                Text(price.now)
+                                    .font(.system(size: 30, weight: .ultraLight, design: .rounded).monospacedDigit())
+                                    .foregroundStyle(Color.ink)
+                                if let was = price.was {
+                                    Text(was)
+                                        .font(.system(.caption, design: .rounded).monospacedDigit())
+                                        .strikethrough()
+                                        .foregroundStyle(Color.inkFaint)
+                                }
+                            }
+                            Text(price.was == nil ? "一次买断，永久使用" : "买断优惠价 · 一次买断，永久使用")
+                                .font(.system(.caption2, design: .rounded))
                                 .foregroundStyle(Color.inkFaint)
                         }
-                        Text(price.was == nil ? "一次买断" : "买断优惠价")
-                            .font(.system(.footnote, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
                     }
-                    .padding(.top, Spacing.xs)
+                    Spacer(minLength: Spacing.sm)
+                    HStack(spacing: 4) {
+                        Text("解锁")
+                        Image(systemName: "arrow.right").font(.system(size: 12, weight: .regular))
+                    }
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.skyDeep)
                 }
             }
             .padding(Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.skyDeep.opacity(0.08)))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.skyDeep.opacity(0.45), lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.surfaceHi))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.skyDeep, lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("back-to-free-pro")
     }
 
