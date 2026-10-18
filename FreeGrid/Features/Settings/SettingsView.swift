@@ -251,7 +251,7 @@ struct SettingsView: View {
             return "体验中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
         }
         if let plan = backToFreePlan {
-            return "\(store.offer.hasStartedTrial ? "体验已结束" : "Pro 已失效") · \(plan.pendingCount) 项待调整"
+            return "\(store.lapsedFromPurchase ? "Pro 已失效" : "体验已结束") · \(plan.pendingCount) 项待调整"
         }
         return ProFeatures.headline
     }

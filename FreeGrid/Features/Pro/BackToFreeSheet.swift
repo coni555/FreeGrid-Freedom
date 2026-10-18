@@ -59,6 +59,8 @@ struct BackToFreeSheet: View {
         }
         .accessibilityIdentifier("back-to-free-sheet")
         .task { await ProStore.shared.loadProducts() }
+        // 在这里点 Pro 卡买了或恢复了：没什么要调整的了，直接关掉
+        .onChange(of: ProStore.shared.isUnlocked) { _, unlocked in if unlocked { dismiss() } }
         .proPaywall(isPresented: $showingPro, offersBackToFree: false)
         .saveErrorAlert($saveError)
         .confirmationDialog(confirmTitle, isPresented: Binding(
@@ -81,7 +83,7 @@ struct BackToFreeSheet: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             KickerLabel(text: "FreeGrid", color: .skyDeep)
                 .padding(.bottom, Spacing.xs)
-            Text(ProStore.shared.offer.hasStartedTrial ? "Pro 体验已结束" : "Pro 已失效")
+            Text(ProStore.shared.lapsedFromPurchase ? "Pro 已失效" : "Pro 体验已结束")
                 .font(.system(size: 26, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
             Text("账本和体验期间添加的数据都已保留。你可以继续免费使用 FreeGrid，部分 Pro 功能已暂停。")

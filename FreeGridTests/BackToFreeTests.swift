@@ -17,28 +17,67 @@ struct BackToFreeTests {
 
     // MARK: - Pro 失效
 
+    /// 已经和 App Store 核对过的 store：takeLapse 只在核对后才判断
+    private func checked(_ store: ProStore) -> ProStore {
+        store.hasCheckedEntitlements = true
+        return store
+    }
+
     @Test func trialEndingIsReportedOnceAndAFreshInstallNever() {
         withDefaults { defaults in
             let start = Date(timeIntervalSince1970: 1_800_000_000)
-            #expect(!ProStore(defaults: defaults).takeLapse())   // 从没体验过、刚装 2.0 的老用户
+            #expect(!checked(ProStore(defaults: defaults)).takeLapse())   // 从没体验过、刚装 2.0 的老用户
 
             defaults.set(start, forKey: ProStore.trialStartedKey)
-            let during = ProStore(defaults: defaults, clock: { start.addingTimeInterval(3 * 86_400) })
+            let during = checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(3 * 86_400) }))
             #expect(!during.takeLapse())                          // 体验中记下「能用」
 
-            let after = ProStore(defaults: defaults, clock: { start.addingTimeInterval(8 * 86_400) })
+            let after = checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(8 * 86_400) }))
             #expect(after.takeLapse())                            // 到期后第一次看到：弹
             #expect(!after.takeLapse())                           // 同一次到期不再弹
-            #expect(!ProStore(defaults: defaults, clock: { start.addingTimeInterval(9 * 86_400) }).takeLapse())
+            #expect(!checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(9 * 86_400) })).takeLapse())
+            #expect(!after.lapsedFromPurchase)
         }
     }
 
     @Test func refundAfterBuyingIsALapseToo() {
         withDefaults { defaults in
             defaults.set(true, forKey: ProStore.unlockedKey)
-            #expect(!ProStore(defaults: defaults).takeLapse())
+            #expect(!checked(ProStore(defaults: defaults)).takeLapse())
             defaults.set(false, forKey: ProStore.unlockedKey)    // App Store 核对后撤销了买断
-            #expect(ProStore(defaults: defaults).takeLapse())
+            let refunded = checked(ProStore(defaults: defaults))
+            #expect(refunded.takeLapse())
+            #expect(refunded.lapsedFromPurchase)                  // 标题写「Pro 已失效」
+        }
+    }
+
+    /// 体验期间就买断了：体验到期时 Pro 没断过，不弹
+    @Test func buyingDuringTheTrialNeverLapses() {
+        withDefaults { defaults in
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            defaults.set(start, forKey: ProStore.trialStartedKey)
+            #expect(!checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(2 * 86_400) })).takeLapse())
+            defaults.set(true, forKey: ProStore.unlockedKey)
+            #expect(!checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(30 * 86_400) })).takeLapse())
+        }
+    }
+
+    /// 还没和 App Store 核对过（比如别的设备上买了、这台还没同步）：先不判断，也不记下「不能用」
+    @Test func lapseWaitsForTheEntitlementCheck() {
+        withDefaults { defaults in
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            defaults.set(start, forKey: ProStore.trialStartedKey)
+            let during = checked(ProStore(defaults: defaults, clock: { start.addingTimeInterval(2 * 86_400) }))
+            let duringLapse = during.takeLapse()
+            let unchecked = ProStore(defaults: defaults, clock: { start.addingTimeInterval(8 * 86_400) })
+            let beforeCheck = unchecked.takeLapse()
+            unchecked.hasCheckedEntitlements = true
+            let afterCheck = unchecked.takeLapse()
+            #expect(during.isUnlocked && !duringLapse)
+            #expect(!unchecked.isUnlocked)
+            #expect(defaults.bool(forKey: ProStore.wasUnlockedKey) == false)
+            #expect(!beforeCheck)
+            #expect(afterCheck)
         }
     }
 

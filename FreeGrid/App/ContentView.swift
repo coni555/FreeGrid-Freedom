@@ -117,6 +117,8 @@ struct ContentView: View {
         .task { checkProLapse() }
         // 体验到点、退款在 App 开着时也会发生
         .onChange(of: ProStore.shared.isUnlocked) { checkProLapse() }
+        // 启动时先等和 App Store 核对完再判断
+        .onChange(of: ProStore.shared.hasCheckedEntitlements) { checkProLapse() }
         .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
