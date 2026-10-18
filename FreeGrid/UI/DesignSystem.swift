@@ -248,6 +248,8 @@ struct VaultButton: View {
     let title: String
     var icon: String? = nil
     var style: Style = .primary
+    /// 上下留白。购买页底栏放得东西多，用矮一点的 11
+    var verticalPadding: CGFloat = 14
     let action: () -> Void
 
     private var fg: Color {
@@ -268,7 +270,7 @@ struct VaultButton: View {
                     .font(.system(.body, design: .rounded).weight(.regular))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, verticalPadding)
             .foregroundStyle(fg)
             .overlay(
                 Capsule().stroke(fg, lineWidth: 1)

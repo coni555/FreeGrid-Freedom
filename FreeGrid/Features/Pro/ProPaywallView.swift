@@ -226,8 +226,9 @@ struct ProPaywallView: View {
 
     // MARK: - 底部：试用、价格和购买，滚到哪都在
 
+    /// 底栏尽量矮：按钮矮一档、各行间距 6，让对照表在一屏里露全（用户 2026-10-18 真机上嫌高）
     private var bottomBar: some View {
-        VStack(spacing: Spacing.sm) {
+        VStack(spacing: 6) {
             if let notice {
                 Text(notice)
                     .font(.system(.footnote, design: .rounded))
@@ -250,7 +251,7 @@ struct ProPaywallView: View {
             } else if let prices {
                 offerStatus
                 if showsTrialButton {
-                    VaultButton(title: "免费体验 \(ProOffer.trialDays) 天", icon: "sparkles") {
+                    VaultButton(title: "免费体验 \(ProOffer.trialDays) 天", icon: "sparkles", verticalPadding: 11) {
                         Task { await startTrial() }
                     }
                     .disabled(store.isWorking)
@@ -259,14 +260,15 @@ struct ProPaywallView: View {
                         Text("永久解锁 Pro · \(prices.special)")
                             .font(.system(.body, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.skyDeep)
-                            .frame(minHeight: 30)
+                            .frame(minHeight: 28)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(store.isWorking)
                     .accessibilityIdentifier("pro-purchase")
                 } else {
-                    VaultButton(title: "永久解锁 Pro · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open") {
+                    VaultButton(title: "永久解锁 Pro · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open",
+                                verticalPadding: 11) {
                         Task { await buy() }
                     }
                     .disabled(store.isWorking)
@@ -308,8 +310,8 @@ struct ProPaywallView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, Spacing.md)
-        .padding(.bottom, Spacing.sm)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.xs)
         .background(Color.paper)
         .overlay(alignment: .top) { Hairline() }
     }
@@ -329,18 +331,14 @@ struct ProPaywallView: View {
     }
 
     /// 按钮下面的小字。开始体验之前，审核指南 3.1.1 要求写清：体验多久、到期少了什么、之后要付多少。
-    /// 开始体验前的三行是用户 2026-10-18 定的原话，只调换行：前两句放得下就并成一行，价格那句不折行（美元写法更长，放不下就略缩小）
+    /// 开始体验前的三行是用户 2026-10-18 定的原话，只调换行和字号：前两句并成一行，价格那句一行；字放大或美元写法放不下时略缩小，不折行
     @ViewBuilder
     private func priceNote(_ prices: Prices) -> some View {
         if showsTrialButton {
-            VStack(spacing: 2) {
-                ViewThatFits(in: .horizontal) {
-                    Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。").lineLimit(1)
-                    VStack(spacing: 2) {
-                        Text("体验期满自动恢复免费版，无自动扣费。")
-                        Text("所有记账数据都会完整保留。")
-                    }
-                }
+            VStack(spacing: 1) {
+                Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Text("开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。")
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -358,7 +356,7 @@ struct ProPaywallView: View {
         Text(text)
             .font(.system(.caption, design: .rounded))
             .foregroundStyle(Color.inkFaint)
-            .padding(.vertical, Spacing.xs)
+            .padding(.vertical, 2)
             .contentShape(Rectangle())
     }
 
