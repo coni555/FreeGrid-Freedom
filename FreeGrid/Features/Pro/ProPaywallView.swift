@@ -29,7 +29,7 @@ struct ProPaywallView: View {
         NavigationStack {
             ScrollView {
                 // 间距收紧：底部购买栏有三行说明，对照表要在大多数 iPhone 上一屏露全
-                VStack(spacing: Spacing.lg) {
+                VStack(spacing: store.ownsPro ? Spacing.xxl : Spacing.lg) {
                     header
                     comparisonTable
                     #if DEBUG
@@ -73,31 +73,25 @@ struct ProPaywallView: View {
         .accessibilityIdentifier("pro-close")
     }
 
+    /// 三层由内往外越隔越开：副标题两行是一段话，行距最紧；标题贴着副标题；品牌一行单独隔开
     private var header: some View {
-        VStack(spacing: Spacing.sm) {
+        VStack(spacing: 0) {
             brandLockup
-                .padding(.bottom, Spacing.xs)
+                .padding(.bottom, Spacing.lg)
             // 标题和副标题是用户 2026-10-17 定的原话
             Text(store.ownsPro ? "关于自由，故事继续" : "让自由，有迹可循")
                 .font(.system(size: 30, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            if store.ownsPro {
-                VStack(spacing: Spacing.md) {
-                    Text("感谢你对 FreeGrid 的支持。")
-                    Text("愿你始终拥有选择的底气。")
-                }
+                .padding(.bottom, Spacing.sm)
+            Text(store.ownsPro ? "感谢你对 FreeGrid 的支持。\n愿你始终拥有选择的底气。" : "记录金钱的流向，看见时间的价值。")
                 .font(.system(.subheadline, design: .rounded))
+                .lineSpacing(5)
                 .foregroundStyle(Color.inkMuted)
-            } else {
-                Text("记录金钱的流向，看见时间的价值。")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+                .fixedSize(horizontal: false, vertical: true)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.xs)
+        .padding(.top, store.ownsPro ? Spacing.lg : Spacing.xs)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(store.ownsPro ? "pro-unlocked" : "pro-header")
     }
