@@ -529,15 +529,9 @@ struct AssetRows: View {
         catch { saveError = error.localizedDescription }
     }
 
-    /// 合并回一个总数：只要有一项算着，总开关就开；一项都没算才关
     private func merge() {
-        let anyCounted = items.contains { $0.countsInFreedom && $0.amount > 0 }
-        do {
-            try AssetItemStore.mergeIntoTotal(in: modelContext)
-            countsAssets = anyCounted || total == 0
-        } catch {
-            saveError = error.localizedDescription
-        }
+        do { try AssetItemStore.mergeIntoTotalKeepingSwitch(in: modelContext) }
+        catch { saveError = error.localizedDescription }
     }
 }
 

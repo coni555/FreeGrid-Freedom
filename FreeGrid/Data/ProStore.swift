@@ -24,6 +24,8 @@ final class ProStore {
     static let unlockedKey = "proUnlocked"
     static let trialStartedKey = "proTrialStartedAt"
     static let previewKey = "proPreview"
+    /// 上次看到时 Pro 能不能用。从能用变成不能用的那次，首页弹「回到免费版」
+    static let wasUnlockedKey = "proWasUnlocked"
 
     /// 从 App Store 读到的商品。试用商品读不到时照样能买，只是不给试用
     struct Products {
@@ -75,6 +77,15 @@ final class ProStore {
 
     /// Pro 功能能不能用：买过、预览，或者在试用期内
     var isUnlocked: Bool { ownsPro || isTrialActive }
+
+    /// Pro 刚从能用变成不能用（体验到期、退款）时返回 true，同一次变化只返回一次。
+    /// 第一次装 2.0 的老用户记的是「不能用」，不会误报
+    func takeLapse() -> Bool {
+        let was = defaults.bool(forKey: Self.wasUnlockedKey)
+        let unlocked = isUnlocked
+        if was != unlocked { defaults.set(unlocked, forKey: Self.wasUnlockedKey) }
+        return was && !unlocked
+    }
 
     /// 买断现在用专属价
     var hasSpecialPrice: Bool { offer.hasSpecialPrice(at: now) }

@@ -1,13 +1,17 @@
 // Pro 购买页：整屏弹出，居中的标题，一张铺满宽度的免费 / Pro 对照卡，底部固定试用、价格、购买、恢复购买。
 // 试用和专属价什么时候给、给到哪天，规则在 ProOffer。
 // 从设置和各个 Pro 功能的锁定页进入，都用 `.proPaywall(isPresented:topic:)`。
+// 不再有 Pro 的人在对照表下面能打开「回到免费版」（`BackToFreeSheet`）。
 
 import StoreKit
+import SwiftData
 import SwiftUI
 
 struct ProPaywallView: View {
     /// 从哪个功能进来的，对照表上标出那一行；从设置进来时为空
     var topic: ProFeatures.Topic?
+    /// 对照表下面给不再有 Pro 的人留「回到免费版」入口；从那一页打开购买页时不再给，免得一层套一层
+    var offersBackToFree = true
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -17,6 +21,10 @@ struct ProPaywallView: View {
     @State private var notice: String?
     /// 点了哪一行的 ⓘ
     @State private var infoRow: ProFeatures.Row?
+    @State private var showingBackToFree = false
+    @Query private var assetItems: [AssetItem]
+    @Query private var cashAccounts: [CashAccount]
+    @Query private var loans: [Loan]
 
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
@@ -32,6 +40,7 @@ struct ProPaywallView: View {
                 VStack(spacing: store.ownsPro ? Spacing.xxl : Spacing.lg) {
                     header
                     comparisonTable
+                    if showsBackToFree { backToFreeLink }
                     #if DEBUG
                     // 真机上看「真实用户看到的样子」时用 -hideProPreviewCard 藏掉
                     if !ProcessInfo.processInfo.arguments.contains("-hideProPreviewCard") { previewCard }
@@ -58,7 +67,28 @@ struct ProPaywallView: View {
             .sheet(item: $infoRow) { row in
                 if let info = row.info { InfoSheet(info: info) }
             }
+            .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
         }
+    }
+
+    /// 体验过或买过、现在不能用、账本里还有体验期间加的东西时才给
+    private var showsBackToFree: Bool {
+        offersBackToFree && !store.isUnlocked
+            && BackToFreePlan(assetItems: assetItems, cashAccounts: cashAccounts, loans: loans).hasProContent
+    }
+
+    private var backToFreeLink: some View {
+        Button { showingBackToFree = true } label: {
+            HStack(spacing: 6) {
+                Text("不买断也能继续用 · 回到免费版")
+                Image(systemName: "arrow.right").font(.system(size: 11))
+            }
+            .font(.system(.footnote, design: .rounded))
+            .foregroundStyle(Color.inkMuted)
+            .frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("pro-back-to-free")
     }
 
     private var closeButton: some View {
@@ -476,11 +506,12 @@ private struct InfoSheet: View {
 
 extension View {
     /// 打开购买页：iOS 上整屏弹出（显得开阔，像大多数 App 的升级页），macOS 没有整屏弹出，用普通的 sheet
-    func proPaywall(isPresented: Binding<Bool>, topic: ProFeatures.Topic? = nil) -> some View {
+    func proPaywall(isPresented: Binding<Bool>, topic: ProFeatures.Topic? = nil,
+                    offersBackToFree: Bool = true) -> some View {
         #if os(iOS)
-        fullScreenCover(isPresented: isPresented) { ProPaywallView(topic: topic) }
+        fullScreenCover(isPresented: isPresented) { ProPaywallView(topic: topic, offersBackToFree: offersBackToFree) }
         #else
-        sheet(isPresented: isPresented) { ProPaywallView(topic: topic) }
+        sheet(isPresented: isPresented) { ProPaywallView(topic: topic, offersBackToFree: offersBackToFree) }
         #endif
     }
 }

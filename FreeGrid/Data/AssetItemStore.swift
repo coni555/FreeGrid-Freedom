@@ -196,6 +196,23 @@ enum AssetItemStore {
         }
     }
 
+    /// 合并后资产总开关该是什么：只要有一项算着（且有钱）就开，一项都没算才关；没钱时开
+    nonisolated static func switchAfterMerging(_ items: [AssetItem]) -> Bool {
+        let total = items.reduce(0) { $0 + $1.amount }
+        return total == 0 || items.contains { $0.countsInFreedom && $0.amount > 0 }
+    }
+
+    /// 合并回一个总数，并把资产总开关接回去。Assets 抽屉和「回到免费版」都走这里
+    static func mergeIntoTotalKeepingSwitch(
+        in context: ModelContext,
+        defaults: UserDefaults = AppPreferences.store,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws {
+        let countsAssets = switchAfterMerging(try items(in: context))
+        try mergeIntoTotal(in: context, save: save)
+        defaults.set(countsAssets, forKey: FreedomSettings.countsAssetsKey)
+    }
+
     /// 调整顺序：把 `item` 挪到第 `index` 位。顺序只影响列表、净值分段和调拨菜单，不影响金额
     static func move(
         _ item: AssetItem, to index: Int,

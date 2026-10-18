@@ -26,6 +26,7 @@ enum AppPreferences {
     /// 临时偏好读不到系统的启动参数，所以把测试要用的几个按名字抄进来：`-key value`
     private static let launchArgumentKeys = [
         ProStore.previewKey,
+        ProStore.wasUnlockedKey,
         FreedomSettings.countsAssetsKey,
         "historyGuideCompleted",
         "setupGuideCompleted",

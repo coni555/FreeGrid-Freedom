@@ -28,6 +28,8 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    /// 体验结束或退款后弹一次「回到免费版」
+    @State private var showingBackToFree = false
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -110,7 +112,12 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             try? LoanStore.processDue(in: modelContext)
+            checkProLapse()
         }
+        .task { checkProLapse() }
+        // 体验到点、退款在 App 开着时也会发生
+        .onChange(of: ProStore.shared.isUnlocked) { checkProLapse() }
+        .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
         // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
@@ -126,6 +133,15 @@ extension ContentView {
         case .history: return .history
         case .settings: return .settings
         }
+    }
+
+    /// Pro 刚失效、账本里又有体验期间加的资产项、现金账户或贷款时，弹「回到免费版」。没有就只记下这次变化
+    private func checkProLapse() {
+        guard ProStore.shared.takeLapse() else { return }
+        let plan = BackToFreePlan(assetItems: (try? modelContext.fetch(FetchDescriptor<AssetItem>())) ?? [],
+                                  cashAccounts: (try? modelContext.fetch(FetchDescriptor<CashAccount>())) ?? [],
+                                  loans: (try? modelContext.fetch(FetchDescriptor<Loan>())) ?? [])
+        if plan.hasProContent { showingBackToFree = true }
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
