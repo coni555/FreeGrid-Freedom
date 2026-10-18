@@ -33,7 +33,8 @@ struct ProPaywallView: View {
                     header
                     comparisonTable
                     #if DEBUG
-                    previewCard
+                    // 真机上看「真实用户看到的样子」时用 -hideProPreviewCard 藏掉
+                    if !ProcessInfo.processInfo.arguments.contains("-hideProPreviewCard") { previewCard }
                     #endif
                 }
                 .padding(.horizontal)
