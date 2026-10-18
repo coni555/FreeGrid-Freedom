@@ -238,7 +238,18 @@ struct SettingsView: View {
         }
     }
 
-    private var proUnlocked: Bool { ProStore.shared.isUnlocked }
+    /// 买过才算（试用中 Pro 卡仍留在前排，卡面写试用还剩几天）
+    private var proUnlocked: Bool { ProStore.shared.ownsPro }
+
+    /// Pro 卡头下面那一行：买过、试用中、其余情况各一句。不写价格
+    private var proCardDetail: String {
+        let store = ProStore.shared
+        if store.ownsPro { return "全部功能已解锁" }
+        if store.isTrialActive, let end = store.offer.trialEndsAt {
+            return "试用中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
+        }
+        return ProFeatures.headline
+    }
 
     // MARK: - 外观（默认抽出来；三行分段按钮）
     private func lookCard(depth: Int) -> some View {
@@ -435,7 +446,7 @@ struct SettingsView: View {
                 showingPro = true
             } label: {
                 DeckHeader(title: "FreeGrid Pro",
-                           detail: detail(proUnlocked ? "全部功能已解锁" : ProFeatures.headline)) {
+                           detail: detail(proCardDetail)) {
                     RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
                 } trailing: {
                     if proUnlocked {

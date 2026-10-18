@@ -1,4 +1,5 @@
-// Pro 购买页：整屏弹出，居中的标题，一张铺满宽度的免费 / Pro 对照卡，底部固定价格、购买、恢复购买。
+// Pro 购买页：整屏弹出，居中的标题，一张铺满宽度的免费 / Pro 对照卡，底部固定试用、价格、购买、恢复购买。
+// 试用和专属价什么时候给、给到哪天，规则在 ProOffer。
 // 从设置和各个 Pro 功能的锁定页进入，都用 `.proPaywall(isPresented:topic:)`。
 
 import StoreKit
@@ -51,7 +52,7 @@ struct ProPaywallView: View {
                     ToolbarItem(placement: .cancellationAction) { closeButton }
                 }
             }
-            .task { await store.loadProduct() }
+            .task { await store.loadProducts() }
             .sheet(item: $infoRow) { row in
                 if let info = row.info { InfoSheet(info: info) }
             }
@@ -75,10 +76,10 @@ struct ProPaywallView: View {
             brandLockup
                 .padding(.bottom, Spacing.xs)
             // 标题和副标题是用户 2026-10-17 定的原话
-            Text(store.isUnlocked ? "关于自由，故事继续" : "让自由，有迹可循")
+            Text(store.ownsPro ? "关于自由，故事继续" : "让自由，有迹可循")
                 .font(.system(size: 30, weight: .light, design: .rounded))
                 .foregroundStyle(Color.ink)
-            if store.isUnlocked {
+            if store.ownsPro {
                 VStack(spacing: Spacing.md) {
                     Text("感谢你对 FreeGrid 的支持。")
                     Text("愿你始终拥有选择的底气。")
@@ -96,7 +97,7 @@ struct ProPaywallView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, Spacing.xs)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(store.isUnlocked ? "pro-unlocked" : "pro-header")
+        .accessibilityIdentifier(store.ownsPro ? "pro-unlocked" : "pro-header")
     }
 
     /// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
@@ -222,7 +223,7 @@ struct ProPaywallView: View {
         }
     }
 
-    // MARK: - 底部：价格和购买，滚到哪都在
+    // MARK: - 底部：试用、价格和购买，滚到哪都在
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
@@ -234,7 +235,7 @@ struct ProPaywallView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("pro-notice")
             }
-            if store.isUnlocked {
+            if store.ownsPro {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 18, weight: .light))
@@ -245,29 +246,55 @@ struct ProPaywallView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
+            } else if let prices {
+                offerStatus
+                if showsTrialButton {
+                    VaultButton(title: "免费试用 \(ProOffer.trialDays) 天", icon: "sparkles") {
+                        Task { await startTrial() }
+                    }
+                    .disabled(store.isWorking)
+                    .accessibilityIdentifier("pro-start-trial")
+                    Button { Task { await buy() } } label: {
+                        Text("直接买断 · \(prices.special)")
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.skyDeep)
+                            .frame(minHeight: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(store.isWorking)
+                    .accessibilityIdentifier("pro-purchase")
+                } else {
+                    VaultButton(title: "永久解锁 · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open") {
+                        Task { await buy() }
+                    }
+                    .disabled(store.isWorking)
+                    .opacity(store.isWorking ? 0.4 : 1)
+                    .accessibilityIdentifier("pro-purchase")
+                }
+                Text(priceNote(prices))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("pro-price-note")
             } else if case .unavailable = store.productState {
+                offerStatus
                 Text("暂时读不到价格，可能是网络不通。已经买过的话，点「恢复购买」。")
                     .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 VaultButton(title: "重试", icon: "arrow.clockwise", style: .secondary) {
-                    Task { await store.loadProduct() }
+                    Task { await store.loadProducts() }
                 }
                 .accessibilityIdentifier("pro-retry")
             } else {
-                VaultButton(title: purchaseTitle, icon: "lock.open") {
-                    Task { await buy() }
-                }
-                .disabled(!canBuy)
-                .opacity(canBuy ? 1 : 0.4)
-                .accessibilityIdentifier("pro-purchase")
-                Text("一次购买 · 永久使用 · 不会自动续费")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.inkMuted)
+                ProgressView()
+                    .frame(minHeight: 52)
             }
             HStack(spacing: Spacing.lg) {
-                if !store.isUnlocked {
+                if !store.ownsPro {
                     Button { Task { await restore() } } label: { footerLabel("恢复购买") }
                         .buttonStyle(.plain)
                         .disabled(store.isWorking)
@@ -286,6 +313,31 @@ struct ProPaywallView: View {
         .overlay(alignment: .top) { Hairline() }
     }
 
+    /// 试用开始后，按钮上方一行小字：试用还剩几天，或者试用已经结束。
+    /// 不用等宽大写小标签：那种字距是给英文的，中文会被拉散
+    @ViewBuilder
+    private var offerStatus: some View {
+        if let trialEnd = store.offer.trialEndsAt {
+            Text(store.isTrialActive
+                 ? "试用中 · 还剩 \(ProOffer.daysLeft(until: trialEnd, from: store.now)) 天"
+                 : "试用已结束")
+                .font(.system(.footnote, design: .rounded).weight(.medium).monospacedDigit())
+                .foregroundStyle(store.isTrialActive ? Color.skyDeep : Color.inkMuted)
+                .accessibilityIdentifier("pro-trial-status")
+        }
+    }
+
+    /// 按钮下面的小字。开始试用之前，审核指南 3.1.1 要求写清：试用多久、到期少了什么、之后要付多少
+    private func priceNote(_ prices: Prices) -> String {
+        if showsTrialButton {
+            return "试用不扣费，\(ProOffer.trialDays) 天后回到免费版，记下的都保留。\n开始试用起 \(ProOffer.specialPriceDays) 天内买断 \(prices.special)，之后 \(prices.regular)。"
+        }
+        if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
+            return "试用专属价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后 \(prices.regular) · 不会自动续费"
+        }
+        return "一次购买 · 永久使用 · 不会自动续费"
+    }
+
     private func footerLabel(_ text: String) -> some View {
         Text(text)
             .font(.system(.caption, design: .rounded))
@@ -294,17 +346,30 @@ struct ProPaywallView: View {
             .contentShape(Rectangle())
     }
 
-    /// 「永久解锁 · ¥18」：价格用 App Store 返回的本地化文字，不在代码里写死
-    private var purchaseTitle: String {
-        if case .loaded(let product) = store.productState {
-            return "永久解锁 · \(product.displayPrice)"
-        }
-        return "永久解锁"
+    /// 两档买断价，用 App Store 返回的本地化文字，不在代码里写死
+    private struct Prices {
+        var special: String
+        var regular: String
+        var hasTrial: Bool
     }
 
-    private var canBuy: Bool {
-        guard case .loaded = store.productState else { return false }
-        return !store.isWorking
+    private var prices: Prices? {
+        if case .loaded(let products) = store.productState {
+            return Prices(special: products.special.displayPrice, regular: products.regular.displayPrice,
+                          hasTrial: products.trial != nil)
+        }
+        #if DEBUG
+        // 模拟器里用 simctl 启动读不到商品；拍图时用 -proSamplePrices 看有价格的样子（按钮点了会提示读不到商品）
+        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
+            return Prices(special: "¥19.90", regular: "¥29.90", hasTrial: true)
+        }
+        #endif
+        return nil
+    }
+
+    /// 没试用过的人先给试用，买断退到第二个按钮
+    private var showsTrialButton: Bool {
+        !store.offer.hasStartedTrial && (prices?.hasTrial ?? false)
     }
 
     #if DEBUG
@@ -326,6 +391,15 @@ struct ProPaywallView: View {
         }
     }
     #endif
+
+    private func startTrial() async {
+        switch await store.startTrial() {
+        case .purchased: notice = nil
+        case .cancelled: notice = nil
+        case .pending: notice = "试用在等待批准，批准后会自动开始。"
+        case .failed(let message): notice = message
+        }
+    }
 
     private func buy() async {
         switch await store.purchase() {

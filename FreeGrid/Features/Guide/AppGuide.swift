@@ -68,7 +68,7 @@ final class AppGuide {
                 Step(target: .check, text: "八个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项。"),
                 Step(target: .freedomCard, text: "你的自由卡：30 天银卡，180 天香槟金，一年黑卡。\n点开看整张卡。"),
                 // 只有还没买 Pro 时才出现
-                Step(target: .pro, text: "Pro 一次买断，不订阅。\n点「了解 Pro」，看免费版和 Pro 各有什么。"),
+                Step(target: .pro, text: "Pro 一次买断，不订阅，可以先免费试用 7 天。\n点「了解 Pro」，看免费版和 Pro 各有什么。"),
                 Step(target: .appearance, text: "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和 Assets 页的样式。"),
                 Step(target: .data, text: "「账本」里管支出分类和备份。\n换手机前，先在这里导出一份 JSON 备份。"),
                 Step(target: .about, text: "想再看一遍这些讲解，或者查使用说明，\n都在「FreeGrid」这张卡里。"),

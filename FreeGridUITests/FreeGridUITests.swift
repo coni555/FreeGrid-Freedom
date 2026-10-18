@@ -284,6 +284,54 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.buttons["add-expense-category"].waitForExistence(timeout: 5))
     }
 
+    /// 试用的四个阶段：没试用、试用中、试用结束但专属价还在、专属价也过了。
+    /// 模拟器读不到商品，用 -proSamplePrices 显示示例价格，-proTrialDaysAgo 指定试用开始了几天
+    @MainActor
+    func testPaywallWalksThroughTrialAndSpecialPrice() {
+        let stages: [(daysAgo: String?, name: String)] = [
+            (nil, "未试用"), ("2", "试用中"), ("10", "试用结束-专属价"), ("20", "原价"),
+        ]
+        for stage in stages {
+            let app = XCUIApplication()
+            app.launchArguments = ["-isDarkMode", "NO", "-setupGuideCompleted", "YES", "-proPreview", "NO",
+                                   "-UseInMemoryStore", "-proSamplePrices"]
+            if let days = stage.daysAgo { app.launchArguments += ["-proTrialDaysAgo", days] }
+            app.launch()
+            app.tabBars.buttons["Settings"].tap()
+            let card = app.buttons["settings-card-pro"]
+            XCTAssertTrue(card.waitForExistence(timeout: 5))
+            card.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
+            let note = app.staticTexts["pro-price-note"]
+            XCTAssertTrue(note.waitForExistence(timeout: 5))
+            switch stage.daysAgo {
+            case nil:
+                XCTAssertTrue(app.buttons["pro-start-trial"].exists)
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(note.label.contains("14 天内买断 ¥19.90，之后 ¥29.90"))
+                XCTAssertFalse(app.staticTexts["pro-trial-status"].exists)
+            case "2":
+                XCTAssertFalse(app.buttons["pro-start-trial"].exists)
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用中 · 还剩 5 天")
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(note.label.contains("试用专属价还剩 12 天"))
+            case "10":
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用已结束")
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(note.label.contains("试用专属价还剩 4 天"))
+            default:
+                XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "试用已结束")
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥29.90"))
+                XCTAssertEqual(note.label, "一次购买 · 永久使用 · 不会自动续费")
+            }
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Pro购买页-\(stage.name)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            app.terminate()
+        }
+    }
+
     @MainActor
     func testSettingsReplaysHistoryGuideOnceLedgerHasARecord() {
         let app = XCUIApplication()

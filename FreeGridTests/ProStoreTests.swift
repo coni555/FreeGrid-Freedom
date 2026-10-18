@@ -46,6 +46,50 @@ struct ProStoreTests {
         }
     }
 
+    @Test func rememberedTrialUnlocksForSevenDaysThenLocks() async {
+        // 试用开始时间存在本机：离线也知道还在不在试用期；到期后锁回去，买断回到第二个按钮
+        await withDefaults { defaults in
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            defaults.set(start, forKey: ProStore.trialStartedKey)
+
+            let during = ProStore(defaults: defaults, clock: { start.addingTimeInterval(3 * 86_400) })
+            #expect(during.isTrialActive)
+            #expect(during.isUnlocked)
+            #expect(!during.ownsPro)
+            #expect(during.hasSpecialPrice)
+
+            let afterTrial = ProStore(defaults: defaults, clock: { start.addingTimeInterval(10 * 86_400) })
+            #expect(!afterTrial.isUnlocked)
+            #expect(afterTrial.hasSpecialPrice)
+
+            let afterWindow = ProStore(defaults: defaults, clock: { start.addingTimeInterval(20 * 86_400) })
+            #expect(!afterWindow.isUnlocked)
+            #expect(!afterWindow.hasSpecialPrice)
+        }
+    }
+
+    @Test func aPurchaseIsNotATrial() async {
+        await withDefaults { defaults in
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            defaults.set(start, forKey: ProStore.trialStartedKey)
+            defaults.set(true, forKey: ProStore.unlockedKey)
+            let store = ProStore(defaults: defaults, clock: { start.addingTimeInterval(86_400) })
+            #expect(store.ownsPro)
+            #expect(!store.isTrialActive)
+        }
+    }
+
+    @Test func startingATrialWithoutLoadedProductsFails() async {
+        await withDefaults { defaults in
+            let store = ProStore(defaults: defaults)
+            guard case .failed = await store.startTrial() else {
+                Issue.record("没读到试用商品时不应该开始试用")
+                return
+            }
+            #expect(!store.offer.hasStartedTrial)
+        }
+    }
+
     #if DEBUG
     @Test func debugPreviewUnlocksWithoutTouchingThePurchaseRecord() async {
         await withDefaults { defaults in

@@ -1,16 +1,44 @@
 {
   "identifier" : "6C1F0B7E-3A0D-4C1B-9B2E-6A3F2D1C9E41",
-  "nonRenewingSubscriptions" : [
-
-  ],
+  "nonRenewingSubscriptions" : [],
   "products" : [
     {
-      "displayPrice" : "18.0",
+      "displayPrice" : "0",
+      "familyShareable" : false,
+      "internalID" : "6781104303",
+      "localizations" : [
+        {
+          "description" : "免费试用 FreeGrid Pro 7 天，不扣费，到期回到免费版。",
+          "displayName" : "7 天试用",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "cn.conilab.FreeGrid.pro.trial7",
+      "referenceName" : "7-day Trial",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "19.9",
+      "familyShareable" : false,
+      "internalID" : "6781104302",
+      "localizations" : [
+        {
+          "description" : "试用专属价，一次买断，解锁 FreeGrid Pro 的全部功能。",
+          "displayName" : "FreeGrid Pro（试用专属价）",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "cn.conilab.FreeGrid.pro.lifetime.special",
+      "referenceName" : "FreeGrid Pro Lifetime Special",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "29.9",
       "familyShareable" : false,
       "internalID" : "6781104301",
       "localizations" : [
         {
-          "description" : "一次买断，解锁 FreeGrid Pro 的全部权益。",
+          "description" : "一次买断，解锁 FreeGrid Pro 的全部功能。",
           "displayName" : "FreeGrid Pro",
           "locale" : "zh_CN"
         }
@@ -27,13 +55,9 @@
     "_failTransactionsEnabled" : false,
     "_locale" : "zh_CN",
     "_storefront" : "CHN",
-    "_storeKitErrors" : [
-
-    ]
+    "_storeKitErrors" : []
   },
-  "subscriptionGroups" : [
-
-  ],
+  "subscriptionGroups" : [],
   "version" : {
     "major" : 4,
     "minor" : 0
