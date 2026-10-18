@@ -28,7 +28,8 @@ struct ProPaywallView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: Spacing.xl) {
+                // 间距收紧：底部购买栏有三行说明，对照表要在大多数 iPhone 上一屏露全
+                VStack(spacing: Spacing.lg) {
                     header
                     comparisonTable
                     #if DEBUG
@@ -131,7 +132,7 @@ struct ProPaywallView: View {
                 KickerLabel(text: "免费").frame(width: freeWidth)
                 KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
             }
-            .frame(height: 48)
+            .frame(height: 40)
             ForEach(ProFeatures.comparison) { row in
                 rowDivider
                 tableRow(row)
@@ -192,7 +193,7 @@ struct ProPaywallView: View {
             cell(row.free, pro: false).frame(width: freeWidth).accessibilityHidden(true)
             cell(row.pro, pro: true).frame(width: proWidth).accessibilityHidden(true)
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 44)
     }
 
     @ViewBuilder
@@ -258,7 +259,7 @@ struct ProPaywallView: View {
                         Text("永久解锁 Pro · \(prices.special)")
                             .font(.system(.body, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.skyDeep)
-                            .frame(minHeight: 36)
+                            .frame(minHeight: 30)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -272,11 +273,11 @@ struct ProPaywallView: View {
                     .opacity(store.isWorking ? 0.4 : 1)
                     .accessibilityIdentifier("pro-purchase")
                 }
-                Text(priceNote(prices))
+                priceNote(prices)
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
                     .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("pro-price-note")
             } else if case .unavailable = store.productState {
                 offerStatus
@@ -328,15 +329,29 @@ struct ProPaywallView: View {
     }
 
     /// 按钮下面的小字。开始体验之前，审核指南 3.1.1 要求写清：体验多久、到期少了什么、之后要付多少。
-    /// 开始体验前的三行是用户 2026-10-18 定的原话
-    private func priceNote(_ prices: Prices) -> String {
+    /// 开始体验前的三行是用户 2026-10-18 定的原话，只调换行：前两句放得下就并成一行，价格那句不折行（美元写法更长，放不下就略缩小）
+    @ViewBuilder
+    private func priceNote(_ prices: Prices) -> some View {
         if showsTrialButton {
-            return "体验期满自动恢复免费版，无自动扣费。\n所有记账数据都会完整保留。\n开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。"
+            VStack(spacing: 2) {
+                ViewThatFits(in: .horizontal) {
+                    Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。").lineLimit(1)
+                    VStack(spacing: 2) {
+                        Text("体验期满自动恢复免费版，无自动扣费。")
+                        Text("所有记账数据都会完整保留。")
+                    }
+                }
+                Text("开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        } else if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
+            Text("买断优惠价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后恢复 \(prices.regular) · 不会自动续费")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        } else {
+            Text("一次购买 · 永久使用 · 不会自动续费")
         }
-        if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
-            return "买断优惠价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后恢复 \(prices.regular) · 不会自动续费"
-        }
-        return "一次购买 · 永久使用 · 不会自动续费"
     }
 
     private func footerLabel(_ text: String) -> some View {
