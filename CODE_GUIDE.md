@@ -137,7 +137,7 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、试用、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；试用 7 天和试用专属价 14 天的时间规则在 `Logic/ProOffer.swift`；对照表和权益判断在 `App/ProFeatures.swift` |
-| 2.0 的 Pro 介绍（只给老用户，整屏介绍弹一次；新用户不弹） | 老用户那页在 `Features/Pro/ProIntroSheet.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
+| 2.0 的 Pro 介绍（只给老用户，首页弹一次卡片；新用户不弹） | 卡片在 `Features/Pro/ProIntroCard.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
 | Assets 页（按设置选新版或经典版） | `Features/Assets/AssetsView.swift` 只做切换（偏好 `assetsLayout`）。新版「钱与时间」：`MoneyTimeAssetsView.swift`（¥/天 单位开关、净值或自由天数、按账户分段的横线、资产 \| 现金文件夹标签、「每月」进出），调拨弹窗 `TransferSheet.swift`。经典版：`ClassicAssetsView.swift`（三个抽屉 + 被动收入卡 + 内嵌调拨） |
 | 两版共用的各行（增删改、拖动排序、退款后只读、弹窗） | `Features/Assets/AccountDrawers.swift`（`AssetRows`、`CashRows`，以及经典版的抽屉外壳 `AssetDrawer`、`CashDrawer`）、`LoanDrawer.swift`（`LoanRows`）、`MoneyTimeAssetsView.swift` 里的 `PassiveRows`。行里的金额按环境值 `amountUnit` 写成钱或天 |
 | 资产逐项记录（Pro）：新增/编辑/删除一项 | `Features/Assets/AssetItemSheet.swift` → `Data/AssetItemStore.swift` |
@@ -169,7 +169,7 @@ flowchart TD
 
 Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购买页，点「解锁 Pro」或「恢复购买」调用 `Data/ProStore.swift`；`ProStore` 用系统 StoreKit 向 App Store 读商品、发起购买，并以 App Store 的当前权益为准算出「是否已解锁」，结果存在本机偏好 `proUnlocked`，离线启动先用它。试用是一件 ¥0 的非消耗型商品（审核指南 3.1.1 的做法），那笔交易的时间就是试用开始时间，存在 `proTrialStartedAt`；`Logic/ProOffer.swift` 据此算试用是否还在（7 天）、买断该用专属价还是原价（从试用开始 14 天内，或者还没试用，用专属价）。买断有专属价、原价两件商品，买哪件都解锁；`ProStore.isUnlocked` 包含试用期，`ownsPro` 只算买过的，购买页和设置页用它决定显示「已解锁」还是继续提供购买。`App/FreeGridApp.swift` 在启动和回到前台时让 `ProStore` 重新核对，退款会撤销 Pro。`App/ProFeatures.swift` 列出哪些功能属于 Pro，各页面只问它「能不能用」；购买页的免费 / Pro 对照表也在这里（`comparison`），各处用 `.proPaywall(isPresented:topic:)` 整屏打开购买页，锁定页打开购买页时传一个 `Topic`，对照表标出那一行。Assets 的「钱与时间」视图也是 Pro：`AssetsLayout.effective` 在没有 Pro 时一律返回经典版。解锁状态不进账本备份。
 
-**Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。启动和回到前台时调 `offerProIntro`：只有老用户、而且在首页时才往下走；停一下、等商品读完，再用 `ProIntro.shouldOffer` 判断（新用户、买过、开始过体验、读不到体验商品都不弹）。弹 `ProIntroSheet` 的整屏介绍，真的出现时才记 `proIntroShown`，被别的弹窗挡住没弹成的下次打开再试。介绍页的对照卡和购买页共用 `ProComparisonTable`，条款共用 `ProTrialTerms`，能直接开始体验或买断；体验开始或买断后换成「体验已开始 / Pro 已解锁」。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
+**Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。启动和回到前台时调 `offerProIntro`：只有老用户、而且在首页时才往下走；停一下、等商品读完，再用 `ProIntro.shouldOffer` 判断（新用户、买过、开始过体验、读不到体验商品都不弹）。弹 `ProIntroCard`：整页压暗，底部浮起一张卡，先讲 2.0 的免费更新，再提一句 Pro；卡片真的出现时才记 `proIntroShown`，没弹成的下次打开再试。「看看 Pro」收起卡片、打开购买页（`.proPaywall`），「知道了」或点卡片外面直接收起。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
 
 Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 `proPreview`，也可用启动参数 `-proPreview YES/NO`），Release 里没有。
 

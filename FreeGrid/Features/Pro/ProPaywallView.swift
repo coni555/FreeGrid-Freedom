@@ -15,9 +15,15 @@ struct ProPaywallView: View {
     @State private var store = ProStore.shared
     /// 购买或恢复之后给用户的一句话结果
     @State private var notice: String?
+    /// 点了哪一行的 ⓘ
+    @State private var infoRow: ProFeatures.Row?
 
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+
+    /// 对照卡右边两列的宽度：放得下五个字
+    private let freeWidth: CGFloat = 80
+    private let proWidth: CGFloat = 96
 
     var body: some View {
         NavigationStack {
@@ -25,7 +31,7 @@ struct ProPaywallView: View {
                 // 间距收紧：底部购买栏有三行说明，对照表要在大多数 iPhone 上一屏露全
                 VStack(spacing: store.ownsPro ? Spacing.xxl : Spacing.lg) {
                     header
-                    ProComparisonTable(topic: topic)
+                    comparisonTable
                     #if DEBUG
                     // 真机上看「真实用户看到的样子」时用 -hideProPreviewCard 藏掉
                     if !ProcessInfo.processInfo.arguments.contains("-hideProPreviewCard") { previewCard }
@@ -49,6 +55,9 @@ struct ProPaywallView: View {
                 }
             }
             .task { await store.loadProducts() }
+            .sheet(item: $infoRow) { row in
+                if let info = row.info { InfoSheet(info: info) }
+            }
         }
     }
 
@@ -67,7 +76,7 @@ struct ProPaywallView: View {
     /// 三层由内往外越隔越开：副标题两行是一段话，行距最紧；标题贴着副标题；品牌一行单独隔开
     private var header: some View {
         VStack(spacing: 0) {
-            ProBrandLockup()
+            brandLockup
                 .padding(.bottom, Spacing.lg)
             // 标题和副标题是用户 2026-10-17 定的原话
             Text(store.ownsPro ? "关于自由，故事继续" : "让自由，有迹可循")
@@ -85,6 +94,129 @@ struct ProPaywallView: View {
         .padding(.top, store.ownsPro ? Spacing.lg : Spacing.xs)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(store.ownsPro ? "pro-unlocked" : "pro-header")
+    }
+
+    /// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
+    /// 超细大字放英文字标会显得单薄，所以名字用半粗
+    private var brandLockup: some View {
+        HStack(spacing: 10) {
+            Text("FreeGrid")
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.ink)
+            Text("PRO")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .tracking(2)
+                .foregroundStyle(Color.skyDeep)
+                .padding(.leading, 10)
+                .padding(.trailing, 8)
+                .frame(height: 24)
+                .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("FreeGrid Pro")
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: - 对照卡
+
+    /// 一张卡铺满宽度：左边功能名，右边免费、Pro 两列。Pro 列垫一块淡蓝，不画高高的细框
+    private var comparisonTable: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                KickerLabel(text: "免费").frame(width: freeWidth)
+                KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
+            }
+            .frame(height: 40)
+            ForEach(ProFeatures.comparison) { row in
+                rowDivider
+                tableRow(row)
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
+        .background(alignment: .trailing) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.skyDeep.opacity(0.08))
+                .frame(width: proWidth)
+                .padding(.vertical, Spacing.sm)
+                .padding(.trailing, Spacing.md)
+        }
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.mist))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("pro-comparison")
+    }
+
+    /// 行间细线只画到 Pro 列前面，淡蓝那一块里干干净净
+    private var rowDivider: some View {
+        Hairline().padding(.trailing, proWidth)
+    }
+
+    private func tableRow(_ row: ProFeatures.Row) -> some View {
+        let highlighted = topic.map { row.topics.contains($0) } ?? false
+        return HStack(spacing: 0) {
+            HStack(spacing: 5) {
+                // 从哪个功能点进来，那一行前面一道蓝竖线（和设置页 Pro 卡同一个记号），不把整行涂蓝
+                if highlighted {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
+                        .accessibilityHidden(true)
+                }
+                Text(row.title)
+                    .font(.system(size: 15, weight: highlighted ? .medium : .regular, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
+                if row.info != nil {
+                    // 低调的说明入口：和小字一个颜色，点击区域比图标大一圈
+                    Button { infoRow = row } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundStyle(Color.inkFaint)
+                            .frame(width: 24, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
+                    .accessibilityLabel("\(row.title)说明")
+                    .accessibilityIdentifier("pro-info-\(row.title)")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, Spacing.xs)
+            cell(row.free, pro: false).frame(width: freeWidth).accessibilityHidden(true)
+            cell(row.pro, pro: true).frame(width: proWidth).accessibilityHidden(true)
+        }
+        .frame(minHeight: 44)
+    }
+
+    @ViewBuilder
+    private func cell(_ cell: ProFeatures.Cell, pro: Bool) -> some View {
+        switch cell {
+        case .yes:
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: pro ? .regular : .light))
+                .foregroundStyle(pro ? Color.skyDeep : Color.inkFaint)
+        case .no:
+            Text("—")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(Color.inkGhost)
+        case .text(let text):
+            Text(text)
+                .font(.system(size: 14, weight: pro ? .medium : .regular, design: .rounded))
+                .foregroundStyle(pro ? Color.skyDeep : Color.inkMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private func spoken(_ cell: ProFeatures.Cell) -> String {
+        switch cell {
+        case .yes: return "有"
+        case .no: return "没有"
+        case .text(let text): return text
+        }
     }
 
     // MARK: - 底部：试用、价格和购买，滚到哪都在
@@ -193,11 +325,20 @@ struct ProPaywallView: View {
         }
     }
 
-    /// 按钮下面的小字。开始体验之前是体验条款（ProTrialTerms），之后写优惠价还剩几天或一次购买
+    /// 按钮下面的小字。开始体验之前，审核指南 3.1.1 要求写清：体验多久、到期少了什么、之后要付多少。
+    /// 开始体验前的三行是用户 2026-10-18 定的原话，只调换行和字号：前两句并成一行，价格那句一行；字放大或美元写法放不下时略缩小，不折行
+    /// 价格那句同日用户改过：旧的「开启体验后 14 天内享优惠价」会让人以为不体验就没有优惠价
     @ViewBuilder
-    private func priceNote(_ prices: ProPrices) -> some View {
+    private func priceNote(_ prices: Prices) -> some View {
         if showsTrialButton {
-            ProTrialTerms(prices: prices)
+            VStack(spacing: 1) {
+                Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text("买断优惠价 \(prices.special)，开启体验后保留 \(ProOffer.specialPriceDays) 天，之后恢复 \(prices.regular)。")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         } else if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
             Text("买断优惠价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后恢复 \(prices.regular) · 不会自动续费")
                 .lineLimit(1)
@@ -215,7 +356,26 @@ struct ProPaywallView: View {
             .contentShape(Rectangle())
     }
 
-    private var prices: ProPrices? { ProPrices.current(store) }
+    /// 两档买断价，用 App Store 返回的本地化文字，不在代码里写死
+    private struct Prices {
+        var special: String
+        var regular: String
+        var hasTrial: Bool
+    }
+
+    private var prices: Prices? {
+        if case .loaded(let products) = store.productState {
+            return Prices(special: products.special.displayPrice, regular: products.regular.displayPrice,
+                          hasTrial: products.trial != nil)
+        }
+        #if DEBUG
+        // 模拟器里用 simctl 启动读不到商品；拍图时用 -proSamplePrices 看有价格的样子（按钮点了会提示读不到商品）
+        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
+            return Prices(special: "¥19.90", regular: "¥29.90", hasTrial: true)
+        }
+        #endif
+        return nil
+    }
 
     /// 没试用过的人先给试用，买断退到第二个按钮
     private var showsTrialButton: Bool {
@@ -266,126 +426,6 @@ struct ProPaywallView: View {
         case .cancelled: notice = nil
         case .nothingToRestore: notice = "这个 Apple 账户下没有找到 Pro 的购买记录。"
         case .failed(let message): notice = message
-        }
-    }
-}
-
-/// 免费 / Pro 对照卡：一张卡铺满宽度，左边功能名，右边免费、Pro 两列。购买页和老用户的 Pro 介绍共用。
-/// `topic`：从哪个功能进来的，那一行标出来
-struct ProComparisonTable: View {
-    var topic: ProFeatures.Topic?
-
-    /// 点了哪一行的 ⓘ
-    @State private var infoRow: ProFeatures.Row?
-
-    /// 右边两列的宽度：放得下五个字
-    private let freeWidth: CGFloat = 80
-    private let proWidth: CGFloat = 96
-
-    var body: some View {
-        comparisonTable
-            .sheet(item: $infoRow) { row in
-                if let info = row.info { InfoSheet(info: info) }
-            }
-    }
-
-    /// 一张卡铺满宽度：左边功能名，右边免费、Pro 两列。Pro 列垫一块淡蓝，不画高高的细框
-    private var comparisonTable: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                KickerLabel(text: "免费").frame(width: freeWidth)
-                KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
-            }
-            .frame(height: 40)
-            ForEach(ProFeatures.comparison) { row in
-                rowDivider
-                tableRow(row)
-            }
-        }
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-        .background(alignment: .trailing) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.skyDeep.opacity(0.08))
-                .frame(width: proWidth)
-                .padding(.vertical, Spacing.sm)
-                .padding(.trailing, Spacing.md)
-        }
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.mist))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("pro-comparison")
-    }
-
-    /// 行间细线只画到 Pro 列前面，淡蓝那一块里干干净净
-    private var rowDivider: some View {
-        Hairline().padding(.trailing, proWidth)
-    }
-
-    private func tableRow(_ row: ProFeatures.Row) -> some View {
-        let highlighted = topic.map { row.topics.contains($0) } ?? false
-        return HStack(spacing: 0) {
-            HStack(spacing: 5) {
-                // 从哪个功能点进来，那一行前面一道蓝竖线（和设置页 Pro 卡同一个记号），不把整行涂蓝
-                if highlighted {
-                    RoundedRectangle(cornerRadius: 1.5).fill(Color.skyDeep).frame(width: 3, height: 14)
-                        .accessibilityHidden(true)
-                }
-                Text(row.title)
-                    .font(.system(size: 15, weight: highlighted ? .medium : .regular, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .accessibilityLabel("\(row.title)，免费：\(spoken(row.free))，Pro：\(spoken(row.pro))")
-                if row.info != nil {
-                    // 低调的说明入口：和小字一个颜色，点击区域比图标大一圈
-                    Button { infoRow = row } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 12, weight: .light))
-                            .foregroundStyle(Color.inkFaint)
-                            .frame(width: 24, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .fixedSize()
-                    .accessibilityLabel("\(row.title)说明")
-                    .accessibilityIdentifier("pro-info-\(row.title)")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, Spacing.xs)
-            cell(row.free, pro: false).frame(width: freeWidth).accessibilityHidden(true)
-            cell(row.pro, pro: true).frame(width: proWidth).accessibilityHidden(true)
-        }
-        .frame(minHeight: 44)
-    }
-
-    @ViewBuilder
-    private func cell(_ cell: ProFeatures.Cell, pro: Bool) -> some View {
-        switch cell {
-        case .yes:
-            Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: pro ? .regular : .light))
-                .foregroundStyle(pro ? Color.skyDeep : Color.inkFaint)
-        case .no:
-            Text("—")
-                .font(.system(size: 13, design: .rounded))
-                .foregroundStyle(Color.inkGhost)
-        case .text(let text):
-            Text(text)
-                .font(.system(size: 14, weight: pro ? .medium : .regular, design: .rounded))
-                .foregroundStyle(pro ? Color.skyDeep : Color.inkMuted)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
-    private func spoken(_ cell: ProFeatures.Cell) -> String {
-        switch cell {
-        case .yes: return "有"
-        case .no: return "没有"
-        case .text(let text): return text
         }
     }
 }
@@ -443,69 +483,5 @@ extension View {
         #else
         sheet(isPresented: isPresented) { ProPaywallView(topic: topic) }
         #endif
-    }
-}
-
-/// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
-/// 超细大字放英文字标会显得单薄，所以名字用半粗。购买页和老用户的 Pro 介绍共用
-struct ProBrandLockup: View {
-    var body: some View {
-        HStack(spacing: 10) {
-            Text("FreeGrid")
-                .font(.system(size: 26, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.ink)
-            Text("PRO")
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .tracking(2)
-                .foregroundStyle(Color.skyDeep)
-                .padding(.leading, 10)
-                .padding(.trailing, 8)
-                .frame(height: 24)
-                .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("FreeGrid Pro")
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
-/// 两档买断价，用 App Store 返回的本地化文字，不在代码里写死
-struct ProPrices {
-    var special: String
-    var regular: String
-    var hasTrial: Bool
-
-    /// 商品读到了才有价格；读不到时为 nil
-    static func current(_ store: ProStore) -> ProPrices? {
-        if case .loaded(let products) = store.productState {
-            return ProPrices(special: products.special.displayPrice, regular: products.regular.displayPrice,
-                             hasTrial: products.trial != nil)
-        }
-        #if DEBUG
-        // 模拟器里用 simctl 启动读不到商品；拍图时用 -proSamplePrices 看有价格的样子（按钮点了会提示读不到商品）
-        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
-            return ProPrices(special: "¥19.90", regular: "¥29.90", hasTrial: true)
-        }
-        #endif
-        return nil
-    }
-}
-
-/// 「免费体验」按钮下面的条款。审核指南 3.1.1 要求开始体验前写清：体验多久、到期少了什么、之后要付多少。
-/// 前两句是用户 2026-10-18 定的原话；价格那句用户同日改定（旧版「开启体验后 14 天内享优惠价」让人以为不体验就没有优惠价）。
-/// 前两句并成一行，价格那句一行；放不下时略缩小，不折行。
-/// 购买页和两版 Pro 介绍共用，字号颜色由外面定
-struct ProTrialTerms: View {
-    let prices: ProPrices
-
-    var body: some View {
-        VStack(spacing: 1) {
-            Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Text("买断优惠价 \(prices.special)，开启体验后保留 \(ProOffer.specialPriceDays) 天，之后恢复 \(prices.regular)。")
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
     }
 }

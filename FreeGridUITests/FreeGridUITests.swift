@@ -697,7 +697,8 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(intro.exists)
     }
 
-    /// 老用户：账本里已经有支出，打开 2.0 就弹整屏的 Pro 介绍，用购买页那张对照卡，可以体验也可以直接买断
+    /// 老用户：账本里已经有支出，打开 2.0 就在首页弹一张卡片，先讲免费更新再提 Pro；
+    /// 「看看 Pro」进购买页，「知道了」直接收起
     @MainActor
     func testReturningUserSeesTheProIntroOnFirstLaunch() throws {
         let backup = FileManager.default.temporaryDirectory.appendingPathComponent("pro-intro-ui-test.json")
@@ -712,28 +713,25 @@ final class FreeGridUITests: XCTestCase {
                                    "-historyGuideCompleted", "YES", "-proPreview", "NO", "-UseInMemoryStore",
                                    "-SeedBackupJSON", backup.path, "-proIntro", "-proSamplePrices"]
             app.launch()
-            let intro = app.descendants(matching: .any)["pro-intro-returning"]
-            XCTAssertTrue(intro.waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["pro-intro-start-trial"].exists)
-            // 读得到真实商品的模拟器显示当地价格（FG-UI 是美区），只认按钮在、写的是买断
-            XCTAssertTrue(app.buttons["pro-intro-purchase"].label.hasPrefix("永久解锁 Pro · "))
-            XCTAssertTrue(app.staticTexts["你在用的功能都还在，一直免费。"].exists)
-            XCTAssertTrue(app.descendants(matching: .any)["pro-comparison"].exists)
+            let card = app.descendants(matching: .any)["pro-intro-returning"]
+            XCTAssertTrue(card.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["以上所有人都有，一直免费。"].exists)
             Thread.sleep(forTimeInterval: 0.8)
             let shot = XCTAttachment(screenshot: app.screenshot())
-            shot.name = "Pro介绍-老用户-\(dark ? "深色" : "浅色")"
+            shot.name = "Pro介绍-老用户卡片-\(dark ? "深色" : "浅色")"
             shot.lifetime = .keepAlways
             add(shot)
-            if !dark {
-                app.swipeUp()
-                Thread.sleep(forTimeInterval: 0.6)
-                let bottom = XCTAttachment(screenshot: app.screenshot())
-                bottom.name = "Pro介绍-老用户-滚到底"
-                bottom.lifetime = .keepAlways
-                add(bottom)
+            if dark {
+                app.buttons["pro-intro-close"].tap()
+                XCTAssertTrue(card.waitForNonExistence(timeout: 3))
+            } else {
+                app.buttons["pro-intro-learn-more"].tap()
+                XCTAssertTrue(card.waitForNonExistence(timeout: 3))
+                let paywall = app.descendants(matching: .any)["pro-header"]
+                XCTAssertTrue(paywall.waitForExistence(timeout: 5))
+                app.buttons["pro-close"].tap()
+                XCTAssertTrue(paywall.waitForNonExistence(timeout: 3))
             }
-            app.buttons["pro-intro-later"].tap()
-            XCTAssertTrue(intro.waitForNonExistence(timeout: 3))
             XCTAssertTrue(app.buttons["记支出"].exists)
             app.terminate()
         }

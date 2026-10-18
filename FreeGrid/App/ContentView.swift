@@ -22,7 +22,7 @@ struct ContentView: View {
     /// 起步引导点了「跳过引导」后不再出现
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
 
-    /// 2.0 的 Pro 介绍：老用户打开时弹一次介绍页，新用户不弹（规则在 ProIntro）。
+    /// 2.0 的 Pro 介绍：老用户打开时在首页弹一次卡片，新用户不弹（规则在 ProIntro）。
     /// 新还是老在第一次打开时记下
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(ProIntro.shownKey, store: AppPreferences.store) private var introShown = false
@@ -141,9 +141,9 @@ extension ContentView {
         }
     }
 
-    /// 轮到了、首页也空着就弹老用户的介绍页。
+    /// 轮到了、首页也空着就弹老用户的卡片。
     /// 先停一下，让启动动画收干净，停完再看一遍。
-    /// 介绍页真的出现才记「弹过了」，被别的弹窗挡住时下次打开再试
+    /// 卡片真的出现才记「弹过了」，没弹成的下次打开再试
     private func offerProIntro() async {
         guard !introShown, !showingReturningIntro, !ProIntro.isSuppressedForTesting,
               let audience = ProIntro.Audience(rawValue: introAudience), audience == .returning,
@@ -153,10 +153,13 @@ extension ContentView {
         await store.loadProducts()
         guard ProIntro.shouldOffer(audience: audience, alreadyShown: introShown, ownsPro: store.ownsPro,
                                    hasStartedTrial: store.offer.hasStartedTrial,
-                                   canStartTrial: ProPrices.current(store)?.hasTrial == true),
+                                   canStartTrial: ProIntro.trialIsAvailable(store)),
               !showingReturningIntro, selectedTab == .dashboard, guide.tour == nil, setupStep == nil
         else { return }
-        showingReturningIntro = true
+        // 卡片自己做出现的动画，弹层本身不滑入
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { showingReturningIntro = true }
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
