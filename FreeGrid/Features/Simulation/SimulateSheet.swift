@@ -80,7 +80,7 @@ struct SimulateSheet: View {
         guard let amt = Double(amount), FinancialFormatting.validAmount(amt) else { return nil }
         return TransactionImpact(
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                        assets: assetsArr.first, assetItems: assetItems, cashAccounts: cashAccounts, loans: loans),
+                                        assets: assetsArr.first, assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans)),
             kind: mode, amount: amt
         )
     }

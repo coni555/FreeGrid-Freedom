@@ -13,10 +13,11 @@ struct LoanDrawer: View {
     @AppStorage("loansDrawerOpen", store: AppPreferences.store) private var isOpen = true
 
     var body: some View {
-        let summary = LoanRows.Summary(loans: loans, expenses: expenses)
+        // 没有 Pro 时停用的贷款不算进每月合计和下次扣款
+        let summary = LoanRows.Summary(loans: ProFeatures.loansInEffect(loans), expenses: expenses)
         AccountDrawer(title: "固定支出", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
                       total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: "/月",
-                      punched: loans.contains(where: \.punchesGrid),
+                      punched: ProFeatures.loansInEffect(loans).contains(where: \.punchesGrid),
                       subtitle: loans.isEmpty ? LoanRows.emptyLine : summary.line,
                       isOpen: $isOpen, headerID: "loans-drawer") {
             LoanRows()
@@ -24,7 +25,7 @@ struct LoanDrawer: View {
     }
 }
 
-/// 固定支出的各行：一笔一行（点开编辑；贷款在退款后点开问删不删），没扣成的那期在行下面给处理入口；最后是添加和说明。
+/// 固定支出的各行：一笔一行（点开编辑；没有 Pro 时贷款已停用，点开问删不删），没扣成的那期在行下面给处理入口；最后是添加和说明。
 struct LoanRows: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
@@ -91,9 +92,9 @@ struct LoanRows: View {
                 if canManageLoans { adding = .loan } else { showingPro = true }
             }
             if !loans.isEmpty {
-                let lockedLoans = !canManageLoans && loans.contains(where: \.punchesGrid)
+                let lockedLoans = !canManageLoans && loans.contains { !$0.isOngoing }
                 DrawerFooter(text: lockedLoans
-                             ? "管理贷款是 Pro 功能，已经加的照常自动扣。点贷款那一行可以删除。"
+                             ? "贷款是 Pro 功能，已停用：不自动记账，不计入自由天数。点那一行可以删除。"
                              : "到日子在 App 里自动记一笔，从现金扣，不会动你的银行卡。自由天数会把每期的钱先留出来。",
                              locked: lockedLoans, showsActions: false)
             }
@@ -136,14 +137,17 @@ struct LoanRows: View {
 
     private func loanRow(_ loan: Loan, status: LoanSchedule.Status) -> some View {
         let paidOff = status.isPaidOff
+        let paused = !loan.isOngoing && !canManageLoans
         var detail: String
-        if loan.isOngoing {
+        if paused {
+            detail = "已停用 · 解锁 Pro 后恢复"
+        } else if loan.isOngoing {
             detail = loan.intervalMonths == 1 ? "每月 \(loan.dueDay) 日"
                 : "\(LoanSheet.intervalLabel(loan.intervalMonths)) · 下次 \(status.nextDue.map(Self.monthDay) ?? "—")"
         } else {
             detail = paidOff ? "已还清" : "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期"
         }
-        if !paidOff, let account = boundAccount(of: loan) { detail += " · \(account.name)" }
+        if !paidOff, !paused, let account = boundAccount(of: loan) { detail += " · \(account.name)" }
         return VStack(alignment: .leading, spacing: 0) {
             Hairline()
             Button {
@@ -154,7 +158,7 @@ struct LoanRows: View {
                     Group {
                         if loan.punchesGrid {
                             PunchedCell(cornerRadius: 1.5)
-                                .fill(paidOff ? Color.inkGhost : Color.cashBlue, style: FillStyle(eoFill: true))
+                                .fill(paidOff || paused ? Color.inkGhost : Color.cashBlue, style: FillStyle(eoFill: true))
                         } else {
                             RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(Color.cashBlue)
                         }
@@ -164,7 +168,7 @@ struct LoanRows: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(loan.name)
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
-                            .foregroundStyle(paidOff ? Color.inkMuted : Color.ink)
+                            .foregroundStyle(paidOff || paused ? Color.inkMuted : Color.ink)
                             .lineLimit(1)
                         Text(detail)
                             .font(.system(.caption2, design: .rounded).monospacedDigit())
@@ -175,7 +179,7 @@ struct LoanRows: View {
                     Text(unit.text(loan.monthlyAmount, sign: "−"))
                         .font(.system(.footnote, design: .rounded).monospacedDigit())
                         .contentTransition(.numericText())
-                        .foregroundStyle(paidOff ? Color.inkFaint : Color.inkMuted)
+                        .foregroundStyle(paidOff || paused ? Color.inkFaint : Color.inkMuted)
                 }
                 .padding(.vertical, 10)
                 .contentShape(Rectangle())
@@ -183,7 +187,7 @@ struct LoanRows: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("loan-row")
 
-            if let due = status.pending.first {
+            if !paused, let due = status.pending.first {
                 Button {
                     resolving = PendingPayment(loan: loan, dueDate: due)
                 } label: {

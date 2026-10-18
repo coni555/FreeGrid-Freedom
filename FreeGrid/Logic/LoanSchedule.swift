@@ -128,6 +128,12 @@ enum LoanSchedule {
                       upcoming: unpaid.filter { $0 > today })
     }
 
+    /// 还在起作用的那些：固定支出一直算；带期数的贷款是 Pro，没有 Pro 时停用——不自动扣、不算进自由天数，
+    /// 记录留着，重新解锁后接着算（用户 2026-10-18 定）
+    static func inEffect(_ loans: [Loan], proUnlocked: Bool) -> [Loan] {
+        proUnlocked ? loans : loans.filter(\.isOngoing)
+    }
+
     /// 每月一共要付多少：固定支出折成每月，贷款只算还没还清的
     static func monthlyTotal(loans: [Loan], payments: [Expense], now: Date = .now,
                              calendar: Calendar = .current) -> Double {

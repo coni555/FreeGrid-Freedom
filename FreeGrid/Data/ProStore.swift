@@ -24,6 +24,10 @@ final class ProStore {
     static let unlockedKey = "proUnlocked"
     static let trialStartedKey = "proTrialStartedAt"
     static let previewKey = "proPreview"
+    /// 上次看到时 Pro 能不能用。从能用变成不能用的那次，首页弹「回到免费版」
+    static let wasUnlockedKey = "proWasUnlocked"
+    /// 上次能用时是不是买断的。失效后据此写「Pro 已失效」（退款）还是「Pro 体验已结束」
+    static let wasPurchasedKey = "proWasPurchased"
 
     /// 从 App Store 读到的商品。试用商品读不到时照样能买，只是不给试用
     struct Products {
@@ -75,6 +79,24 @@ final class ProStore {
 
     /// Pro 功能能不能用：买过、预览，或者在试用期内
     var isUnlocked: Bool { ownsPro || isTrialActive }
+
+    /// Pro 刚从能用变成不能用（体验到期、退款）时返回 true，同一次变化只返回一次。
+    /// 第一次装 2.0 的老用户记的是「不能用」，不会误报
+    /// 启动后要先和 App Store 核对过一次：在别的设备上买断、这台还没同步时，体验到期那一刻不会误弹
+    func takeLapse() -> Bool {
+        guard hasCheckedEntitlements else { return false }
+        let was = defaults.bool(forKey: Self.wasUnlockedKey)
+        let unlocked = isUnlocked
+        if was != unlocked { defaults.set(unlocked, forKey: Self.wasUnlockedKey) }
+        if unlocked { defaults.set(ownsPro, forKey: Self.wasPurchasedKey) }
+        return was && !unlocked
+    }
+
+    /// 失效是因为买断被撤销（退款），不是体验到期
+    var lapsedFromPurchase: Bool { !isUnlocked && defaults.bool(forKey: Self.wasPurchasedKey) }
+
+    /// 这次启动后和 App Store 核对过购买记录没有。测试里直接设
+    var hasCheckedEntitlements = false
 
     /// 买断现在用专属价
     var hasSpecialPrice: Bool { offer.hasSpecialPrice(at: now) }
@@ -135,8 +157,12 @@ final class ProStore {
         tick()
         #if DEBUG
         // UI 测试和拍图（-UseInMemoryStore）只认 -proPreview：模拟器里在 Xcode 测过的购买还留着，会让「没买」的样子出不来
-        if ProcessInfo.processInfo.arguments.contains("-UseInMemoryStore") { return }
+        if ProcessInfo.processInfo.arguments.contains("-UseInMemoryStore") {
+            hasCheckedEntitlements = true
+            return
+        }
         #endif
+        defer { hasCheckedEntitlements = true }
         var owned = false
         var trialStartedAt: Date?
         for await entitlement in Transaction.currentEntitlements {

@@ -34,7 +34,7 @@ struct MoneyTimeAssetsView: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets)
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
     }
 
     private var lockedAssets: Double { assetsArr.first?.lockedAssets ?? 0 }
@@ -402,7 +402,7 @@ struct MoneyTimeAssetsView: View {
 
     private func monthly(_ snapshot: FinancialSnapshot, unit: AmountUnit) -> some View {
         let income = passiveSources.reduce(0) { $0 + $1.monthlyAmount }
-        let loanSummary = LoanRows.Summary(loans: loans, expenses: expenses)
+        let loanSummary = LoanRows.Summary(loans: ProFeatures.loansInEffect(loans), expenses: expenses)
         let outflow = loanSummary.monthlyTotal
         let largest = max(income, outflow, 1)
         let net = income - outflow
@@ -432,7 +432,7 @@ struct MoneyTimeAssetsView: View {
                 }
                 Hairline(color: .hairlineSoft).padding(.horizontal, 18)
                 // 有贷款时记号打孔，和首页格子上的还款日一样；只有房租这类固定支出时不打
-                flowRow(isOpen: $loansOpen, marker: loans.contains(where: \.punchesGrid) ? .punched : .plain,
+                flowRow(isOpen: $loansOpen, marker: ProFeatures.loansInEffect(loans).contains(where: \.punchesGrid) ? .punched : .plain,
                         title: "出",
                         // 有没扣成的就说出来（收起时也得看得到），平时只写是什么
                         caption: loans.isEmpty ? "房租、房贷、会员"

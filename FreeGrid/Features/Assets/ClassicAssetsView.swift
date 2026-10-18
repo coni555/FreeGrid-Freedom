@@ -265,7 +265,7 @@ struct ClassicAssetsView: View {
     private var passiveCard: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
                                          assets: assetsArr.first, assetItems: assetItems,
-                                         cashAccounts: cashAccounts, loans: loans)
+                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
         return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {

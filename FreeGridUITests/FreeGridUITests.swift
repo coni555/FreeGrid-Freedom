@@ -1491,6 +1491,126 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
+    /// 体验刚结束、体验期间拆了资产和现金、加了贷款：首页弹「回到免费版」，合并资产和现金、删掉停用的贷款后写「已调整完成」；
+    /// 之后从购买页对照表下面还能打开。给了 BACK_TO_FREE_SHOTS_DIR 时拍图。
+    @MainActor
+    func testBackToFreeGuideAppearsOnceTheTrialEndsAndMergesEverything() throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("back-to-free-ui-test.json")
+        try Data("""
+        {"schema_version":3,"assets":{"total":137000,"locked_assets":135000,"cash":2000},
+         "expenses":[{"amount":1000,"category":"咖啡","date":"2026-10-01"}],
+         "asset_items":[{"name":"房","amount":100000,"counts_in_freedom":false},{"name":"基金","amount":35000}],
+         "cash_accounts":[{"name":"微信","amount":500},{"name":"招行卡","amount":1500}],
+         "loans":[{"id":"6f1d2c9a-0b4e-4c55-9a51-1c2f6e4d7a02","name":"车贷","monthly_amount":1200,"due_day":25,
+                   "periods_at_start":18,"start_date":"2026-09-01","processed_through":"2026-09-01","sort_order":0}]}
+        """.utf8).write(to: backup)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        let output = ProcessInfo.processInfo.environment["BACK_TO_FREE_SHOTS_DIR"]
+        func shoot(_ name: String) throws {
+            guard let output else { return }
+            Thread.sleep(forTimeInterval: 0.8)
+            try XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent(name + ".png"))
+        }
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-proWasUnlocked", "YES", "-proTrialDaysAgo", "10",
+                               "-hideProPreviewCard", "-proSamplePrices", "-assetsLayout", "classic",
+                               "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["「房」目前未计入自由天数。合并后资产统一计入，之后可整体选择是否计入。"].exists)
+        try shoot("1-引导")
+        if output != nil {
+            app.swipeUp()
+            try shoot("1b-引导底部")
+            app.swipeDown()
+        }
+
+        app.buttons["back-to-free-merge-assets"].tap()
+        let confirm = app.buttons["合并"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["back-to-free-merge-assets"].waitForNonExistence(timeout: 3))
+        app.buttons["back-to-free-merge-cash"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["back-to-free-merge-cash"].waitForNonExistence(timeout: 3))
+
+        // 贷款已停用，引导删除
+        XCTAssertTrue(app.staticTexts["已停用"].exists)
+        app.buttons["back-to-free-delete-loans"].tap()
+        let delete = app.buttons["删除"].firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        delete.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["back-to-free-finished"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["back-to-free-pro"].exists)
+        try shoot("2-整理好了")
+        app.buttons["back-to-free-done"].tap()
+
+        // 合并后在 Assets 能直接改总数，资产总开关是开的（基金一直算着）
+        app.tabBars.buttons["Assets"].tap()
+        let editable = app.buttons["编辑资产"]
+        XCTAssertTrue(editable.waitForExistence(timeout: 5))
+        XCTAssertEqual(editable.value as? String, "¥135,000")
+        let toggle = app.switches["counts-assets-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        XCTAssertEqual(toggle.value as? String, "计入")
+        try shoot("3-Assets")
+
+        // 整理完就不用再给入口了
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settings-card-pro"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["pro-back-to-free"].exists)
+    }
+
+    /// 已经关掉引导、还没整理的人：设置里 Pro 卡提示待调整、点了打开引导；从引导进购买页，那里不再套一层入口
+    @MainActor
+    func testPaywallReopensTheBackToFreeGuide() throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("back-to-free-paywall-ui-test.json")
+        try Data("""
+        {"schema_version":3,"assets":{"total":2000,"locked_assets":0,"cash":2000},
+         "expenses":[{"amount":1000,"category":"午餐","date":"2026-10-01"}],
+         "cash_accounts":[{"name":"微信","amount":500},{"name":"招行卡","amount":1500}]}
+        """.utf8).write(to: backup)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-proTrialDaysAgo", "10", "-hideProPreviewCard", "-proSamplePrices",
+                               "-UseInMemoryStore", "-SeedBackupJSON", backup.path]
+        app.launch()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Pro 体验已结束"].exists)   // 没有「上次还能用」的记录，不弹
+
+        // 设置里 Pro 卡写「1 项待调整」，点了直接打开引导
+        app.tabBars.buttons["Settings"].tap()
+        let proCard = app.buttons["settings-card-pro"]
+        XCTAssertTrue(proCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(proCard.label.contains("1 项待调整"))
+        proCard.tap()
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["back-to-free-pro"].label.contains("保留子账户"))
+        // 从引导进购买页：那里不再套一层「继续使用免费版」
+        app.buttons["back-to-free-pro"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["pro-back-to-free"].exists)
+        app.buttons["pro-close"].tap()
+        app.buttons["back-to-free-done"].tap()
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForNonExistence(timeout: 5))
+
+        // 从别的地方进购买页（这里是「支出分类」），对照表下面能打开引导
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
+        let link = app.buttons["pro-back-to-free"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        if !link.isHittable { app.swipeUp() }
+        link.tap()
+        XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["back-to-free-merge-cash"].exists)
+        XCTAssertFalse(app.buttons["back-to-free-merge-assets"].exists)
+    }
+
     /// 退款之后（没有 Pro 但已经拆好了项）：每一项和金额还在 Assets 页上，不能增删改、不能点方格；合并成总数后回到总开关。
     @MainActor
     func testItemsStayVisibleWithoutProAndCanBeMergedBackIntoATotal() throws {

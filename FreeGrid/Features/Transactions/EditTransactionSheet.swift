@@ -33,10 +33,9 @@ struct EditTransactionSheet: View {
     /// 月供扣款的「分类」是贷款名，不让改成别的分类。
     private var categories: [String] {
         if case .expense(let expense) = transaction, expense.loanID != nil { return [transaction.title] }
-        let options = ProFeatures.canCustomizeExpenseCategories
-            ? ExpenseCategoryStorage.decode(encodedOptions)
-                .including(expenses.filter { $0.loanID == nil }.map(\.category)).visibleNames
-            : ExpenseCategory.canonical
+        let options = ExpenseCategoryStorage.pickable(
+            encodedOptions, recorded: expenses.filter { $0.loanID == nil }.map(\.category),
+            unlocked: ProFeatures.canCustomizeExpenseCategories)
         return options.contains(transaction.title) ? options : options + [transaction.title]
     }
 

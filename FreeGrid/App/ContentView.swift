@@ -34,6 +34,8 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    /// 体验结束或退款后弹一次「回到免费版」
+    @State private var showingBackToFree = false
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -105,9 +107,9 @@ struct ContentView: View {
             setupGuideCompleted = true
             guide.requestReplay(.dashboard)
         }
-        // Pro 每月还款：打开 App 和回到前台时补扣到期的月供。失败时什么都不改，下次再来
+        // 打开 App 和回到前台时补扣到期的房租、月供（没有 Pro 时贷款停用，不扣）。失败时什么都不改，下次再来
         .task {
-            try? LoanStore.processDue(in: modelContext)
+            try? LoanStore.processDue(pausesTermLoans: !ProFeatures.canManageLoans, in: modelContext)
             // 早期开发版里资产拆分后总开关还管着各项；现在由各项自己决定，旧的「关」交给各项接手
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
@@ -120,9 +122,16 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            try? LoanStore.processDue(in: modelContext)
+            try? LoanStore.processDue(pausesTermLoans: !ProFeatures.canManageLoans, in: modelContext)
+            checkProLapse()
             Task { await offerProIntro() }
         }
+        .task { checkProLapse() }
+        // 体验到点、退款在 App 开着时也会发生
+        .onChange(of: ProStore.shared.isUnlocked) { checkProLapse() }
+        // 启动时先等和 App Store 核对完再判断
+        .onChange(of: ProStore.shared.hasCheckedEntitlements) { checkProLapse() }
+        .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
         .returningProIntro(isPresented: $showingReturningIntro) { introShown = true }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
@@ -154,12 +163,22 @@ extension ContentView {
         guard ProIntro.shouldOffer(audience: audience, alreadyShown: introShown, ownsPro: store.ownsPro,
                                    hasStartedTrial: store.offer.hasStartedTrial,
                                    canStartTrial: ProIntro.trialIsAvailable(store)),
-              !showingReturningIntro, selectedTab == .dashboard, guide.tour == nil, setupStep == nil
+              !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard, guide.tour == nil,
+              setupStep == nil
         else { return }
         // 卡片自己做出现的动画，弹层本身不滑入
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) { showingReturningIntro = true }
+    }
+
+    /// Pro 刚失效、账本里又有体验期间加的资产项、现金账户或贷款时，弹「回到免费版」。没有就只记下这次变化
+    private func checkProLapse() {
+        guard ProStore.shared.takeLapse() else { return }
+        let plan = BackToFreePlan(assetItems: (try? modelContext.fetch(FetchDescriptor<AssetItem>())) ?? [],
+                                  cashAccounts: (try? modelContext.fetch(FetchDescriptor<CashAccount>())) ?? [],
+                                  loans: (try? modelContext.fetch(FetchDescriptor<Loan>())) ?? [])
+        if plan.hasProContent { showingBackToFree = true }
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
