@@ -33,6 +33,7 @@ enum AppPreferences {
         "setupGuideCompleted",
         "assetsLayout",
         "assetsUnit",
+        ProIntro.audienceKey,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {

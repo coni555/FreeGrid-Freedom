@@ -27,6 +27,9 @@ struct ContentView: View {
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(ProIntro.shownKey, store: AppPreferences.store) private var introShown = false
     @State private var showingReturningIntro = false
+    /// 新用户记满 7 天时的「这一周的小结」，弹一次（规则在 FirstWeekRecap）
+    @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
+    @State private var weekRecap: FirstWeekRecap.Summary?
 
     // 起步引导走到哪一步由账本决定
     @Query private var expenses: [Expense]
@@ -119,13 +122,19 @@ struct ContentView: View {
                 introAudience = ProIntro.audience(hasExpenses: expenseCount > 0).rawValue
             }
             await offerProIntro()
+            await offerWeekRecap()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             try? LoanStore.processDue(pausesTermLoans: !ProFeatures.canManageLoans, in: modelContext)
             checkProLapse()
-            Task { await offerProIntro() }
+            Task {
+                await offerProIntro()
+                await offerWeekRecap()
+            }
         }
+        // 第 7 天记下一笔时就弹，不用等下次打开
+        .onChange(of: expenses.count) { Task { await offerWeekRecap() } }
         .task { checkProLapse() }
         // 体验到点、退款在 App 开着时也会发生
         .onChange(of: ProStore.shared.isUnlocked) { checkProLapse() }
@@ -133,6 +142,7 @@ struct ContentView: View {
         .onChange(of: ProStore.shared.hasCheckedEntitlements) { checkProLapse() }
         .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
         .returningProIntro(isPresented: $showingReturningIntro) { introShown = true }
+        .firstWeekRecap($weekRecap) { recapShown = true }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
         // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
@@ -170,6 +180,40 @@ extension ContentView {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) { showingReturningIntro = true }
+    }
+
+    /// 新用户记满 7 天、首页空着就弹「这一周的小结」。和老用户的卡片一样先停一下，停完再看一遍；
+    /// 卡片真的出现才记「弹过了」
+    private func offerWeekRecap() async {
+        guard !recapShown, weekRecap == nil, !ProIntro.isSuppressedForTesting,
+              ProIntro.Audience(rawValue: introAudience) == .newcomer, selectedTab == .dashboard,
+              FirstWeekRecap.recordedDays(expenses) >= FirstWeekRecap.requiredDays else { return }
+        try? await Task.sleep(for: .seconds(1.2))
+        let store = ProStore.shared
+        await store.loadProducts()
+        guard FirstWeekRecap.shouldShow(audience: ProIntro.Audience(rawValue: introAudience), alreadyShown: recapShown,
+                                        recordedDays: FirstWeekRecap.recordedDays(expenses)),
+              weekRecap == nil, !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard,
+              guide.tour == nil, setupStep == nil
+        else { return }
+        let mentionsPro = FirstWeekRecap.mentionsPro(ownsPro: store.ownsPro, hasStartedTrial: store.offer.hasStartedTrial,
+                                                     canStartTrial: ProIntro.trialIsAvailable(store))
+        let summary = FirstWeekRecap.summary(expenses: expenses, snapshot: dashboardSnapshot(), mentionsPro: mentionsPro)
+        // 卡片自己做出现的动画，弹层本身不滑入
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { weekRecap = summary }
+    }
+
+    /// 和首页同样的算法和输入，卡片上的日均、自由天数和首页一致。
+    /// 只在要弹卡片时现取，不在这里多挂几个 @Query（不然每改一笔资产整个 TabView 都要重算）
+    private func dashboardSnapshot() -> FinancialSnapshot {
+        func all<Model: PersistentModel>(_ type: Model.Type) -> [Model] {
+            (try? modelContext.fetch(FetchDescriptor<Model>())) ?? []
+        }
+        return FinancialSnapshot(expenses: expenses, passiveSources: all(PassiveSource.self), assets: assetsArr.first,
+                                 assetItems: all(AssetItem.self), cashAccounts: all(CashAccount.self),
+                                 loans: ProFeatures.loansInEffect(all(Loan.self)), countsAssets: FreedomSettings.countsAssets)
     }
 
     /// Pro 刚失效、账本里又有体验期间加的资产项、现金账户或贷款时，弹「回到免费版」。没有就只记下这次变化

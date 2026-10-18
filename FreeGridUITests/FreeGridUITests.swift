@@ -722,10 +722,10 @@ final class FreeGridUITests: XCTestCase {
             shot.lifetime = .keepAlways
             add(shot)
             if dark {
-                app.buttons["pro-intro-close"].tap()
+                app.buttons["intro-card-close"].tap()
                 XCTAssertTrue(card.waitForNonExistence(timeout: 3))
             } else {
-                app.buttons["pro-intro-learn-more"].tap()
+                app.buttons["intro-card-learn-more"].tap()
                 XCTAssertTrue(card.waitForNonExistence(timeout: 3))
                 let paywall = app.descendants(matching: .any)["pro-header"]
                 XCTAssertTrue(paywall.waitForExistence(timeout: 5))
@@ -735,6 +735,74 @@ final class FreeGridUITests: XCTestCase {
             XCTAssertTrue(app.buttons["记支出"].exists)
             app.terminate()
         }
+    }
+
+    /// 新用户：记满 7 天那一笔一记下，首页就弹「这一周的小结」；「看看 Pro」进购买页，之后重开不再弹。
+    /// 前 6 天放在备份里，第 7 天在 App 里记
+    @MainActor
+    func testNewUserSeesTheFirstWeekRecapWhenTheSeventhDayIsLogged() throws {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        /// 截到昨天的几天，每天一笔
+        func backup(days amounts: [Int], name: String) throws -> URL {
+            let expenses = amounts.enumerated().map { index, amount in
+                let day = Calendar.current.date(byAdding: .day, value: index - amounts.count, to: .now)!
+                return #"{"amount":\#(amount),"category":"午餐","note":"","date":"\#(formatter.string(from: day))"}"#
+            }.joined(separator: ",")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+            try Data("""
+            {"schema_version":2,"assets":{"total":10000,"locked_assets":0,"cash":10000},"expenses":[\(expenses)]}
+            """.utf8).write(to: url)
+            return url
+        }
+        let sixDays = try backup(days: [48, 96, 62, 71, 55, 104], name: "first-week-6.json")
+        let sevenDays = try backup(days: [48, 96, 62, 71, 55, 104, 146], name: "first-week-7.json")
+        defer { [sixDays, sevenDays].forEach { try? FileManager.default.removeItem(at: $0) } }
+        func arguments(seed: URL) -> [String] {
+            ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES",
+             "-historyGuideCompleted", "YES", "-proPreview", "NO", "-UseInMemoryStore",
+             "-SeedBackupJSON", seed.path, "-proIntroAudience", "newcomer", "-proIntro", "-proSamplePrices"]
+        }
+        let app = XCUIApplication()
+        app.launchArguments = arguments(seed: sixDays)
+        app.launch()
+        let recap = app.descendants(matching: .any)["first-week-recap"]
+        // 只记了 6 天：不弹
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.5)
+        XCTAssertFalse(recap.exists)
+
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("146")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(recap.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["这一周的小结"].exists)
+        XCTAssertTrue(app.buttons["intro-card-learn-more"].exists)
+        Thread.sleep(forTimeInterval: 0.8)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "新用户-第一周小结"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        app.buttons["intro-card-learn-more"].tap()
+        XCTAssertTrue(recap.waitForNonExistence(timeout: 3))
+        let paywall = app.descendants(matching: .any)["pro-header"]
+        XCTAssertTrue(paywall.waitForExistence(timeout: 5))
+        app.buttons["pro-close"].tap()
+        XCTAssertTrue(paywall.waitForNonExistence(timeout: 3))
+
+        // 重开 App 不再弹（账本是临时的，重开时换成记满 7 天的那份）
+        app.terminate()
+        app.launchArguments = arguments(seed: sevenDays) + ["-KeepScratchPreferences"]
+        app.launch()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.5)
+        XCTAssertFalse(recap.exists)
     }
 
     @MainActor
