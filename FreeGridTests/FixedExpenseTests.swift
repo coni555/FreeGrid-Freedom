@@ -117,16 +117,27 @@ struct FixedExpenseTests {
     }
 
     @Test func passiveRatioCountsFixedCosts() {
-        // 日常 100/天 + 房租 2500/月（≈ 83.3/天）；被动 3000/月 = 100/天
+        // 日常 100/天 + 房租 2500/月（÷ 30.44 ≈ 82.1/天）；被动 3000/月 = 100/天
         let s = snapshot(loans: [rent()], passive: 3000)
-        #expect(abs(s.passiveRatio - 100 / (100 + 2500.0 / 30)) < 1e-9)
+        #expect(abs(s.passiveRatio - 100 / (100 + 2500.0 / 30.44)) < 1e-9)
+    }
+
+    /// 首页的覆盖率和 ∞ 用同一个折法：推演判定已覆盖时，覆盖率不会不到 100%。
+    /// 被动 1880/月 ≈ 62.7/天，日常 0.1/天 + 房租 1900/月 ÷ 30.44 ≈ 62.5/天，按 ÷ 30 折则是 63.4/天
+    @Test func coveredMeansFullPassiveRatio() {
+        let s = FinancialSnapshot(
+            expenses: [Expense(amount: 1, category: "午餐", date: Calendar.current.date(byAdding: .day, value: -9, to: now)!)],
+            passiveSources: [PassiveSource(name: "利息", monthlyAmount: 1880)],
+            assets: assets(cash: 20_000), loans: [rent(1900)], now: now, countsAssets: true)
+        #expect(s.freedom == .covered)
+        #expect(s.passiveRatio >= 1)
     }
 
     /// 首页写的日均含固定支出折成的每天（押一付三按每月折）；推演用的日常日均不变，房租仍在到期日另扣
     @Test func displayedDailyCostAddsFixedCosts() {
         let s = snapshot(loans: [rent(7500, interval: 3)])
         #expect(s.dailyBurn == 100)
-        #expect(abs(s.dailyCost - (100 + 2500.0 / 30)) < 1e-9)
+        #expect(abs(s.dailyCost - (100 + 2500.0 / 30.44)) < 1e-9)
         #expect(snapshot(loans: []).dailyCost == 100)
     }
 

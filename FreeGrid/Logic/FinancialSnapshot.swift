@@ -47,7 +47,8 @@ struct FinancialSnapshot {
     let hasExpenses: Bool
     /// 固定支出和贷款：今天之后要扣的钱。没有时为空，自由天数和以前一分不差
     let loanPlan: LoanSchedule.Plan
-    /// 固定支出和还没还清的贷款折成每天多少（每月 ÷ 30，和被动收入同一个折法）
+    /// 固定支出和还没还清的贷款折成每天多少。按日历上一个月的平均天数折（约 30.44），和推演扣房租的节奏一致：
+    /// 否则被动收入刚好盖住开销时，首页会出现「∞ 但覆盖率不到 100%」
     let dailyFixed: Double
     let now: Date
 
@@ -126,7 +127,8 @@ struct FinancialSnapshot {
         dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
         hasExpenses = !burnEntries.isEmpty
         loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
-        dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now) / 30
+        dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now)
+            / FreedomMath.GridUnit.month.daysPerCell
         self.now = now
         freedomRun = FreedomMath.freedomRun(
             netWorth: Self.freedomBase(countsAssets: self.countsAssets, lockedAssets: lockedAssets,
