@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import FreeGrid
 
-/// 新用户记满 7 天时弹一次的「这一周的小结」
+/// 新用户记满 7 天时弹一次的「记账 7 天的小结」
 struct FirstWeekRecapTests {
     private let calendar = Calendar(identifier: .gregorian)
 
@@ -44,20 +44,24 @@ struct FirstWeekRecapTests {
         #expect(!FirstWeekRecap.mentionsPro(ownsPro: false, hasStartedTrial: false, canStartTrial: false))
     }
 
-    @Test func theWeekIsTheSevenDaysEndingTodayWithoutAutoDeductions() {
-        let expenses = [expense(99, on: "2026-10-11"),           // 这一周之前
-                        expense(10, on: "2026-10-12"), expense(15, on: "2026-10-12", at: 19),
-                        expense(40, on: "2026-10-15"), autoRent(on: "2026-10-15"),
-                        expense(8, on: "2026-10-18")]
+    /// 零星记了三周才记满 7 天，过了几天才打开：画的还是记满的那 7 个记账日，没有空柱子
+    @Test func theCardShowsTheFirstSevenLoggedDaysNotTheLastCalendarWeek() {
+        let expenses = [expense(10, on: "2026-09-28"), expense(15, on: "2026-09-28", at: 19),
+                        expense(40, on: "2026-10-01"), autoRent(on: "2026-10-02"),
+                        expense(8, on: "2026-10-05"), expense(20, on: "2026-10-08"),
+                        expense(30, on: "2026-10-11"), expense(5, on: "2026-10-14"),
+                        expense(12, on: "2026-10-16"),
+                        expense(99, on: "2026-10-17")]          // 第 8 个记账日，不画
         let assets = UserAssets(total: 0)
         assets.cash = 10_000
-        let now = calendar.date(byAdding: .hour, value: 21, to: TestSupport.day("2026-10-18"))!
+        let now = calendar.date(byAdding: .hour, value: 21, to: TestSupport.day("2026-10-20"))!
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets, now: now, countsAssets: true)
         let week = FirstWeekRecap.summary(expenses: expenses, snapshot: snapshot, mentionsPro: true, calendar: calendar)
-        #expect(week.days.first == TestSupport.day("2026-10-12"))
-        #expect(week.days.last == TestSupport.day("2026-10-18"))
-        #expect(week.dailyTotals == [25, 0, 0, 40, 0, 0, 8])
-        #expect(week.total == 73)
+        #expect(week.days.count == 7)
+        #expect(week.days.first == TestSupport.day("2026-09-28"))
+        #expect(week.days.last == TestSupport.day("2026-10-16"))
+        #expect(week.dailyTotals == [25, 40, 8, 20, 30, 5, 12])
+        #expect(week.total == 140)
         // 日均和自由天数就是首页那份
         #expect(week.dailyCost == snapshot.dailyCost)
         #expect(week.freedom == snapshot.freedom)

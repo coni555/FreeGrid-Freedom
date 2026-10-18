@@ -261,8 +261,9 @@ final class ProStore {
         scheduleTick()
     }
 
-    /// 把「现在」拨到当前时间，并约好下一次：试用或专属价到点时界面要自己变
-    private func tick() {
+    /// 把「现在」拨到当前时间，并约好下一次：试用或专属价到点时界面要自己变。
+    /// 回到前台时也调一次：挂在后台期间约好的那次可能没走
+    func tick() {
         now = clock()
         scheduleTick()
     }

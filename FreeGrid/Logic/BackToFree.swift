@@ -6,16 +6,20 @@ import Foundation
 struct BackToFreePlan: Equatable {
     /// 拆出来的资产项。合并回一个总数后，免费版就能直接改资产
     let assetItems: [String]
-    /// 设成不计入自由天数的资产项。合并后资产整体计入
+    /// 设成不计入自由天数的资产项
     let excludedAssets: [String]
+    /// 合并后资产整体算不算进自由天数：只要有一项算着就算，一项都没算就不算（见 `AssetItemStore.switchAfterMerging`）
+    let assetsCountAfterMerging: Bool
     let cashAccounts: [String]
     let excludedCash: [String]
-    /// 带期数的贷款（Pro）。照常自动扣，不用整理；不想要了可以删。不限期的固定支出是免费的，不算在这里
+    /// 带期数的贷款（Pro）。没有 Pro 时停用：不自动记账、不算进自由天数，只能删，重新解锁后恢复。
+    /// 不限期的固定支出是免费的，不算在这里
     let loans: [String]
 
     init(assetItems: [AssetItem], cashAccounts: [CashAccount], loans: [Loan]) {
         self.assetItems = assetItems.map(\.name)
         excludedAssets = assetItems.filter { !$0.countsInFreedom }.map(\.name)
+        assetsCountAfterMerging = AssetItemStore.switchAfterMerging(assetItems)
         self.cashAccounts = cashAccounts.map(\.name)
         excludedCash = cashAccounts.filter { !$0.countsInFreedom }.map(\.name)
         self.loans = loans.filter { !$0.isOngoing }.map(\.name)

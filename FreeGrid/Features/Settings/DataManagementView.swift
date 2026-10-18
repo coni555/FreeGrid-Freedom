@@ -8,6 +8,8 @@ struct DataManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
+    @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
@@ -252,6 +254,11 @@ struct DataManagementView: View {
         }
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
+        // 换机后先打开、再恢复备份的老用户：改回老用户，看 2.0 更新说明，不弹新手小结
+        if let audience = ProIntro.audienceAfterRestoring(ProIntro.Audience(rawValue: introAudience), recapShown: recapShown,
+                                                          restoredExpenses: result.expensesAdded) {
+            introAudience = audience.rawValue
+        }
         var lines: [String] = ["导入完成"]
         lines.append("支出 +\(result.expensesAdded)（跳过 \(preview.expensesSkipped) 笔重复）")
         lines.append("收入 +\(result.incomesAdded)（跳过 \(preview.incomesSkipped) 笔重复）")

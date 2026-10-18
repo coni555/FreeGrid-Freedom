@@ -187,6 +187,18 @@ enum LoanStore {
         try LedgerStore.perform(in: context, save: save) { context.delete(loan) }
     }
 
+    /// 一次删掉好几笔（「回到免费版」里删停用的贷款）。全删成或一笔都不删，不会删到一半
+    static func delete(
+        _ loans: [Loan],
+        in context: ModelContext,
+        save: LedgerStore.SaveAction = { try $0.save() }
+    ) throws {
+        guard !loans.isEmpty else { return }
+        try LedgerStore.perform(in: context, save: save) {
+            for loan in loans { context.delete(loan) }
+        }
+    }
+
     // MARK: - 到期自动扣
 
     /// 补齐每一笔「上次处理之后、今天及以前」的到期日：现金够就扣一期并写一笔扣款，

@@ -15,6 +15,16 @@ struct ProIntroTests {
         #expect(ProIntro.audience(hasExpenses: false) == .newcomer)
     }
 
+    /// 换机后先打开、再导入备份的人第一次打开时账本是空的，被记成新用户；恢复了支出就改回老用户
+    @Test func restoringExpensesTurnsANewcomerIntoAReturningUser() {
+        #expect(ProIntro.audienceAfterRestoring(.newcomer, recapShown: false, restoredExpenses: 300) == .returning)
+        #expect(ProIntro.audienceAfterRestoring(.newcomer, recapShown: false, restoredExpenses: 0) == .newcomer)
+        // 已经看过新手小结的不改，免得两张卡都弹
+        #expect(ProIntro.audienceAfterRestoring(.newcomer, recapShown: true, restoredExpenses: 300) == .newcomer)
+        #expect(ProIntro.audienceAfterRestoring(.returning, recapShown: false, restoredExpenses: 300) == .returning)
+        #expect(ProIntro.audienceAfterRestoring(nil, recapShown: false, restoredExpenses: 300) == nil)
+    }
+
     @Test func newcomersNeverSeeIt() {
         #expect(!offer(.newcomer))
     }

@@ -97,7 +97,13 @@ struct BackToFreeTests {
             cashAccounts: [CashAccount(name: "微信", amount: 320, sortOrder: 0)], loans: [])
         #expect(plan.hasProContent)
         #expect(plan.excludedAssets == ["房"])
+        #expect(plan.assetsCountAfterMerging)
         #expect(plan.excludedCash.isEmpty)
+        // 一项都没算：合并后资产整体不计入，引导里不能写「统一计入」
+        let allExcluded = BackToFreePlan(
+            assetItems: [AssetItem(name: "房", amount: 1_200_000, sortOrder: 0, countsInFreedom: false)],
+            cashAccounts: [], loans: [])
+        #expect(!allExcluded.assetsCountAfterMerging)
     }
 
     // MARK: - 合并
@@ -173,6 +179,24 @@ struct BackToFreeTests {
         // 解锁后再处理一次也不会补扣：那两期已经交给用户选
         #expect(try LoanStore.processDue(now: later, in: context) == 0)
         #expect(assets.cash == 10_000)
+    }
+
+    /// 删停用的贷款要么全删、要么一笔不删
+    @Test func deletingSeveralLoansIsAllOrNothing() throws {
+        enum Failure: Error { case save }
+        let context = try TestSupport.makeContext()
+        context.insert(UserAssets(total: 0))
+        try context.save()
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        let car = try LoanStore.save(nil, name: "车贷", monthlyAmount: 1200, dueDay: 20, remaining: 12, now: now, in: context)
+        let phone = try LoanStore.save(nil, name: "手机", monthlyAmount: 300, dueDay: 25, remaining: 8, now: now, in: context)
+
+        #expect(throws: Failure.self) {
+            try LoanStore.delete([car, phone], in: context) { _ in throw Failure.save }
+        }
+        #expect(try LoanStore.loans(in: context).count == 2)
+        try LoanStore.delete([car, phone], in: context)
+        #expect(try LoanStore.loans(in: context).isEmpty)
     }
 
     // MARK: - 支出分类

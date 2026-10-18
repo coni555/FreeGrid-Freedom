@@ -99,7 +99,8 @@ struct BackToFreeSheet: View {
     private var assetsCard: some View {
         var lines = ["把各项合并为一个资产总额，金额不变。"]
         if !plan.excludedAssets.isEmpty {
-            lines.append("\(Self.quoted(plan.excludedAssets))目前未计入自由天数。合并后资产统一计入，之后可整体选择是否计入。")
+            let after = plan.assetsCountAfterMerging ? "统一计入" : "整体不计入"
+            lines.append("\(Self.quoted(plan.excludedAssets))目前未计入自由天数。合并后资产\(after)，之后可整体选择是否计入。")
         }
         return card(title: "资产", count: "\(plan.assetItems.count) 项", names: plan.assetItems,
                     status: "合并后可继续编辑", lines: lines, change: change(mergingAssets: true),
@@ -330,8 +331,7 @@ struct BackToFreeSheet: View {
             switch step {
             case .mergeAssets: try AssetItemStore.mergeIntoTotalKeepingSwitch(in: modelContext)
             case .mergeCash: try CashAccountStore.mergeIntoTotal(in: modelContext)
-            case .deleteLoans:
-                for loan in loans where !loan.isOngoing { try LoanStore.delete(loan, in: modelContext) }
+            case .deleteLoans: try LoanStore.delete(loans.filter { !$0.isOngoing }, in: modelContext)
             }
         } catch {
             saveError = error.localizedDescription

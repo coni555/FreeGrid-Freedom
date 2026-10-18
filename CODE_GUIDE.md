@@ -137,7 +137,7 @@ flowchart TD
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、试用、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；试用 7 天和试用专属价 14 天的时间规则在 `Logic/ProOffer.swift`；对照表和权益判断在 `App/ProFeatures.swift` |
-| 新用户记满 7 天时的「这一周的小结」（首页弹一次） | 卡片在 `Features/Dashboard/FirstWeekRecapCard.swift`；该不该弹、这一周的数字在 `Logic/FirstWeekRecap.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerWeekRecap` |
+| 新用户记满 7 天时的「记账 7 天的小结」（首页弹一次） | 卡片在 `Features/Dashboard/FirstWeekRecapCard.swift`；该不该弹、这 7 天的数字在 `Logic/FirstWeekRecap.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerWeekRecap` |
 | 首页弹的介绍卡片共用的弹法（压暗、居中、「看看 Pro」换成购买页） | `Features/Pro/IntroCardLayer.swift` |
 | 2.0 的 Pro 介绍（只给老用户，首页弹一次卡片；新用户不弹） | 卡片在 `Features/Pro/ProIntroCard.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
 | Assets 页（按设置选新版或经典版） | `Features/Assets/AssetsView.swift` 只做切换（偏好 `assetsLayout`）。新版「钱与时间」：`MoneyTimeAssetsView.swift`（¥/天 单位开关、净值或自由天数、按账户分段的横线、资产 \| 现金文件夹标签、「每月」进出），调拨弹窗 `TransferSheet.swift`。经典版：`ClassicAssetsView.swift`（三个抽屉 + 被动收入卡 + 内嵌调拨） |
@@ -173,7 +173,7 @@ Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购�
 
 **Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。启动和回到前台时调 `offerProIntro`：只有老用户、而且在首页时才往下走；停一下、等商品读完，再用 `ProIntro.shouldOffer` 判断（新用户、买过、开始过体验、读不到体验商品都不弹）。弹 `ProIntroCard`：整页压暗，屏幕中间浮起一张卡，先讲 2.0 的免费更新，再提一句 Pro；卡片真的出现时才记 `proIntroShown`，没弹成的下次打开再试。「看看 Pro」收起卡片，在同一个弹层里换成购买页（macOS 用 `.proPaywall` 另开），「知道了」或点卡片外面直接收起。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
 
-**新用户的第一周小结** 沿这条路径工作：只给 `proIntroAudience` 是新用户的设备。启动、回到前台和支出笔数变化时调 `offerWeekRecap`：`FirstWeekRecap.recordedDays` 数有自己记的支出的日子（自动扣的房租、月供不算），满 7 天、在首页、没有别的引导和弹窗时，停一下再看一遍，然后用 `FirstWeekRecap.summary` 算截到今天的 7 天每日合计，日均和自由天数直接取和首页同样输入的 `FinancialSnapshot`（`dashboardSnapshot` 现取，不在 ContentView 多挂 @Query）。弹法和老用户卡片共用 `introCard`；卡片真的出现时记 `firstWeekRecapShown`。Pro 那一句只在 `FirstWeekRecap.mentionsPro` 为真时出现（没买、没开始过体验、读得到体验商品）。预览时带 `-proIntroAudience newcomer -proIntro` 和一份记满 7 天的账本。
+**新用户的第一周小结** 沿这条路径工作：只给 `proIntroAudience` 是新用户的设备。启动、回到前台和支出笔数变化时调 `offerWeekRecap`：`FirstWeekRecap.recordedDays` 数有自己记的支出的日子（自动扣的房租、月供不算），满 7 天、在首页、没有别的引导和弹窗时，停一下再看一遍，然后用 `FirstWeekRecap.summary` 算最早记账的 7 天每日合计，日均和自由天数直接取和首页同样输入的 `FinancialSnapshot`（`dashboardSnapshot` 现取，不在 ContentView 多挂 @Query）。弹法和老用户卡片共用 `introCard`；卡片真的出现时记 `firstWeekRecapShown`。Pro 那一句只在 `FirstWeekRecap.mentionsPro` 为真时出现（没买、没开始过体验、读得到体验商品）。预览时带 `-proIntroAudience newcomer -proIntro` 和一份记满 7 天的账本。
 
 **回到免费版**：Pro 从能用变成不能用（体验到期、退款）时，`ContentView` 调 `ProStore.takeLapse`（本机记着上次能不能用，同一次变化只报一次），账本里有资产项、现金账户或带期数的贷款（`BackToFreePlan.hasProContent`）就弹 `Features/Pro/BackToFreeSheet.swift`：逐项说明现状，资产、现金当场合并（资产走 `AssetItemStore.mergeIntoTotalKeepingSwitch`，和 Assets 抽屉同一个入口），并用 `BackToFreePlan.freedomAfterMerging` 写出合并后的自由天数；贷款引导删除。关掉后，购买页对照表下面的「继续使用免费版」还能打开它。
 
@@ -240,7 +240,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [LegacyImportIdentityTests](FreeGridTests/LegacyImportIdentityTests.swift)：旧分类映射、长备注、旧随机 UUID 与重复导入。
 - [ExpenseCategoryTests](FreeGridTests/ExpenseCategoryTests.swift)：名称校验、顺序与可见性持久化、至少一个选项、自定义名称备份恢复及旧分类去重；UI 测试覆盖实际记账、隐藏后历史保留及 Pro 闸门。
 - [ProOfferTests](FreeGridTests/ProOfferTests.swift)：试用 7 天、专属价 14 天、还没试用时按专属价、晚下载的人从自己开始试用算起、「还剩 N 天」不足一天算一天。
-- [FirstWeekRecapTests](FreeGridTests/FirstWeekRecapTests.swift)：记账天数不要求连续、自动扣的不算、只给新用户弹一次、Pro 那句给谁看、这一周按截到今天的 7 天算。
+- [FirstWeekRecapTests](FreeGridTests/FirstWeekRecapTests.swift)：记账天数不要求连续、自动扣的不算、只给新用户弹一次、Pro 那句给谁看、画的是最早记账的 7 天（不一定连续）。
 - [ProIntroTests](FreeGridTests/ProIntroTests.swift)：有支出算老用户、新用户不弹、只弹一次、买过或开始过体验不弹、读不到体验商品时下次再看。
 - [ProStoreTests](FreeGridTests/ProStoreTests.swift)：新安装默认未解锁、本机记住的购买在离线时仍有效、本机记住的试用 7 天内解锁之后锁回、读不到商品时不发起购买也不开始试用、调试预览不改购买记录。真实购买、恢复和退款不在这里测，要用真机沙盒。
 - [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。

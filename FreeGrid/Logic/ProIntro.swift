@@ -1,7 +1,7 @@
 // 2.0 起的 Pro 介绍：只给老用户（从 1.x 升上来的），打开 2.0 时在首页弹一次卡片，先讲 2.0 的免费更新，再提一句 Pro。
-// 新用户不弹这张（用户 2026-10-18：营销性太强，新用户先 pass 掉），改在记满 7 天时看「这一周的小结」，见 FirstWeekRecap。
+// 新用户不弹这张（用户 2026-10-18：营销性太强，新用户先 pass 掉），改在记满 7 天时看「记账 7 天的小结」，见 FirstWeekRecap。
 // 新还是老，在第一次打开带这段代码的版本时就定下来：那时账本里已经有支出算老用户。
-// 定下来就不再变，新用户记完第一笔也不会变成老用户、后来再被弹。
+// 定下来就不再变，新用户记完第一笔也不会变成老用户、后来再被弹；只有从备份恢复了支出时改成老用户（见 audienceAfterRestoring）。
 // 这里只管判断；屏幕上空不空、能不能弹，由 ContentView 看。
 
 import Foundation
@@ -17,6 +17,13 @@ enum ProIntro {
     /// 第一次打开时账本里有没有支出。没有支出的人会走起步引导，和起步引导的判断一致
     static func audience(hasExpenses: Bool) -> Audience {
         hasExpenses ? .returning : .newcomer
+    }
+
+    /// 从备份恢复了支出的新用户其实是老用户：换机或重装后先打开 App、再导入备份的人，第一次打开时账本是空的，被记成了新用户。
+    /// 已经看过新手小结的不改，免得两张卡都弹；还没定下来的不管，交给第一次打开时的判断
+    static func audienceAfterRestoring(_ audience: Audience?, recapShown: Bool, restoredExpenses: Int) -> Audience? {
+        guard audience == .newcomer, !recapShown, restoredExpenses > 0 else { return audience }
+        return .returning
     }
 
     /// 现在该不该弹。只弹老用户；

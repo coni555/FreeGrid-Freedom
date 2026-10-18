@@ -737,7 +737,7 @@ final class FreeGridUITests: XCTestCase {
         }
     }
 
-    /// 新用户：记满 7 天那一笔一记下，首页就弹「这一周的小结」；「看看 Pro」进购买页，之后重开不再弹。
+    /// 新用户：记满 7 天那一笔一记下，首页就弹「记账 7 天的小结」；「看看 Pro」进购买页，之后重开不再弹。
     /// 前 6 天放在备份里，第 7 天在 App 里记
     @MainActor
     func testNewUserSeesTheFirstWeekRecapWhenTheSeventhDayIsLogged() throws {
@@ -781,7 +781,7 @@ final class FreeGridUITests: XCTestCase {
         amount.typeText("146")
         app.buttons["保存"].tap()
         XCTAssertTrue(recap.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["这一周的小结"].exists)
+        XCTAssertTrue(app.staticTexts["记账 7 天的小结"].exists)
         XCTAssertTrue(app.buttons["intro-card-learn-more"].exists)
         Thread.sleep(forTimeInterval: 0.8)
         let shot = XCTAttachment(screenshot: app.screenshot())

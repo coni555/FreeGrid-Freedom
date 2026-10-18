@@ -1,5 +1,5 @@
-// 新用户记满 7 天那天在首页弹的「这一周的小结」（用户 2026-10-18 选的 N2）。
-// 先是这一周每天花了多少、这周合计、日均和还能撑多久，日均和自由天数与首页同一份数字；
+// 新用户记满 7 天那天在首页弹的「记账 7 天的小结」（用户 2026-10-18 选的 N2）。
+// 先是记账的这 7 天每天花了多少、7 天合计、日均和还能撑多久，日均和自由天数与首页同一份数字；
 // Pro 只在最后一句，买过或开始过体验的人看不到这一句。
 // 怎么弹看 IntroCardLayer，什么时候弹看 FirstWeekRecap 和 ContentView。
 
@@ -26,8 +26,8 @@ private struct FirstWeekRecapCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
-                KickerLabel(text: "记满 \(FirstWeekRecap.requiredDays) 天 · \(rangeText)")
-                Text("这一周的小结")
+                KickerLabel(text: rangeText)
+                Text("记账 \(FirstWeekRecap.requiredDays) 天的小结")
                     .font(.system(size: 24, weight: .light, design: .rounded))
                     .foregroundStyle(Color.ink)
                     .accessibilityAddTraits(.isHeader)
@@ -36,7 +36,7 @@ private struct FirstWeekRecapCard: View {
             WeekBars(days: summary.days, totals: summary.dailyTotals)
 
             HStack(alignment: .top, spacing: 0) {
-                stat(prefix: "¥", value: FinancialFormatting.wholeNumber(summary.total), label: "这周花了")
+                stat(prefix: "¥", value: FinancialFormatting.wholeNumber(summary.total), label: "这 \(summary.days.count) 天花了")
                 divider
                 stat(prefix: "¥", value: summary.dailyCost.isFinite ? String(format: "%.1f", summary.dailyCost) : "—",
                      label: "日均")
@@ -109,13 +109,12 @@ private struct FirstWeekRecapCard: View {
     }
 }
 
-/// 这一周每天花了多少：7 根细柱，最高的那天顶满；没花钱的那天只剩底线
+/// 记账的这 7 天每天花了多少：7 根细柱，最高的那天顶满。日子不一定连续，底下写几号
 private struct WeekBars: View {
     let days: [Date]
     let totals: [Double]
 
     private let chartHeight: CGFloat = 88
-    private static let weekdays = ["日", "一", "二", "三", "四", "五", "六"]
 
     var body: some View {
         let peak = totals.max() ?? 0
@@ -135,13 +134,13 @@ private struct WeekBars: View {
                 ForEach(days.indices, id: \.self) { index in
                     Text(label(for: index))
                         .font(.kicker)
-                        .foregroundStyle(index == days.count - 1 ? Color.inkMuted : Color.inkFaint)
+                        .foregroundStyle(isToday(index) ? Color.inkMuted : Color.inkFaint)
                         .frame(maxWidth: .infinity)
                 }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("这一周每天的支出")
+        .accessibilityLabel("记账这几天每天的支出")
         .accessibilityValue(days.indices.map { "\(spokenLabel(for: $0)) \(FinancialFormatting.yuan(totals[$0]))" }
             .joined(separator: "，"))
     }
@@ -151,13 +150,16 @@ private struct WeekBars: View {
         return max(3, chartHeight * value / peak)
     }
 
-    /// 最后一天是今天，写「今」
+    private func isToday(_ index: Int) -> Bool {
+        Calendar.current.isDateInToday(days[index])
+    }
+
+    /// 几号；今天写「今」
     private func label(for index: Int) -> String {
-        if index == days.count - 1 { return "今" }
-        return Self.weekdays[Calendar.current.component(.weekday, from: days[index]) - 1]
+        isToday(index) ? "今" : "\(Calendar.current.component(.day, from: days[index]))"
     }
 
     private func spokenLabel(for index: Int) -> String {
-        index == days.count - 1 ? "今天" : "周\(label(for: index))"
+        isToday(index) ? "今天" : days[index].formatted(.dateTime.month(.defaultDigits).day())
     }
 }

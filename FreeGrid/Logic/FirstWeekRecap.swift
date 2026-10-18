@@ -1,7 +1,8 @@
-// 新用户记满 7 天那天，首页弹一次「这一周的小结」（用户 2026-10-18 选的 N2）。
-// 先给用户看自己这一周记下了什么，Pro 只在最后顺带一句；
+// 新用户记满 7 天那天，首页弹一次「记账 7 天的小结」（用户 2026-10-18 选的 N2）。
+// 先给用户看自己这 7 天记下了什么，Pro 只在最后顺带一句；
 // 新用户不在引导刚走完、也不在进 Settings 时被推 Pro（AGENTS「2.0 的 Pro 介绍」）。
 // 7 天按记过账的日子算，不要求连续；记满那天没打开 App，下次打开时补弹。每台设备只弹一次。
+// 卡片上画的就是这 7 个记账日（用户 2026-10-18 选 A），不是截到今天的一个日历周：零星记了几周的人，柱子也不会大半是空的。
 // 这里只管判断和算数；屏幕上空不空、能不能弹，由 ContentView 看。
 
 import Foundation
@@ -10,7 +11,7 @@ enum FirstWeekRecap {
     static let shownKey = "firstWeekRecapShown"
     static let requiredDays = 7
 
-    /// 用户自己记的支出。自动扣的房租、月供，和确认过的「以前记的月供」不算：它们不是用户这一周在记账
+    /// 用户自己记的支出。自动扣的房租、月供，和确认过的「以前记的月供」不算：它们不是用户自己在记账
     static func isLogged(_ expense: Expense) -> Bool {
         expense.loanID == nil && expense.countsInBurn
     }
@@ -31,7 +32,7 @@ enum FirstWeekRecap {
     }
 
     struct Summary: Equatable {
-        /// 这一周的 7 天，最早的在前，最后一天是今天
+        /// 最早记账的 7 天，最早的在前。不一定连续，最后一天也不一定是今天
         let days: [Date]
         /// 每天自己记的支出合计，和 `days` 一一对应
         let dailyTotals: [Double]
@@ -44,16 +45,15 @@ enum FirstWeekRecap {
         var total: Double { dailyTotals.reduce(0, +) }
     }
 
-    /// 截到今天的 7 天。日均和自由天数直接用首页的那份结果，卡片上的数字和首页一样
+    /// 记满的那 7 天：最早记账的 7 天。记满后隔了几天才弹，也还是这 7 天。
+    /// 日均和自由天数直接用首页的那份结果，卡片上的数字和首页一样
     static func summary(expenses: [Expense], snapshot: FinancialSnapshot, mentionsPro: Bool,
                         calendar: Calendar = .current) -> Summary {
-        let today = calendar.startOfDay(for: snapshot.now)
-        let days = (0..<7).reversed().compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
-        var totals = Dictionary(uniqueKeysWithValues: days.map { ($0, 0.0) })
+        var totals: [Date: Double] = [:]
         for expense in expenses where isLogged(expense) {
-            let day = calendar.startOfDay(for: expense.date)
-            if totals[day] != nil { totals[day, default: 0] += expense.amount }
+            totals[calendar.startOfDay(for: expense.date), default: 0] += expense.amount
         }
+        let days = Array(totals.keys.sorted().prefix(requiredDays))
         return Summary(days: days, dailyTotals: days.map { totals[$0] ?? 0 }, dailyCost: snapshot.dailyCost,
                        freedom: snapshot.freedom, mentionsPro: mentionsPro)
     }
