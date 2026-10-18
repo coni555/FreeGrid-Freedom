@@ -76,7 +76,7 @@ struct ProPaywallView: View {
     /// 三层由内往外越隔越开：副标题两行是一段话，行距最紧；标题贴着副标题；品牌一行单独隔开
     private var header: some View {
         VStack(spacing: 0) {
-            brandLockup
+            ProBrandLockup()
                 .padding(.bottom, Spacing.lg)
             // 标题和副标题是用户 2026-10-17 定的原话
             Text(store.ownsPro ? "关于自由，故事继续" : "让自由，有迹可循")
@@ -94,27 +94,6 @@ struct ProPaywallView: View {
         .padding(.top, store.ownsPro ? Spacing.lg : Spacing.xs)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(store.ownsPro ? "pro-unlocked" : "pro-header")
-    }
-
-    /// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
-    /// 超细大字放英文字标会显得单薄，所以名字用半粗
-    private var brandLockup: some View {
-        HStack(spacing: 10) {
-            Text("FreeGrid")
-                .font(.system(size: 26, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.ink)
-            Text("PRO")
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .tracking(2)
-                .foregroundStyle(Color.skyDeep)
-                .padding(.leading, 10)
-                .padding(.trailing, 8)
-                .frame(height: 24)
-                .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("FreeGrid Pro")
-        .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: - 对照卡
@@ -325,19 +304,11 @@ struct ProPaywallView: View {
         }
     }
 
-    /// 按钮下面的小字。开始体验之前，审核指南 3.1.1 要求写清：体验多久、到期少了什么、之后要付多少。
-    /// 开始体验前的三行是用户 2026-10-18 定的原话，只调换行和字号：前两句并成一行，价格那句一行；字放大或美元写法放不下时略缩小，不折行
+    /// 按钮下面的小字。开始体验之前是体验条款（ProTrialTerms），之后写优惠价还剩几天或一次购买
     @ViewBuilder
-    private func priceNote(_ prices: Prices) -> some View {
+    private func priceNote(_ prices: ProPrices) -> some View {
         if showsTrialButton {
-            VStack(spacing: 1) {
-                Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text("开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。")
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            ProTrialTerms(prices: prices)
         } else if let end = store.offer.specialPriceEndsAt, store.hasSpecialPrice {
             Text("买断优惠价还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天，之后恢复 \(prices.regular) · 不会自动续费")
                 .lineLimit(1)
@@ -355,26 +326,7 @@ struct ProPaywallView: View {
             .contentShape(Rectangle())
     }
 
-    /// 两档买断价，用 App Store 返回的本地化文字，不在代码里写死
-    private struct Prices {
-        var special: String
-        var regular: String
-        var hasTrial: Bool
-    }
-
-    private var prices: Prices? {
-        if case .loaded(let products) = store.productState {
-            return Prices(special: products.special.displayPrice, regular: products.regular.displayPrice,
-                          hasTrial: products.trial != nil)
-        }
-        #if DEBUG
-        // 模拟器里用 simctl 启动读不到商品；拍图时用 -proSamplePrices 看有价格的样子（按钮点了会提示读不到商品）
-        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
-            return Prices(special: "¥19.90", regular: "¥29.90", hasTrial: true)
-        }
-        #endif
-        return nil
-    }
+    private var prices: ProPrices? { ProPrices.current(store) }
 
     /// 没试用过的人先给试用，买断退到第二个按钮
     private var showsTrialButton: Bool {
@@ -482,5 +434,68 @@ extension View {
         #else
         sheet(isPresented: isPresented) { ProPaywallView(topic: topic) }
         #endif
+    }
+}
+
+/// 品牌一行：FreeGrid 加一个描边的 PRO 胶囊，靠字本身立住，不加图标。
+/// 超细大字放英文字标会显得单薄，所以名字用半粗。购买页和老用户的 Pro 介绍共用
+struct ProBrandLockup: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("FreeGrid")
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.ink)
+            Text("PRO")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .tracking(2)
+                .foregroundStyle(Color.skyDeep)
+                .padding(.leading, 10)
+                .padding(.trailing, 8)
+                .frame(height: 24)
+                .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 1))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("FreeGrid Pro")
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// 两档买断价，用 App Store 返回的本地化文字，不在代码里写死
+struct ProPrices {
+    var special: String
+    var regular: String
+    var hasTrial: Bool
+
+    /// 商品读到了才有价格；读不到时为 nil
+    static func current(_ store: ProStore) -> ProPrices? {
+        if case .loaded(let products) = store.productState {
+            return ProPrices(special: products.special.displayPrice, regular: products.regular.displayPrice,
+                             hasTrial: products.trial != nil)
+        }
+        #if DEBUG
+        // 模拟器里用 simctl 启动读不到商品；拍图时用 -proSamplePrices 看有价格的样子（按钮点了会提示读不到商品）
+        if ProcessInfo.processInfo.arguments.contains("-proSamplePrices") {
+            return ProPrices(special: "¥19.90", regular: "¥29.90", hasTrial: true)
+        }
+        #endif
+        return nil
+    }
+}
+
+/// 「免费体验」按钮下面的条款。审核指南 3.1.1 要求开始体验前写清：体验多久、到期少了什么、之后要付多少。
+/// 是用户 2026-10-18 定的原话，只调换行和字号：前两句并成一行，价格那句一行；放不下时略缩小，不折行。
+/// 购买页和两版 Pro 介绍共用，字号颜色由外面定
+struct ProTrialTerms: View {
+    let prices: ProPrices
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text("开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 }

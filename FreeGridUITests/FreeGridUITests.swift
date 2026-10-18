@@ -632,6 +632,103 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["19"].exists)   // 950 ÷ 50
     }
 
+    /// 新用户：起步引导和首页讲解都走完，才温和地弹一张 Pro 体验的卡；点「以后再说」后不再出现
+    @MainActor
+    func testNewUserSeesTheGentleProIntroOnlyAfterTheGuides() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "NO",
+                               "-proPreview", "NO", "-UseInMemoryStore", "-proIntro", "-proSamplePrices"]
+        app.launch()
+        let intro = app.descendants(matching: .any)["pro-intro-newcomer"]
+        let goAssets = app.buttons["setup-guide-go-assets"]
+        XCTAssertTrue(goAssets.waitForExistence(timeout: 5))
+        // 起步引导还没走完：不弹
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertFalse(intro.exists)
+        goAssets.tap()
+        XCTAssertTrue(app.navigationBars["Assets"].waitForExistence(timeout: 3))
+        app.buttons["编辑现金"].tap()
+        let cash = app.textFields["bucket-amount-field"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 3))
+        cash.typeText("1000")
+        app.buttons["保存"].tap()
+        let goHome = app.buttons["setup-guide-go-home"]
+        XCTAssertTrue(goHome.waitForExistence(timeout: 3))
+        goHome.tap()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("50")
+        app.buttons["保存"].tap()
+        // 首页讲解进行中：也不弹
+        let next = app.buttons["guide-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 6))
+        XCTAssertFalse(intro.exists)
+        finishGuide(next, steps: 3)
+
+        XCTAssertTrue(intro.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["pro-intro-start-trial"].exists)
+        XCTAssertFalse(app.buttons["pro-intro-purchase"].exists)
+        Thread.sleep(forTimeInterval: 0.8)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Pro介绍-新用户"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["pro-intro-later"].tap()
+        XCTAssertTrue(intro.waitForNonExistence(timeout: 3))
+
+        // 弹过一次就不再弹
+        app.terminate()
+        app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", "NO", "-setupGuideCompleted", "YES",
+                               "-proPreview", "NO", "-UseInMemoryStore", "-KeepScratchPreferences",
+                               "-proIntro", "-proSamplePrices"]
+        app.launch()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 3)
+        XCTAssertFalse(intro.exists)
+    }
+
+    /// 老用户：账本里已经有支出，打开 2.0 就弹整屏的 Pro 介绍，逐项写 Pro 多了什么，可以体验也可以直接买断
+    @MainActor
+    func testReturningUserSeesTheProIntroOnFirstLaunch() throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("pro-intro-ui-test.json")
+        let expenses = (1...9).map { #"{"amount":100,"category":"午餐","note":"","date":"2026-10-0\#($0)"}"# }.joined(separator: ",")
+        try Data("""
+        {"schema_version":2,"assets":{"total":10000,"locked_assets":0,"cash":10000},"expenses":[\(expenses)]}
+        """.utf8).write(to: backup)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        for dark in [false, true] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-heroLayout", "leading", "-isDarkMode", dark ? "YES" : "NO",
+                                   "-historyGuideCompleted", "YES", "-proPreview", "NO", "-UseInMemoryStore",
+                                   "-SeedBackupJSON", backup.path, "-proIntro", "-proSamplePrices"]
+            app.launch()
+            let intro = app.descendants(matching: .any)["pro-intro-returning"]
+            XCTAssertTrue(intro.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["pro-intro-start-trial"].exists)
+            XCTAssertTrue(app.buttons["pro-intro-purchase"].label.contains("¥19.90"))
+            XCTAssertTrue(app.staticTexts["你在用的功能都还在，一直免费。"].exists)
+            Thread.sleep(forTimeInterval: 0.8)
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Pro介绍-老用户-\(dark ? "深色" : "浅色")"
+            shot.lifetime = .keepAlways
+            add(shot)
+            if !dark {
+                app.swipeUp()
+                Thread.sleep(forTimeInterval: 0.6)
+                let bottom = XCTAttachment(screenshot: app.screenshot())
+                bottom.name = "Pro介绍-老用户-滚到底"
+                bottom.lifetime = .keepAlways
+                add(bottom)
+            }
+            app.buttons["pro-intro-later"].tap()
+            XCTAssertTrue(intro.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(app.buttons["记支出"].exists)
+            app.terminate()
+        }
+    }
+
     @MainActor
     func testSimulationHandsItsAmountToTheExpenseSheet() {
         let app = XCUIApplication()

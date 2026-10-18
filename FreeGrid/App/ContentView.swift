@@ -22,6 +22,11 @@ struct ContentView: View {
     /// 起步引导点了「跳过引导」后不再出现
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
 
+    /// 2.0 的 Pro 介绍：新老用户各一版，只弹一次（规则在 ProIntro）。新还是老在第一次打开时记下
+    @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
+    @AppStorage(ProIntro.shownKey, store: AppPreferences.store) private var introShown = false
+    @State private var presentedIntro: ProIntro.Audience?
+
     // 起步引导走到哪一步由账本决定
     @Query private var expenses: [Expense]
     @Query private var assetsArr: [UserAssets]
@@ -83,6 +88,8 @@ struct ContentView: View {
             if let tour = guide.tour, selectedTab == tab(for: tour) {
                 GuideOverlay(guide: guide) { finished in
                     if finished == .history { historyGuideCompleted = true }
+                    // 新用户讲完首页，起步这一段就结束了
+                    if finished == .dashboard { Task { await offerProIntro() } }
                 }
             } else if let step = setupStep {
                 SetupGuideOverlay(
@@ -106,11 +113,19 @@ struct ContentView: View {
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
             }
+            if ProIntro.Audience(rawValue: introAudience) == nil {
+                let expenseCount = (try? modelContext.fetchCount(FetchDescriptor<Expense>())) ?? 0
+                introAudience = ProIntro.audience(hasExpenses: expenseCount > 0).rawValue
+            }
+            await offerProIntro()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             try? LoanStore.processDue(in: modelContext)
+            // 新用户跳过起步引导后不马上弹，等下次回到 App
+            Task { await offerProIntro() }
         }
+        .proIntro($presentedIntro) { introShown = true }
         // tab 选中态吃 sky 主色,品牌一致
         .tint(Color.sky)
         // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
@@ -126,6 +141,22 @@ extension ContentView {
         case .history: return .history
         case .settings: return .settings
         }
+    }
+
+    /// 屏幕空着、轮到了就弹 Pro 介绍。先停一下，让刚结束的讲解或启动时的动画收干净，停完再看一遍。
+    /// 弹出来才记「弹过了」：被别的弹窗挡住没弹成时，下次打开 App 再试
+    private func offerProIntro() async {
+        guard !introShown, presentedIntro == nil, !ProIntro.isSuppressedForTesting,
+              let audience = ProIntro.Audience(rawValue: introAudience) else { return }
+        try? await Task.sleep(for: .seconds(1.2))
+        let store = ProStore.shared
+        await store.loadProducts()
+        guard ProIntro.shouldOffer(audience: audience, alreadyShown: introShown, ownsPro: store.ownsPro,
+                                   hasStartedTrial: store.offer.hasStartedTrial,
+                                   canStartTrial: ProPrices.current(store)?.hasTrial == true,
+                                   setupFinished: setupGuideCompleted || !expenses.isEmpty),
+              presentedIntro == nil, selectedTab == .dashboard, guide.tour == nil, setupStep == nil else { return }
+        presentedIntro = audience
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
