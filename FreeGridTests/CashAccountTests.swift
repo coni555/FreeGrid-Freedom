@@ -162,6 +162,34 @@ struct CashAccountTests {
         #expect(expense.cashAccountID == card.id)
     }
 
+    @Test func editingARecordFromBeforeTheSplitUsesTheFirstAccount() throws {
+        let context = try threeAccounts()
+        // 拆账户以前记的：没记账户，钱早已算在总数里。编辑页上显示的是第一个账户
+        let expense = Expense(amount: 48, category: "午餐")
+        context.insert(expense)
+        try context.save()
+        try LedgerStore.edit(id: expense.id, kind: .expense, in: context,
+                             to: .init(amount: 148, title: "午餐", note: "", date: expense.date))
+        #expect(try balances(context) == [-68, 8_600, 5_080])
+        #expect(expense.cashAccountID == (try account("微信", context)).id)
+        try LedgerStore.undo(id: expense.id, kind: .expense, in: context)
+        #expect(try balances(context) == [80, 8_600, 5_080])
+    }
+
+    @Test func aFailedFirstAccountLeavesTheCashUnsplit() throws {
+        let context = try ledger(cash: 1_000)
+        #expect(throws: Failure.self) {
+            try CashAccountStore.save(nil, name: "微信", amount: 200, source: .unsplitTotal, in: context, save: failingSave)
+        }
+        #expect(try accounts(context).isEmpty)
+        #expect(try assets(context).cash == 1_000)
+        #expect(!context.hasChanges)
+
+        try CashAccountStore.save(nil, name: "微信", amount: 200, source: .unsplitTotal, in: context)
+        #expect(try accounts(context).map(\.name) == ["现金", "微信"])
+        #expect(try balances(context) == [800, 200])
+    }
+
     @Test func aFailedSaveLeavesEveryAccountAsItWas() throws {
         let context = try threeAccounts()
         let expense = Expense(amount: 48, category: "午餐")
@@ -376,11 +404,29 @@ struct CashAccountTests {
         try LedgerStore.add(.expense(Expense(amount: 100, category: "午餐", date: now)), in: context)
         let s = try snapshot(context, now: now)
         let counted = TransactionImpact(snapshot: s, kind: .expense, amount: 50)
-        let uncounted = TransactionImpact(snapshot: s, kind: .expense, amount: 50, countsInFreedom: false)
+        let uncounted = TransactionImpact(snapshot: s, kind: .expense, amount: 50, account: try account("招行卡", context))
         #expect(counted.newFreedomBase == s.freedomBase - 50)
         #expect(uncounted.newFreedomBase == s.freedomBase)
         #expect(uncounted.newNetWorth == s.netWorth - 50)
         #expect(uncounted.newDailyBurn == counted.newDailyBurn)
+    }
+
+    @Test func overdrawingAnUncountedAccountShowsTheOverdraftInThePreview() throws {
+        let context = try threeAccounts()
+        try CashAccountStore.setCountsInFreedom(false, for: try account("微信", context), in: context)
+        let now = TestSupport.day("2026-10-15").addingTimeInterval(12 * 3600)
+        try LedgerStore.add(.expense(Expense(amount: 100, category: "午餐", date: now)), in: context)
+        let s = try snapshot(context, now: now)
+        // 微信只有 32：超出的 18 只能算在自由天数里的钱上
+        let impact = TransactionImpact(snapshot: s, kind: .expense, amount: 50, account: try account("微信", context))
+        #expect(impact.newFreedomBase == s.freedomBase - 18)
+        _ = try spend(50, from: (try account("微信", context)).id, in: context)
+        let after = try snapshot(context, now: now)
+        #expect(after.freedomBase == impact.newFreedomBase)
+
+        // 再存进去 30：先补上欠的 18，余下的 12 留在不计入的账户里
+        let refill = TransactionImpact(snapshot: after, kind: .income, amount: 30, account: try account("微信", context))
+        #expect(refill.newFreedomBase == after.freedomBase + 18)
     }
 
     @Test func transferIntoAnUncountedAccountIsFlagged() throws {

@@ -23,6 +23,7 @@ extension FreedomMath {
     /// 日期只用自然日边界比较，不对每个周点重新扫描账本或转换所有交易日期。
     /// 有贷款时每个周点都按那天的扣款计划推演：那天之后才扣的月供在那天还没还。
     /// 不算日均的支出（月供）照样参与往回推现金，只是不进日均消费。
+    /// 记在不计入自由天数的现金账户（`uncountedAccounts`）里的收支没动过自由天数里的钱，不参与往回推，支出照样进日均。
     static func freedomDaysHistory(
         expenses: [Expense],
         incomes: [Income],
@@ -30,6 +31,7 @@ extension FreedomMath {
         firstRecordDate: Date?,
         dailyPassive: Double = 0,
         loans: [Loan] = [],
+        uncountedAccounts: Set<UUID> = [],
         weeks: Int = 12,
         now: Date = .now,
         calendar: Calendar = .current
@@ -61,16 +63,19 @@ extension FreedomMath {
         // cashOut 是全部扣过现金的支出（含房租、月供），用来往回推现金；日均只看 burnEntries
         var cashOutSums = Array(repeating: 0.0, count: dates.count + 1)
         var incomeSums = Array(repeating: 0.0, count: dates.count + 1)
+        func movedFreedomMoney(_ account: UUID?) -> Bool {
+            account.map { !uncountedAccounts.contains($0) } ?? true
+        }
         for expense in expenses {
             let amount = expense.amount
             guard amount.isFinite else { return [] }
-            cashOutSums[bucket(for: expense.date)] += amount
+            if movedFreedomMoney(expense.cashAccountID) { cashOutSums[bucket(for: expense.date)] += amount }
         }
         let burnEntries = burnEntries(expenses)
         for income in incomes {
             let amount = income.amount
             guard amount.isFinite else { return [] }
-            incomeSums[bucket(for: income.date)] += amount
+            if movedFreedomMoney(income.cashAccountID) { incomeSums[bucket(for: income.date)] += amount }
         }
 
         // 独立求后缀，避免用巨大总额减去巨大前缀时丢失小额后续交易。

@@ -154,8 +154,10 @@ enum LedgerStore {
             transaction = .income(income)
         }
         try updateAssets(in: context, save: save) { assets in
+            let account = CashAccountStore.recordedAccount(
+                transaction.cashAccountID, in: try CashAccountStore.accounts(in: context))
             try CashAccountStore.applyCashChange(
-                -transaction.cashChange, accountID: transaction.cashAccountID, assets: assets, in: context)
+                -transaction.cashChange, accountID: account, assets: assets, in: context)
             switch transaction {
             case .expense(let expense):
                 context.delete(expense)
@@ -212,15 +214,17 @@ enum LedgerStore {
 
     /// 改账时的现金：同一个账户只补差额；换了账户就把旧的整笔退回原账户、新的整笔记到新账户。
     /// `old` / `new` 是这笔对现金的影响（支出为负）。返回这笔之后记在哪个账户。
+    /// 原来没记账户（拆账户以前记的）或账户已删时按第一个算，改过以后就记在它上面。
     private static func moveCash(
         old: Double, new: Double, from oldAccount: UUID?, to newAccount: UUID?,
         assets: UserAssets, in context: ModelContext
     ) throws -> UUID? {
-        guard let newAccount, newAccount != oldAccount else {
-            try CashAccountStore.applyCashChange(new - old, accountID: oldAccount, assets: assets, in: context)
-            return oldAccount
+        let current = CashAccountStore.recordedAccount(oldAccount, in: try CashAccountStore.accounts(in: context))
+        guard let newAccount, newAccount != current else {
+            try CashAccountStore.applyCashChange(new - old, accountID: current, assets: assets, in: context)
+            return current
         }
-        try CashAccountStore.applyCashChange(-old, accountID: oldAccount, assets: assets, in: context)
+        try CashAccountStore.applyCashChange(-old, accountID: current, assets: assets, in: context)
         return try CashAccountStore.applyCashChange(new, accountID: newAccount, assets: assets, in: context)?.id
     }
 }

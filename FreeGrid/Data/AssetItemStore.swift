@@ -69,14 +69,19 @@ enum AssetItemStore {
         countsInFreedom: Bool = true,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> AssetItem? {
-        guard try items(in: context).isEmpty,
-              let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
-              assets.lockedAssets > 0 else { return nil }
-        let item = AssetItem(name: "资产", amount: assets.lockedAssets, sortOrder: 0, countsInFreedom: countsInFreedom)
+        guard let item = try unsplitItem(in: context, countsInFreedom: countsInFreedom) else { return nil }
         try LedgerStore.updateAssets(in: context, save: save) { _ in
             context.insert(item)
         }
         return item
+    }
+
+    /// 拆分时原来的总数变成的那一项，还没插进账本。已经有项，或总数是 0 时为 nil
+    private static func unsplitItem(in context: ModelContext, countsInFreedom: Bool) throws -> AssetItem? {
+        guard try items(in: context).isEmpty,
+              let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
+              assets.lockedAssets > 0 else { return nil }
+        return AssetItem(name: "资产", amount: assets.lockedAssets, sortOrder: 0, countsInFreedom: countsInFreedom)
     }
 
     /// 新加的一项从哪来：新增的钱（总数变大），或者从已有的一项里拆出来（总数不变）
@@ -98,9 +103,10 @@ enum AssetItemStore {
     ) throws -> AssetItem {
         let name = try cleanName(name)
         let amount = try validAmount(amount)
-        // 还没拆过就直接加第一项：先把原来的总数变成一项，否则总数会被新的这一项顶掉
-        let migrated = existing == nil ? try migrateIfNeeded(in: context, countsInFreedom: totalCounts, save: save) : nil
-        let all = try items(in: context)
+        // 还没拆过就直接加第一项：先把原来的总数变成一项，否则总数会被新的这一项顶掉。
+        // 和新的这一项在同一次保存里，加不成时账本也不会只拆了一半
+        let migrated = existing == nil ? try unsplitItem(in: context, countsInFreedom: totalCounts) : nil
+        let all = try items(in: context) + (migrated.map { [$0] } ?? [])
         let from: AssetItem?
         switch existing == nil ? source : nil {
         case .unsplitTotal: from = migrated
@@ -117,6 +123,7 @@ enum AssetItemStore {
             restore(previous)
             (item.name, item.amount, item.countsInFreedom, item.updatedAt) = previousItem
         }) { assets in
+            if let migrated { context.insert(migrated) }
             if existing == nil { context.insert(item) }
             item.name = name
             item.amount = amount
@@ -206,36 +213,6 @@ enum AssetItemStore {
         }) {
             for (order, entry) in all.enumerated() { entry.sortOrder = order }
         }
-    }
-
-    enum TransferDirection { case cashToItem, itemToCash }
-
-    /// 现金和指定一项之间调拨；实际调走的不超过来源里有的。返回实际金额。
-    @discardableResult
-    static func transfer(
-        _ direction: TransferDirection, amount: Double, item: AssetItem,
-        in context: ModelContext,
-        save: LedgerStore.SaveAction = { try $0.save() }
-    ) throws -> Double {
-        guard FinancialFormatting.validAmount(amount) else { throw AssetItemError.invalidAmount }
-        let previous = snapshot(try items(in: context))
-        var moved = 0.0
-        try LedgerStore.updateAssets(in: context, save: save, restore: { restore(previous) }) { assets in
-            switch direction {
-            case .cashToItem:
-                moved = min(amount, max(0, assets.cash))
-                assets.cash -= moved
-                item.amount += moved
-            case .itemToCash:
-                moved = min(amount, max(0, item.amount))
-                item.amount -= moved
-                assets.cash += moved
-            }
-            item.updatedAt = .now
-            assets.updatedAt = .now
-            try syncTotal(assets, in: context)
-        }
-        return moved
     }
 
     // MARK: - 内部

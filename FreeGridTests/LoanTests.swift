@@ -140,6 +140,12 @@ struct LoanTests {
         #expect(days(short) == 25)
         #expect(short.freedomRun.paymentDays.isEmpty)
         #expect(short.freedomRun.missedPaymentDay == 30)
+        // 另外有房租时照样标：房租只展开到钱花完那天，后面那期贷款要回原来的列表找
+        let rent = Loan(name: "房租", monthlyAmount: 100, dueDay: 5, periodsAtStart: 0,
+                        startDate: TestSupport.day("2026-11-04"), sortOrder: 1, isOngoing: true, intervalMonths: 1)
+        let withRent = snapshot(cash: 2500, loans: [loan(), rent])
+        #expect(days(withRent) == 24)
+        #expect(withRent.freedomRun.missedPaymentDay == 30)
 
         // 都付得起、没有贷款、已经还清：不标
         #expect(snapshot(loans: [loan(periods: 2)]).freedomRun.missedPaymentDay == nil)
@@ -282,6 +288,33 @@ struct LoanTests {
         #expect(loan.startDate == TestSupport.day("2026-11-20"))
         #expect(try status(loan, context, on: "2026-11-20").remaining == 10)
         #expect(try LoanStore.processDue(now: at("2026-11-20"), in: context) == 0)
+    }
+
+    @Test func editingAPaidOffLoanWithoutNewPeriodsAddsNoPeriod() throws {
+        let context = try context(cash: 20_000)
+        let loan = try LoanStore.save(nil, name: "车贷", monthlyAmount: 3000, dueDay: 14, remaining: 2,
+                                      now: now, in: context)
+        #expect(try LoanStore.processDue(now: at("2026-12-20"), in: context) == 2)
+        #expect(try status(loan, context, on: "2026-12-20").isPaidOff)
+
+        // 编辑页期数栏留空：只改名称，连还款日一起改了也不重新排期
+        try LoanStore.save(loan, name: "旧车贷", monthlyAmount: 3000, dueDay: 20, remaining: nil,
+                           now: at("2026-12-20"), in: context)
+        #expect(loan.name == "旧车贷")
+        #expect(loan.startDate == TestSupport.day("2026-10-15"))
+        #expect(try status(loan, context, on: "2027-02-20").isPaidOff)
+        #expect(try LoanStore.processDue(now: at("2027-02-20"), in: context) == 0)
+        #expect(try cash(context) == 14_000)
+
+        // 填了期数就从今天重新开始
+        try LoanStore.save(loan, name: "旧车贷", monthlyAmount: 3000, dueDay: 14, remaining: 1,
+                           now: at("2026-12-20"), in: context)
+        #expect(try status(loan, context, on: "2026-12-20").remaining == 1)
+
+        // 新增时不能不填
+        #expect(throws: LoanError.invalidPeriods) {
+            try LoanStore.save(nil, name: "房贷", monthlyAmount: 3000, dueDay: 14, remaining: nil, in: context)
+        }
     }
 
     @Test func rejectsInvalidInput() throws {

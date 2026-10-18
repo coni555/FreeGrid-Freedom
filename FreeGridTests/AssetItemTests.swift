@@ -290,20 +290,20 @@ struct AssetItemTests {
         try AssetItemStore.save(nil, name: "基金", amount: 200, in: context)
         let all = try items(context)
 
-        #expect(try AssetItemStore.transfer(.cashToItem, amount: 300, item: all[1], in: context) == 300)
+        #expect(try TransferStore.transfer(300, from: .cashTotal, to: .assetItem(all[1].id), in: context) == 300)
         #expect(try assets(context).cash == 700)
         #expect(all[1].amount == 500 && all[0].amount == 500)
         #expect(try assets(context).lockedAssets == 1_000)
 
         // 超过来源里有的：只调走有的
-        #expect(try AssetItemStore.transfer(.itemToCash, amount: 9_999, item: all[0], in: context) == 500)
+        #expect(try TransferStore.transfer(9_999, from: .assetItem(all[0].id), to: .cashTotal, in: context) == 500)
         #expect(all[0].amount == 0 && all[1].amount == 500)
         #expect(try assets(context).cash == 1_200)
         #expect(try assets(context).lockedAssets == 500)
         #expect(try assets(context).netWorth == 1_700)
 
         #expect(throws: AssetItemError.invalidAmount) {
-            try AssetItemStore.transfer(.cashToItem, amount: 0, item: all[0], in: context)
+            try TransferStore.transfer(0, from: .cashTotal, to: .assetItem(all[0].id), in: context)
         }
     }
 
@@ -311,7 +311,7 @@ struct AssetItemTests {
         let context = try ledger(cash: 14_000)
         let house = try AssetItemStore.save(nil, name: "房", amount: 100_000, countsInFreedom: false, in: context)
         // 现金调入未计入的项 4000
-        let moved = try AssetItemStore.transfer(.cashToItem, amount: 4_000, item: house, in: context)
+        let moved = try TransferStore.transfer(4_000, from: .cashTotal, to: .assetItem(house.id), in: context)
         #expect(moved == 4_000)
         #expect(try assets(context).cash == 10_000)
         #expect(try assets(context).lockedAssets == 104_000)
@@ -319,7 +319,7 @@ struct AssetItemTests {
         #expect(house.countsInFreedom == false)
 
         // 再调回 2000
-        let movedBack = try AssetItemStore.transfer(.itemToCash, amount: 2_000, item: house, in: context)
+        let movedBack = try TransferStore.transfer(2_000, from: .assetItem(house.id), to: .cashTotal, in: context)
         #expect(movedBack == 2_000)
         #expect(try assets(context).cash == 12_000)
         #expect(try assets(context).lockedAssets == 102_000)
@@ -328,6 +328,24 @@ struct AssetItemTests {
     }
 
     // MARK: - 失败回滚
+
+    @Test func aFailedFirstItemLeavesTheTotalUnsplit() throws {
+        let context = try ledger(locked: 22_000, cash: 14_000)
+        let before = try state(context)
+        #expect(throws: Failure.self) {
+            try AssetItemStore.save(nil, name: "车", amount: 5_000, source: .unsplitTotal, in: context, save: failingSave)
+        }
+        #expect(throws: AssetItemError.notEnough(name: "资产", available: 22_000)) {
+            try AssetItemStore.save(nil, name: "车", amount: 30_000, source: .unsplitTotal, in: context)
+        }
+        #expect(try state(context) == before)
+        #expect(!context.hasChanges)
+
+        try AssetItemStore.save(nil, name: "车", amount: 5_000, source: .unsplitTotal, in: context)
+        #expect(try items(context).map(\.name) == ["资产", "车"])
+        #expect(try items(context).map(\.amount) == [17_000, 5_000])
+        #expect(try assets(context).lockedAssets == 22_000)
+    }
 
     @Test func everyWriteRestoresCashItemsAndTotalWhenSavingFails() throws {
         let context = try threeItems()
@@ -343,8 +361,8 @@ struct AssetItemTests {
         try expectUnchanged { try AssetItemStore.save(all[0], name: "改", amount: 1, in: context, save: failingSave) }
         try expectUnchanged { try AssetItemStore.delete(all[1], in: context, save: failingSave) }
         try expectUnchanged { try AssetItemStore.mergeIntoTotal(in: context, save: failingSave) }
-        try expectUnchanged { try AssetItemStore.transfer(.cashToItem, amount: 100, item: all[2], in: context, save: failingSave) }
-        try expectUnchanged { try AssetItemStore.transfer(.itemToCash, amount: 100, item: all[0], in: context, save: failingSave) }
+        try expectUnchanged { try TransferStore.transfer(100, from: .cashTotal, to: .assetItem(all[2].id), in: context, save: failingSave) }
+        try expectUnchanged { try TransferStore.transfer(100, from: .assetItem(all[0].id), to: .cashTotal, in: context, save: failingSave) }
 
         let old = try ledger(locked: 22_000, cash: 14_000)
         let oldBefore = try state(old)

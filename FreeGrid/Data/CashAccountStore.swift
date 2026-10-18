@@ -50,6 +50,13 @@ enum CashAccountStore {
 
     // MARK: - 记账时动哪个账户
 
+    /// 已有的一笔记录算在哪个账户：记着的账户还在就是它；拆账户以前记的、或那个账户删了，算第一个，
+    /// 和编辑页上显示的一样。没拆账户时原样返回。
+    static func recordedAccount(_ id: UUID?, in accounts: [CashAccount]) -> UUID? {
+        guard !accounts.isEmpty else { return id }
+        return accounts.contains { $0.id == id } ? id : accounts.first?.id
+    }
+
     /// 现金变动落到账户上：没拆账户时只改总数；拆了就改 `accountID` 指的那个（找不到时支出按顺序挑、收入进第一个），
     /// 再把总数对齐成各账户之和。返回实际动了的账户。只在 `LedgerStore.updateAssets` 的修改闭包里调用。
     @discardableResult
@@ -78,14 +85,19 @@ enum CashAccountStore {
         in context: ModelContext,
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> CashAccount? {
-        guard try accounts(in: context).isEmpty,
-              let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
-              assets.cash != 0 else { return nil }
-        let account = CashAccount(name: "现金", amount: assets.cash, sortOrder: 0)
+        guard let account = try unsplitAccount(in: context) else { return nil }
         try LedgerStore.updateAssets(in: context, save: save) { _ in
             context.insert(account)
         }
         return account
+    }
+
+    /// 拆分时原来的现金总数变成的那个账户，还没插进账本。已经有账户，或现金是 0 时为 nil
+    private static func unsplitAccount(in context: ModelContext) throws -> CashAccount? {
+        guard try accounts(in: context).isEmpty,
+              let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
+              assets.cash != 0 else { return nil }
+        return CashAccount(name: "现金", amount: assets.cash, sortOrder: 0)
     }
 
     /// 新加的账户里的钱从哪来：新的钱（现金总数变大），或者从已有账户里分出来（总数不变）
@@ -105,8 +117,9 @@ enum CashAccountStore {
     ) throws -> CashAccount {
         let name = try cleanName(name)
         guard FinancialFormatting.validAmount(amount, allowsZero: true) else { throw CashAccountError.invalidAmount }
-        let migrated = existing == nil ? try migrateIfNeeded(in: context, save: save) : nil
-        let all = try accounts(in: context)
+        // 第一次拆分和新账户在同一次保存里，加不成时账本也不会只拆了一半
+        let migrated = existing == nil ? try unsplitAccount(in: context) : nil
+        let all = try accounts(in: context) + (migrated.map { [$0] } ?? [])
         let from: CashAccount?
         switch existing == nil ? source : nil {
         case .unsplitTotal: from = migrated
@@ -121,6 +134,7 @@ enum CashAccountStore {
         try LedgerStore.updateAssets(in: context, save: save, restore: {
             (account.name, account.amount, account.countsInFreedom) = previousAccount
         }) { assets in
+            if let migrated { context.insert(migrated) }
             if existing == nil { context.insert(account) }
             account.name = name
             account.amount = amount

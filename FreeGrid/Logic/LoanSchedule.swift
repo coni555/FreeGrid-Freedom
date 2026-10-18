@@ -308,6 +308,8 @@ extension FreedomMath {
         guard net > 0 else { return FreedomRun(state: .covered, paymentDays: paid) }
         let days = Double(lived) + max(0, cash) / net
         guard days.isFinite else { return FreedomRun(state: .invalidData, paymentDays: []) }
-        return FreedomRun(state: .finite(days: days), paymentDays: paid)
+        // 有固定支出时只展开到钱花完那天，之后那期贷款不在 `events` 里，回原来的列表找
+        return FreedomRun(state: .finite(days: days), paymentDays: paid,
+                          missedPaymentDay: loans.events.first { $0.day > lived && $0.punched }?.day)
     }
 }

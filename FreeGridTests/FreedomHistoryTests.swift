@@ -18,6 +18,22 @@ struct FreedomHistoryTests {
         #expect(history.last?.description == "100 天")
     }
 
+    @Test func moneyInAnUncountedAccountDoesNotBendTheTrend() {
+        let now = TestSupport.day("2026-10-05").addingTimeInterval(18 * 3600)
+        let first = Calendar.current.date(byAdding: .day, value: -30, to: Calendar.current.startOfDay(for: now))!.addingTimeInterval(12 * 3600)
+        let savings = UUID()
+        let expenses = [Expense(amount: 3100, category: "午餐", date: first)]
+        let income = Income(amount: 5000, source: "工资", date: Calendar.current.date(byAdding: .day, value: -2, to: now)!)
+        income.cashAccountID = savings
+        // 工资进了不计入自由天数的账户：自由天数里的钱从来没变过，往回推时不该扣掉它
+        let skipped = FreedomMath.freedomDaysHistory(expenses: expenses, incomes: [income], currentNetWorth: 10_000,
+                                                     firstRecordDate: first, uncountedAccounts: [savings], now: now)
+        let without = FreedomMath.freedomDaysHistory(expenses: expenses, incomes: [], currentNetWorth: 10_000,
+                                                     firstRecordDate: first, now: now)
+        #expect(skipped.count == 5)
+        #expect(skipped.map(\.state) == without.map(\.state))
+    }
+
     @Test func coveredStateNeverBecomes1825OrANegativeDelta() {
         let now = TestSupport.day("2026-10-05")
         let first = Calendar.current.date(byAdding: .day, value: -28, to: now)!

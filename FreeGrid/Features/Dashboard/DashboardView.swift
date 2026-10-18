@@ -22,6 +22,7 @@ struct DashboardView: View {
     var body: some View {
         DashboardContent(
             expenses: expenses, incomes: incomes, loans: loans,
+            uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, countsAssets: countsAssets),
             // 和日均比的是日常开销，自动扣的房租、月供不算
@@ -45,6 +46,8 @@ private struct DashboardContent: View {
     let expenses: [Expense]
     let incomes: [Income]
     let loans: [Loan]
+    /// 不计入自由天数的现金账户：趋势往回推时跳过记在它们里面的收支
+    let uncountedAccounts: Set<UUID>
     let snapshot: FinancialSnapshot
     let todaySpending: Double
 
@@ -95,6 +98,7 @@ private struct DashboardContent: View {
             firstRecordDate: snapshot.firstExpenseDate,
             dailyPassive: snapshot.dailyPassive,
             loans: loans,
+            uncountedAccounts: uncountedAccounts,
             now: snapshot.now
         )
         return NavigationStack {

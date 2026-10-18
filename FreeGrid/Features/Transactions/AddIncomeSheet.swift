@@ -56,7 +56,7 @@ struct AddIncomeSheet: View {
                     Section {
                         TransactionImpactView(impact: TransactionImpact(
                             snapshot: snapshot, kind: .income, amount: amt, date: date,
-                            countsInFreedom: accountSection.chosen?.countsInFreedom ?? true
+                            account: accountSection.chosen
                         ))
                     } header: {
                         Text("这笔收入的影响")

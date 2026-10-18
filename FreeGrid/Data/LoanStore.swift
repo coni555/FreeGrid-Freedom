@@ -67,10 +67,11 @@ enum LoanStore {
 
     /// 贷款：新增（existing 为 nil）或修改。`remaining` 是「还剩几期」，今天到期的那期算已经还过。
     /// 改了还款日或期数时从今天重新起算：之前没扣成的那几期并进新填的期数里。只改名称、金额不动进度。
+    /// 修改时 `remaining` 可以是 nil：期数不动。已还清的贷款这样保存不会多出一期。
     /// `pastRepayments` 是表单里列出的旧支出，在 `excludedFromBurn` 里的不再算进日均，其余的算回去。
     @discardableResult
     static func save(
-        _ existing: Loan?, name: String, monthlyAmount: Double, dueDay: Int, remaining: Int,
+        _ existing: Loan?, name: String, monthlyAmount: Double, dueDay: Int, remaining: Int?,
         cashAccountID: UUID? = nil,
         pastRepayments: [Expense] = [], excludedFromBurn: Set<UUID> = [],
         now: Date = .now, calendar: Calendar = .current,
@@ -78,15 +79,21 @@ enum LoanStore {
         save: LedgerStore.SaveAction = { try $0.save() }
     ) throws -> Loan {
         guard (1...31).contains(dueDay) else { throw LoanError.invalidDueDay }
-        guard (1...LoanSchedule.maxPeriods).contains(remaining) else { throw LoanError.invalidPeriods }
+        let current = try existing.map {
+            LoanSchedule.status(of: $0, payments: try payments(in: context), now: now, calendar: calendar).remaining
+        }
+        guard let periods = remaining ?? current else { throw LoanError.invalidPeriods }
+        if remaining != nil {
+            guard (1...LoanSchedule.maxPeriods).contains(periods) else { throw LoanError.invalidPeriods }
+        }
         let today = calendar.startOfDay(for: now)
         return try write(existing, name: name, amount: monthlyAmount, cashAccountID: cashAccountID,
                          pastRepayments: pastRepayments, excludedFromBurn: excludedFromBurn,
                          isOngoing: false, in: context, save: save,
-                         schedule: Schedule(dueDay: dueDay, periods: remaining, intervalMonths: 1, startDate: today),
+                         schedule: Schedule(dueDay: dueDay, periods: periods, intervalMonths: 1, startDate: today),
                          restarts: { loan in
-            let status = LoanSchedule.status(of: loan, payments: try payments(in: context), now: now, calendar: calendar)
-            return loan.dueDay != dueDay || status.remaining != remaining
+            // 已还清又没填新期数：没有要重排的，改了还款日也不重新起算
+            periods > 0 && (loan.dueDay != dueDay || current != periods)
         })
     }
 

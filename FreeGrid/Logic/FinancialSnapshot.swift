@@ -56,6 +56,10 @@ struct FinancialSnapshot {
     /// 没拆分：总开关关 → 不算；拆成多项：资产桶减去逐项关掉的那些。
     /// 用「总数减不计入」而不是「计入项相加」；没有逐项关掉的时候直接用总数，和以前的数一分不差。
     var countedAssets: Double {
+        Self.countedAssets(countsAssets: countsAssets, lockedAssets: lockedAssets, excludedItemAssets: excludedItemAssets)
+    }
+
+    private static func countedAssets(countsAssets: Bool, lockedAssets: Double, excludedItemAssets: Double) -> Double {
         guard countsAssets else { return 0 }
         return excludedItemAssets == 0 ? lockedAssets : max(0, lockedAssets - excludedItemAssets)
     }
@@ -65,7 +69,15 @@ struct FinancialSnapshot {
     var countedCash: Double { cash - excludedCash }
     /// 用来算自由天数的钱：计入的现金加计入的资产。都计入时就是净值，和以前一分不差
     var freedomBase: Double {
-        let base = countsAssets && excludedItemAssets == 0 ? netWorth : cash + countedAssets
+        Self.freedomBase(countsAssets: countsAssets, lockedAssets: lockedAssets,
+                         excludedItemAssets: excludedItemAssets, cash: cash, excludedCash: excludedCash)
+    }
+
+    private static func freedomBase(countsAssets: Bool, lockedAssets: Double, excludedItemAssets: Double,
+                                    cash: Double, excludedCash: Double) -> Double {
+        let counted = countedAssets(countsAssets: countsAssets, lockedAssets: lockedAssets,
+                                    excludedItemAssets: excludedItemAssets)
+        let base = countsAssets && excludedItemAssets == 0 ? lockedAssets + cash : cash + counted
         return excludedCash == 0 ? base : base - excludedCash
     }
     /// 首页图例旁的说明：都计入时没有；资产一点没计入是「资产未计入」，只算了一部分是「部分资产未计入」；
@@ -89,13 +101,9 @@ struct FinancialSnapshot {
     var passiveRatio: Double {
         FreedomMath.passiveRatio(dailyPassive: dailyPassive, dailyBurn: dailyCost)
     }
-    /// 有固定支出或贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」
-    var freedomRun: FreedomMath.FreedomRun {
-        FreedomMath.freedomRun(
-            netWorth: freedomBase, dailyBurn: dailyBurn,
-            dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan
-        )
-    }
+    /// 有固定支出或贷款时按日历推演（见 `FreedomMath.freedomRun`），没有贷款时就是「钱 ÷ 每日净消耗」。
+    /// 推演可能要展开几十年的扣款日，在 init 里算一次；首页一次渲染要读好几遍
+    let freedomRun: FreedomMath.FreedomRun
     var freedom: FreedomState { freedomRun.state }
 
     /// `assetItems`、`cashAccounts` 只用来知道哪些项不计入；资产、现金总数仍以 `assets` 为准。
@@ -120,5 +128,10 @@ struct FinancialSnapshot {
         loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
         dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now) / 30
         self.now = now
+        freedomRun = FreedomMath.freedomRun(
+            netWorth: Self.freedomBase(countsAssets: self.countsAssets, lockedAssets: lockedAssets,
+                                       excludedItemAssets: excludedItemAssets, cash: cash, excludedCash: excludedCash),
+            dailyBurn: dailyBurn, dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan
+        )
     }
 }

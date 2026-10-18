@@ -32,6 +32,8 @@ struct LoanSheet: View {
     @State private var monthly = ""
     @State private var dueDay = Calendar.current.component(.day, from: .now)
     @State private var periods = ""
+    /// 编辑的是已经还清的贷款：期数栏留空，保存时不动进度
+    @State private var paidOff = false
     /// 固定支出：隔几个月一次、下次哪天付
     @State private var intervalMonths = 1
     @State private var nextDue = LoanSheet.defaultNextDue
@@ -133,7 +135,7 @@ struct LoanSheet: View {
                     }
 
                     // 最后一期是哪天：填错了一眼能看出来。紧贴在两栏下面，和它们是一组
-                    Text(lastDueText ?? "今天到期的这期算已还，从下一期开始自动扣")
+                    Text(lastDueText ?? (keepsPaidOff ? "已还清，不再扣款" : "今天到期的这期算已还，从下一期开始自动扣"))
                         .font(.system(.caption, design: .rounded).monospacedDigit())
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
@@ -384,6 +386,11 @@ struct LoanSheet: View {
         }
     }
 
+    /// 已还清的贷款、期数栏还空着：保存时只改名称、金额这些，不再排期
+    private var keepsPaidOff: Bool {
+        paidOff && periods.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     /// 「最后一期：2028 年 10 月 14 日」。期数还没填好时为 nil
     private var lastDueText: String? {
         guard let count = periodCount,
@@ -400,7 +407,7 @@ struct LoanSheet: View {
     private var isValid: Bool {
         (try? LoanStore.cleanName(name)) != nil
             && Double(monthly).map { FinancialFormatting.validAmount($0) } == true
-            && (isFixed || periodCount != nil)
+            && (isFixed || periodCount != nil || keepsPaidOff)
     }
 
     private func load() {
@@ -417,8 +424,10 @@ struct LoanSheet: View {
                 intervalMonths = existing.intervalMonths
                 // 下次付款日过了一年的范围（理论上不会）就退回默认
                 if let next = status.nextDue, nextDueRange.contains(next) { nextDue = next }
+            } else if status.isPaidOff {
+                paidOff = true
             } else {
-                periods = String(max(1, status.remaining))
+                periods = String(status.remaining)
             }
         }
         excluded = Set(candidates.filter { !$0.countsInBurn }.map(\.id))
@@ -434,8 +443,8 @@ struct LoanSheet: View {
                                         nextDue: nextDue, cashAccountID: account,
                                         pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
             } else {
-                guard let count = periodCount else { return }
-                try LoanStore.save(existing, name: name, monthlyAmount: value, dueDay: dueDay, remaining: count,
+                guard periodCount != nil || keepsPaidOff else { return }
+                try LoanStore.save(existing, name: name, monthlyAmount: value, dueDay: dueDay, remaining: periodCount,
                                    cashAccountID: account,
                                    pastRepayments: candidates, excludedFromBurn: excluded, in: modelContext)
             }

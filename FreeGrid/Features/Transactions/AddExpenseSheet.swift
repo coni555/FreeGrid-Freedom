@@ -98,7 +98,7 @@ struct AddExpenseSheet: View {
                     Section {
                         TransactionImpactView(impact: TransactionImpact(
                             snapshot: snapshot, kind: .expense, amount: amt, date: date,
-                            countsInFreedom: accountSection.chosen?.countsInFreedom ?? true
+                            account: accountSection.chosen
                         ))
                     } header: {
                         Text("这笔支出的影响")

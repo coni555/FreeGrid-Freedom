@@ -138,7 +138,9 @@ struct PassiveSourceSheet: View {
                     intervalMonths = LoanSchedule.intervals.contains(e.intervalMonths) ? e.intervalMonths : 1
                     // 存的是折合每月，乘回每次到账多少；按分取整，免得 1000 ÷ 3 × 3 带出一长串小数
                     let perPayment = (e.monthlyAmount * Double(intervalMonths) * 100).rounded() / 100
-                    monthly = String(format: "%g", perPayment)
+                    monthly = perPayment.formatted(
+                        .number.grouping(.never).precision(.fractionLength(0...2))
+                            .locale(Locale(identifier: "en_US_POSIX")))
                 }
                 focus = isEditing ? nil : .name  // 新增聚焦名字, 编辑不自动弹键盘
             }
