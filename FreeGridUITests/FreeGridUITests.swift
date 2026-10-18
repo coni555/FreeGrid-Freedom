@@ -308,7 +308,7 @@ final class FreeGridUITests: XCTestCase {
             case nil:
                 XCTAssertTrue(app.buttons["pro-start-trial"].exists)
                 XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("14 天内，享 ¥19.90 买断优惠价，之后恢复 ¥29.90"))
+                XCTAssertTrue(note.label.contains("买断优惠价 ¥19.90，开启体验后保留 14 天，之后恢复 ¥29.90"))
                 XCTAssertFalse(app.staticTexts["pro-trial-status"].exists)
             case "2":
                 XCTAssertFalse(app.buttons["pro-start-trial"].exists)

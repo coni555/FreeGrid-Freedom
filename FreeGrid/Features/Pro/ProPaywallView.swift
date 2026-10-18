@@ -492,7 +492,8 @@ struct ProPrices {
 }
 
 /// 「免费体验」按钮下面的条款。审核指南 3.1.1 要求开始体验前写清：体验多久、到期少了什么、之后要付多少。
-/// 是用户 2026-10-18 定的原话，只调换行和字号：前两句并成一行，价格那句一行；放不下时略缩小，不折行。
+/// 前两句是用户 2026-10-18 定的原话；价格那句用户同日改定（旧版「开启体验后 14 天内享优惠价」让人以为不体验就没有优惠价）。
+/// 前两句并成一行，价格那句一行；放不下时略缩小，不折行。
 /// 购买页和两版 Pro 介绍共用，字号颜色由外面定
 struct ProTrialTerms: View {
     let prices: ProPrices
@@ -502,7 +503,7 @@ struct ProTrialTerms: View {
             Text("体验期满自动恢复免费版，无自动扣费。所有记账数据都会完整保留。")
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            Text("开启体验后 \(ProOffer.specialPriceDays) 天内，享 \(prices.special) 买断优惠价，之后恢复 \(prices.regular)。")
+            Text("买断优惠价 \(prices.special)，开启体验后保留 \(ProOffer.specialPriceDays) 天，之后恢复 \(prices.regular)。")
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
