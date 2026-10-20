@@ -82,6 +82,9 @@ struct MoneyTimeAssetsView: View {
             .dismissKeyboardOnScroll()
             .background(Color.paper)
             .navigationTitle("Assets")
+            #if os(iOS)
+            .toolbarBackground(Color.paper, for: .navigationBar)
+            #endif
             .sheet(isPresented: $showingTransfer) { TransferSheet() }
             // 新用户（还没填钱）先看现金：起步引导要圈的「现金」那一行在现金标签下面
             .onAppear { if netWorth == 0 { tabKey = Tab.cash.rawValue } }
