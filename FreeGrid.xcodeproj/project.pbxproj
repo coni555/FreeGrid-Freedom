@@ -201,9 +201,10 @@
 				};
 			};
 			buildConfigurationList = F34FDE012FC569A5003AA776 /* Build configuration list for PBXProject "FreeGrid" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				"zh-Hans",
 				en,
 				Base,
 			);
