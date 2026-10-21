@@ -3,7 +3,7 @@
 import Foundation
 
 /// 一个自然月。历史页默认按月查看。
-struct HistoryMonth: Hashable, Comparable {
+nonisolated struct HistoryMonth: Hashable, Comparable, Sendable {
     let year: Int
     let month: Int
 
@@ -70,7 +70,7 @@ struct HistoryMonthGroup: Identifiable {
     var summary: HistorySummary { HistoryLedger.summary(transactions) }
 }
 
-struct HistorySummary: Equatable {
+nonisolated struct HistorySummary: Equatable, Sendable {
     var expense: Double = 0
     var income: Double = 0
     var count: Int = 0

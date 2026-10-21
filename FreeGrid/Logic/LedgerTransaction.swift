@@ -13,6 +13,13 @@ enum LedgerTransaction: Identifiable {
         }
     }
 
+    /// 只把搜索需要的事实复制出去，不把 SwiftData 模型传给后台。
+    var searchRecord: HistorySearch.Record {
+        HistorySearch.Record(key: .init(id: id, isIncome: kind == .income), date: date,
+                             amount: amount, title: title, note: note,
+                             isLoanPayment: isLoanPayment, isExcludedFromBurn: isExcludedFromBurn)
+    }
+
     /// 用于排序的日期
     var date: Date {
         switch self {
