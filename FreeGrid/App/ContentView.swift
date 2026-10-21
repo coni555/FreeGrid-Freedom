@@ -64,7 +64,7 @@ struct ContentView: View {
 
     private var tabView: some View {
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(reviewPresentationAllowed: reviewPresentationAllowed, reviewFormPresented: reviewFormPresented)
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
                 }
@@ -112,6 +112,8 @@ struct ContentView: View {
             setupGuideCompleted = true
             guide.requestReplay(.dashboard)
         }
+        .onChange(of: reviewPresentationAllowed) { discardReviewIfBlocked() }
+        .onChange(of: ReviewInvitationStore.shared.opportunity?.id) { discardReviewIfBlocked() }
         // 打开 App 和回到前台时补扣到期的房租、月供
         .task {
             processDuePayments()
@@ -158,6 +160,35 @@ struct ContentView: View {
 }
 
 extension ContentView {
+    /// 既有介绍、小结和引导优先；这次记账被挡住就跳过，不在关弹层后紧接着邀请。
+    private var reviewPresentationAllowed: Bool {
+        guard selectedTab == .dashboard, scenePhase == .active,
+              !showingReturningIntro, weekRecap == nil, !showingBackToFree, !backToFreePending,
+              guide.tour == nil, setupStep == nil else { return false }
+        if !ProIntro.isSuppressedForTesting {
+            let audience = ProIntro.Audience(rawValue: introAudience)
+            if audience == .newcomer, !recapShown,
+               FirstWeekRecap.recordedDays(expenses) >= FirstWeekRecap.requiredDays { return false }
+            if audience == .returning, !introShown,
+               !ProStore.shared.ownsPro, !ProStore.shared.offer.hasStartedTrial { return false }
+        }
+        return true
+    }
+
+    private func discardReviewIfBlocked() {
+        guard !reviewPresentationAllowed, let id = ReviewInvitationStore.shared.opportunity?.id else { return }
+        // TabView 离屏时可能不再运行首页的 task，取消机会必须在根层完成。
+        ReviewInvitationStore.shared.discard(id)
+    }
+
+    private var reviewFormPresented: Bool {
+        #if os(macOS)
+        menuActions.addExpense || menuActions.addIncome
+        #else
+        false
+        #endif
+    }
+
     private func tab(for tour: AppGuide.Tour) -> AppTab {
         switch tour {
         case .dashboard: return .dashboard

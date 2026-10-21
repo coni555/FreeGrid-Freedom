@@ -34,6 +34,7 @@ enum AppPreferences {
         "assetsLayout",
         "assetsUnit",
         ProIntro.audienceKey,
+        ReviewInvitationStore.lastRequestedKey,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {
@@ -41,6 +42,10 @@ enum AppPreferences {
             guard argument.hasPrefix("-"), launchArgumentKeys.contains(String(argument.dropFirst())) else { continue }
             let value = arguments[index + 1]
             let key = String(argument.dropFirst())
+            if key == ReviewInvitationStore.lastRequestedKey, let timestamp = Double(value), timestamp.isFinite {
+                defaults.set(timestamp, forKey: key)
+                continue
+            }
             switch value.uppercased() {
             case "YES", "TRUE": defaults.set(true, forKey: key)
             case "NO", "FALSE": defaults.set(false, forKey: key)

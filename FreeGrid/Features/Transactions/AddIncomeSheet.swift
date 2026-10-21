@@ -70,7 +70,10 @@ struct AddIncomeSheet: View {
             .background(Color.paper)
             .navigationTitle("添加收入")
             .inlineNavTitle()
-            .onAppear { amountFocused = true }
+            .onAppear {
+                ReviewInvitationStore.shared.didBeginEntry()
+                amountFocused = true
+            }
             .saveErrorAlert($saveError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -121,6 +124,7 @@ struct AddIncomeSheet: View {
         income.cashAccountID = cashAccounts.isEmpty ? nil : accountSection.chosen?.id
         do {
             try LedgerStore.add(.income(income), in: modelContext)
+            ReviewInvitationStore.shared.didSave(transactionID: income.id)
             if let id = income.cashAccountID { lastIncomeAccount = id.uuidString }
             onSaved?(income)
             dismiss()

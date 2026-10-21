@@ -133,6 +133,7 @@ enum UserManual {
                 "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序、合并。",
                 "**FreeGrid Pro**：对比免费版和 Pro，开始免费体验、购买或恢复购买。",
             ]),
+            .text("使用一段时间后，系统可能邀请你评分或写评论，可以直接关闭，不影响任何功能。也可以从 Settings → FreeGrid → 评价与反馈主动评价。"),
         ]),
         ManualChapter(title: "备份与换手机", icon: "externaldrive", blocks: [
             .text("FreeGrid 没有账号，账本只存在这台设备上，**不会自动同步到新手机**。"),

@@ -2,8 +2,11 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct DashboardView: View {
+    var reviewPresentationAllowed = false
+    var reviewFormPresented = false
 
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
@@ -21,6 +24,8 @@ struct DashboardView: View {
 
     var body: some View {
         DashboardContent(
+            reviewPresentationAllowed: reviewPresentationAllowed,
+            reviewFormPresented: reviewFormPresented,
             expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans),
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
             snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
@@ -43,6 +48,8 @@ private struct ExpenseDraft: Identifiable {
 }
 
 private struct DashboardContent: View {
+    let reviewPresentationAllowed: Bool
+    let reviewFormPresented: Bool
     let expenses: [Expense]
     let incomes: [Income]
     let loans: [Loan]
@@ -54,6 +61,8 @@ private struct DashboardContent: View {
     @Environment(\.modelContext) private var modelContext
     /// 讲解和起步引导要圈出这一页上的位置
     @Environment(AppGuide.self) private var guide
+    @Environment(\.requestReview) private var requestReview
+    @State private var reviewInvitation = ReviewInvitationStore.shared
 
     // ===== Sheet 状态 =====
     @State private var saveError: String?
@@ -169,7 +178,41 @@ private struct DashboardContent: View {
             }) {
                 SimulateSheet(onRecordExpense: { amountFromSimulation = $0 })
             }
+            .task(id: reviewContext) { await offerReview() }
             .saveErrorAlert($saveError)
+        }
+    }
+
+    private struct ReviewContext: Equatable {
+        let opportunity: UUID?
+        let allowed: Bool
+        let resting: Bool
+    }
+
+    private var reviewContext: ReviewContext {
+        ReviewContext(opportunity: reviewInvitation.opportunity?.id,
+                      allowed: reviewPresentationAllowed && !showingSimulate && !showingFreedomCard && saveError == nil,
+                      resting: !reviewFormPresented && expenseDraft == nil && !showingAddIncome && pendingUndoID == nil)
+    }
+
+    private func offerReview() async {
+        let context = reviewContext
+        guard let id = context.opportunity else { return }
+        guard !ReviewInvitationStore.isSuppressedForTesting else { reviewInvitation.discard(id); return }
+        guard context.allowed else { reviewInvitation.discard(id); return }
+        guard context.resting else { return }
+        // 已经等过表单和撤销窗口，再留一个安静间隙；继续操作会取消这次任务。
+        do { try await Task.sleep(for: .seconds(1)) } catch { return }
+        guard !Task.isCancelled,
+              let currentExpenses = try? modelContext.fetch(FetchDescriptor<Expense>()) else { return }
+        reviewInvitation.requestIfEligible(id, recordedDays: FirstWeekRecap.recordedDays(currentExpenses)) {
+            #if DEBUG
+            if ReviewInvitationStore.usesRequestProbe {
+                ReviewInvitationStore.recordRequestProbe()
+                return
+            }
+            #endif
+            requestReview()
         }
     }
 
@@ -230,6 +273,7 @@ private struct DashboardContent: View {
         guard let id = pendingUndoID else { return }
         do {
             try LedgerStore.undo(id: id, kind: pendingUndoIsExpense ? .expense : .income, in: modelContext)
+            reviewInvitation.didUndo(transactionID: id)
         } catch {
             saveError = error.localizedDescription
             return

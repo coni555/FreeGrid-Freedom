@@ -114,6 +114,7 @@ struct AddExpenseSheet: View {
             .navigationTitle("添加支出")
             .inlineNavTitle()
             .saveErrorAlert($saveError)
+            .onAppear { ReviewInvitationStore.shared.didBeginEntry() }
             .onChange(of: categories, initial: true) { _, names in
                 if !names.contains(category) { category = names.first ?? ExpenseCategory.fallback }
             }
@@ -162,6 +163,7 @@ struct AddExpenseSheet: View {
         expense.cashAccountID = cashAccounts.isEmpty ? nil : accountSection.chosen?.id
         do {
             try LedgerStore.add(.expense(expense), in: modelContext)
+            ReviewInvitationStore.shared.didSave(transactionID: expense.id)
             onSaved?(expense)
             dismiss()
         } catch {
