@@ -101,9 +101,9 @@ flowchart TD
 
 **补录会改变统计区间。** 如果今天只记录了 100 元，补录九天前的一笔 1 元，日均从 100 变成 101 ÷ 10 = 10.1 元。即使现金减少，自由天数估计也可能增加。这反映的是统计区间变了；预览会提示这个原因。
 
-搜索沿另一条只读路径工作：`HistorySearchDataSource` 观察日期降序的收支及字段变化，在主 actor 上通过 `LedgerTransaction.searchRecord` 提取可发送的值类型快照。后台 `HistorySearch.Index` 归并两个有序数组，为变化的记录准备小写文本、金额格式和月份；未变化的记录复用上一次结果。结果行直接使用只读快照显示；当前数据库模型只保留在主 actor 的查找表中，点击编辑或撤销时才按稳定 ID 取出。
+搜索沿另一条只读路径工作：`HistorySearchDataSource` 只在 body 中观察记录身份与地区设置；`HistorySearchModelObserver` 在 body 之外用 `withObservationTracking` 跟踪真正参与搜索和显示的字段，焦点变化不会重新提取快照。记录集合或字段变化时，在主 actor 上通过 `LedgerTransaction.searchRecord` 提取可发送的值类型快照。后台 `HistorySearch.Index` 归并两个有序数组（字段通知先于查询重排时，仅对乱序快照补排），为变化的记录准备小写文本、金额格式、月份及行里显示的金额和日期；未变化的记录复用上一次结果。`HistoryTransactionRow` 是独立的固定行视图，搜索行内容不变时跳过重算；结果行直接使用只读快照显示；当前数据库模型只保留在主 actor 的查找表中，点击编辑或撤销时才按稳定 ID 取出。
 
-`HistorySearchBar` 独立观察实时输入；`HistorySearchState` 对文字输入防抖 180ms，在后台用已准备好的字段匹配、分组和汇总。新查询、账本更新和取消都会撤销旧任务，并检查请求号和数据版本，防止晚返回的结果覆盖新结果。清空立即清除结果，点击推荐词不等待防抖。`HistoryView` 使用缓存的月份和汇总，保留一个 List 容器；焦点和月份展开不会重新整理搜索数据。新增、编辑、撤销及替换导入都会刷新快照，连 UUID 相同但对象已更换的恢复记录也会更新查找表。搜索不写数据库，不改变模型或备份格式。
+`HistorySearchBar` 独立观察实时输入；每次打开搜索只消费一次自动聚焦请求，列表滚回输入框时不再次弹键盘。`HistorySearchState` 对文字输入防抖 180ms，在后台用已准备好的字段匹配、分组和汇总。新查询、账本更新和取消都会撤销旧任务，并检查请求号和数据版本，防止晚返回的结果覆盖新结果。清空立即清除结果，点击推荐词不等待防抖。`HistoryView` 使用缓存的月份和汇总，保留一个 List 容器；焦点和月份展开不会重新整理搜索数据。导航栏的指引坐标由不参与视图观察的容器记录，坐标变化不再触发整个 History 列表更新。新增、编辑、撤销及替换导入都会刷新快照，连 UUID 相同但对象已更换的恢复记录也会更新查找表。模型字段通知带订阅版本，替换导入后的旧回调会失效；保存删除后不再读取已脱离 context 的旧模型。搜索不写数据库，不改变模型或备份格式。
 
 仅隔离测试可通过 `-HistorySearchMetricsFile` 记录输入框插入和键盘显示完成的耗时；`HistorySearchMetrics` 不记录搜索词、金额或账本内容，Release 不启用计时。
 
@@ -163,7 +163,7 @@ flowchart TD
 | 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
 | 历史页按月取数、分类筛选、按天分组的规则 | `Logic/HistoryLedger.swift` |
 | 搜索快照、日期归并、预处理文本与金额、后台匹配和月度汇总 | `Logic/HistorySearch.swift` |
-| 搜索输入、防抖、取消、缓存更新与结果展示 | `Features/History/HistorySearchBar.swift`、`HistorySearchState.swift`、`HistorySearchDataSource.swift` |
+| 搜索输入、防抖、取消、缓存更新与结果展示 | `Features/History/HistorySearchBar.swift`、`HistorySearchState.swift`、`HistorySearchDataSource.swift`、`HistoryTransactionRow.swift` |
 | 指引（压暗、圈出位置、逐步说明）：首页和 History 的讲解，以及带新用户记下第一笔钱和第一笔支出的起步引导 | `Features/Guide/AppGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由各页用 `guideTarget` 上报；重放入口是 `SettingsView` 的「使用指引」列表 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
 | 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
@@ -253,7 +253,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [ProStoreTests](FreeGridTests/ProStoreTests.swift)：新安装默认未解锁、本机记住的购买在离线时仍有效、本机记住的试用 7 天内解锁之后锁回、读不到商品时不发起购买也不开始试用、调试预览不改购买记录。真实购买、恢复和退款不在这里测，要用真机沙盒。
 - [HistorySearchTests](FreeGridTests/HistorySearchTests.swift)：与旧搜索逐项对照、中文与多关键词、退款和金额格式、筛选、同日排序、预处理缓存、取消与乱序完成、编辑删除和备份恢复。
 - [HistorySearchPerformanceTests](FreeGridTests/HistorySearchPerformanceTests.swift)：100 / 1000 / 5000 / 10000 条合成记录，对比旧管线与预处理后的查询；分别记录主 actor 提取快照和后台计算耗时。
-- `HistorySearchRegressionUITests` 验证搜索结果编辑、撤销、建议词、跨月、筛选与快速删除；`HistorySearchPerformanceUITests` 在指定 `HISTORY_PERF_DIR` 和 `HISTORY_PERF_PHASE` 时执行四档交互验收。
+- `HistorySearchRegressionUITests` 验证搜索结果编辑、撤销、建议词、跨月、筛选、快速删除与滚回输入框不弹键盘；`HistorySearchPerformanceUITests` 在指定 `HISTORY_PERF_DIR` 和 `HISTORY_PERF_PHASE` 时执行四档交互验收；`HistorySearchScrollUITests` 使用同样的参数执行 10000 条记录的冷/暖打开与快速往返滚动验收。
 - [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。

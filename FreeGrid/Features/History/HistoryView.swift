@@ -42,7 +42,7 @@ struct HistoryView: View {
     /// 首次进入时的逐步指引；遮罩本身挂在 ContentView，这里只负责上报位置和触发
     @Environment(AppGuide.self) private var guide
     /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
-    @State private var toolFrames: [Int: CGRect] = [:]
+    @State private var toolFrames = HistoryToolFrames()
     @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var guideCompleted = false
     /// 重放指引前让列表回到顶部，每次加一
     @State private var scrollToTop = 0
@@ -78,7 +78,7 @@ struct HistoryView: View {
                         }
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames[0] = $0 }
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report(0, frame: $0, guide: guide) }
                     }
                     .accessibilityLabel("搜索")
                     Button {
@@ -90,17 +90,13 @@ struct HistoryView: View {
                         Image(systemName: showingFilters
                               ? "line.3.horizontal.decrease.circle.fill"
                               : "line.3.horizontal.decrease.circle")
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames[1] = $0 }
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report(1, frame: $0, guide: guide) }
                     }
                     .accessibilityLabel(showingFilters ? "收起筛选" : "按分类筛选")
                 }
             }
             .onChange(of: showingFilters ? selection : .all) { _, value in search.setFilter(value) }
             .onChange(of: search.appliedQuery) { monthExpansion = [:] }
-            .onChange(of: toolFrames) { _, frames in
-                guard let first = frames[0], let second = frames[1] else { return }
-                guide.report(.tools, first.union(second).insetBy(dx: -6, dy: -6))
-            }
             .task(id: expenses.isEmpty && incomes.isEmpty) {
                 // 账本里有记录才指引；等列表排好位置再开始
                 guard !guideCompleted, !(expenses.isEmpty && incomes.isEmpty) else { return }
@@ -258,16 +254,16 @@ struct HistoryView: View {
                     monthRow(group, expanded: expanded)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.paper)
-                    if expanded {
-                        ForEach(group.transactions) { tx in
-                            transactionRow(tx, options: options, showsDay: true, onEdit: {
-                                if let current = search.transaction(for: tx.key) { editing = current }
-                            }, onUndo: {
-                                if let current = search.transaction(for: tx.key) { pendingDelete = current }
-                            })
-                                .listRowBackground(Color.paper)
-                                .listRowSeparatorTint(Color.hairlineSoft)
-                        }
+                    ForEach(expanded ? group.transactions : []) { row in
+                        let tx = row.record
+                        transactionRow(row, options: options, showsDay: true, onEdit: {
+                            if let current = search.transaction(for: tx.key) { editing = current }
+                        }, onUndo: {
+                            if let current = search.transaction(for: tx.key) { pendingDelete = current }
+                        })
+                            .equatable()
+                            .listRowBackground(Color.paper)
+                            .listRowSeparatorTint(Color.hairlineSoft)
                     }
                 }
             }
@@ -650,84 +646,15 @@ struct HistoryView: View {
 
     /// `showsDay`：搜索结果里没有日期段头，行首写上是几号
     private func transactionRow(_ tx: LedgerTransaction, options: ExpenseCategoryOptions, showsDay: Bool = false) -> some View {
-        transactionRow(tx.searchRecord, options: options, showsDay: showsDay,
+        transactionRow(HistorySearch.Row(record: tx.searchRecord, includesDay: showsDay), options: options, showsDay: showsDay,
                        onEdit: { editing = tx }, onUndo: { pendingDelete = tx })
     }
 
-    private func transactionRow(_ tx: HistorySearch.Record, options: ExpenseCategoryOptions, showsDay: Bool = false,
-                                onEdit: @escaping () -> Void, onUndo: @escaping () -> Void) -> some View {
-        // 支出有备注时备注才是这笔账的事实(「租房」), 分类(「其他」)退成小标签; 收入的来源本身就是事实。
-        // 月供扣款的「分类」就是贷款名，它才是事实，备注「自动扣款」退到后面
-        let noteLeads = !tx.key.isIncome && !tx.note.isEmpty && !tx.isLoanPayment
-        return Button(action: onEdit) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-                Image(systemName: rowIcon(tx, options: options))
-                    .font(.system(size: 13, weight: .light))
-                    .foregroundStyle(Color.inkFaint)
-                    .frame(width: 18)
-                    .accessibilityHidden(true)
-                if showsDay {
-                    Text("\(Calendar.current.component(.day, from: tx.date))日")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Color.inkFaint)
-                        .frame(width: 36, alignment: .leading)
-                }
-                Text(noteLeads ? tx.note : tx.title)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(1)
-                    .layoutPriority(1)
-                if noteLeads {
-                    Text(tx.title)
-                        .font(.system(.caption2, design: .monospaced))
-                        .tracking(0.5)
-                        .foregroundStyle(Color.inkFaint)
-                        .lineLimit(1)
-                } else if !tx.note.isEmpty {
-                    Text(tx.note)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .lineLimit(1)
-                }
-                if tx.isExcludedFromBurn {
-                    Text("不计日均")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkGhost)
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-                Spacer(minLength: Spacing.sm)
-                Text(FinancialFormatting.signedYuan(tx.cashChange))
-                    .font(.system(.callout, design: .rounded).weight(.regular).monospacedDigit())
-                    .foregroundStyle(amountColor(tx))
-                    .layoutPriority(2)
-            }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("修改这笔记录")
-        .accessibilityIdentifier("history-transaction-" + tx.id.uuidString)
-        // 不用 destructive role: 它会在确认前就把行滑走
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button("撤销", action: onUndo)
-                .tint(Color.flame)
-        }
-        .contextMenu {
-            Button("修改", systemImage: "pencil", action: onEdit)
-            Button("撤销这笔", systemImage: "arrow.uturn.backward", role: .destructive, action: onUndo)
-        }
-    }
-
-    /// 支出用分类的图标；月供扣款用日历；收入统一一个
-    private func rowIcon(_ tx: HistorySearch.Record, options: ExpenseCategoryOptions) -> String {
-        if tx.isLoanPayment { return "calendar" }
-        guard !tx.key.isIncome else { return "arrow.down.left" }
-        return options.icon(for: tx.title)
-    }
-
-    private func amountColor(_ tx: HistorySearch.Record) -> Color {
-        tx.cashChange < 0 ? Color.flame : Color.skyDeep
+    private func transactionRow(_ row: HistorySearch.Row, options: ExpenseCategoryOptions, showsDay: Bool = false,
+                                onEdit: @escaping () -> Void, onUndo: @escaping () -> Void) -> HistoryTransactionRow {
+        let tx = row.record
+        let icon = tx.isLoanPayment ? "calendar" : tx.key.isIncome ? "arrow.down.left" : options.icon(for: tx.title)
+        return HistoryTransactionRow(row: row, icon: icon, showsDay: showsDay, onEdit: onEdit, onUndo: onUndo)
     }
 
     /// 空状态:silverline 风简洁提示
@@ -772,5 +699,18 @@ private extension View {
             .environment(\.defaultMinListRowHeight, 40)
             .environment(\.defaultMinListHeaderHeight, 28)
             .dismissKeyboardOnScroll()
+    }
+}
+
+/// 导航栏收放时坐标每帧都可能改变；记录坐标不应使整个账本列表重新计算。
+@MainActor
+private final class HistoryToolFrames {
+    private var frames: [Int: CGRect] = [:]
+
+    func report(_ index: Int, frame: CGRect, guide: AppGuide) {
+        guard frames[index] != frame else { return }
+        frames[index] = frame
+        guard let first = frames[0], let second = frames[1] else { return }
+        guide.report(.tools, first.union(second).insetBy(dx: -6, dy: -6))
     }
 }

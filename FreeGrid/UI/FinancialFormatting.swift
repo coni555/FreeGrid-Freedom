@@ -9,16 +9,16 @@ import Foundation
 
 enum FinancialFormatting {
     /// 金额的共用显示入口；非法数值不显示成 ¥NaN / ¥∞。
-    static func yuan(_ value: Double, precision: Int? = nil) -> String {
+    nonisolated static func yuan(_ value: Double, precision: Int? = nil, locale: Locale = .current) -> String {
         guard value.isFinite else { return "—" }
         let digits = precision.map { $0...$0 } ?? 0...2
-        return "¥" + value.formatted(.number.precision(.fractionLength(digits)))
+        return "¥" + value.formatted(.number.precision(.fractionLength(digits)).locale(locale))
     }
 
-    static func signedYuan(_ value: Double, precision: Int? = nil) -> String {
+    nonisolated static func signedYuan(_ value: Double, precision: Int? = nil, locale: Locale = .current) -> String {
         guard value.isFinite else { return "—" }
         let sign = value > 0 ? "+" : value < 0 ? "−" : ""
-        return sign + yuan(abs(value), precision: precision)
+        return sign + yuan(abs(value), precision: precision, locale: locale)
     }
 
     /// 增减量一直用天，不随首页的日/月/年档切换，也不显示 −0 天。

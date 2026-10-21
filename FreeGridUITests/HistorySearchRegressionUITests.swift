@@ -2,13 +2,16 @@ import XCTest
 
 final class HistorySearchRegressionUITests: XCTestCase {
     @MainActor
-    private func launch() throws -> XCUIApplication {
+    private func launch(scrolling: Bool = false) throws -> XCUIApplication {
         continueAfterFailure = false
         let date = DateFormatter()
         date.dateFormat = "yyyy-MM-dd"
         let today = date.string(from: .now)
         let previous = date.string(from: Calendar.current.date(byAdding: .month, value: -1, to: .now)!)
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("search-regression.json")
+        let additional: [[String: Any]] = scrolling ? (0..<160).map { index in
+            ["id": UUID().uuidString, "amount": index + 1, "category": "购物", "note": "Coffee", "date": today]
+        } : []
         let data: [String: Any] = [
             "schema_version": 3,
             "assets": ["total": 10000, "locked_assets": 0, "cash": 10000],
@@ -16,7 +19,7 @@ final class HistorySearchRegressionUITests: XCTestCase {
                 ["id": UUID().uuidString, "amount": 20, "category": "购物", "note": "Coffee", "date": today],
                 ["id": UUID().uuidString, "amount": 30, "category": "午餐", "note": "Coffee", "date": previous],
                 ["id": UUID().uuidString, "amount": -1234.5, "category": "交通", "note": "退款", "date": today],
-            ],
+            ] + additional,
             "incomes": [["id": UUID().uuidString, "amount": 2000, "source": "Salary", "note": "工资", "date": previous]],
             "devices": [], "passive_sources": [],
         ]
@@ -33,6 +36,32 @@ final class HistorySearchRegressionUITests: XCTestCase {
     @MainActor
     private func expectCount(_ count: Int, in app: XCUIApplication) {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "找到 \(count) 笔")).firstMatch.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testScrollingBackToSearchFieldDoesNotRefocusKeyboard() throws {
+        let app = try launch(scrolling: true)
+        app.buttons["搜索"].tap()
+        let field = app.textFields["history-search-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Coffee"].tap()
+        expectCount(162, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        let list = app.collectionViews.firstMatch
+        list.swipeUp(velocity: .fast)
+        list.swipeUp(velocity: .fast)
+        XCTAssertFalse(field.isHittable)
+        for _ in 0..<8 {
+            if field.isHittable { break }
+            list.swipeDown(velocity: .fast)
+        }
+        XCTAssertTrue(field.isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["取消"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        app.buttons["搜索"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor

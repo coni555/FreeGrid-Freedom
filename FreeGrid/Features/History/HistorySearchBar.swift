@@ -39,7 +39,9 @@ struct HistorySearchBar: View {
                     .accessibilityIdentifier("history-search-field")
                     // 只在字段已经插入列表后请求焦点，不使用固定等待时间。
                     .onAppear { HistorySearchMetrics.mark("field-appeared") }
-                    .task { focused = true }
+                    .task {
+                        if search.takeInitialFocus() { focused = true }
+                    }
                 if !search.text.isEmpty {
                     Button { search.setText("") } label: {
                         Image(systemName: "xmark")

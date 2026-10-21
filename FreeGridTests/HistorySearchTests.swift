@@ -28,6 +28,103 @@ struct HistorySearchTests {
         Issue.record("搜索状态未在预期时间内更新")
     }
 
+    @Test func automaticFocusIsConsumedOncePerSearchSession() {
+        let state = HistorySearchState()
+        #expect(!state.takeInitialFocus())
+        state.begin(filter: .all)
+        #expect(state.takeInitialFocus())
+        #expect(!state.takeInitialFocus())
+        state.setText("Coffee")
+        state.setFilter(.income)
+        #expect(!state.takeInitialFocus())
+        state.end()
+        #expect(!state.takeInitialFocus())
+        state.begin(filter: .income)
+        #expect(state.takeInitialFocus())
+    }
+
+    @Test func rowLabelsMatchExistingFormattingAndRefreshWithLocaleOrDate() throws {
+        let expense = Expense(amount: -1234.5, category: "购物", note: "退款", date: TestSupport.day("2026-10-09"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let us = Locale(identifier: "en_US")
+        let first = try HistorySearch.Index(expenses: [LedgerTransaction.expense(expense).searchRecord], incomes: [], locale: us, calendar: calendar)
+        let row = first.entries[0].row
+        #expect(row.amount == FinancialFormatting.signedYuan(1234.5, locale: us))
+        #expect(row.day == calendar.component(.day, from: expense.date))
+        #expect(try first.search("退款").months[0].rows == [row])
+        expense.date = TestSupport.day("2026-09-01")
+        let german = Locale(identifier: "de_DE")
+        let next = try HistorySearch.Index(expenses: [LedgerTransaction.expense(expense).searchRecord], incomes: [], previous: first, locale: german, calendar: calendar)
+        #expect(next.preparedCount == 1)
+        #expect(next.entries[0].row.amount == FinancialFormatting.signedYuan(1234.5, locale: german))
+        #expect(next.entries[0].row.day == calendar.component(.day, from: expense.date))
+        #expect(next.entries[0].row != row)
+    }
+
+    @Test func modelObservationRefreshesEditsAndIgnoresReplacedObjects() async throws {
+        let a = Expense(amount: 20, category: "购物", note: "Coffee", date: TestSupport.day("2026-10-01"))
+        let b = Expense(amount: 10, category: "交通", note: "Coffee", date: TestSupport.day("2026-09-01"))
+        let income = Income(amount: 100, source: "Salary")
+        let state = HistorySearchState(debounce: .zero)
+        let observer = HistorySearchModelObserver()
+        observer.update(search: state, expenses: [a, b], incomes: [income])
+        state.begin(filter: .all)
+        state.setText("Coffee", immediately: true)
+        try await waitUntil { state.result?.summary.count == 2 }
+        let revision = state.indexRevision
+        a.note = "Tea"
+        a.amount = -25
+        b.date = TestSupport.day("2026-11-01")
+        income.source = "Bonus"
+        try await waitUntil { state.indexRevision > revision && state.result?.summary.count == 1 }
+        #expect(state.result?.months.first?.month == HistoryMonth(year: 2026, month: 11))
+        state.setText("Tea", immediately: true)
+        try await waitUntil { state.result?.query == "Tea" }
+        #expect(state.result?.summary.expense == -25)
+        state.setText("Bonus", immediately: true)
+        try await waitUntil { state.result?.query == "Bonus" }
+        #expect(state.result?.summary.income == 100)
+        // 字段通知已经排队时替换导入，新集合必须胜出。
+        a.note = "失效对象"
+        let replacement = Expense(amount: 50, category: "购物", note: "新账本")
+        replacement.id = a.id
+        observer.update(search: state, expenses: [replacement], incomes: [])
+        state.setText("新账本", immediately: true)
+        try await waitUntil { state.result?.query == "新账本" && state.result?.summary.count == 1 }
+        #expect(state.result?.summary.expense == 50)
+        a.note = "旧对象再次修改"
+        for _ in 0..<3 { await Task.yield() }
+        #expect(state.result?.summary.expense == 50)
+        #expect(state.transaction(for: .init(id: a.id, isIncome: false))?.searchRecord == LedgerTransaction.expense(replacement).searchRecord)
+    }
+
+    @Test func queuedFieldNotificationDoesNotReadASavedDeletedModel() async throws {
+        let context = try TestSupport.makeContext()
+        let expense = Expense(amount: 20, category: "购物", note: "Coffee")
+        context.insert(expense)
+        try context.save()
+        let state = HistorySearchState(debounce: .zero)
+        let observer = HistorySearchModelObserver()
+        observer.update(search: state, expenses: [expense], incomes: [])
+        state.begin(filter: .all)
+        state.setText("Coffee", immediately: true)
+        try await waitUntil { state.result?.summary.count == 1 }
+        let id = expense.id
+        expense.note = "Coffee 修改"
+        context.delete(expense)
+        try context.save()
+        try await waitUntil { state.result?.summary.count == 0 }
+        #expect(state.transaction(for: .init(id: id, isIncome: false)) == nil)
+    }
+
+    @Test func indexOrdersDateEditsBeforeTheQueryHasReorderedItsModels() throws {
+        let older = Expense(amount: 10, category: "购物", note: "Coffee", date: TestSupport.day("2026-09-01"))
+        let newer = Expense(amount: 20, category: "购物", note: "Coffee", date: TestSupport.day("2026-10-01"))
+        let prepared = try HistorySearch.Index(expenses: [older, newer].map { LedgerTransaction.expense($0).searchRecord }, incomes: [])
+        #expect(try prepared.search("Coffee").months.flatMap(\.keys).map(\.id) == [newer.id, older.id])
+    }
+
     @Test func resultsMatchLegacyForEveryFilterAndQuery() throws {
         let (expenses, incomes) = HistorySearchPerformanceTests.ledger(count: 1000)
         let prepared = try index(expenses, incomes)

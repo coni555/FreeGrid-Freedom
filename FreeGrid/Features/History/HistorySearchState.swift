@@ -7,7 +7,7 @@ import Observation
 final class HistorySearchState {
     struct DisplayMonth: Identifiable {
         let month: HistoryMonth
-        let transactions: [HistorySearch.Record]
+        let transactions: [HistorySearch.Row]
         let summary: HistorySummary
         var id: HistoryMonth { month }
     }
@@ -24,6 +24,7 @@ final class HistorySearchState {
     @ObservationIgnored private var notesCache: [HistorySearch.Filter: [String]] = [:]
     @ObservationIgnored private var filter: HistorySearch.Filter = .all
     @ObservationIgnored private var active = false
+    @ObservationIgnored private var needsInitialFocus = false
     @ObservationIgnored private var dataRevision = 0
     @ObservationIgnored private var requestID = 0
     @ObservationIgnored private var preparation: Task<Void, Never>?
@@ -73,13 +74,22 @@ final class HistorySearchState {
 
     func begin(filter: HistorySearch.Filter) {
         active = true
+        needsInitialFocus = true
         self.filter = filter
         suggestions = notesCache[filter] ?? []
         schedule(immediately: true)
     }
 
+    /// List 里的输入行可能多次出现；滚回顶部不能再次弹键盘。
+    func takeInitialFocus() -> Bool {
+        guard active, needsInitialFocus else { return false }
+        needsInitialFocus = false
+        return true
+    }
+
     func end() {
         active = false
+        needsInitialFocus = false
         invalidateRequest()
         text = ""
         isEmpty = true
@@ -145,7 +155,7 @@ final class HistorySearchState {
                 self.result = result
                 if let result, self.appliedQuery != result.query { self.appliedQuery = result.query }
                 self.months = result?.months.map { group in
-                    DisplayMonth(month: group.month, transactions: group.records, summary: group.summary)
+                    DisplayMonth(month: group.month, transactions: group.rows, summary: group.summary)
                 } ?? []
             } catch { /* 快速输入、清空和取消都通过取消任务结束。 */ }
         }

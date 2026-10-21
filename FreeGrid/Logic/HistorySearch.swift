@@ -25,16 +25,31 @@ nonisolated enum HistorySearch {
         var cashChange: Double { key.isIncome ? amount : -amount }
     }
 
-    struct Entry: Sendable {
+    struct Row: Identifiable, Equatable, Sendable {
         let record: Record
+        let day: Int
+        let amount: String
+        var id: Key { record.key }
+
+        init(record: Record, locale: Locale = .current, calendar: Calendar = .current, includesDay: Bool = true) {
+            self.record = record
+            day = includesDay ? calendar.component(.day, from: record.date) : 0
+            amount = FinancialFormatting.signedYuan(record.cashChange, locale: locale)
+        }
+    }
+
+    struct Entry: Sendable {
+        let row: Row
+        var record: Record { row.record }
         let month: HistoryMonth
         let fields: [String]
     }
 
     struct Month: Identifiable, Sendable {
         let month: HistoryMonth
-        var records: [Record] = []
-        var keys: [Key] { records.map(\.key) }
+        var rows: [Row] = []
+        var records: [Record] { rows.map(\.record) }
+        var keys: [Key] { rows.map { $0.record.key } }
         var summary = HistorySummary()
         var id: HistoryMonth { month }
     }
@@ -56,6 +71,9 @@ nonisolated enum HistorySearch {
              locale: Locale = .current, calendar: Calendar = .current) throws {
             self.locale = locale
             self.calendar = calendar
+            // 日期字段的观察可能先于 @Query 的重新排序到达；只在乱序时补排。
+            let expenses = Self.dateOrdered(expenses)
+            let incomes = Self.dateOrdered(incomes)
             let reusable = previous?.locale == locale && previous?.calendar == calendar
                 ? Dictionary(uniqueKeysWithValues: (previous?.entries ?? []).map { ($0.record.key, $0) }) : [:]
             var entries: [Entry] = []
@@ -79,7 +97,7 @@ nonisolated enum HistorySearch {
                     entries.append(entry)
                 } else {
                     let amount = abs(record.amount)
-                    entries.append(Entry(record: record, month: HistoryMonth(containing: record.date, calendar: calendar), fields: [
+                    entries.append(Entry(row: Row(record: record, locale: locale, calendar: calendar), month: HistoryMonth(containing: record.date, calendar: calendar), fields: [
                         record.key.isIncome ? record.title.lowercased() : "",
                         record.note.lowercased(),
                         amount.formatted(.number.precision(.fractionLength(0...2)).locale(locale)),
@@ -90,6 +108,13 @@ nonisolated enum HistorySearch {
             }
             self.entries = entries
             self.preparedCount = preparedCount
+        }
+
+        private static func dateOrdered(_ records: [Record]) -> [Record] {
+            for (left, right) in zip(records, records.dropFirst()) where left.date < right.date {
+                return records.sorted { $0.date > $1.date }
+            }
+            return records
         }
 
         func search(_ query: String, filter: Filter = .all) throws -> Result {
@@ -109,7 +134,7 @@ nonisolated enum HistorySearch {
                     positions[entry.month] = position
                     result.months.append(Month(month: entry.month))
                 }
-                result.months[position].records.append(entry.record)
+                result.months[position].rows.append(entry.row)
                 add(entry.record, to: &result.months[position].summary)
                 add(entry.record, to: &result.summary)
             }
