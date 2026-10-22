@@ -142,6 +142,7 @@ flowchart TD
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
 | 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
+| 新版 Assets、History、Settings 的顶部背景与状态栏底色 | `UI/NavigationBackground.swift`；导航内容用 `paperNavigationContent()`，外层导航容器用 `paperNavigationBackground()` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
 | 支出分类 | `Features/Settings/ExpenseCategoriesView.swift`、`Logic/ExpenseCategoryOptions.swift`、`Data/ExpenseCategoryStorage.swift`；默认词表在 `Logic/ExpenseCategory.swift` |
 | Pro 购买页、试用、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；试用 7 天和试用专属价 14 天的时间规则在 `Logic/ProOffer.swift`；对照表和权益判断在 `App/ProFeatures.swift` |

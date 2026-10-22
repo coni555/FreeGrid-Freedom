@@ -110,6 +110,7 @@ struct SettingsView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
+            .paperNavigationContent()
             .navigationTitle("Settings")
             // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
             .onAppear { if openCard == "pro" { openCard = "" } }
@@ -135,6 +136,7 @@ struct SettingsView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.settings) }
             }
         }
+        .paperNavigationBackground()
     }
 
     /// 抽出或收回一张卡；同一时间只开一张。减弱动态效果时只淡入淡出

@@ -60,6 +60,7 @@ struct HistoryView: View {
                 }
             }
             .background(Color.paper)
+            .paperNavigationContent()
             .background { HistorySearchDataSource(search: search).equatable() }
             .navigationTitle("History")
             .historySearchKeyboardMetrics()
@@ -128,6 +129,7 @@ struct HistoryView: View {
                 Text(tx.undoMessage)
             }
         }
+        .paperNavigationBackground()
     }
 
     private func resetForGuide() {
@@ -197,7 +199,10 @@ struct HistoryView: View {
                     }
                 } header: {
                     dayHeader(day)
-                        .listRowInsets(EdgeInsets(top: Spacing.lg, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
+                        .padding(EdgeInsets(top: Spacing.lg, leading: Spacing.lg, bottom: Spacing.sm, trailing: Spacing.lg))
+                        // 顶部不再用系统模糊遮挡，吸顶日期要有自己的纸色底，避免账目透到文字后面。
+                        .background(Color.paper)
+                        .listRowInsets(EdgeInsets())
                 }
             }
         }
