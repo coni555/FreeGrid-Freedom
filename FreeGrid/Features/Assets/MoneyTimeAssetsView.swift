@@ -61,7 +61,7 @@ struct MoneyTimeAssetsView: View {
                     .environment(\.amountUnit, unit)
                     .environment(\.drawerHints, false)
                 }
-                .hardTopScrollEdge()
+                .assetsTopScrollEdge()
                 // 「Assets 怎么用」：回到顶部、换回钱的单位，等位置排好再开始。讲这一版自己的那套
                 .task(id: guide.replays(of: .assets)) {
                     guard guide.takeReplay(.assets) else { return }
@@ -89,6 +89,9 @@ struct MoneyTimeAssetsView: View {
             // 新用户（还没填钱）先看现金：起步引导要圈的「现金」那一行在现金标签下面
             .onAppear { if netWorth == 0 { tabKey = Tab.cash.rawValue } }
         }
+        #if os(iOS)
+        .background(Color.paper.ignoresSafeArea())
+        #endif
     }
 
     private static let topID = "assets-top"
@@ -672,13 +675,22 @@ struct PassiveRows: View {
 // MARK: - 顶部滚动边缘
 
 private extension View {
-    /// 滚动后大数字不要糊在导航栏标题后面：iOS 26 起顶部用实色边缘
+    /// iOS 的 hard 是系统边缘效果，不保证与 paper 同色；隐藏它，保留导航栏自身的背景和标题显隐。
+    /// macOS 保留原有的滚动边缘。
     @ViewBuilder
-    func hardTopScrollEdge() -> some View {
-        if #available(iOS 26.0, macOS 26.0, *) {
+    func assetsTopScrollEdge() -> some View {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            self
+        }
+        #else
+        if #available(macOS 26.0, *) {
             scrollEdgeEffectStyle(.hard, for: .top)
         } else {
             self
         }
+        #endif
     }
 }
