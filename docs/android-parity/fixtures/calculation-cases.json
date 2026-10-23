@@ -1,0 +1,1222 @@
+{
+  "format": "freegrid-parity-cases-v1",
+  "synthetic": true,
+  "defaults": {
+    "timezone": "Asia/Taipei",
+    "calendar": "gregorian",
+    "absolute_tolerance": 1e-09
+  },
+  "note": "本文件是计算测试输入，不是可导入账本；schedule_run 直接输入日均，不需伪造支出。期望来源有区分，本轮未在完整App运行。",
+  "cases": [
+    {
+      "id": "B01",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 7,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 60
+          },
+          {
+            "day": 2,
+            "amount": 60
+          },
+          {
+            "day": 3,
+            "amount": 60
+          },
+          {
+            "day": 4,
+            "amount": 60
+          },
+          {
+            "day": 5,
+            "amount": 60
+          },
+          {
+            "day": 6,
+            "amount": 60
+          },
+          {
+            "day": 7,
+            "amount": 60
+          },
+          {
+            "day": 7,
+            "amount": 6000
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 7,
+        "spread_lumps": 6000,
+        "daily_burn": 126.66666666666667
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "aLaptopInTheFirstWeekIsSpreadOverNinetyDays",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "B02",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 90,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 60
+          },
+          {
+            "day": 2,
+            "amount": 60
+          },
+          {
+            "day": 3,
+            "amount": 60
+          },
+          {
+            "day": 4,
+            "amount": 60
+          },
+          {
+            "day": 5,
+            "amount": 60
+          },
+          {
+            "day": 6,
+            "amount": 60
+          },
+          {
+            "day": 7,
+            "amount": 60
+          },
+          {
+            "day": 8,
+            "amount": 60
+          },
+          {
+            "day": 9,
+            "amount": 60
+          },
+          {
+            "day": 10,
+            "amount": 60
+          },
+          {
+            "day": 11,
+            "amount": 60
+          },
+          {
+            "day": 12,
+            "amount": 60
+          },
+          {
+            "day": 13,
+            "amount": 60
+          },
+          {
+            "day": 14,
+            "amount": 60
+          },
+          {
+            "day": 15,
+            "amount": 60
+          },
+          {
+            "day": 16,
+            "amount": 60
+          },
+          {
+            "day": 17,
+            "amount": 60
+          },
+          {
+            "day": 18,
+            "amount": 60
+          },
+          {
+            "day": 19,
+            "amount": 60
+          },
+          {
+            "day": 20,
+            "amount": 60
+          },
+          {
+            "day": 21,
+            "amount": 60
+          },
+          {
+            "day": 22,
+            "amount": 60
+          },
+          {
+            "day": 23,
+            "amount": 60
+          },
+          {
+            "day": 24,
+            "amount": 60
+          },
+          {
+            "day": 25,
+            "amount": 60
+          },
+          {
+            "day": 26,
+            "amount": 60
+          },
+          {
+            "day": 27,
+            "amount": 60
+          },
+          {
+            "day": 28,
+            "amount": 60
+          },
+          {
+            "day": 29,
+            "amount": 60
+          },
+          {
+            "day": 30,
+            "amount": 60
+          },
+          {
+            "day": 31,
+            "amount": 60
+          },
+          {
+            "day": 32,
+            "amount": 60
+          },
+          {
+            "day": 33,
+            "amount": 60
+          },
+          {
+            "day": 34,
+            "amount": 60
+          },
+          {
+            "day": 35,
+            "amount": 60
+          },
+          {
+            "day": 36,
+            "amount": 60
+          },
+          {
+            "day": 37,
+            "amount": 60
+          },
+          {
+            "day": 38,
+            "amount": 60
+          },
+          {
+            "day": 39,
+            "amount": 60
+          },
+          {
+            "day": 40,
+            "amount": 60
+          },
+          {
+            "day": 41,
+            "amount": 60
+          },
+          {
+            "day": 42,
+            "amount": 60
+          },
+          {
+            "day": 43,
+            "amount": 60
+          },
+          {
+            "day": 44,
+            "amount": 60
+          },
+          {
+            "day": 45,
+            "amount": 60
+          },
+          {
+            "day": 46,
+            "amount": 60
+          },
+          {
+            "day": 47,
+            "amount": 60
+          },
+          {
+            "day": 48,
+            "amount": 60
+          },
+          {
+            "day": 49,
+            "amount": 60
+          },
+          {
+            "day": 50,
+            "amount": 60
+          },
+          {
+            "day": 51,
+            "amount": 60
+          },
+          {
+            "day": 52,
+            "amount": 60
+          },
+          {
+            "day": 53,
+            "amount": 60
+          },
+          {
+            "day": 54,
+            "amount": 60
+          },
+          {
+            "day": 55,
+            "amount": 60
+          },
+          {
+            "day": 56,
+            "amount": 60
+          },
+          {
+            "day": 57,
+            "amount": 60
+          },
+          {
+            "day": 58,
+            "amount": 60
+          },
+          {
+            "day": 59,
+            "amount": 60
+          },
+          {
+            "day": 60,
+            "amount": 60
+          },
+          {
+            "day": 61,
+            "amount": 60
+          },
+          {
+            "day": 62,
+            "amount": 60
+          },
+          {
+            "day": 63,
+            "amount": 60
+          },
+          {
+            "day": 64,
+            "amount": 60
+          },
+          {
+            "day": 65,
+            "amount": 60
+          },
+          {
+            "day": 66,
+            "amount": 60
+          },
+          {
+            "day": 67,
+            "amount": 60
+          },
+          {
+            "day": 68,
+            "amount": 60
+          },
+          {
+            "day": 69,
+            "amount": 60
+          },
+          {
+            "day": 70,
+            "amount": 60
+          },
+          {
+            "day": 71,
+            "amount": 60
+          },
+          {
+            "day": 72,
+            "amount": 60
+          },
+          {
+            "day": 73,
+            "amount": 60
+          },
+          {
+            "day": 74,
+            "amount": 60
+          },
+          {
+            "day": 75,
+            "amount": 60
+          },
+          {
+            "day": 76,
+            "amount": 60
+          },
+          {
+            "day": 77,
+            "amount": 60
+          },
+          {
+            "day": 78,
+            "amount": 60
+          },
+          {
+            "day": 79,
+            "amount": 60
+          },
+          {
+            "day": 80,
+            "amount": 60
+          },
+          {
+            "day": 81,
+            "amount": 60
+          },
+          {
+            "day": 82,
+            "amount": 60
+          },
+          {
+            "day": 83,
+            "amount": 60
+          },
+          {
+            "day": 84,
+            "amount": 60
+          },
+          {
+            "day": 85,
+            "amount": 60
+          },
+          {
+            "day": 86,
+            "amount": 60
+          },
+          {
+            "day": 87,
+            "amount": 60
+          },
+          {
+            "day": 88,
+            "amount": 60
+          },
+          {
+            "day": 89,
+            "amount": 60
+          },
+          {
+            "day": 90,
+            "amount": 60
+          },
+          {
+            "day": 30,
+            "amount": 6000
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 90,
+        "spread_lumps": 0,
+        "daily_burn": 126.66666666666667
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "afterNinetyDaysItIsPlainTotalOverDays",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "B03",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 1,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 6000
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 1,
+        "spread_lumps": 0,
+        "daily_burn": 6000
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "aSingleFirstExpenseIsNeverALump",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "B04",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 10,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 1
+          },
+          {
+            "day": 10,
+            "amount": 100
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 10,
+        "spread_lumps": 0,
+        "daily_burn": 10.1
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "withOnlyTwoDaysNothingIsALump",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "B05",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 31,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 1800
+          },
+          {
+            "day": 31,
+            "amount": 1800
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 31,
+        "spread_lumps": 0,
+        "daily_burn": 116.12903225806451
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "peopleWhoLogOnceAMonthAreNotSpread",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "B06",
+      "operation": "burn_estimate",
+      "input": {
+        "day_one": "2026-10-01",
+        "now_day": 7,
+        "local_time": "12:00:00",
+        "entries": [
+          {
+            "day": 1,
+            "amount": 60
+          },
+          {
+            "day": 2,
+            "amount": 60
+          },
+          {
+            "day": 3,
+            "amount": 60
+          },
+          {
+            "day": 4,
+            "amount": 60
+          },
+          {
+            "day": 5,
+            "amount": 60
+          },
+          {
+            "day": 6,
+            "amount": 60
+          },
+          {
+            "day": 7,
+            "amount": 60
+          },
+          {
+            "day": 7,
+            "amount": 1000
+          }
+        ]
+      },
+      "expected": {
+        "track_days": 7,
+        "spread_lumps": 0,
+        "daily_burn": 202.85714285714286
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "smallerPurchasesStayAsTheyAre",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "F01",
+      "operation": "freedom_without_schedule",
+      "input": {
+        "freedom_base": 20000,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "has_expenses": true
+      },
+      "expected": {
+        "state": "finite",
+        "days": 200
+      },
+      "evidence": {
+        "path": "FreeGrid/Logic/FreedomMath.swift",
+        "symbol": "freedomState",
+        "basis": "derived_from_source"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "F02",
+      "operation": "freedom_without_schedule",
+      "input": {
+        "freedom_base": 20000,
+        "daily_burn": 100,
+        "monthly_passive": 1500,
+        "has_expenses": true
+      },
+      "expected": {
+        "state": "finite",
+        "days": 400
+      },
+      "evidence": {
+        "path": "FreeGrid/Logic/FreedomMath.swift",
+        "symbol": "freedomState",
+        "basis": "derived_from_source"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "F03",
+      "operation": "freedom_without_schedule",
+      "input": {
+        "freedom_base": 20000,
+        "daily_burn": 100,
+        "monthly_passive": 3000,
+        "has_expenses": true
+      },
+      "expected": {
+        "state": "covered"
+      },
+      "evidence": {
+        "path": "FreeGrid/Logic/FreedomMath.swift",
+        "symbol": "freedomState",
+        "basis": "derived_from_source"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "F04",
+      "operation": "freedom_without_schedule",
+      "input": {
+        "freedom_base": 20000,
+        "daily_burn": 0,
+        "monthly_passive": 0,
+        "has_expenses": false
+      },
+      "expected": {
+        "state": "insufficientData",
+        "display": "—"
+      },
+      "evidence": {
+        "path": "FreeGridTests/FreedomMathTests.swift",
+        "symbol": "distinguishesInsufficientCoveredFiniteAndInvalidStates",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L01",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 110,
+        "payment_days": [
+          30,
+          60,
+          91
+        ]
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "aBaseline",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L02",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 16,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 92
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "bDueTomorrow",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L03",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 2,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 140
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "cOnlyTwoPeriodsLeft",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L04",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 31,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 107
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "dDueOn31stFallsToMonthEnd",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L05",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 1500,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 149
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "ePassiveIncomeOffsetsLivingCost",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L06",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 3000,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 210
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "fPassiveCoveringLivingCostStillRunsOutOnRepayments",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L07",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 6000,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "covered"
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "gPassiveCoveringEverythingIsCovered",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L08",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 2500,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 16,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 0
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "hNotEnoughCashForTomorrowsRepayment",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L09",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 10000,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 150
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "jCountedAssetsJoinTheRunAndTheSwitchStillWorks",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "L10",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 10000,
+        "counts_assets": false,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成贷款",
+            "amount_per_payment": 3000,
+            "due_day": 14,
+            "periods_at_start": 24,
+            "start_date": "2026-10-15",
+            "is_ongoing": false,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 110
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "jCountedAssetsJoinTheRunAndTheSwitchStillWorks",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "R01",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成房租",
+            "amount_per_payment": 2500,
+            "due_day": 5,
+            "start_date": "2026-11-04",
+            "periods_at_start": 0,
+            "is_ongoing": true,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 112,
+        "payment_days": []
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "rentIsPlannedOnItsDueDays",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "R02",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 30000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成房租",
+            "amount_per_payment": 7500,
+            "due_day": 5,
+            "start_date": "2026-11-04",
+            "periods_at_start": 0,
+            "is_ongoing": true,
+            "interval_months": 3
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 150,
+        "payment_days": []
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "everyThreeMonthsIsPlannedToo",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "R03",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 30000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 0,
+        "plans": [
+          {
+            "name": "合成房租",
+            "amount_per_payment": 2500,
+            "due_day": 5,
+            "start_date": "2026-11-04",
+            "periods_at_start": 0,
+            "is_ongoing": true,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 171,
+        "payment_days": []
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "everyThreeMonthsIsPlannedToo",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "R04",
+      "operation": "schedule_run",
+      "input": {
+        "now": "2026-10-15T12:00:00+08:00",
+        "cash": 20000,
+        "locked_assets": 0,
+        "counts_assets": true,
+        "daily_burn": 100,
+        "monthly_passive": 3000,
+        "plans": [
+          {
+            "name": "合成房租",
+            "amount_per_payment": 2500,
+            "due_day": 5,
+            "start_date": "2026-11-04",
+            "periods_at_start": 0,
+            "is_ongoing": true,
+            "interval_months": 1
+          }
+        ],
+        "payments": []
+      },
+      "expected": {
+        "state": "finite",
+        "days": 262,
+        "payment_days": []
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "passiveCoveringDailyCostStillRunsOutOnRent",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "D01",
+      "operation": "due_dates",
+      "input": {
+        "after": "2026-10-15",
+        "due_day": 31,
+        "interval_months": 1,
+        "count": 5
+      },
+      "expected": {
+        "dates": [
+          "2026-10-31",
+          "2026-11-30",
+          "2026-12-31",
+          "2027-01-31",
+          "2027-02-28"
+        ]
+      },
+      "evidence": {
+        "path": "FreeGridTests/LoanTests.swift",
+        "symbol": "dDueOn31stFallsToMonthEnd",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "D02",
+      "operation": "due_dates",
+      "input": {
+        "after": "2026-11-04",
+        "due_day": 5,
+        "interval_months": 3,
+        "count": 4
+      },
+      "expected": {
+        "dates": [
+          "2026-11-05",
+          "2027-02-05",
+          "2027-05-05",
+          "2027-08-05"
+        ]
+      },
+      "evidence": {
+        "path": "FreeGridTests/FixedExpenseTests.swift",
+        "symbol": "everyThreeMonthsStartsFromTheNextDueDate",
+        "basis": "existing_test"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    },
+    {
+      "id": "D03",
+      "operation": "track_days",
+      "input": {
+        "first_date": "2026-03-08",
+        "now": "2026-03-09T12:00:00-07:00",
+        "timezone": "America/Los_Angeles"
+      },
+      "expected": {
+        "track_days": 2
+      },
+      "evidence": {
+        "path": "FreeGrid/Logic/FreedomMath.swift",
+        "symbol": "trackDays",
+        "basis": "derived_from_source"
+      },
+      "execution_status": "specified_not_run_in_apps"
+    }
+  ]
+}

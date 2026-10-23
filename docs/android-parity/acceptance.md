@@ -1,0 +1,102 @@
+# 跨端验收案例
+
+本文件定义**目标结果**。除 [验证记录](verification.md) 明确列出的隔离探针外，本轮没有执行 App 的全量业务/UI 测试。现有 iOS 测试提供可追溯期望，不等于 Android 已通过。
+
+测试统一用合成账本；固定 Gregorian、Asia/Taipei、now，必要时增加 America/Los_Angeles 夏令时案例。对照前显式设置权益、资产总开关、账户计入状态。数值按原始值比较（一般绝对误差 ≤ 1e-9；涉及大额应使用合理的相对误差），再单独比较显示；不得先把所有中间值四舍五入。
+
+## A01–A12 计算与展示
+
+| ID | 输入/操作 | 目标结果 | iOS 证据 |
+|---|---|---|---|
+| A01 | 空账本；或只有工资收入 | 主数字 `—`，格子空，不显示已财富自由 | FreedomMathTests.distinguishesInsufficientCoveredFiniteAndInvalidStates |
+| A02 | 可动用 20,000，日常日均 100，无被动/计划 | 200 天 | LoanTests.kNoLoanIsExactlyTheOldFormula |
+| A03 | 同上，被动每月 1,500 | 400 天；日均被动 50 | FreedomMath.freedomState 与 dailyPassive，直接公式期望 |
+| A04 | 同上，被动每月 3,000 | covered / ∞；无支出时仍按 A01 | FreedomMathTests.distinguishesInsufficientCoveredFiniteAndInvalidStates |
+| A05 | 10/1–10/7 每天 60；10/7 另 6,000；now=10/7 中午 | 7 天；大额 6,000；日常日均 126.66666666666667 | FixedExpenseTests.aLaptopInTheFirstWeekIsSpreadOverNinetyDays |
+| A06 | 90 天每天 60；第 30 天另 6,000 | 第 90 天不再标大额摊分；总额/90 | FixedExpenseTests.afterNinetyDaysItIsPlainTotalOverDays |
+| A07 | 第一笔只有 6,000，今天录入 | 日常日均 6,000，不摊为 66.67 | FixedExpenseTests.aSingleFirstExpenseIsNeverALump |
+| A08 | 第 1 天 1 元、第 10 天 100 元，now=第10天 | 日常日均 10.1，无大额 | FixedExpenseTests.withOnlyTwoDaysNothingIsALump |
+| A09 | 第 1、31 天各 1,800，now=第31天 | 3600/31，不识别为两笔大额 | FixedExpenseTests.peopleWhoLogOnceAMonthAreNotSpread |
+| A10 | 10/1–10/7 每天 60，第7天另1,000 | 1420/7，无大额 | FixedExpenseTests.smallerPurchasesStayAsTheyAre |
+| A11 | 资产 10,000、现金20,000、日均100、无计划；切总开关 | 开300天，关200天；净值始终30,000 | FreedomAssetSwitchTests；由公式推出的固定输入 |
+| A12 | 364.99 / 365 / 3649.99 / 3650 天，切日/月/年边界 | 单位分别日/月/月/年；模拟跨边界单位锁定 | FreedomMath.gridUnit；TransactionImpactTests.incomePreviewKeepsUnitsAcrossDayMonthAndYearBoundaries |
+
+具体机器可读输入见 [calculation-cases.json](fixtures/calculation-cases.json)。其中 `existing_test` 直接对应现有测试，`derived_from_source` 是依据实现写出的新验收目标，不能混标为已运行测试。
+
+## A13–A23 固定开销与贷款
+
+统一贷款基准：now=2026-10-15 12:00，现金20,000，日常日均100，无被动；贷款每期3,000，24期，起点10/15，还款日14号。每行覆盖参数按行说明。
+
+| ID | 输入/操作 | 目标结果 | 现有测试入口 |
+|---|---|---|---|
+| A13 | 贷款基准 | 110天；还款偏移[30,60,91]；日格孔索引[29,59,90] | LoanTests.aBaseline / gridPunchesRepaymentDaysOnlyInDayCells |
+| A14 | 还款日16号；另测只剩2期 | 分别92天 / 140天 | LoanTests.bDueTomorrow / cOnlyTwoPeriodsLeft |
+| A15 | 还款日31号 | 107天；到期依次10/31、11/30、12/31、1/31、2/28 | LoanTests.dDueOn31stFallsToMonthEnd |
+| A16 | 被动月均1500 / 3000 / 6000 | 分别149天 / 210天 / covered | LoanTests.ePassiveIncomeOffsetsLivingCost / fPassiveCoveringLivingCostStillRunsOutOnRepayments / gPassiveCoveringEverythingIsCovered |
+| A17 | 现金2500，明天到期3000 | 0天，不能简单算25天 | LoanTests.hNotEnoughCashForTomorrowsRepayment |
+| A18 | 不限期房租2500，下次11/5，每月，现金20,000 | 112天；无还款孔，无淡孔 | FixedExpenseTests.rentIsPlannedOnItsDueDays |
+| A19 | 现金30,000；7500每3月 vs 2500每月，均11/5起 | 分别150天 / 171天；不能因月均相同算成一样 | FixedExpenseTests.everyThreeMonthsIsPlannedToo |
+| A20 | 房租基准，被动月均3000仅盖住日常 | 262天，不是∞ | FixedExpenseTests.passiveCoveringDailyCostStillRunsOutOnRent |
+| A21 | 同到期日处理两次；重启再处理 | 只扣一次；现金、支出、标记一致 | LoanTests.catchesUpMissedDueDatesOnceAndOnlyOnce |
+| A22 | 撤销一次自动扣款，再触发处理 | 钱返还，该期待处理，不重复自动扣 | LoanTests.undoingAPaymentLeavesThatPeriodPendingAndNotReDeducted |
+| A23 | 现金不够；选择从别处还/从现金扣；保存失败 | 不够时保持待处理；从别处还不扣现金；失败所有变动恢复 | LoanTests.notEnoughCashLeavesThePeriodPendingUntilTheUserDecides；LedgerStoreTests/DiskRollbackTests |
+
+额外必须覆盖：有期限与无限期同日到期只标贷款；400天后的持续计划；修改已还清贷款不多出一期；固定周期改变重新起算；暂停贷款后重新解锁不集中追扣。对应 FixedExpenseTests、LoanTests、BackToFreeTests。
+
+## A24–A33 交易与账户
+
+| ID | 输入/操作 | 目标结果 | 证据 |
+|---|---|---|---|
+| A24 | 现金1000，新支出100，再改为130，再撤销 | 900→870→1000；记录先新增、后改、后撤销 | LedgerStoreTests |
+| A25 | 同笔支出从A改到B | A返还原扣款，B扣新金额；总现金只反映金额差额 | CashAccountTests.switchingTheAccountMovesTheWholeAmount |
+| A26 | 有较早收入但首次支出较晚；补记更早支出 | 收入不延长日常基线；补记支出重算且预览与保存一致 | TransactionImpactTests.backdatedExpenseCanIncreaseFreedomAndMatchesSavedLedger |
+| A27 | 原总额1000，划分300；另测新增300 | 划分后总额1000；新增后1300 | AssetItemTests.carvingFromTheUnsplitTotalKeepsTheTotal；CashAccountTests.addingNewMoneyGrowsTheTotalAndKeepsTheOldTotalAsAnAccount |
+| A28 | A余额50/B余额200，手工支出100；再测A50/B60 | 默认B付；均不够则A为−50；自动扣款不得这样透支 | CashAccountTests.anExpenseComesFromTheFirstAccountThatCanPayAllOfIt / whenNoAccountCanPayTheFirstOneGoesNegative / aRepaymentNeedsOneAccountThatCanPayItAll |
+| A29 | 支出后删原账户，再撤销该支出 | 退到当前第一个账户，不丢现金变化 | CashAccountTests.undoAfterTheAccountWasDeletedRefundsTheFirstAccount |
+| A30 | 将某资产/现金项设为不计入 | 净值不变，自由基数减少；负现金排除不虚增基数 | AssetItemTests.togglingOneItemLeavesTheOthersAndTheTotalAlone；CashAccountTests.overdrawingAnUncountedAccountShowsTheOverdraftInThePreview |
+| A31 | 资产全不计入→合并；部分计入→合并 | 分别关闭/打开资产整体计入；金额不变 | BackToFreeTests.mergingTurnsTheAssetSwitchOnWhenAnyItemCounted |
+| A32 | 被动收入每年6000 | 保存月均500、周期12；日均500/30；不自动新增收入 | PassiveIntervalTests |
+| A33 | 任意修改注入写入失败，再重新打开存储 | 金额、记录、账户、标记、表单选择保持一致，提示失败 | DiskRollbackTests、BalanceBoundaryTests、LedgerStoreTests |
+
+## A34–A43 备份和升级
+
+| ID | 输入/操作 | 目标结果 | 证据 |
+|---|---|---|---|
+| A34 | v0/v1/v2/v3旧备份 | 可兼容的记录恢复；v2拒绝非正支出，v3保留退款/零额 | ImportValidationTests |
+| A35 | 当前含账户/计划/分类/flags备份，往返两端 | 字段语义、关联、余额、计划进度不丢；不能只比记录数 | BackupRoundTripTests、AssetItemTests、CashAccountTests、LoanTests |
+| A36 | 导入A35后新增普通支出/收入，再导出 | 未操作的账户、计划、周期、分类仍完整 | 新增跨端回归要求；本轮探针证实旧实现存在丢字段路径 |
+| A37 | 同一UUID备份导入两次；旧无UUID重复导入 | 不重复；疑似重复仍按用户选择处理 | LegacyImportIdentityTests、ImportFingerprintTests |
+| A38 | 备注/来源含 `|`、中文、换行、引号 | 无指纹碰撞和乱码；CSV正确转义 | ImportFingerprintTests；Android data_io_test/data_importer_test |
+| A39 | 导入预览后其他页面修改账本，再提交 | 拒绝过时计划，不覆盖新的变化 | ImportFreshnessTests |
+| A40 | 超10MiB/超50000收支；用户确认；文件后来变大 | 默认拦截；确认只放宽资源数；文件变大重新选择确认；非法字段仍拒绝 | LargeBackupRestoreTests |
+| A41 | 旧Android本地JSON升级，重复启动 | 原数据备份可恢复、金额/身份/记录不变、迁移幂等 | Android新增迁移验收，尚无实现 |
+| A42 | 本地JSON损坏；或真首次安装 | 损坏保留原字节进恢复；首次为空账本；均不塞演示数字 | Android新增恢复验收，现实现不满足 |
+| A43 | 正式旧APK覆盖安装新版 | 包名/签名兼容；不卸载；原账本完整；不输出密钥 | 发布工程验收，尚未执行 |
+
+## A44–A52 权益、提示和界面
+
+| ID | 输入/操作 | 目标结果 | 证据 |
+|---|---|---|---|
+| A44 | 体验从T开始，分别T+7天−1秒/7天/14天−1秒/14天 | 体验有效/失效；优惠有效/原价；未开始仍有优惠 | ProOfferTests |
+| A45 | 权益确认失效，账本有账户、贷款、固定支出、分类 | 账户保留计算、贷款暂停、固定继续、分类可选；有需整理内容时提示一次 | BackToFreeTests |
+| A46 | 新安装、走完引导、进入设置 | 不强弹购买页；第一次手动支出后正常首页讲解 | AppGuide、ContentView、ProIntroTests |
+| A47 | 不连续7个手动记账日，夹杂自动扣款 | 仅最早7个手动日画柱；日均与天数等于当前首页；只弹一次 | FirstWeekRecapTests |
+| A48 | 备注命中、收入来源命中、金额命中、只分类标题命中 | 前三者在当前筛选内返回；第四种不因标题被全文匹配 | HistorySearchTests |
+| A49 | 搜索A立刻改B，A最后才完成；结果中编辑/撤销 | 始终显示B正确结果；修改后缓存失效 | HistorySearchTests、HistorySearchRegressionUITests |
+| A50 | 29.99/30/180/365天与covered查看自由卡 | 纸/银/香槟/黑/∞；无金额；免费不可导出 | FreedomCardTests |
+| A51 | 模拟支出/收入、重播、关闭、跨单位、减少动态 | 实际账本字节/状态不变；单位锁定；减少动态有静态结果 | TransactionImpactTests；Android simulation_grid_demo_test |
+| A52 | 达到10个手动日，评价冷却未满/恰满90天 | iOS按规则判断；Android无渠道时不虚构系统评价入口 | ReviewInvitationTests |
+
+## 人工视觉验收清单
+
+每个页面至少使用空账本、正常合成账本和复杂合成账本；复杂账本含排除账户、待处理扣款、退款、长分类。拍摄浅/深两套，保存设备型号、分辨率、字体缩放、权益、now 和 fixture 版本。
+
+- 首页：顺序、超细数字、格子颜色与单位、趋势折叠、今日对比、零/无穷/大额显示。
+- 钱包：双桶、账户展开、调拨、固定支出/贷款、待处理及键盘遮挡。
+- 表单：今天/昨天、输入校验、键盘行为、有效预览、失败保留输入、保存防重复。
+- 明细：月导航、按日分组、分类与收入筛选、搜索、点行编辑、滑动撤销。
+- 设置/指引：系统主题、布局、手动重看、使用说明、自检圆环；无强推购买。
+- 卡片/Pro：仅在该版本实际提供时验收；失效界面、返回免费入口、不可购买状态无假成功。
+- Android：系统返回、手势导航安全区、小屏、字体放大、TalkBack标签/焦点、减少动态效果、旋转策略与重启恢复。
+
+截图是比较信息层级与视觉语言的证据，不要求系统控件像素一致。必须等用户实际体验并明确同意后，才合并新增功能；自动测试通过不能替代这个步骤。

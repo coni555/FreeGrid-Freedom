@@ -1,0 +1,114 @@
+{
+  "schema_version": 2,
+  "assets": {
+    "total": 30000,
+    "locked_assets": 10000,
+    "cash": 20000,
+    "updated_at": "2026-10-15T04:00:00Z"
+  },
+  "expenses": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "amount": 1000,
+      "category": "午餐",
+      "date": "2026-10-06",
+      "note": "合成日常基线",
+      "created_at": "2026-10-06T04:00:00Z",
+      "cash_account_id": "00000000-0000-4000-8000-000000000020"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "amount": 2500,
+      "category": "合成房租",
+      "date": "2026-10-05",
+      "note": "自动扣款（合成）",
+      "created_at": "2026-10-05T04:00:00Z",
+      "loan_id": "00000000-0000-4000-8000-000000000030",
+      "counts_in_burn": false,
+      "cash_account_id": "00000000-0000-4000-8000-000000000020"
+    }
+  ],
+  "incomes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "amount": 100,
+      "source": "合成收入",
+      "date": "2026-10-10",
+      "note": "往返检查",
+      "is_passive": false,
+      "created_at": "2026-10-10T04:00:00Z",
+      "cash_account_id": "00000000-0000-4000-8000-000000000020"
+    }
+  ],
+  "devices": [
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "name": "合成设备",
+      "category": "数码",
+      "price": 100,
+      "purchase_date": "2026-10-01",
+      "status": "active",
+      "note": "仅测试字段保留",
+      "created_at": "2026-10-01T04:00:00Z"
+    }
+  ],
+  "passive_sources": [
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "name": "合成年收入",
+      "monthly_amount": 500,
+      "interval_months": 12,
+      "created_at": "2026-10-01T04:00:00Z"
+    }
+  ],
+  "first_record_date": "2026-10-05",
+  "asset_items": [
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "name": "合成储备",
+      "amount": 10000,
+      "sort_order": 0,
+      "counts_in_freedom": false,
+      "created_at": "2026-10-01T04:00:00Z",
+      "updated_at": "2026-10-15T04:00:00Z"
+    }
+  ],
+  "cash_accounts": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "name": "合成现金",
+      "amount": 20000,
+      "sort_order": 0,
+      "counts_in_freedom": true,
+      "created_at": "2026-10-01T04:00:00Z",
+      "updated_at": "2026-10-15T04:00:00Z"
+    }
+  ],
+  "loans": [
+    {
+      "id": "00000000-0000-4000-8000-000000000030",
+      "name": "合成房租",
+      "monthly_amount": 2500,
+      "due_day": 5,
+      "periods_at_start": 0,
+      "start_date": "2026-10-04",
+      "processed_through": "2026-10-05",
+      "settled_dates": [],
+      "sort_order": 0,
+      "created_at": "2026-10-01T04:00:00Z",
+      "cash_account_id": "00000000-0000-4000-8000-000000000020",
+      "is_ongoing": true,
+      "interval_months": 1
+    }
+  ],
+  "expense_categories": [
+    {
+      "name": "午餐"
+    },
+    {
+      "name": "合成分类",
+      "icon": "leaf",
+      "deleted": false
+    }
+  ]
+}
