@@ -34,8 +34,14 @@ enum FreedomChecklist {
                          loans: [Loan] = [],
                          now: Date = .now,
                          countsAssets: Bool = FreedomSettings.countsAssets) -> FreedomSummary {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets,
-                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loans, now: now, countsAssets: countsAssets)
+        evaluate(snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assets,
+                                             assetItems: assetItems, cashAccounts: cashAccounts, loans: loans,
+                                             now: now, countsAssets: countsAssets),
+                 passiveSources: passiveSources)
+    }
+
+    /// 已经算好 `FinancialSnapshot` 的页面直接用它，不再把整本账算一遍
+    static func evaluate(snapshot: FinancialSnapshot, passiveSources: [PassiveSource]) -> FreedomSummary {
         let days = snapshot.trackDays
         let dailyBurn = snapshot.dailyBurn
         let netWorth = snapshot.netWorth

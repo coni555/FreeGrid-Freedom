@@ -15,6 +15,11 @@ final class ReviewInvitationStore {
     }
 
     private(set) var opportunity: Opportunity?
+    /// 根层（ContentView）判断现在能不能弹：在首页、没有介绍卡、小结和引导挡着。
+    /// 放在这里而不是传给首页：切 Tab 时只有观察它的小视图重画，首页不用整页重算
+    var presentationAllowed = false
+    /// macOS 菜单栏唤起的记账表单开着
+    var formPresented = false
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults) { self.defaults = defaults }

@@ -30,6 +30,40 @@ struct LedgerStoreTests {
         #expect(assets.firstRecordDate == nil)
     }
 
+    /// 统计起点只按日期取最前面的两笔：磁盘库按已保存的日期排序，正在加、改、删的那笔也要算对
+    @Test func firstRecordDateFollowsAddEditAndUndoOnDisk() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let configuration = ModelConfiguration(schema: StoreBootstrap.schema, url: folder.appendingPathComponent("ledger.store"))
+        let context = ModelContext(try ModelContainer(for: StoreBootstrap.schema, configurations: [configuration]))
+        let march = Expense(amount: 30, category: "午餐", date: TestSupport.day("2026-03-01"))
+        let april = Expense(amount: 40, category: "午餐", date: TestSupport.day("2026-04-01"))
+        try LedgerStore.add(.expense(march), in: context)
+        try LedgerStore.add(.expense(april), in: context)
+        let assets = try #require(try context.fetch(FetchDescriptor<UserAssets>()).first)
+        #expect(assets.firstRecordDate == march.date)
+
+        let january = Expense(amount: 10, category: "午餐", date: TestSupport.day("2026-01-01"))
+        try LedgerStore.add(.expense(january), in: context)
+        #expect(assets.firstRecordDate == january.date)
+
+        // 最早那笔改到最晚：起点落到原来的第二笔
+        try LedgerStore.edit(id: january.id, kind: .expense, in: context,
+                             to: .init(amount: 10, title: "午餐", note: "", date: TestSupport.day("2026-05-01")))
+        #expect(assets.firstRecordDate == march.date)
+        // 改到最早：起点跟着它走
+        try LedgerStore.edit(id: april.id, kind: .expense, in: context,
+                             to: .init(amount: 40, title: "午餐", note: "", date: TestSupport.day("2025-12-01")))
+        #expect(assets.firstRecordDate == TestSupport.day("2025-12-01"))
+
+        try LedgerStore.undo(id: april.id, kind: .expense, in: context)
+        #expect(assets.firstRecordDate == march.date)
+        try LedgerStore.undo(id: march.id, kind: .expense, in: context)
+        try LedgerStore.undo(id: january.id, kind: .expense, in: context)
+        #expect(assets.firstRecordDate == nil)
+    }
+
     @Test func failedAddDoesNotCreateRecordOrAssetSingleton() throws {
         let context = try TestSupport.makeContext()
         #expect(throws: Failure.self) {

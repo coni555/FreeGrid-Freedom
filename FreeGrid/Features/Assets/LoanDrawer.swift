@@ -9,7 +9,8 @@ import SwiftData
 struct LoanDrawer: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
-    @Query private var expenses: [Expense]
+    /// 只取自动扣的那几笔（房租、月供），不把整本账读进来
+    @Query(filter: #Predicate<Expense> { $0.loanID != nil }) private var expenses: [Expense]
     @AppStorage("loansDrawerOpen", store: AppPreferences.store) private var isOpen = true
 
     var body: some View {
@@ -29,7 +30,8 @@ struct LoanDrawer: View {
 struct LoanRows: View {
     @Query(sort: [SortDescriptor(\Loan.sortOrder), SortDescriptor(\Loan.createdAt)])
     private var loans: [Loan]
-    @Query private var expenses: [Expense]
+    /// 只取自动扣的那几笔（房租、月供），不把整本账读进来
+    @Query(filter: #Predicate<Expense> { $0.loanID != nil }) private var expenses: [Expense]
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
     @Environment(\.modelContext) private var modelContext

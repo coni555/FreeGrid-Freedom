@@ -122,8 +122,7 @@ enum LedgerStore {
             switch transaction {
             case .expense(let expense):
                 context.insert(expense)
-                let expenses = try context.fetch(FetchDescriptor<Expense>())
-                assets.firstRecordDate = FreedomMath.earliestExpenseDate(expenses)
+                assets.firstRecordDate = try earliestExpenseDate(in: context, except: expense.id, orAlso: expense.date)
             case .income(let income):
                 context.insert(income)
             }
@@ -132,6 +131,19 @@ enum LedgerStore {
             transaction.setCashAccountID(account?.id)
             assets.updatedAt = .now
         }
+    }
+
+    private static func expense(id: UUID, in context: ModelContext) throws -> Expense? {
+        try context.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.id == id })).first
+    }
+
+    /// 最早一笔支出的日期。按日期只取最前面两条，不把整本账读进来（几千笔时每次保存要多等几十毫秒）。
+    /// 数据库按已保存的日期排序，所以正在加、改、删的那一笔先排除，再拿它的新日期来比
+    private static func earliestExpenseDate(in context: ModelContext, except id: UUID, orAlso date: Date?) throws -> Date? {
+        var earliest = FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.date)])
+        earliest.fetchLimit = 2
+        let others = try context.fetch(earliest).first { $0.id != id }?.date
+        return [others, date].compactMap { $0 }.min()
     }
 
     /// 按 ID 重查，同一记录从历史页和首页先后撤销时只回退一次现金。
@@ -145,12 +157,11 @@ enum LedgerStore {
         let transaction: LedgerTransaction
         switch kind {
         case .expense:
-            let expenses = try context.fetch(FetchDescriptor<Expense>())
-            guard let expense = expenses.first(where: { $0.id == id }) else { return }
+            guard let expense = try expense(id: id, in: context) else { return }
             transaction = .expense(expense)
         case .income:
-            let incomes = try context.fetch(FetchDescriptor<Income>())
-            guard let income = incomes.first(where: { $0.id == id }) else { return }
+            guard let income = try context.fetch(FetchDescriptor<Income>(predicate: #Predicate { $0.id == id })).first
+            else { return }
             transaction = .income(income)
         }
         try updateAssets(in: context, save: save) { assets in
@@ -161,8 +172,7 @@ enum LedgerStore {
             switch transaction {
             case .expense(let expense):
                 context.delete(expense)
-                let expenses = try context.fetch(FetchDescriptor<Expense>())
-                assets.firstRecordDate = FreedomMath.earliestExpenseDate(expenses.filter { $0.id != id })
+                assets.firstRecordDate = try earliestExpenseDate(in: context, except: id, orAlso: nil)
             case .income(let income):
                 context.delete(income)
             }
@@ -181,8 +191,7 @@ enum LedgerStore {
     ) throws {
         switch kind {
         case .expense:
-            let expenses = try context.fetch(FetchDescriptor<Expense>())
-            guard let expense = expenses.first(where: { $0.id == id }) else { throw StoreError.missingRecord }
+            guard let expense = try expense(id: id, in: context) else { throw StoreError.missingRecord }
             let previous = (expense.amount, expense.category, expense.note, expense.date, expense.cashAccountID)
             try updateAssets(in: context, save: save, restore: {
                 (expense.amount, expense.category, expense.note, expense.date, expense.cashAccountID) = previous
@@ -192,7 +201,7 @@ enum LedgerStore {
                                                      assets: assets, in: context)
                 (expense.amount, expense.category, expense.note, expense.date)
                     = (edit.amount, edit.title, edit.note, edit.date)
-                assets.firstRecordDate = FreedomMath.earliestExpenseDate(expenses)
+                assets.firstRecordDate = try earliestExpenseDate(in: context, except: id, orAlso: edit.date)
                 assets.updatedAt = .now
             }
         case .income:
