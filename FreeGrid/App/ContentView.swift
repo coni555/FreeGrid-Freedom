@@ -64,28 +64,26 @@ struct ContentView: View {
 
     private var tabView: some View {
         TabView(selection: $selectedTab) {
-            DashboardView(reviewPresentationAllowed: reviewPresentationAllowed, reviewFormPresented: reviewFormPresented)
+            StableTab { DashboardView() }.equatable()
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(AppTab.dashboard)
 
-            AssetsView()
+            StableTab { AssetsView() }.equatable()
                 .tabItem {
                     Label("Assets", systemImage: "banknote")
                 }
                 .tag(AppTab.assets)
 
-            HistoryView()
+            StableTab { HistoryView() }.equatable()
                 .tabItem {
                     Label("History", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(AppTab.history)
 
-            SettingsView(onReplayGuide: { tour in
-                guide.requestReplay(tour)
-                selectedTab = tab(for: tour)
-            })
+            // 不传闭包：闭包每次都算「变了」，外壳就拦不住重算
+            StableTab { SettingsView() }.equatable()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
@@ -106,13 +104,25 @@ struct ContentView: View {
                 )
             }
         }
+        // 设置 → 使用指引里选了一个讲解：切到它讲的那一页
+        .onChange(of: guide.replayRequests) { old, new in
+            if let tour = new.first(where: { $0.value > old[$0.key, default: 0] })?.key {
+                selectedTab = tab(for: tour)
+            }
+        }
         // 新用户记完第一笔支出、起步引导结束后, 接着讲一遍首页
         .onChange(of: setupStep) { old, new in
             guard old == .expense, new == nil, !setupGuideCompleted else { return }
             setupGuideCompleted = true
             guide.requestReplay(.dashboard)
         }
-        .onChange(of: reviewPresentationAllowed) { discardReviewIfBlocked() }
+        .onChange(of: reviewPresentationAllowed, initial: true) { _, allowed in
+            ReviewInvitationStore.shared.presentationAllowed = allowed
+            discardReviewIfBlocked()
+        }
+        .onChange(of: reviewFormPresented, initial: true) { _, presented in
+            ReviewInvitationStore.shared.formPresented = presented
+        }
         .onChange(of: ReviewInvitationStore.shared.opportunity?.id) { discardReviewIfBlocked() }
         // 打开 App 和回到前台时补扣到期的房租、月供
         .task {
@@ -157,6 +167,17 @@ struct ContentView: View {
         // 用户在 topBar 切换 dark/light,全 app 自动重绘；跟随系统时交给系统
         .preferredColorScheme(followsSystem ? nil : (isDarkMode ? .dark : .light))
     }
+}
+
+/// 四个 Tab 的根页面不从 ContentView 拿任何参数。包一层永远「没变」的外壳：
+/// 切 Tab 时 ContentView 重画，外壳挡住，里面的页面不跟着把几千笔账重算一遍；
+/// 页面自己的数据（@Query、@AppStorage）和环境变了照常刷新
+private struct StableTab<Content: View>: View, Equatable {
+    @ViewBuilder let content: () -> Content
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+
+    var body: some View { content() }
 }
 
 extension ContentView {

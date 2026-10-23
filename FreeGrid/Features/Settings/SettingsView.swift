@@ -10,9 +10,6 @@ import AppKit
 #endif
 
 struct SettingsView: View {
-    /// 在「使用指引」里选了一个讲解：切到对应页面并从头重放，由 ContentView 接手
-    var onReplayGuide: (AppGuide.Tour) -> Void = { _ in }
-
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
@@ -57,14 +54,11 @@ struct SettingsView: View {
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
     private let rateURL = URL(string: "https://apps.apple.com/app/id6781104287?action=write-review")!
 
-    private var summary: FreedomSummary {
-        FreedomChecklist.evaluate(expenses: expenses,
-                                  passiveSources: passiveSources,
-                                  assets: assetsArr.first,
-                                  assetItems: assetItems,
-                                  cashAccounts: cashAccounts,
-                                  loans: ProFeatures.loansInEffect(loans),
-                                  countsAssets: countsAssets)
+    /// 自检卡和自由卡共用的一份计算，body 里只算一次
+    private var snapshot: FinancialSnapshot {
+        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
+                          countsAssets: countsAssets)
     }
 
     private var appVersion: String {
@@ -72,16 +66,18 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let snapshot = snapshot
+        let summary = FreedomChecklist.evaluate(snapshot: snapshot, passiveSources: passiveSources)
+        return NavigationStack {
             ScrollView {
                 // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
                 VStack(spacing: -SettingsDeck.tuck) {
-                    checkCard
+                    checkCard(summary)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coverHeight = $0 }
                         .guideTarget(.check, in: guide)
                         .zIndex(6)
                     // 后面几张卡顶上一截压在上一张底下，讲解只圈露出来的部分
-                    freedomCardCard
+                    freedomCardCard(snapshot: snapshot, summary: summary)
                         .guideTarget(.freedomCard, in: guide, hiddenTop: SettingsDeck.tuck)
                         .zIndex(5)
                     // 没买时 Pro 紧跟在自由卡后面；买过了退到 FreeGrid 前面，不再占前排
@@ -160,13 +156,12 @@ struct SettingsView: View {
     }
 
     // MARK: - 第 1 张：自检（封面，点了 push 完整自检）
-    private var checkCard: some View {
-        DeckCard(tucked: false) { checkRow }
+    private func checkCard(_ summary: FreedomSummary) -> some View {
+        DeckCard(tucked: false) { checkRow(summary) }
     }
 
-    private var checkRow: some View {
-        let s = summary   // 整行只算一次 evaluate
-        return NavigationLink {
+    private func checkRow(_ s: FreedomSummary) -> some View {
+        NavigationLink {
             CheckView()
         } label: {
             HStack(spacing: Spacing.lg) {
@@ -215,9 +210,7 @@ struct SettingsView: View {
     }
 
     // MARK: - 第 2 张：自由卡（全页唯一用材质的卡，材质就是用户现在的等级）
-    private var freedomCardCard: some View {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
+    private func freedomCardCard(snapshot: FinancialSnapshot, summary: FreedomSummary) -> some View {
         let data = FreedomCardData(snapshot: snapshot, summary: summary)
         let material = FreedomCardMaterial.of(data.tier)
         let isFinite: Bool = { if case .finite = data.freedom { return true } else { return false } }()
@@ -556,7 +549,8 @@ struct SettingsView: View {
             }
         } else {
             NavigationLink {
-                GuideListPage(onReplay: onReplayGuide)
+                // 选了一个讲解：记下重放请求，ContentView 看到后切到对应页面
+                GuideListPage(onReplay: { guide.requestReplay($0) })
             } label: {
                 DeckRow(title: "使用指引") { EmptyView() }
             }

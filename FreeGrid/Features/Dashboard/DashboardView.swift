@@ -5,9 +5,6 @@ import SwiftData
 import StoreKit
 
 struct DashboardView: View {
-    var reviewPresentationAllowed = false
-    var reviewFormPresented = false
-
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -22,17 +19,34 @@ struct DashboardView: View {
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
 
+    /// 整本账的计算都在这里做：只有账本或口径变了才重算。
+    /// 首页自己的弹层、撤销条变化时只重画 DashboardContent，不再扫一遍几千笔支出
     var body: some View {
-        DashboardContent(
-            reviewPresentationAllowed: reviewPresentationAllowed,
-            reviewFormPresented: reviewFormPresented,
-            expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans),
+        let loansInEffect = ProFeatures.loansInEffect(loans)
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                                         assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect,
+                                         countsAssets: countsAssets)
+        let history = FreedomMath.freedomDaysHistory(
+            expenses: expenses,
+            incomes: incomes,
+            currentNetWorth: snapshot.freedomBase,
+            firstRecordDate: snapshot.firstExpenseDate,
+            dailyPassive: snapshot.dailyPassive,
+            loans: loansInEffect,
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
-            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                        assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets),
+            now: snapshot.now
+        )
+        // 今天的起止只算一次；逐笔调 isDateInToday 在几千笔的账本上要好几毫秒
+        let today = Calendar.current.dateInterval(of: .day, for: snapshot.now)
+        return DashboardContent(
+            snapshot: snapshot,
+            history: history,
             // 和日均比的是日常开销，自动扣的房租、月供不算
-            todaySpending: expenses.filter { $0.countsInBurn && Calendar.current.isDateInToday($0.date) }
-                .reduce(0) { $0 + $1.amount }
+            todaySpending: today.map { day in
+                expenses.reduce(0) { sum, expense in
+                    expense.countsInBurn && expense.date >= day.start && expense.date < day.end ? sum + expense.amount : sum
+                }
+            } ?? 0
         )
     }
 }
@@ -48,21 +62,14 @@ private struct ExpenseDraft: Identifiable {
 }
 
 private struct DashboardContent: View {
-    let reviewPresentationAllowed: Bool
-    let reviewFormPresented: Bool
-    let expenses: [Expense]
-    let incomes: [Income]
-    let loans: [Loan]
-    /// 不计入自由天数的现金账户：趋势往回推时跳过记在它们里面的收支
-    let uncountedAccounts: Set<UUID>
     let snapshot: FinancialSnapshot
+    /// 自由天数趋势，由 DashboardView 随账本一起算好
+    let history: [FreedomMath.HistoryPoint]
     let todaySpending: Double
 
     @Environment(\.modelContext) private var modelContext
     /// 讲解和起步引导要圈出这一页上的位置
     @Environment(AppGuide.self) private var guide
-    @Environment(\.requestReview) private var requestReview
-    @State private var reviewInvitation = ReviewInvitationStore.shared
 
     // ===== Sheet 状态 =====
     @State private var saveError: String?
@@ -100,17 +107,7 @@ private struct DashboardContent: View {
 
 
     var body: some View {
-        let history = FreedomMath.freedomDaysHistory(
-            expenses: expenses,
-            incomes: incomes,
-            currentNetWorth: snapshot.freedomBase,
-            firstRecordDate: snapshot.firstExpenseDate,
-            dailyPassive: snapshot.dailyPassive,
-            loans: loans,
-            uncountedAccounts: uncountedAccounts,
-            now: snapshot.now
-        )
-        return NavigationStack {
+        NavigationStack {
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
@@ -178,41 +175,13 @@ private struct DashboardContent: View {
             }) {
                 SimulateSheet(onRecordExpense: { amountFromSimulation = $0 })
             }
-            .task(id: reviewContext) { await offerReview() }
-            .saveErrorAlert($saveError)
-        }
-    }
-
-    private struct ReviewContext: Equatable {
-        let opportunity: UUID?
-        let allowed: Bool
-        let resting: Bool
-    }
-
-    private var reviewContext: ReviewContext {
-        ReviewContext(opportunity: reviewInvitation.opportunity?.id,
-                      allowed: reviewPresentationAllowed && !showingSimulate && !showingFreedomCard && saveError == nil,
-                      resting: !reviewFormPresented && expenseDraft == nil && !showingAddIncome && pendingUndoID == nil)
-    }
-
-    private func offerReview() async {
-        let context = reviewContext
-        guard let id = context.opportunity else { return }
-        guard !ReviewInvitationStore.isSuppressedForTesting else { reviewInvitation.discard(id); return }
-        guard context.allowed else { reviewInvitation.discard(id); return }
-        guard context.resting else { return }
-        // 已经等过表单和撤销窗口，再留一个安静间隙；继续操作会取消这次任务。
-        do { try await Task.sleep(for: .seconds(1)) } catch { return }
-        guard !Task.isCancelled,
-              let currentExpenses = try? modelContext.fetch(FetchDescriptor<Expense>()) else { return }
-        reviewInvitation.requestIfEligible(id, recordedDays: FirstWeekRecap.recordedDays(currentExpenses)) {
-            #if DEBUG
-            if ReviewInvitationStore.usesRequestProbe {
-                ReviewInvitationStore.recordRequestProbe()
-                return
+            .background {
+                ReviewInvitationPresenter(
+                    blocked: showingSimulate || showingFreedomCard || saveError != nil,
+                    busy: expenseDraft != nil || showingAddIncome || pendingUndoID != nil
+                )
             }
-            #endif
-            requestReview()
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -273,7 +242,7 @@ private struct DashboardContent: View {
         guard let id = pendingUndoID else { return }
         do {
             try LedgerStore.undo(id: id, kind: pendingUndoIsExpense ? .expense : .income, in: modelContext)
-            reviewInvitation.didUndo(transactionID: id)
+            ReviewInvitationStore.shared.didUndo(transactionID: id)
         } catch {
             saveError = error.localizedDescription
             return
@@ -665,4 +634,54 @@ private struct DashboardContent: View {
         .padding(.top, Spacing.xs)
     }
 
+}
+
+/// 评价邀请。只有这个不显示任何东西的小视图观察邀请和根层的放行条件：
+/// 切 Tab、保存时这些条件会变，放在首页本体里会让整页连同几千笔账的计算重来一遍
+private struct ReviewInvitationPresenter: View {
+    /// 首页开着模拟、自由卡或错误提示：这次邀请作废
+    let blocked: Bool
+    /// 首页还开着记账表单或撤销条：等它们收起
+    let busy: Bool
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
+    @State private var reviewInvitation = ReviewInvitationStore.shared
+
+    private struct ReviewContext: Equatable {
+        let opportunity: UUID?
+        let allowed: Bool
+        let resting: Bool
+    }
+
+    private var reviewContext: ReviewContext {
+        ReviewContext(opportunity: reviewInvitation.opportunity?.id,
+                      allowed: reviewInvitation.presentationAllowed && !blocked,
+                      resting: !reviewInvitation.formPresented && !busy)
+    }
+
+    var body: some View {
+        Color.clear.task(id: reviewContext) { await offerReview() }
+    }
+
+    private func offerReview() async {
+        let context = reviewContext
+        guard let id = context.opportunity else { return }
+        guard !ReviewInvitationStore.isSuppressedForTesting else { reviewInvitation.discard(id); return }
+        guard context.allowed else { reviewInvitation.discard(id); return }
+        guard context.resting else { return }
+        // 已经等过表单和撤销窗口，再留一个安静间隙；继续操作会取消这次任务。
+        do { try await Task.sleep(for: .seconds(1)) } catch { return }
+        guard !Task.isCancelled,
+              let currentExpenses = try? modelContext.fetch(FetchDescriptor<Expense>()) else { return }
+        reviewInvitation.requestIfEligible(id, recordedDays: FirstWeekRecap.recordedDays(currentExpenses)) {
+            #if DEBUG
+            if ReviewInvitationStore.usesRequestProbe {
+                ReviewInvitationStore.recordRequestProbe()
+                return
+            }
+            #endif
+            requestReview()
+        }
+    }
 }
