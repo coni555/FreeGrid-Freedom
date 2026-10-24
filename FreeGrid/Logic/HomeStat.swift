@@ -1,11 +1,16 @@
-// 首页底部的数字小卡：放几张、放哪几个由用户定（免费）。点一张换内容或移除，按住拖动换位置，「添加卡片」加新的。
-// 这里决定有哪些指标、没改过时放哪几张、加减换挪之后怎么排，以及每个指标显示什么。
+// 首页底部的卡片：几张小卡和一条今日对比长条，放哪些、什么顺序由用户定（免费）。首页上按住拖动排序，
+// 点卡片或「编辑卡片」打开面板加、移除、恢复默认。这里决定有哪些卡、没改过时放哪些、怎么排成行，以及每张显示什么。
 
 import Foundation
 
 enum HomeStat: String, CaseIterable, Identifiable {
-    // 顺序就是选卡时的顺序：先「花了多少」，再「坚持了多久」，再「有多少钱」，最后是要留意的
+    // 顺序就是选卡时的顺序：先「花了多少」，再「坚持了多久」，再「有多少钱」，再是要留意的，最后是长条
     case daily, month, today, track, base, passive, next
+    /// 今日对比长条：和小卡一样能拖、能移除，但总是占一整行
+    case todayBar
+
+    /// 占一整行的长条
+    var isWide: Bool { self == .todayBar }
 
     var id: String { rawValue }
 
@@ -19,6 +24,7 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .base: return "Funds"
         case .passive: return "Passive"
         case .next: return "Next"
+        case .todayBar: return "Today"
         }
     }
 
@@ -32,6 +38,7 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .base: return "可动用资产"
         case .passive: return "被动收入覆盖"
         case .next: return "下次固定支出"
+        case .todayBar: return "今日对比长条"
         }
     }
 
@@ -41,10 +48,10 @@ enum HomeStat: String, CaseIterable, Identifiable {
     /// 用户把卡都移除了时存这个，和「没改过」的空串分开
     private static let noneValue = "none"
 
-    /// 没改过（空串）时和 2.0 一样：日均、被动覆盖、记账天数；没有被动收入的人 2.0 里那张是藏起来的，这里补成本月花销。
+    /// 没改过（空串）时和 2.0 一样：日均、被动覆盖、记账天数，下面是今日对比长条；没有被动收入的人 2.0 里那张是藏起来的，这里补成本月花销。
     /// 改过的按存的顺序，认不出的（比如已经拿掉的「本月结余率」）和重复的跳过
     static func slots(stored: String, hasPassive: Bool) -> [HomeStat] {
-        if stored.isEmpty { return [.daily, hasPassive ? .passive : .month, .track] }
+        if stored.isEmpty { return [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
         if stored == noneValue { return [] }
         var result: [HomeStat] = []
         for raw in stored.split(separator: ",") {
@@ -55,6 +62,31 @@ enum HomeStat: String, CaseIterable, Identifiable {
 
     static func encode(_ slots: [HomeStat]) -> String {
         slots.isEmpty ? noneValue : slots.map(\.rawValue).joined(separator: ",")
+    }
+
+    /// 排成行：长条单独占一行；长条之间连着的几张小卡按 `rowSizes` 分行
+    static func rows(_ items: [HomeStat]) -> [[HomeStat]] {
+        rowRanges(wide: items.map(\.isWide)).map { Array(items[$0]) }
+    }
+
+    /// `rows` 的下标版，首页的排版直接用它：`wide[i]` 是第 i 张是不是长条
+    static func rowRanges(wide: [Bool]) -> [Range<Int>] {
+        var ranges: [Range<Int>] = []
+        var runStart = 0
+        func flush(upTo end: Int) {
+            var start = runStart
+            for size in rowSizes(count: end - runStart) {
+                ranges.append(start..<(start + size))
+                start += size
+            }
+        }
+        for (index, isWide) in wide.enumerated() where isWide {
+            flush(upTo: index)
+            ranges.append(index..<(index + 1))
+            runStart = index + 1
+        }
+        flush(upTo: wide.count)
+        return ranges
     }
 
     /// 一行最多三张；不整除时前面的行多一张，4 张排成两行两张，不留单独一张
@@ -105,6 +137,9 @@ enum HomeStat: String, CaseIterable, Identifiable {
             guard let next = inputs.nextFixed else { return Display(value: "—", unit: "没有固定支出") }
             return Display(value: "\(next.daysAway)",
                            unit: "天后 · \(next.name) \(FinancialFormatting.yuan(next.amount, precision: 0))")
+        case .todayBar:
+            // 首页上长条自己画；这里是编辑面板里那一行
+            return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: "占一整行 · 今天和日常比")
         }
     }
 

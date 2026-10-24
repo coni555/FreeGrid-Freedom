@@ -97,9 +97,9 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
-    /// 首页数字小卡：在「编辑卡片」里移除、加回来、全部添加、关掉今日对比，重开 App 后还在；最后恢复默认
+    /// 首页卡片：首页上按住拖动换位置（小卡和今日长条都行）；编辑面板里移除、加回来、全部添加，重开 App 后还在；最后恢复默认
     @MainActor
-    func testHomeStatCardsAreEditedInTheEditor() {
+    func testHomeCardsAreDraggedOnHomeAndEditedInThePanel() {
         let app = XCUIApplication()
         func launch(keepingPreferences: Bool) {
             app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
@@ -114,44 +114,50 @@ final class FreeGridUITests: XCTestCase {
             app.buttons["保存"].tap()
         }
         func card(_ stat: String) -> XCUIElement { app.buttons["home-stat-\(stat)"] }
-        let strip = app.descendants(matching: .any)["today-strip"]
         let done = app.buttons["home-stat-editor-done"]
 
         launch(keepingPreferences: false)
-        // 没有被动收入：默认是 日均 / 本月 / 记账，下面是今日对比和「编辑卡片」
+        // 没有被动收入：默认是 日均 / 本月 / 记账，下面是今日对比长条
         XCTAssertTrue(card("daily").waitForExistence(timeout: 5))
         for _ in 0..<4 where !app.buttons["edit-home-stats"].isHittable { app.swipeUp() }
         XCTAssertTrue(card("month").exists)
         XCTAssertTrue(card("track").exists)
-        XCTAssertTrue(strip.exists)
+        XCTAssertTrue(card("todayBar").exists)
+        XCTAssertGreaterThan(card("todayBar").frame.minY, card("daily").frame.maxY)
 
-        // 点一张卡打开编辑面板；移除记账天数，它回到「还可以添加」
+        // 首页上直接拖：本月拖到日均的位置；今日长条拖到最前面，还是占一整行
+        card("month").press(forDuration: 1.2, thenDragTo: card("daily"))
+        XCTAssertLessThan(card("month").frame.minX, card("daily").frame.minX)
+        card("todayBar").press(forDuration: 1.2, thenDragTo: card("month"))
+        XCTAssertLessThan(card("todayBar").frame.maxY, card("month").frame.minY)
+        XCTAssertGreaterThan(card("todayBar").frame.width, card("month").frame.width * 2)
+
+        // 点一张卡打开编辑面板；移除记账天数和今日长条，它们回到「还可以添加」；再全部添加
         card("daily").tap()
         XCTAssertTrue(done.waitForExistence(timeout: 3))
         app.buttons["remove-stat-track"].tap()
+        app.buttons["remove-stat-todayBar"].tap()
         XCTAssertTrue(app.buttons["add-stat-track"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["add-stat-todayBar"].exists)
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "编辑卡片"
         shot.lifetime = .keepAlways
         add(shot)
-        // 全部添加，再关掉今日对比
         app.buttons["add-all-stats"].tap()
         XCTAssertTrue(app.buttons["remove-stat-next"].waitForExistence(timeout: 3))
-        let toggle = app.switches["today-strip-toggle"]
-        for _ in 0..<3 where !toggle.isHittable { app.swipeUp() }
-        toggle.switches.firstMatch.tap()
+        // 再拿掉今日长条
+        app.buttons["remove-stat-todayBar"].tap()
         done.tap()
         XCTAssertTrue(done.waitForNonExistence(timeout: 3))
         XCTAssertTrue(card("next").waitForExistence(timeout: 3))
-        XCTAssertTrue(card("track").exists)
-        XCTAssertFalse(strip.exists)
+        XCTAssertFalse(card("todayBar").exists)
 
         // 重开 App 后还是改过的样子
         app.terminate()
         launch(keepingPreferences: true)
         XCTAssertTrue(card("next").waitForExistence(timeout: 5))
         XCTAssertTrue(card("base").exists)
-        XCTAssertFalse(strip.exists)
+        XCTAssertFalse(card("todayBar").exists)
 
         // 恢复默认
         for _ in 0..<4 where !app.buttons["edit-home-stats"].isHittable { app.swipeUp() }
@@ -159,9 +165,9 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(done.waitForExistence(timeout: 3))
         app.buttons["reset-home-stats"].tap()
         done.tap()
-        XCTAssertTrue(card("track").waitForExistence(timeout: 3))
+        XCTAssertTrue(card("todayBar").waitForExistence(timeout: 3))
+        XCTAssertTrue(card("track").exists)
         XCTAssertFalse(card("base").exists)
-        XCTAssertTrue(strip.waitForExistence(timeout: 3))
     }
 
     /// Pro：把一个分类改成另一个已有分类的名字，确认后两个合并，旧账都归到留下的那个。

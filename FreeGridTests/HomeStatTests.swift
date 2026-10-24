@@ -23,8 +23,8 @@ struct HomeStatTests {
     }
 
     @Test func defaultsMatchTheOldCardsAndStoredListsKeepTheirOrder() {
-        #expect(HomeStat.slots(stored: "", hasPassive: true) == [.daily, .passive, .track])
-        #expect(HomeStat.slots(stored: "", hasPassive: false) == [.daily, .month, .track])
+        #expect(HomeStat.slots(stored: "", hasPassive: true) == [.daily, .passive, .track, .todayBar])
+        #expect(HomeStat.slots(stored: "", hasPassive: false) == [.daily, .month, .track, .todayBar])
         // 拿掉的「本月结余率」、认不出的、重复的都跳过，其余按存的顺序
         #expect(HomeStat.slots(stored: "saved,daily,daily,weekly,next", hasPassive: false) == [.daily, .next])
         #expect(HomeStat.slots(stored: "base,today,month,track,daily", hasPassive: false)
@@ -41,6 +41,15 @@ struct HomeStatTests {
         #expect(HomeStat.rowSizes(count: 4) == [2, 2])
         #expect(HomeStat.rowSizes(count: 5) == [3, 2])
         #expect(HomeStat.rowSizes(count: 7) == [3, 2, 2])
+    }
+
+    @Test func theTodayBarAlwaysTakesARowOfItsOwn() {
+        #expect(HomeStat.rows([.daily, .month, .track, .todayBar]) == [[.daily, .month, .track], [.todayBar]])
+        // 长条夹在中间：前后的小卡各自分行
+        #expect(HomeStat.rows([.daily, .todayBar, .month, .today, .track, .base])
+                == [[.daily], [.todayBar], [.month, .today], [.track, .base]])
+        #expect(HomeStat.rows([.todayBar]) == [[.todayBar]])
+        #expect(HomeStat.rows([]) == [])
     }
 
     @Test func monthComparesWithTheSameSpanOfLastMonth() {

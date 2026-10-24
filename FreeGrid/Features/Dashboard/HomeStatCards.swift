@@ -1,38 +1,102 @@
-// 首页底部的数字小卡：首页上只负责显示，点卡片或「编辑卡片」打开编辑面板，在面板里加、移除、拖动排序、恢复默认。
-// 有哪些指标、每个显示什么在 Logic/HomeStat.swift。
+// 首页底部的卡片（几张小卡 + 今日对比长条）：首页上按住拖动排序，点一下打开编辑面板加、移除、恢复默认。
+// 有哪些卡、每张显示什么在 Logic/HomeStat.swift。
 
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// 小卡排成几行（一行最多三张）。点任意一张打开编辑面板；首页上不藏别的手势，免得和滚动、点按打架
-struct HomeStatGrid: View {
+/// 首页上的卡片：小卡一行最多三张，长条占一整行。点一下打开编辑面板；按住浮起后拖到别的卡上，它们就让位。
+/// 拖放用系统的（和滚动、点按不打架），拖动中每经过一张卡就存一次新顺序
+struct HomeCardsGrid: View {
+    /// 首页上要画的（今日对比没有可比的数时不在里面）
+    let items: [HomeStat]
+    /// 存着的完整顺序；拖动改的是它
     let slots: [HomeStat]
     let inputs: HomeStat.Inputs
+    /// 今日对比长条，首页自己画好传进来
+    let todayBar: AnyView
     let onEdit: () -> Void
+    let onReorder: ([HomeStat]) -> Void
+
+    @State private var dragging: HomeStat?
 
     var body: some View {
         StatRowsLayout(spacing: Spacing.md) {
-            ForEach(slots) { stat in
+            ForEach(items) { item in
                 Button(action: onEdit) {
-                    HomeStatCard(stat: stat, display: stat.display(inputs))
+                    if item.isWide {
+                        todayBar
+                    } else {
+                        HomeStatCard(stat: item, display: item.display(inputs))
+                    }
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("home-stat-\(stat.rawValue)")
-                .accessibilityHint("打开编辑卡片")
+                .layoutValue(key: IsWideCard.self, value: item.isWide)
+                .onDrag {
+                    dragging = item
+                    return NSItemProvider(object: item.rawValue as NSString)
+                }
+                .onDrop(of: [UTType.text], delegate: CardDropDelegate(target: item, slots: slots,
+                                                                       dragging: $dragging, onReorder: onReorder))
+                .accessibilityIdentifier("home-stat-\(item.rawValue)")
+                .accessibilityHint("按住拖动换位置，点一下编辑卡片")
+                .accessibilityActions { moveActions(item) }
             }
         }
     }
+
+    /// 读屏时拖不了：给「往前挪 / 往后挪」两个动作
+    @ViewBuilder
+    private func moveActions(_ item: HomeStat) -> some View {
+        if let index = slots.firstIndex(of: item) {
+            if index > 0 {
+                Button("往前挪") { onReorder(moved(item, to: index - 1)) }
+            }
+            if index < slots.count - 1 {
+                Button("往后挪") { onReorder(moved(item, to: index + 1)) }
+            }
+        }
+    }
+
+    private func moved(_ item: HomeStat, to index: Int) -> [HomeStat] {
+        var result = slots.filter { $0 != item }
+        result.insert(item, at: min(index, result.count))
+        return result
+    }
 }
 
-/// 按 `HomeStat.rowSizes` 排：同一行的卡一样宽、一样高
+/// 拖着的卡进了哪张卡，就挪到那张卡的位置
+private struct CardDropDelegate: DropDelegate {
+    let target: HomeStat
+    let slots: [HomeStat]
+    @Binding var dragging: HomeStat?
+    let onReorder: ([HomeStat]) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != target, let to = slots.firstIndex(of: target) else { return }
+        var result = slots.filter { $0 != dragging }
+        result.insert(dragging, at: min(to, result.count))
+        withAnimation(.snappy(duration: 0.25)) { onReorder(result) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
+    }
+}
+
+private struct IsWideCard: LayoutValueKey {
+    static let defaultValue = false
+}
+
+/// 按 `HomeStat.rowRanges` 排：长条占一整行；同一行的小卡一样宽、一样高
 struct StatRowsLayout: Layout {
     var spacing: CGFloat
 
     private func rows(_ subviews: Subviews, width: CGFloat) -> [(range: Range<Int>, cardWidth: CGFloat, height: CGFloat)] {
-        var start = 0
-        return HomeStat.rowSizes(count: subviews.count).map { count in
-            let cardWidth = (width - spacing * CGFloat(count - 1)) / CGFloat(count)
-            let range = start..<(start + count)
-            start += count
+        HomeStat.rowRanges(wide: subviews.map { $0[IsWideCard.self] }).map { range in
+            let cardWidth = (width - spacing * CGFloat(range.count - 1)) / CGFloat(range.count)
             let height = range.map { subviews[$0].sizeThatFits(ProposedViewSize(width: cardWidth, height: nil)).height }.max() ?? 0
             return (range, cardWidth, height)
         }
@@ -91,7 +155,7 @@ struct HomeStatCard: View {
     }
 }
 
-/// 首页卡片都移除、今日对比也关了时，占位的虚线框，点了打开编辑面板
+/// 首页上的卡都移除了时，占位的虚线框，点了打开编辑面板
 struct HomeStatEmptySlot: View {
     let onEdit: () -> Void
 
@@ -118,13 +182,12 @@ struct HomeStatEmptySlot: View {
 // MARK: - 编辑面板
 
 /// 「编辑卡片」：上面是首页上的卡（按顺序，左边移除、右边拖动排序），下面是还能加的；移除的卡回到下面，点一下就加回来。
-/// 顶上「恢复默认」「完成」，「还可以添加」那组有「全部添加」，最后是今日对比长条的开关
+/// 今日对比长条也是其中一张。顶上「恢复默认」「完成」，「还可以添加」那组有「全部添加」
 struct HomeStatEditor: View {
     let slots: [HomeStat]
     let inputs: HomeStat.Inputs
     let onChange: ([HomeStat]) -> Void
-    @Binding var showsToday: Bool
-    /// 恢复成没改过的样子（卡片和今日对比都回到默认）
+    /// 恢复成没改过的样子
     let onReset: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -153,14 +216,14 @@ struct HomeStatEditor: View {
                     sectionHeader("在首页上")
                 } footer: {
                     if slots.count > 1 {
-                        Text("按住右边的把手拖动，调整首页上的顺序")
+                        Text("按住右边的把手拖动调整顺序；在首页上按住卡片也能直接拖")
                             .font(.system(.caption2, design: .rounded))
                     }
                 }
 
                 Section {
                     if available.isEmpty {
-                        Text("七张都在首页上了")
+                        Text("都在首页上了")
                             .font(.system(.footnote, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .listRowBackground(Color.mist)
@@ -187,23 +250,6 @@ struct HomeStatEditor: View {
                         .font(.system(.caption2, design: .rounded))
                 }
 
-                Section {
-                    Toggle(isOn: $showsToday.animation(.snappy(duration: 0.3))) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("今日对比长条")
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(Color.ink)
-                            Text("今天的日常支出和日常比，放在小卡下面")
-                                .font(.system(.caption2, design: .rounded))
-                                .foregroundStyle(Color.inkFaint)
-                        }
-                    }
-                    .tint(Color.skyDeep)
-                    .accessibilityIdentifier("today-strip-toggle")
-                    .listRowBackground(Color.mist)
-                } header: {
-                    sectionHeader("长条")
-                }
             }
             #if os(iOS)
             .environment(\.editMode, .constant(.active))

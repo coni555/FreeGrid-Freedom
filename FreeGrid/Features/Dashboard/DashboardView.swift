@@ -82,8 +82,6 @@ private struct DashboardContent: View {
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
     /// 底部放哪几张数字小卡
     @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
-    /// 今日对比长条放不放
-    @AppStorage("homeShowsToday", store: AppPreferences.store) private var showsToday = true
     /// 编辑卡片：点任意一张卡或「编辑卡片」打开
     @State private var showingStatEditor = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
@@ -165,11 +163,8 @@ private struct DashboardContent: View {
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sheet(isPresented: $showingStatEditor) {
-                HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots, showsToday: $showsToday,
-                               onReset: {
-                                   storedStatSlots = ""
-                                   showsToday = true
-                               })
+                HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
+                               onReset: { storedStatSlots = "" })
             }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
@@ -208,7 +203,7 @@ private struct DashboardContent: View {
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    bottomCards      // 数字小卡 + 今日对比，放哪些由用户定
+                    bottomCards      // 小卡和今日对比长条，放哪些、什么顺序由用户定
     }
 
     // ============================================================================
@@ -346,22 +341,21 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// 底部：数字小卡（几张、哪几张由用户定）→ 今日对比长条（可以关）→「编辑卡片」。一笔支出都没有时都不放
+    /// 底部：小卡和今日对比长条（放哪些、什么顺序由用户定）→「编辑卡片」。一笔支出都没有时都不放
     @ViewBuilder
     private var bottomCards: some View {
         if snapshot.hasExpenses {
-            let hasToday = showsToday && snapshot.dailyBurn.isFinite && snapshot.dailyBurn > 0
-            if !statSlots.isEmpty {
-                HomeStatGrid(slots: statSlots, inputs: statInputs, onEdit: { showingStatEditor = true })
-            }
-            if hasToday {
-                todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    .accessibilityIdentifier("today-strip")
-            }
-            if statSlots.isEmpty && !hasToday {
+            // 今日对比要有日均才有可比的；没有时先不画，顺序里还留着它
+            let hasToday = snapshot.dailyBurn.isFinite && snapshot.dailyBurn > 0
+            let items = statSlots.filter { $0 != .todayBar || hasToday }
+            if items.isEmpty {
                 // 全都移除了：留一个虚线框，告诉人从哪里加回来
                 HomeStatEmptySlot(onEdit: { showingStatEditor = true })
             } else {
+                HomeCardsGrid(items: items, slots: statSlots, inputs: statInputs,
+                              todayBar: AnyView(todaySection),
+                              onEdit: { showingStatEditor = true },
+                              onReorder: { storedStatSlots = HomeStat.encode($0) })
                 Button {
                     showingStatEditor = true
                 } label: {
