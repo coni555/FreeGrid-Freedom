@@ -36,7 +36,8 @@ enum AppPreferences {
         ProIntro.audienceKey,
         ReviewInvitationStore.lastRequestedKey,
         HomeStat.slotsKey,
-        FreedomGoal.monthsKey,
+        FreedomGoal.leaveDateKey,
+        FreedomGoal.targetDaysKey,
         FreedomGoal.incomeKey,
     ]
 
@@ -49,9 +50,13 @@ enum AppPreferences {
                 defaults.set(timestamp, forKey: key)
                 continue
             }
-            // 目标几个月存成整数、收入存成数字，@AppStorage 读字符串读不出来
-            if key == FreedomGoal.monthsKey, let months = Int(value) {
-                defaults.set(months, forKey: key)
+            // GAP 的天数存成整数、收入和日期（时间戳）存成数字，@AppStorage 读字符串读不出来
+            if key == FreedomGoal.targetDaysKey, let days = Int(value) {
+                defaults.set(days, forKey: key)
+                continue
+            }
+            if key == FreedomGoal.leaveDateKey, let timestamp = Double(value), timestamp.isFinite {
+                defaults.set(timestamp, forKey: key)
                 continue
             }
             if key == FreedomGoal.incomeKey, let income = Double(value) {

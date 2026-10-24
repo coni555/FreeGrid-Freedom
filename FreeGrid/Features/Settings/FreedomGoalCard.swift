@@ -1,4 +1,5 @@
-// 自检页最上面「我的目标」那张卡：没设时邀请设一个；设了时圆环是离目标多近，大数字是还要多少天。点整张卡打开目标面板。
+// 自检页最上面的 GAP 倒计时卡：没设时邀请定一个日期；设了时大数字是还有几天，下面一句那天大约有多少天自由，
+// 定了「想撑多久」再加一根进度条。点整张卡打开目标面板。
 
 import SwiftUI
 
@@ -10,7 +11,7 @@ struct FreedomGoalCard: View {
     var body: some View {
         Button(action: onEdit) {
             VaultCard(emphasis: .high, padding: Spacing.xl) {
-                if let result { goal(result) } else { empty }
+                if let result { countdown(result) } else { empty }
             }
         }
         .buttonStyle(.plain)
@@ -19,16 +20,16 @@ struct FreedomGoalCard: View {
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            KickerLabel(text: String(localized: "GAP · 我的目标"))
-            Text("想攒够能撑多久再走？")
+            KickerLabel(text: "GAP")
+            Text("想哪天离开？")
                 .font(.system(.title3, design: .rounded))
                 .foregroundStyle(Color.ink)
-            Text("设一个目标，按每月能存下的钱，算还要多少天。")
+            Text("定一个日期，倒数还有几天，看那天有多少天自由。")
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
-                Text("设定目标")
+                Text("定一个日期")
                 Image(systemName: "arrow.right").font(.system(size: 11))
             }
             .font(.system(.subheadline, design: .rounded))
@@ -40,90 +41,114 @@ struct FreedomGoalCard: View {
         }
     }
 
-    private func goal(_ result: FreedomGoalMath.Result) -> some View {
+    private func countdown(_ result: FreedomGoalMath.Result) -> some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             HStack {
-                KickerLabel(text: String(localized: "GAP · 我的目标"))
+                KickerLabel(text: "GAP · \(AppLanguage.date(result.goal.leaveDate, template: "yyyyMMMd"))")
                 Spacer()
                 Text("编辑")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.skyDeep)
             }
 
-            HStack(alignment: .center, spacing: Spacing.lg) {
-                ring(result.progress)
-                headline(result)
-                Spacer(minLength: 0)
-            }
+            GapCountdownNumber(daysUntil: result.daysUntil)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Hairline(color: .hairlineSoft)
-                    .padding(.bottom, 4)
-                line(goalLine(result))
-                if let saving = result.saving { line(FreedomGoalMath.savingText(saving)) }
-                if let leave = result.leaveLine {
-                    line(leave, color: result.leave?.enough == true ? .skyDeep : .inkMuted)
-                }
+            // 日子过了就只留换日期的提示，不再推算那天
+            if result.daysUntil >= 0 {
+                details(result)
             }
         }
     }
 
-    private func ring(_ progress: Double) -> some View {
-        ZStack {
-            Circle().stroke(Color.mist2, lineWidth: 5)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            Text(FinancialFormatting.percentage(progress))
-                .font(.system(size: 15, weight: .medium, design: .rounded).monospacedDigit())
+    private func details(_ result: FreedomGoalMath.Result) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Hairline(color: .hairlineSoft)
+                .padding(.bottom, Spacing.xs)
+            Text(result.freedomLine)
+                .font(.system(.body, design: .rounded))
                 .foregroundStyle(Color.ink)
-                .minimumScaleFactor(0.6)
-                .padding(8)
+                .accessibilityIdentifier("gap-freedom-line")
+            if let progress = result.progress {
+                GapTargetBar(progress: progress, label: result.targetLine, enough: result.enough == true)
+            }
+            footnote(result)
         }
-        .frame(width: 76, height: 76)
-        .accessibilityLabel(Text("离目标 \(FinancialFormatting.percentage(progress))"))
     }
 
-    /// 还要多少天时用超细大数字（和首页的大数字同一种字），其余状态写一句话
+    /// 最下面一行小字：按每月存多少推算的；不知道收入时提示填上
     @ViewBuilder
-    private func headline(_ result: FreedomGoalMath.Result) -> some View {
-        switch result.status {
-        case .onTheWay(let days, _):
-            VStack(alignment: .leading, spacing: 2) {
-                Text(days.formatted(.number))
-                    .font(.system(size: 52, weight: .ultraLight, design: .rounded).monospacedDigit())
+    private func footnote(_ result: FreedomGoalMath.Result) -> some View {
+        if let saving = result.saving, result.projected {
+            note(FreedomGoalMath.savingText(saving))
+        } else if case .finite = result.freedom, result.daysUntil > 0 {
+            note(String(localized: "填上每月收入，算到那天会有多少"))
+        }
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.system(.caption, design: .rounded).monospacedDigit())
+            .foregroundStyle(Color.inkFaint)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 2)
+    }
+}
+
+/// 「189 天后」：超细大数字，和首页大数字同一种字。今天、已经过了的日子写一句话
+struct GapCountdownNumber: View {
+    let daysUntil: Int
+    var size: CGFloat = 64
+
+    var body: some View {
+        if daysUntil > 0 {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(daysUntil.formatted(.number))
+                    .font(.system(size: size, weight: .ultraLight, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.ink)
+                    .contentTransition(.numericText())
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                Text("天后可以走")
-                    .font(.system(.subheadline, design: .rounded))
+                // 英文单复数：数字和单位分两种字号显示，只能在这里分开写
+                Text(daysUntil == 1 && !AppLanguage.isChinese ? "day" : String(localized: "天后"))
+                    .font(.system(.title3, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
             }
             .accessibilityElement(children: .combine)
-        case .reached:
-            Text("现在就可以走")
-                .font(.system(.title3, design: .rounded).weight(.medium))
-                .foregroundStyle(Color.skyDeep)
-        default:
-            Text(result.statusLine)
-                .font(.system(.headline, design: .rounded).weight(.regular))
-                .foregroundStyle(Color.inkMuted)
+            .accessibilityIdentifier("gap-countdown")
+        } else {
+            Text(daysUntil == 0 ? "就是今天" : "这一天已经过了，点这里换一个日期")
+                .font(.system(.title3, design: .rounded))
+                .foregroundStyle(daysUntil == 0 ? Color.skyDeep : Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
+}
 
-    private func goalLine(_ result: FreedomGoalMath.Result) -> String {
-        if case .onTheWay(_, let ready) = result.status {
-            return String(localized: "撑 \(result.goal.months) 个月 · 预计 \(FreedomMath.depleteDateText(ready))")
+/// 那天的自由天数占「想撑多久」多少：细进度条，右边写够不够
+struct GapTargetBar: View {
+    let progress: Double
+    let label: String?
+    let enough: Bool
+
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mist2)
+                    Capsule()
+                        .fill(Color.skyDeep)
+                        .frame(width: max(2, geo.size.width * progress))
+                }
+            }
+            .frame(height: 4)
+            if let label {
+                Text(label)
+                    .font(.system(.caption, design: .rounded).monospacedDigit())
+                    .foregroundStyle(enough ? Color.skyDeep : Color.inkMuted)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .accessibilityIdentifier("gap-target-line")
+            }
         }
-        return String(localized: "目标：撑 \(result.goal.months) 个月")
-    }
-
-    private func line(_ text: String, color: Color = .inkMuted) -> some View {
-        Text(text)
-            .font(.system(.caption, design: .rounded).monospacedDigit())
-            .foregroundStyle(color)
-            .fixedSize(horizontal: false, vertical: true)
     }
 }

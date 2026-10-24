@@ -1,4 +1,4 @@
-// 离职 / GAP 目标：要多少钱、还要几天、定的日期那天够不够、收入从哪来，以及「每月有结余」那一项。
+// GAP 倒计时：离那天几天、那天大约有多少天自由、够不够想撑的时长、收入从哪来，以及「每月有结余」那一项。
 import Foundation
 import Testing
 @testable import FreeGrid
@@ -27,90 +27,85 @@ struct FreedomGoalTests {
         FreedomGoalMath.saving(snapshot: s, enteredIncome: (120 + perDay) * month, recordedIncome: nil)
     }
 
-    @Test func requiredMoneyIsTargetDaysTimesDailyNetCost() throws {
-        let s = snapshot()
-        let required = try #require(FreedomGoalMath.requiredBase(days: 12 * month, snapshot: s))
-        #expect(abs(required - 12 * month * 120) < 0.01)
+    @Test func goalComesFromStoredPreferences() {
+        #expect(FreedomGoal(leaveDate: nil, targetDays: 365) == nil)
+        let stored = FreedomGoal(leaveDate: day(30).timeIntervalSince1970, targetDays: 0)
+        #expect(stored?.targetDays == nil)
+        #expect(FreedomGoal(leaveDate: day(30).timeIntervalSince1970, targetDays: 365)?.targetDays == 365)
     }
 
-    @Test func countsDownWithMonthlySaving() throws {
-        let s = snapshot()
-        let goal = FreedomGoal(months: 12)
-        let result = FreedomGoalMath.evaluate(goal: goal, snapshot: s, saving: saving(perDay: 100, in: s))
-        // 还差 12 × 30.44 × 120 − 36,000 = 7,833.6，每天存 100 → 79 天
-        guard case .onTheWay(let days, let ready) = result.status else {
-            Issue.record("应该在路上：\(result.status)"); return
-        }
-        #expect(days == 79)
-        #expect(Calendar.current.isDate(ready, inSameDayAs: day(79)))
-        #expect(abs(result.progress - 36_000 / (12 * month * 120)) < 0.0001)
-        #expect(result.statusLine == "还要 79 天")
-    }
-
-    @Test func reachedWhenMoneyAlreadyLastsTheTarget() {
-        let s = snapshot()
-        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 6), snapshot: s, saving: nil)
-        #expect(result.status == .reached)
-        #expect(result.progress == 1)
-        #expect(result.statusLine == "现在的钱已经够撑 6 个月")
-    }
-
-    @Test func passiveIncomeCoveringCostsMeansReached() {
-        let s = snapshot(cash: 0, passive: 120 * month)
-        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 24), snapshot: s, saving: nil)
-        #expect(result.status == .reached)
-    }
-
-    @Test func unreachableWhenSpendingMoreThanEarning() {
-        let s = snapshot()
-        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12), snapshot: s, saving: saving(perDay: -10, in: s))
-        #expect(result.status == .unreachable)
-        #expect(result.statusLine == "按现在的结余攒不到")
-    }
-
-    @Test func needsIncomeOrDataWhenItCannotCount() {
-        let s = snapshot()
-        #expect(FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12), snapshot: s, saving: nil).status == .needsIncome)
-        let empty = snapshot(expenses: [])
-        #expect(FreedomGoalMath.saving(snapshot: empty, enteredIncome: 8_000, recordedIncome: nil) == nil)
-        #expect(FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12), snapshot: empty, saving: nil).status == .needsData)
-    }
-
-    @Test func leaveDateShowsWhetherThatDayIsEnough() throws {
+    @Test func projectsFreedomToTheLeaveDay() throws {
         let s = snapshot()
         let perDay = saving(perDay: 100, in: s)
-        // 100 天后：36,000 + 10,000 = 46,000 → 383 天，够 12 个月
-        let later = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12, leaveDate: day(100)), snapshot: s, saving: perDay)
-        let leave = try #require(later.leave)
-        #expect(leave.daysUntil == 100)
-        #expect(leave.enough == true)
-        #expect(later.leaveLine?.hasSuffix("够了") == true)
-        // 50 天后：41,000 → 约 341.7 天，差约 0.8 个月
-        let sooner = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12, leaveDate: day(50)), snapshot: s, saving: perDay)
-        #expect(sooner.leave?.enough == false)
-        #expect(sooner.leaveLine?.contains("还差 0.8 个月") == true)
-        // 没有收入：推不到那天
-        let unknown = FreedomGoalMath.evaluate(goal: FreedomGoal(months: 12, leaveDate: day(50)), snapshot: s, saving: nil)
-        #expect(unknown.leave?.projected == nil)
-        #expect(unknown.leaveLine?.hasSuffix("填上收入才能算那天够不够") == true)
+        // 100 天后：36,000 + 10,000 = 46,000 → 383 天，够撑一年
+        let later = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(100), targetDays: 365), snapshot: s, saving: perDay)
+        #expect(later.daysUntil == 100)
+        #expect(later.projected)
+        #expect(later.freedomLine == "那天大约有 383 天自由")
+        #expect(later.enough == true)
+        #expect(later.targetLine == "够撑一年")
+        #expect(later.countdownLine == "GAP · 100 天后")
+        // 50 天后：41,000 → 341.7 天，离一年还差 24 天
+        let sooner = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(50), targetDays: 365), snapshot: s, saving: perDay)
+        #expect(sooner.enough == false)
+        #expect(try abs(#require(sooner.progress) - 41_000.0 / 120 / 365) < 0.0001)
+        #expect(sooner.targetLine == "离一年还差 24 天")
+        // 没设目标：没有进度条
+        let noTarget = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(50)), snapshot: s, saving: perDay)
+        #expect(noTarget.progress == nil)
+        #expect(noTarget.targetLine == nil)
     }
 
-    @Test func requiredMoneyWithRentLastsExactlyTheTarget() throws {
+    @Test func spendingMoreThanEarningShrinksThatDay() {
+        let s = snapshot()
+        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(100)), snapshot: s, saving: saving(perDay: -10, in: s))
+        // 36,000 − 1,000 = 35,000 → 291.7 天
+        #expect(result.freedomLine == "那天大约有 292 天自由")
+    }
+
+    @Test func withoutIncomeShowsTodaysFreedom() {
+        let s = snapshot()
+        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(100), targetDays: 183), snapshot: s, saving: nil)
+        #expect(!result.projected)
+        #expect(result.freedomLine == "现在有 300 天自由")
+        #expect(result.targetLine == "够撑半年")
+    }
+
+    @Test func coveredAndMissingDataHaveTheirOwnLines() {
+        let covered = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(10), targetDays: 730),
+                                               snapshot: snapshot(cash: 0, passive: 120 * month), saving: nil)
+        #expect(covered.freedomLine == "被动收入已经盖住开销")
+        #expect(covered.enough == true)
+        let empty = snapshot(expenses: [])
+        #expect(FreedomGoalMath.saving(snapshot: empty, enteredIncome: 8_000, recordedIncome: nil) == nil)
+        let none = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(10), targetDays: 365), snapshot: empty, saving: nil)
+        #expect(none.freedomLine == "记下支出、算出日均后才能算")
+        #expect(none.progress == nil)
+    }
+
+    @Test func countdownLineForTodayAndPastDays() {
+        let s = snapshot()
+        #expect(FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: now), snapshot: s, saving: nil).countdownLine == "GAP · 就是今天")
+        let past = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(-3)), snapshot: s, saving: saving(perDay: 100, in: s))
+        #expect(past.daysUntil == -3)
+        #expect(past.countdownLine == "GAP · 这一天已经过了")
+        // 已经过了的日子不再往后推钱
+        #expect(past.freedom == .finite(days: 300))
+    }
+
+    @Test func rentIsDeductedOnTheWayToo() throws {
         let due = TestSupport.day("2026-07-05")
         let rent = Loan(name: "房租", monthlyAmount: 2_500, dueDay: 5, periodsAtStart: 0,
                         startDate: Calendar.current.date(byAdding: .day, value: -1, to: due)!,
                         sortOrder: 0, isOngoing: true)
         let s = snapshot(loans: [rent])
-        let target = 6 * month
-        let required = try #require(FreedomGoalMath.requiredBase(days: target, snapshot: s))
-        func days(_ base: Double) -> Double {
-            if case .finite(let d) = FreedomGoalMath.freedom(base: base, snapshot: s) { return d }
-            return .infinity
-        }
-        #expect(days(required) >= target)
-        #expect(days(required - 2) < target)
-        // 房租让要的钱比只按日常算多
-        #expect(required > target * 120)
+        let result = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(100)), snapshot: s, saving: saving(perDay: 100, in: s))
+        // 房租也算进开销，每天存下的变少；那天的钱再按首页同一套推演扣房租
+        let perDay = try #require(result.saving).perDay
+        #expect(abs(perDay - (100 - s.dailyFixed)) < 0.0001)
+        #expect(result.freedom == FreedomGoalMath.freedom(base: 36_000 + perDay * 100, snapshot: s))
+        guard case .finite(let days) = result.freedom else { Issue.record("应该是有限天数"); return }
+        #expect(days < (36_000 + perDay * 100) / 120)
     }
 
     @Test func recordedIncomeUsesActiveIncomeOverTheLast90Days() throws {

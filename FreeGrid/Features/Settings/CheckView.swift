@@ -1,4 +1,4 @@
-// 自检页：最上面是「我的目标」（离职 / GAP），下面是里程碑清单，最后一行写记账天数够不够让日均变稳。
+// 自检页：最上面是 GAP 倒计时（离职目标），下面是里程碑清单，最后一行写记账天数够不够让日均变稳。
 
 import SwiftUI
 import SwiftData
@@ -14,8 +14,8 @@ struct CheckView: View {
     private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    @AppStorage(FreedomGoal.monthsKey, store: AppPreferences.store) private var goalMonths = 0
     @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
     @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     @State private var editingGoal = false
 
@@ -25,10 +25,7 @@ struct CheckView: View {
                           countsAssets: countsAssets)
     }
 
-    private var goal: FreedomGoal? {
-        guard FreedomGoal.monthsRange.contains(goalMonths) else { return nil }
-        return FreedomGoal(months: goalMonths, leaveDate: goalLeaveDate.map { Date(timeIntervalSince1970: $0) })
-    }
+    private var goal: FreedomGoal? { FreedomGoal(leaveDate: goalLeaveDate, targetDays: goalTargetDays) }
 
     // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)
     var body: some View {
@@ -57,12 +54,12 @@ struct CheckView: View {
         .sheet(isPresented: $editingGoal) {
             FreedomGoalSheet(existing: goal, enteredIncome: enteredIncome, recordedIncome: recorded,
                              snapshot: snapshot) { newGoal, income in
-                goalMonths = newGoal.months
-                goalLeaveDate = newGoal.leaveDate?.timeIntervalSince1970
+                goalLeaveDate = newGoal.leaveDate.timeIntervalSince1970
+                goalTargetDays = newGoal.targetDays ?? 0
                 enteredIncome = income
             } onClear: {
-                goalMonths = 0
                 goalLeaveDate = nil
+                goalTargetDays = 0
             }
         }
     }

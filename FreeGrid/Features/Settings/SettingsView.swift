@@ -49,9 +49,9 @@ struct SettingsView: View {
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    /// 设了离职 / GAP 目标时，自检卡的圆环换成离目标多近
-    @AppStorage(FreedomGoal.monthsKey, store: AppPreferences.store) private var goalMonths = 0
+    /// 设了 GAP 时，自检卡上写几天后离开、那天大约有多少天自由
     @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
     @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     private let icpNumber = "浙ICP备2026045014号-1A"
@@ -74,8 +74,7 @@ struct SettingsView: View {
         let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
                                             recordedIncome: FreedomGoalMath.recordedMonthlyIncome(incomes))
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
-        let goal = FreedomGoal.monthsRange.contains(goalMonths)
-            ? FreedomGoal(months: goalMonths, leaveDate: goalLeaveDate.map { Date(timeIntervalSince1970: $0) }) : nil
+        let goal = FreedomGoal(leaveDate: goalLeaveDate, targetDays: goalTargetDays)
         let goalResult = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         return NavigationStack {
             ScrollView {
@@ -169,7 +168,7 @@ struct SettingsView: View {
         DeckCard(tucked: false) { checkRow(summary, goal: goal) }
     }
 
-    /// 设了目标：圆环是离目标多近，下面写目标和结论；没设：圆环是达成了几个里程碑，下面写下一站
+    /// 圆环始终是达成了几个里程碑。设了 GAP：下面写几天后离开、那天大约有多少天自由；没设：写下一站
     private func checkRow(_ s: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
         NavigationLink {
             CheckView()
@@ -179,22 +178,14 @@ struct SettingsView: View {
                 ZStack {
                     Circle().stroke(Color.mist2, lineWidth: 5)
                     Circle()
-                        .trim(from: 0, to: goal?.progress ?? s.progress)
+                        .trim(from: 0, to: s.progress)
                         .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    if let goal {
-                        Text(FinancialFormatting.percentage(goal.progress))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
-                            .minimumScaleFactor(0.6)
-                            .padding(6)
-                            .foregroundStyle(Color.ink)
-                    } else {
-                        (Text("\(s.doneCount)")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
-                         + Text("/\(s.total)")
-                            .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
-                            .foregroundStyle(Color.ink)
-                    }
+                    (Text("\(s.doneCount)")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+                     + Text("/\(s.total)")
+                        .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
+                        .foregroundStyle(Color.ink)
                 }
                 .frame(width: 56, height: 56)
 
@@ -203,10 +194,10 @@ struct SettingsView: View {
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(Color.ink)
                     if let goal {
-                        Text("我的目标 · 撑 \(goal.goal.months) 个月")
+                        Text(goal.countdownLine)
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
-                        Text(goal.statusLine)
+                        Text(goal.daysUntil >= 0 ? goal.freedomLine : String(localized: "点进去换一个日期"))
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.skyDeep)
                     } else if let stop = s.nextStopTitle {

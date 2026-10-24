@@ -128,7 +128,7 @@ enum FreedomChecklist {
         let title = String(localized: "每月有结余")
         guard let saving else {
             return FreedomCheckItem(id: id, title: title, shortTitle: title, done: false, progress: nil, detail: "",
-                                    hint: String(localized: "在「我的目标」里填上每月到手收入"))
+                                    hint: String(localized: "在上面的 GAP 里填上每月到手收入"))
         }
         let amount = FinancialFormatting.wholeNumber(abs(saving.perMonth))
         let done = saving.perDay > 0

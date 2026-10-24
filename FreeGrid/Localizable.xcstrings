@@ -151,16 +151,6 @@
         }
       }
     },
-    "%@ 个月": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ months"
-          }
-        }
-      }
-    },
     "%@ 年": {
       "localizations": {
         "en": {
@@ -321,68 +311,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "About %@"
-          }
-        }
-      }
-    },
-    "%@走：填上收入才能算那天够不够": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaving %@: add your income to see if that's enough"
-          }
-        }
-      }
-    },
-    "%@走：被动收入已经盖住开销": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaving %@: passive income already covers your costs"
-          }
-        }
-      }
-    },
-    "%@走：记下支出后才能算": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaving %@: log some expenses first"
-          }
-        }
-      }
-    },
-    "%@走：那天能撑 %@，够了": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaving %1$@: %2$@ covered by then. Enough"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@走：那天能撑 %2$@，够了"
-          }
-        }
-      }
-    },
-    "%@走：那天能撑 %@，还差 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaving %1$@: %2$@ covered by then, %3$@ short"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@走：那天能撑 %2$@，还差 %3$@"
           }
         }
       }
@@ -1251,12 +1179,12 @@
         }
       }
     },
-    "**财富自由自检**：最上面是你的离职目标：想攒够能撑几个月再走，按每月能存下的钱算还要多少天；定了日期，也能看那天够不够。下面是按你的账自动判断的里程碑，点进去看每一项还差多少。": {
+    "**财富自由自检**：最上面是 GAP 倒计时：定一个离开的日期，看还有几天、那天大约有多少天自由；选了想撑多久（半年、一年、两年），再看够不够。填上每月到手收入算得更准，不填按近 90 天的收入记录。下面是按你的账自动判断的里程碑，点进去看每一项还差多少。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Freedom Check**: at the top is your leave goal: how many months you want covered before you go, and how many days that takes at what you save each month. Set a date to see whether that day is enough. Below are milestones checked against your ledger. Tap in to see how far you are from each."
+            "value": "**Freedom Check**: at the top is your gap countdown. Pick the day you'd leave to see how many days are left and roughly how many Freedom Days you'll have by then. Choose how long you want covered (half a year, one year, two years) to see whether that's enough. Adding your monthly take-home pay makes it more accurate; without it, your last 90 days of income records are used. Below are milestones checked against your ledger. Tap in to see how far you are from each."
           }
         }
       }
@@ -1481,12 +1409,54 @@
         }
       }
     },
-    "GAP · 我的目标": {
+    "GAP · %lld 天后": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "GAP · in %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "GAP · in %lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "GAP · 就是今天": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gap Goal"
+            "value": "GAP · today"
+          }
+        }
+      }
+    },
+    "GAP · 这一天已经过了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GAP · that day has passed"
+          }
+        }
+      }
+    },
+    "GAP 倒计时和几个里程碑，看离财富自由走到了哪一步。\n点进去定离开的日期、看每一项。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your gap countdown and a few milestones show how far you are on the way to financial freedom.\nTap in to pick a leave date and see each one."
           }
         }
       }
@@ -1860,6 +1830,16 @@
         }
       }
     },
+    "一年": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "one year"
+          }
+        }
+      }
+    },
     "一格是一天自由；天数多了，一格换成一月或一年。": {
       "localizations": {
         "en": {
@@ -2076,7 +2056,7 @@
         }
       }
     },
-    "不填就按近 90 天的收入记录：每月约 ¥%@": {
+    "不填就按近 90 天的收入记录，每月约 ¥%@": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2166,6 +2146,16 @@
         }
       }
     },
+    "不设": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
     "不足 1 天": {
       "localizations": {
         "en": {
@@ -2196,12 +2186,12 @@
         }
       }
     },
-    "个月": {
+    "两年": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "months"
+            "value": "two years"
           }
         }
       }
@@ -2796,16 +2786,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your nickname"
-          }
-        }
-      }
-    },
-    "你的离职目标和几个里程碑，看离财富自由走到了哪一步。\n点进去设目标、看每一项。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your leave goal and a few milestones show how far you are on the way to financial freedom.\nTap in to set a goal and see each one."
           }
         }
       }
@@ -3835,7 +3815,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Half a year"
+            "value": "half a year"
           }
         }
       }
@@ -4524,12 +4504,12 @@
         }
       }
     },
-    "在「我的目标」里填上每月到手收入": {
+    "在上面的 GAP 里填上每月到手收入": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add your monthly take-home pay in My Goal"
+            "value": "Add your monthly take-home pay in the gap card above"
           }
         }
       }
@@ -4584,12 +4564,12 @@
         }
       }
     },
-    "填上每月收入，就能算还要多久": {
+    "填上每月收入，算到那天会有多少": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add your monthly income to see how long it takes"
+            "value": "Add your monthly income to see what you'll have by then"
           }
         }
       }
@@ -4744,6 +4724,16 @@
         }
       }
     },
+    "够撑%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enough for %@"
+          }
+        }
+      }
+    },
     "大数字放中间": {
       "localizations": {
         "en": {
@@ -4794,6 +4784,16 @@
         }
       }
     },
+    "天后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days"
+          }
+        }
+      }
+    },
     "天后 · %@ %@": {
       "localizations": {
         "en": {
@@ -4806,16 +4806,6 @@
           "stringUnit": {
             "state": "new",
             "value": "天后 · %1$@ %2$@"
-          }
-        }
-      }
-    },
-    "天后可以走": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "days until you can go"
           }
         }
       }
@@ -4900,12 +4890,22 @@
         }
       }
     },
-    "定一个离开的日期": {
+    "定一个日期": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set a leave date"
+            "value": "Pick a date"
+          }
+        }
+      }
+    },
+    "定一个日期，倒数还有几天，看那天有多少天自由。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a date to count down to, and see how many Freedom Days you'll have that day."
           }
         }
       }
@@ -5050,6 +5050,16 @@
         }
       }
     },
+    "就是今天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's the day"
+          }
+        }
+      }
+    },
     "就这么花了，记为支出": {
       "localizations": {
         "en": {
@@ -5118,16 +5128,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Salary / Investments / Side gig / ..."
-          }
-        }
-      }
-    },
-    "工资等上班的收入，按税后到手填。被动收入已经算在里面，不用重复填": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your take-home pay from work. Passive income is already counted, so leave it out."
           }
         }
       }
@@ -5594,6 +5594,16 @@
         }
       }
     },
+    "想哪天离开？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When do you want to leave?"
+          }
+        }
+      }
+    },
     "想回到一个总数，点「合并成一个总数」，金额不变。": {
       "localizations": {
         "en": {
@@ -5604,12 +5614,12 @@
         }
       }
     },
-    "想攒够能撑多久再走？": {
+    "想撑多久 · 可不选": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "How long do you want covered before you go?"
+            "value": "Covered for how long · optional"
           }
         }
       }
@@ -5650,28 +5660,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "I'm counting\nmy freedom with FreeGrid"
-          }
-        }
-      }
-    },
-    "我的目标 · 撑 %lld 个月": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "My goal · %lld month covered"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "My goal · %lld months covered"
-                }
-              }
-            }
           }
         }
       }
@@ -6144,22 +6132,52 @@
         }
       }
     },
+    "按每月约多花 ¥%@ 算 · 你填的收入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assumes overspending about ¥%@ a month · from the income you entered"
+          }
+        }
+      }
+    },
+    "按每月约多花 ¥%@ 算 · 近 90 天的收入记录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assumes overspending about ¥%@ a month · from the last 90 days of income"
+          }
+        }
+      }
+    },
+    "按每月约存 ¥%@ 算 · 你填的收入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assumes saving about ¥%@ a month · from the income you entered"
+          }
+        }
+      }
+    },
+    "按每月约存 ¥%@ 算 · 近 90 天的收入记录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assumes saving about ¥%@ a month · from the last 90 days of income"
+          }
+        }
+      }
+    },
     "按现在的收支估算": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Estimated from your current income and spending"
-          }
-        }
-      }
-    },
-    "按现在的结余攒不到": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Out of reach at your current savings"
           }
         }
       }
@@ -6200,16 +6218,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "By schedule"
-          }
-        }
-      }
-    },
-    "按这些算": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With these numbers"
           }
         }
       }
@@ -6284,44 +6292,6 @@
         }
       }
     },
-    "撑 %lld 个月 · 预计 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@ covered · around %2$@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg month"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg months"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "撑 %1$lld 个月 · 预计 %2$@"
-          }
-        }
-      }
-    },
     "撤销": {
       "localizations": {
         "en": {
@@ -6358,16 +6328,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo this entry?"
-          }
-        }
-      }
-    },
-    "攒够能撑多久再走": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Covered for how long before you go"
           }
         }
       }
@@ -7528,16 +7488,6 @@
         }
       }
     },
-    "每月到手收入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly take-home pay"
-          }
-        }
-      }
-    },
     "每月收入": {
       "localizations": {
         "en": {
@@ -7568,52 +7518,12 @@
         }
       }
     },
-    "每月约多花 ¥%@ · 按你填的收入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Overspending about ¥%@ a month · from the income you entered"
-          }
-        }
-      }
-    },
-    "每月约多花 ¥%@ · 按近 90 天的收入记录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Overspending about ¥%@ a month · from the last 90 days of income"
-          }
-        }
-      }
-    },
     "每月约存 ¥%@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Saving about ¥%@ a month"
-          }
-        }
-      }
-    },
-    "每月约存 ¥%@ · 按你填的收入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saving about ¥%@ a month · from the income you entered"
-          }
-        }
-      }
-    },
-    "每月约存 ¥%@ · 按近 90 天的收入记录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saving about ¥%@ a month · from the last 90 days of income"
           }
         }
       }
@@ -8080,12 +7990,12 @@
         }
       }
     },
-    "清除目标": {
+    "清除 GAP": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clear Goal"
+            "value": "Clear Gap"
           }
         }
       }
@@ -8232,6 +8142,16 @@
         }
       }
     },
+    "点进去换一个日期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap in to pick a new date"
+          }
+        }
+      }
+    },
     "熄灭 %lld 格": {
       "localizations": {
         "en": {
@@ -8260,16 +8180,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version"
-          }
-        }
-      }
-    },
-    "现在就可以走": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You can go now"
           }
         }
       }
@@ -8314,34 +8224,22 @@
         }
       }
     },
+    "现在有 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Freedom Days now"
+          }
+        }
+      }
+    },
     "现在的资产和现金不变": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Your current assets and cash stay as they are"
-          }
-        }
-      }
-    },
-    "现在的钱已经够撑 %lld 个月": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "You already have enough for %lld month"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "You already have enough for %lld months"
-                }
-              }
-            }
           }
         }
       }
@@ -8506,28 +8404,6 @@
         }
       }
     },
-    "目标：撑 %lld 个月": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Goal: %lld month covered"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Goal: %lld months covered"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "相当于 %@ 天": {
       "localizations": {
         "en": {
@@ -8578,16 +8454,6 @@
         }
       }
     },
-    "看那天的钱够不够撑满目标": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "See whether that day's money covers your goal"
-          }
-        }
-      }
-    },
     "知道了": {
       "localizations": {
         "en": {
@@ -8618,12 +8484,28 @@
         }
       }
     },
-    "离目标 %@": {
+    "离%@还差 %@ 天": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ of goal"
+            "value": "%2$@ days short of %1$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "离%1$@还差 %2$@ 天"
+          }
+        }
+      }
+    },
+    "离开的日期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave date"
           }
         }
       }
@@ -8688,6 +8570,16 @@
         }
       }
     },
+    "税后到手的工资。被动收入已经算在里面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your take-home pay. Passive income is already counted"
+          }
+        }
+      }
+    },
     "笔": {
       "localizations": {
         "en": {
@@ -8710,6 +8602,16 @@
           "stringUnit": {
             "state": "new",
             "value": "第 %1$lld 个扣，%2$@计入自由天数"
+          }
+        }
+      }
+    },
+    "算得更准：每月到手收入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More accurate: monthly take-home pay"
           }
         }
       }
@@ -8814,6 +8716,16 @@
         }
       }
     },
+    "编辑 GAP": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Gap"
+          }
+        }
+      }
+    },
     "编辑%@": {
       "localizations": {
         "en": {
@@ -8860,16 +8772,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit cash"
-          }
-        }
-      }
-    },
-    "编辑目标": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit Goal"
           }
         }
       }
@@ -9230,6 +9132,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Passive income name"
+          }
+        }
+      }
+    },
+    "被动收入已经盖住开销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passive income already covers your costs"
           }
         }
       }
@@ -9654,16 +9566,6 @@
         }
       }
     },
-    "设一个目标，按每月能存下的钱，算还要多少天。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Set a goal and see how many days it takes at what you save each month."
-          }
-        }
-      }
-    },
     "设备": {
       "localizations": {
         "en": {
@@ -9784,12 +9686,12 @@
         }
       }
     },
-    "设定目标": {
+    "设定 GAP": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set a Goal"
+            "value": "Set a Gap"
           }
         }
       }
@@ -10594,72 +10496,22 @@
         }
       }
     },
-    "还要 %lld 天": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld day to go"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld days to go"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "还要 %lld 天，预计 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@ to go, around %2$@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg day"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg days"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "还要 %1$lld 天，预计 %2$@"
-          }
-        }
-      }
-    },
     "这 %lld 天花了": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Spent in %lld days"
+          }
+        }
+      }
+    },
+    "这一天已经过了，点这里换一个日期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That day has passed. Tap to pick a new date"
           }
         }
       }
@@ -10906,6 +10758,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Each account"
+          }
+        }
+      }
+    },
+    "那天大约有 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %@ Freedom Days by then"
           }
         }
       }
