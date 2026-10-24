@@ -20,6 +20,8 @@ enum AppLanguage {
     static func install() {
         object_setClass(Bundle.main, LanguageBundle.self)
         apply(chinese: isChinese)
+        // 启动时的语言可能是在 iOS 设置里改的，和上次在 App 里选的不一样；先对齐，不然再点回上次那个，值没变、根视图不重建
+        UserDefaults.standard.set(isChinese ? "zh-Hans" : "en", forKey: storageKey)
     }
 
     /// 这次打开后在设置里换过语言：重建后的首屏停在设置页，不跳回首页
