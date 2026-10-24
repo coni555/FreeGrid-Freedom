@@ -19,9 +19,9 @@ enum AmountUnit: Equatable {
         case .money:
             return sign + "¥" + amount.formatted(.number)
         case .days(let perDay):
-            guard counted else { return "不计入" }
-            guard perDay > 0 else { return "— 天" }
-            return sign + Int((amount / perDay).rounded()).formatted(.number) + " 天"
+            guard counted else { return String(localized: "不计入") }
+            guard perDay > 0 else { return String(localized: "— 天") }
+            return sign + String(localized: "\(Int((amount / perDay).rounded())) 天")
         }
     }
 
@@ -122,8 +122,8 @@ struct AccountDrawer<Rows: View>: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier(headerID)
             .accessibilityLabel(title)
-            .accessibilityValue((total.map { "¥" + $0.formatted(.number) + (totalSuffix ?? "") + "，" } ?? "")
-                                + (isOpen ? "已展开" : "已收起"))
+            .accessibilityValue((total.map { "¥" + $0.formatted(.number) + (totalSuffix ?? "") + String(localized: "，") } ?? "")
+                                + (isOpen ? String(localized: "已展开") : String(localized: "已收起")))
 
             if isOpen {
                 VStack(alignment: .leading, spacing: 0) {
@@ -346,7 +346,7 @@ struct AssetDrawer: View {
 
     var body: some View {
         let total = assetsArr.first?.lockedAssets ?? 0
-        AccountDrawer(title: "资产", color: .assetGold, count: items.isEmpty ? nil : "\(items.count) 项",
+        AccountDrawer(title: String(localized: "资产"), color: .assetGold, count: items.isEmpty ? nil : String(localized: "\(items.count) 项"),
                       total: total, subtitle: AssetRows.summary(items: items, total: total, countsAssets: countsAssets),
                       isOpen: $isOpen, headerID: "assets-drawer") {
             AssetRows()
@@ -388,18 +388,18 @@ struct AssetRows: View {
         guard total > 0 else { return nil }
         let counted = items.isEmpty ? (countsAssets ? total : 0)
             : items.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
-        if counted >= total { return "全部计入自由天数" }
-        return counted == 0 ? "不计入自由天数" : "计入自由天数 ¥\(counted.formatted(.number))"
+        if counted >= total { return String(localized: "全部计入自由天数") }
+        return counted == 0 ? String(localized: "不计入自由天数") : String(localized: "计入自由天数 ¥\(counted.formatted(.number))")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
                 // 没拆分：一行就是资产总数，方格是总开关
-                DrawerRow(name: "资产", amount: total, dimmed: !countsAssets, accessibilityName: "编辑资产",
+                DrawerRow(name: String(localized: "资产"), amount: total, dimmed: !countsAssets, accessibilityName: String(localized: "编辑资产"),
                           identifier: "edit-assets-total",
                           onTap: { editingTotal = true }) {
-                    countsSquare(counted: countsAssets, name: "资产", identifier: "counts-assets-toggle") {
+                    countsSquare(counted: countsAssets, name: String(localized: "资产"), identifier: "counts-assets-toggle") {
                         countsAssets.toggle()
                     }
                 } trailing: { EmptyView() }
@@ -415,7 +415,7 @@ struct AssetRows: View {
                                 .allowsHitTesting(canManage)
                         } trailing: {
                             if canManage && items.count > 1 {
-                                ReorderHandle(id: item.id, index: index, ids: ids, label: "调整\(item.name)的位置",
+                                ReorderHandle(id: item.id, index: index, ids: ids, label: String(localized: "调整\(item.name)的位置"),
                                               identifier: "reorder-\(item.name)", reorder: $reorder) { target in
                                     move(item, to: target)
                                 }
@@ -427,17 +427,17 @@ struct AssetRows: View {
                 .sensoryFeedback(.selection, trigger: reorder.dropIndex(in: ids))
             }
             if canManage || items.isEmpty {
-                DrawerAddRow(title: items.isEmpty ? "拆成多项" : "添加资产项", showsPro: !canManage,
+                DrawerAddRow(title: items.isEmpty ? String(localized: "拆成多项") : String(localized: "添加资产项"), showsPro: !canManage,
                              identifier: "add-asset-item", action: startAdding)
             }
             if !items.isEmpty && !canManage {
-                DrawerFooter(text: "编辑资产项需要 Pro。已有的各项照常显示、照常计算。", locked: true,
+                DrawerFooter(text: String(localized: "编辑资产项需要 Pro。已有的各项照常显示、照常计算。"), locked: true,
                              onPro: { showingPro = true }, onMerge: { confirmingMerge = true },
                              mergeID: "merge-asset-items")
             } else {
                 DrawerFooter(text: items.isEmpty
-                             ? "点方格，选资产计不计入自由天数。"
-                             : "点方格，选这一项计不计入自由天数。拖右边调整顺序。")
+                             ? String(localized: "点方格，选资产计不计入自由天数。")
+                             : String(localized: "点方格，选这一项计不计入自由天数。拖右边调整顺序。"))
             }
         }
         .saveErrorAlert($saveError)
@@ -505,7 +505,7 @@ struct AssetRows: View {
 
     private var sources: [AssetItemSheet.SourceOption] {
         if items.isEmpty {
-            return total > 0 ? [.init(source: .unsplitTotal, name: "资产", amount: total)] : []
+            return total > 0 ? [.init(source: .unsplitTotal, name: String(localized: "资产"), amount: total)] : []
         }
         return items.filter { $0.amount > 0 }.map { .init(source: .item($0.id), name: $0.name, amount: $0.amount) }
     }
@@ -545,7 +545,7 @@ struct CashDrawer: View {
     @AppStorage("cashDrawerOpen", store: AppPreferences.store) private var isOpen = true
 
     var body: some View {
-        AccountDrawer(title: "现金", color: .cashBlue, count: accounts.isEmpty ? nil : "\(accounts.count) 个账户",
+        AccountDrawer(title: String(localized: "现金"), color: .cashBlue, count: accounts.isEmpty ? nil : String(localized: "\(accounts.count) 个账户"),
                       total: assetsArr.first?.cash ?? 0,
                       subtitle: CashRows.countsSummary(accounts: accounts) ?? CashRows.summary(accounts: accounts),
                       isOpen: $isOpen, headerID: "cash-drawer") {
@@ -580,20 +580,20 @@ struct CashRows: View {
     private var total: Double { assetsArr.first?.cash ?? 0 }
 
     static func summary(accounts: [CashAccount]) -> String? {
-        accounts.count > 1 ? "记支出先扣「\(accounts[0].name)」" : nil
+        accounts.count > 1 ? String(localized: "记支出先扣「\(accounts[0].name)」") : nil
     }
 
     /// 有账户不计入自由天数时，一句话说计入了多少；都计入时为 nil
     static func countsSummary(accounts: [CashAccount]) -> String? {
         guard accounts.contains(where: { !$0.countsInFreedom }) else { return nil }
         let counted = accounts.filter(\.countsInFreedom).reduce(0) { $0 + $1.amount }
-        return counted <= 0 ? "不计入自由天数" : "计入自由天数 ¥\(counted.formatted(.number))"
+        return counted <= 0 ? String(localized: "不计入自由天数") : String(localized: "计入自由天数 ¥\(counted.formatted(.number))")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if accounts.isEmpty {
-                DrawerRow(name: "现金", amount: total, accessibilityName: "编辑现金", identifier: "edit-cash-total",
+                DrawerRow(name: String(localized: "现金"), amount: total, accessibilityName: String(localized: "编辑现金"), identifier: "edit-cash-total",
                           onTap: { editingTotal = true }) {
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                         .fill(Color.cashBlue)
@@ -620,19 +620,19 @@ struct CashRows: View {
                 .sensoryFeedback(.selection, trigger: reorder.dropIndex(in: accounts.map(\.id)))
             }
             if canManage || accounts.isEmpty {
-                DrawerAddRow(title: accounts.isEmpty ? "拆成多个账户" : "添加账户", showsPro: !canManage,
+                DrawerAddRow(title: accounts.isEmpty ? String(localized: "拆成多个账户") : String(localized: "添加账户"), showsPro: !canManage,
                              identifier: "add-cash-account", action: startAdding)
             }
             if !accounts.isEmpty && !canManage {
-                DrawerFooter(text: "编辑账户需要 Pro。已有的账户照常显示，记支出仍按这个顺序扣。", locked: true,
+                DrawerFooter(text: String(localized: "编辑账户需要 Pro。已有的账户照常显示，记支出仍按这个顺序扣。"), locked: true,
                              onPro: { showingPro = true }, onMerge: { confirmingMerge = true },
                              mergeID: "merge-cash-accounts")
             } else if accounts.isEmpty {
-                DrawerFooter(text: "活期、微信、支付宝里随时能花的钱。")
+                DrawerFooter(text: String(localized: "活期、微信、支付宝里随时能花的钱。"))
             } else if accounts.count > 1 {
-                DrawerFooter(text: "记支出时，从排第一个、钱够的账户扣。拖右边调整顺序，点序号选它计不计入自由天数。")
+                DrawerFooter(text: String(localized: "记支出时，从排第一个、钱够的账户扣。拖右边调整顺序，点序号选它计不计入自由天数。"))
             } else {
-                DrawerFooter(text: "点序号，选这个账户计不计入自由天数。")
+                DrawerFooter(text: String(localized: "点序号，选这个账户计不计入自由天数。"))
             }
         }
         .saveErrorAlert($saveError)
@@ -704,7 +704,7 @@ struct CashRows: View {
             .accessibilityIdentifier("cash-account-counts-\(account.name)")
         } trailing: {
             if canManage && accounts.count > 1 {
-                ReorderHandle(id: account.id, index: index, ids: ids, label: "调整\(account.name)的扣款顺序",
+                ReorderHandle(id: account.id, index: index, ids: ids, label: String(localized: "调整\(account.name)的扣款顺序"),
                               identifier: "reorder-\(account.name)", reorder: $reorder) { target in
                     move(account, to: target)
                 }
@@ -725,7 +725,7 @@ struct CashRows: View {
 
     private var sources: [CashAccountSheet.SourceOption] {
         if accounts.isEmpty {
-            return total > 0 ? [.init(source: .unsplitTotal, name: "现金", amount: total)] : []
+            return total > 0 ? [.init(source: .unsplitTotal, name: String(localized: "现金"), amount: total)] : []
         }
         return accounts.filter { $0.amount > 0 }.map { .init(source: .account($0.id), name: $0.name, amount: $0.amount) }
     }

@@ -313,20 +313,18 @@ struct GhostButton: View {
     }
 }
 
-/// emphasized():单字 italic 强调
-/// light silverline 版本:用 sky-deep 深天空蓝代替 honey/vermillion
-/// 配合 .italic 用类衬线感强调(SF 没 italic serif,但 .italic() + tracking 微调可以)
-func emphasized(_ prefix: String, _ word: String, _ suffix: String,
-                size: CGFloat = 17) -> Text {
-    Text(prefix)
-        .font(.system(size: size, weight: .regular, design: .rounded))
-        .foregroundColor(.inkMuted)
-    + Text(word)
-        .font(.system(size: size, weight: .regular, design: .serif).italic())
-        .foregroundColor(.skyDeep)
-    + Text(suffix)
-        .font(.system(size: size, weight: .regular, design: .rounded))
-        .foregroundColor(.inkMuted)
+/// emphasized():一句话里用 *…* 标出强调的词，强调词用衬线斜体和 sky-deep 深天空蓝，其余是圆体灰字。
+/// 整句是一条可翻译的文字（「你已*财富*自由」/「You're *financially* free」），各语言自己决定强调词放哪。
+func emphasized(_ sentence: LocalizedStringResource, size: CGFloat = 17) -> Text {
+    var text = AppLanguage.attributed(sentence)
+    for run in text.runs {
+        let isWord = run.inlinePresentationIntent?.contains(.emphasized) == true
+        text[run.range].font = isWord
+            ? .system(size: size, weight: .regular, design: .serif).italic()
+            : .system(size: size, weight: .regular, design: .rounded)
+        text[run.range].foregroundColor = isWord ? .skyDeep : .inkMuted
+    }
+    return Text(text)
 }
 
 // ============================================================================

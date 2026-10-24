@@ -67,50 +67,50 @@ enum FreedomChecklist {
 
         let items: [FreedomCheckItem] = [
             FreedomCheckItem(
-                id: 1, title: "开始记账满 30 天", shortTitle: "记账满 30 天",
+                id: 1, title: String(localized: "开始记账满 30 天"), shortTitle: String(localized: "记账满 30 天"),
                 done: days >= 30,
                 progress: min(1, Double(days) / 30),
-                detail: "当前 \(days) / 30 天",
-                hint: "离第一笔支出满 30 天，还差 \(max(0, 30 - days)) 天"),
+                detail: String(localized: "当前 \(days) / 30 天"),
+                hint: String(localized: "离第一笔支出满 30 天，还差 \(max(0, 30 - days)) 天")),
             FreedomCheckItem(
-                id: 2, title: "了解自己的日均消费", shortTitle: "了解日均消费",
+                id: 2, title: String(localized: "了解自己的日均消费"), shortTitle: String(localized: "了解日均消费"),
                 done: days >= 7 && dailyBurn > 0,
                 progress: nil, detail: "",
-                hint: "离第一笔支出满 7 天后自动达成"),
+                hint: String(localized: "离第一笔支出满 7 天后自动达成")),
             FreedomCheckItem(
-                id: 3, title: "记下你有多少钱", shortTitle: "记下有多少钱",
+                id: 3, title: String(localized: "记下你有多少钱"), shortTitle: String(localized: "记下有多少钱"),
                 done: netWorth > 0,
                 progress: nil, detail: "",
-                hint: "去 Assets 填上你的现金和资产"),
+                hint: String(localized: "去钱包填上你的现金和资产")),
             FreedomCheckItem(
-                id: 4, title: "自由天数超过 180 天", shortTitle: "自由天数 180 天",
+                id: 4, title: String(localized: "自由天数超过 180 天"), shortTitle: String(localized: "自由天数 180 天"),
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 180,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 180),
-                detail: "当前 \(fShow) / 180 天",
-                hint: snapshot.countsAssets ? "提高净值或降低日均消费" : "提高现金或降低日均消费"),
+                detail: String(localized: "当前 \(fShow) / 180 天"),
+                hint: snapshot.countsAssets ? String(localized: "提高净值或降低日均消费") : String(localized: "提高现金或降低日均消费")),
             FreedomCheckItem(
-                id: 5, title: "自由天数超过 365 天", shortTitle: "自由天数 365 天",
+                id: 5, title: String(localized: "自由天数超过 365 天"), shortTitle: String(localized: "自由天数 365 天"),
                 done: freedomMilestonesComplete || (finiteFreedom ?? 0) >= 365,
                 progress: freedomMilestonesComplete ? 1 : min(1, (finiteFreedom ?? 0) / 365),
-                detail: "当前 \(fShow) / 365 天",
-                hint: snapshot.countsAssets ? "继续积累净值或被动收入" : "继续积累现金或被动收入"),
+                detail: String(localized: "当前 \(fShow) / 365 天"),
+                hint: snapshot.countsAssets ? String(localized: "继续积累净值或被动收入") : String(localized: "继续积累现金或被动收入")),
             FreedomCheckItem(
-                id: 6, title: "有被动收入来源", shortTitle: "添加被动收入",
+                id: 6, title: String(localized: "有被动收入来源"), shortTitle: String(localized: "添加被动收入"),
                 done: !passiveSources.isEmpty,
                 progress: nil, detail: "",
-                hint: "在 Assets 添加一项被动收入（租金、股息、利息…）"),
+                hint: String(localized: "在钱包添加一项被动收入（租金、股息、利息…）")),
             FreedomCheckItem(
-                id: 7, title: "被动覆盖率超过 50%", shortTitle: "被动覆盖率 50%",
+                id: 7, title: String(localized: "被动覆盖率超过 50%"), shortTitle: String(localized: "被动覆盖率 50%"),
                 done: passiveRatio >= 0.5,
                 progress: min(1, passiveRatio / 0.5),
-                detail: "当前 \(pct) / 50%",
-                hint: "提高被动收入或降低日均消费"),
+                detail: String(localized: "当前 \(pct) / 50%"),
+                hint: String(localized: "提高被动收入或降低日均消费")),
             FreedomCheckItem(
-                id: 8, title: "被动收入覆盖全部开销", shortTitle: "被动覆盖 100%",
+                id: 8, title: String(localized: "被动收入覆盖全部开销"), shortTitle: String(localized: "被动覆盖 100%"),
                 done: passiveRatio >= 1.0,
                 progress: min(1, passiveRatio),
-                detail: "当前 \(pct) / 100%",
-                hint: "被动收入覆盖全部开销，就是财富自由"),
+                detail: String(localized: "当前 \(pct) / 100%"),
+                hint: String(localized: "被动收入覆盖全部开销，就是财富自由")),
         ]
 
         let doneCount = items.filter(\.done).count
@@ -119,11 +119,11 @@ enum FreedomChecklist {
         let nextStopTitle: String?
         let remainText: String?
         if let fInt, fInt < 180 {
-            nextStopTitle = "自由天数 180 天"
-            remainText = "还差 \(180 - fInt) 天"
+            nextStopTitle = String(localized: "自由天数 180 天")
+            remainText = String(localized: "还差 \(180 - fInt) 天")
         } else if let fInt, fInt < 365 {
-            nextStopTitle = "自由天数 365 天"
-            remainText = "还差 \(365 - fInt) 天"
+            nextStopTitle = String(localized: "自由天数 365 天")
+            remainText = String(localized: "还差 \(365 - fInt) 天")
         } else if let nextUnmet = items.first(where: { !$0.done }) {
             nextStopTitle = nextUnmet.shortTitle
             remainText = nil

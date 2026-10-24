@@ -21,8 +21,6 @@ struct MoneySourcePicker<Source: Hashable>: View {
     let total: Double
     /// 「资产」或「现金」
     let bucket: String
-    /// 「拆出」或「分出」
-    let splitVerb: String
     let identifierPrefix: String
 
     /// 切到「新增的钱」再切回来时，回到刚才选的那一项
@@ -37,9 +35,9 @@ struct MoneySourcePicker<Source: Hashable>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            KickerLabel(text: "这笔钱从哪来")
+            KickerLabel(text: String(localized: "这笔钱从哪来"))
             Picker("这笔钱从哪来", selection: splitting) {
-                Text("从已有的\(splitVerb)").tag(true)
+                Text("从已有的拆出").tag(true)
                 Text("新增的钱").tag(false)
             }
             .pickerStyle(.segmented)
@@ -48,7 +46,7 @@ struct MoneySourcePicker<Source: Hashable>: View {
             // 能从好几项里拆时，结果这一行本身就是选哪一项的菜单
             if picked != nil, options.count > 1 {
                 Menu {
-                    Picker("从哪一项\(splitVerb)", selection: $selection) {
+                    Picker("从哪一项拆出", selection: $selection) {
                         ForEach(options, id: \.source) { option in
                             Text("\(option.name) · ¥\(option.amount.formatted(.number))").tag(Optional(option.source))
                         }
@@ -95,10 +93,10 @@ struct MoneySourcePicker<Source: Hashable>: View {
     private var resultText: String {
         let entered = amount ?? 0
         guard let picked else {
-            return "\(bucket)总数 ¥\(total.formatted(.number)) → ¥\((total + entered).formatted(.number))"
+            return String(localized: "\(bucket)总数 ¥\(total.formatted(.number)) → ¥\((total + entered).formatted(.number))")
         }
-        if exceeds { return "「\(picked.name)」只有 ¥\(picked.amount.formatted(.number))" }
+        if exceeds { return String(localized: "「\(picked.name)」只有 ¥\(picked.amount.formatted(.number))") }
         let left = max(0, picked.amount - entered)
-        return "「\(picked.name)」¥\(picked.amount.formatted(.number)) → ¥\(left.formatted(.number))，\(bucket)总数不变"
+        return String(localized: "「\(picked.name)」¥\(picked.amount.formatted(.number)) → ¥\(left.formatted(.number))，\(bucket)总数不变")
     }
 }

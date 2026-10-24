@@ -23,9 +23,9 @@ struct ExpenseCategoryOptions: Codable, Equatable {
 
         var errorDescription: String? {
             switch self {
-            case .invalidName: return "分类名称请填写 1–20 个字，不包含换行。"
-            case .duplicateName: return "这个分类已经存在。"
-            case .lastVisible: return "至少保留一个可选的支出分类。"
+            case .invalidName: return String(localized: "分类名称请填写 1–20 个字，不包含换行。")
+            case .duplicateName: return String(localized: "这个分类已经存在。")
+            case .lastVisible: return String(localized: "至少保留一个可选的支出分类。")
             }
         }
     }

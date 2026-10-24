@@ -53,8 +53,45 @@ enum ExpenseCategoryIcons {
         (["维修", "装修"], "wrench.and.screwdriver"),
     ]
 
+    /// 英文界面下自建的分类多半是英文名，按小写词根猜；先命中的算，所以容易误撞的词往后放
+    private static let englishKeywords: [(words: [String], icon: String)] = [
+        (["rent", "mortgage", "housing"], "house"),
+        (["electric", "utilit", "gas bill"], "bolt"),
+        (["water"], "drop"),
+        (["phone", "mobile", "internet", "broadband"], "iphone"),
+        (["coffee", "tea"], "cup.and.saucer"),
+        (["food", "meal", "dining", "restaurant", "takeout", "lunch", "dinner", "breakfast"], "fork.knife"),
+        // 排在 bar 前面，免得 barber 被当成酒吧
+        (["haircut", "salon", "barber"], "scissors"),
+        (["bar", "drink", "party", "alcohol"], "wineglass"),
+        (["snack", "dessert", "cake"], "birthday.cake"),
+        (["grocer", "supermarket", "household"], "cart"),
+        (["cloth", "apparel", "shoe", "fashion"], "tshirt"),
+        (["gift"], "gift"),
+        (["beauty", "skincare", "makeup", "cosmetic"], "sparkles"),
+        (["subway", "metro", "bus", "train", "transit"], "tram"),
+        (["taxi", "uber", "parking", "car"], "car"),
+        (["fuel", "petrol", "gas"], "fuelpump"),
+        (["flight", "travel", "trip", "vacation"], "airplane"),
+        (["game"], "gamecontroller"),
+        (["movie", "film", "video", "stream", "subscription", "membership"], "film"),
+        (["music"], "music.note"),
+        (["book", "learn", "course", "study"], "book"),
+        (["tuition", "school", "education", "training"], "graduationcap"),
+        (["pharma", "medicine", "drug"], "pills"),
+        (["medical", "doctor", "health", "hospital"], "cross.case"),
+        (["gym", "fitness", "sport", "workout"], "figure.walk"),
+        (["pet", "cat", "dog"], "pawprint"),
+        (["work", "office", "business"], "briefcase"),
+        (["repair", "renovat", "maintenance"], "wrench.and.screwdriver"),
+    ]
+
     static func defaultIcon(for name: String) -> String {
         if let icon = canonical[name] { return icon }
-        return keywords.first { entry in entry.words.contains { name.contains($0) } }?.icon ?? "tag"
+        if let icon = keywords.first(where: { entry in entry.words.contains { name.contains($0) } })?.icon {
+            return icon
+        }
+        let lowered = name.lowercased()
+        return englishKeywords.first { entry in entry.words.contains { lowered.contains($0) } }?.icon ?? "tag"
     }
 }

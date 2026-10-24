@@ -25,11 +25,11 @@ final class HistorySearchRegressionUITests: XCTestCase {
         ]
         try JSONSerialization.data(withJSONObject: data).write(to: file)
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                "-hideProPreviewCard", "-proPreview", "YES", "-UseInMemoryStore", "-SeedBackupJSON", file.path]
         app.launch()
         XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["History"].tap()
+        app.tabBars.buttons["明细"].tap()
         return app
     }
 

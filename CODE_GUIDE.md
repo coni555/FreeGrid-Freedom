@@ -17,8 +17,10 @@ FreeGrid/
 │   ├── Simulation/   模拟决策及格子动画
 │   ├── History/      历史记录和月度汇总
 │   └── Settings/     设置、数据管理（导出/导入/清空）和财富自由自检
-└── UI/           共用颜色、卡片、按钮、金额格式、预览和错误提示
+└── UI/           共用颜色、卡片、按钮、金额格式、预览、错误提示和界面语言（AppLanguage）
 ```
+
+界面文字都在 `FreeGrid/Localizable.xcstrings`（String Catalog）：开发语言是简体中文，中文原句就是 key，英文写在每条的 `en` 里。
 
 `FreeGridTests/` 用具体输入验证计算和保存结果；`FreeGridUITests/` 模拟用户点击、输入、切换页面。`Assets.xcassets/` 放图标等素材，与显示钱的 Assets 页面不是同一回事。
 
@@ -139,6 +141,7 @@ flowchart TD
 | 想改的内容 | 首先打开 |
 |---|---|
 | 页面顺序、Tab 名称 | `App/ContentView.swift` |
+| 界面文字（中文、英文） | `Localizable.xcstrings`；写法见下面「中英文」一段 |
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
 | 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
@@ -203,6 +206,8 @@ Debug 构建的购买页底部有「调试：直接预览 Pro」开关（偏好 
 **固定支出（免费）** 和每月还款共用下面这条路径，区别只在：`LoanSheet(kind: .fixed)` 填名称、每次多少、多久一次（每 1/2/3/6/12 个月）、下次哪天付（明天到一年内），保存走 `LoanStore.saveFixed`，`isOngoing = true`，`startDate` 设成下次付款日的前一天；改了下次付款日或周期从新日子重新起算，没扣成的旧期不再追。到期日没有尽头：`LoanSchedule.status` 只往后列 400 天，推演时 `Plan.recurring` 按需往后展开（`Plan.events(through:)`）。`freedomRun` 判断已覆盖时把固定支出折成每天算进去：算上以后每天净消耗仍 ≤ 0、推过贷款最后一期再两年都付得起才是 ∞；> 0 就一路推，100 年后还有钱也算 ∞。固定支出的扣款日不打孔（`Event.punched` 为 false），付不起房租时停在前一天，但不在最后一格后面补淡孔。被动覆盖率的分母是日常开销加上固定支出和没还清的月供折成的日均（`FinancialSnapshot.dailyFixed`，每月按 30.44 天折，和推演判定 ∞ 用的 `Plan.recurringDaily` 同一个折法，首页不会出现 ∞ 但覆盖率不到 100%）。免费用户也能看到「固定支出」抽屉，加房贷、车贷那一行标 PRO，点了打开购买页。备份多两个可选字段 `is_ongoing`（只在为真时写）和 `interval_months`（只在不是 1 时写）；导入时固定支出的起算日允许在 400 天以内的未来。
 
 **每月还款（Pro）** 沿这条路径工作：输入——在 `LoanSheet` 填名称、月供、每月几号还、还剩几期，期数下面实时写出最后一期的日期；账本里有金额正好等于月供的旧支出时，问用户是不是以前记的月供，勾上的设成 `countsInBurn = false`（记录不删）。保存——`LoanStore.save`；改了还款日或期数时从今天重新起算，只改名称金额不动进度。编辑已还清的贷款时期数栏留空（`remaining: nil`），保存不会多出一期，填了期数才重新开始。到期自动扣——`ContentView` 在打开 App 和回到前台时调 `LoanStore.processDue`：每个「上次处理之后、今天及以前」的到期日，现金够就写一笔 `loanID` 指向贷款、不算日均的支出并扣现金，不够就留成待处理，同一个到期日只处理一次。待处理的那期在 Assets 的贷款行下显示，用户选「从现金扣」或「从别处还的」（`resolvePending`）。History 里撤销一笔扣款，那一期变回待处理，不会再自动扣。计算——还了几期、还剩几期、哪期待处理都由扣款记录推出（`LoanSchedule.status`），不另存计数。`FinancialSnapshot` 有贷款时用 `FreedomMath.freedomRun` 按日历往后推：每天扣「日均消费 − 日均被动收入」，到还款日扣月供，付不起的那天停在前一天，钱在两次还款之间花完就停在花完那刻，下一期付不起的贷款记在 `missedPaymentDay`（有固定支出时推演只展开到钱花完那天，这一期回 `Plan.events` 里找）；推演结果在 `FinancialSnapshot` 的 init 里算一次存成 `freedomRun`；到期没还的当作今天就要付。没有贷款（或全还清）时直接走原来的公式，一分不差。首页大数字、格子、趋势的每个周点、记一笔的预览、模拟、自检都走这条。显示——推演里扣了月供的那几天，按天显示的格子上打一个孔（`PunchedCell`），图例多一项「还款日」。备份——有贷款时导出可选字段 `loans`；支出多两个可选字段 `loan_id`、`counts_in_burn`（只在不算日均时写 false）；没有贷款的账本导出和以前一字不差。导入时贷款按 ID 合并，同一份导两次不会重复。没有 Pro 时已有的贷款照常显示、照常自动扣，可以删、可以处理待处理的那期，不能新增和编辑。
+
+**中英文：** 设置 → 外观 →「语言」直接选中文或 English，当场换：`AppLanguage.select` 记下选择（写进 AppleLanguages，和 iOS 设置里那一项同一处），根视图挂着 `appLanguage` 这个 key，一变就整棵重建。iOS 只在启动时挑一次语言，所以 `String(localized:)` 被 `AppLanguage.swift` 里的同名重载接走、按当前选择查；只写 `String(localized: "…")`，别加 `table:`、`comment:` 参数，加了就绕开重载、停在启动时的语言。带 Markdown 的 `LocalizedStringResource` 用 `AppLanguage.attributed` 转，不用 `AttributedString(localized:)`。新写界面文字时：`Text("…")`、`Button("…")`、`navigationTitle("…")` 里直接写中文字面量就会被抽进目录；文字先存成 `String` 再显示的（`Logic/` 里的说明、传给自定义组件的标题、弹窗提示），写成 `String(localized: "…")`，或把参数类型改成 `LocalizedStringResource`（使用说明、首页大卡那样）。不要把一句话拆成几段拼起来，英文语序不同；带数字的整句写成插值（`"还差 \(n) 天"`），英文在目录里按单复数分别写。只按中文写法拼的日期（「10月24日 周五」）走 `AppLanguage.isChinese` 分支，英文用 `AppLanguage.date(_:template:)`。账本里存的始终是中文原文：默认九个分类显示时过 `ExpenseCategory.displayName`，App 写进去的「自动扣款」备注显示时过 `LedgerTransaction.displayNote`，用户自己起的名字原样显示。在 Xcode 里构建会把新句子同步进目录；命令行构建后用 `xcrun xcstringstool sync FreeGrid/Localizable.xcstrings --stringsdata <DerivedData 里的 *.stringsdata>` 合进去，再补英文。测试固定按中文跑（scheme 的测试语言是 zh-Hans，UI 测试启动时带 `XCUIApplication.chineseUI`）；英文界面逐屏截图用 `EnglishScreensUITests`（给 `L10N_SHOTS_DIR`、`L10N_LEDGER` 两个环境变量才运行）。
 
 **本机偏好存在哪：** 资产开关、分类选项和 Pro 状态都走 `Data/AppPreferences.swift` 的 `store`。正常运行就是系统的 `UserDefaults.standard`；Debug 下带 `-UseInMemoryStore` 启动（界面测试、拍图）时换成一份临时偏好，默认每次启动清空，测试里切开关、改分类都不会碰真实偏好；要测「重启后还在」时第二次启动再加 `-KeepScratchPreferences`。`proPreview`、`countAssetsInFreedom` 这几个启动参数会被抄进临时偏好。
 

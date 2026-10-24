@@ -1,25 +1,25 @@
 // 设置 → FreeGrid → 使用说明：App 里能读的说明书。先是章节列表，点一章进去读。
 // 内容和仓库根目录的 `使用说明.md` 是同一份，只去掉了链接和 App 里用不上的话；改功能时两处一起改。
-// 粗体用 Markdown 的 **…** 写在字符串里。
+// 粗体用 Markdown 的 **…** 写在字符串里；文字按系统语言从 String Catalog 取。
 
 import SwiftUI
 
 struct ManualChapter: Identifiable {
-    let title: String
+    let title: LocalizedStringResource
     let icon: String
     let blocks: [ManualBlock]
-    var id: String { title }
+    var id: String { title.key }
 }
 
 enum ManualBlock {
     /// 一段话
-    case text(String)
+    case text(LocalizedStringResource)
     /// 段内小标题
-    case heading(String)
+    case heading(LocalizedStringResource)
     /// 一组要点
-    case bullets([String])
+    case bullets([LocalizedStringResource])
     /// 提醒：左边一道细线
-    case note(String)
+    case note(LocalizedStringResource)
 }
 
 enum UserManual {
@@ -30,7 +30,7 @@ enum UserManual {
             .text("实际推算时，还会按日历扣掉以后的固定支出和贷款，所以首页的数字和直接套公式会有出入。"),
             .heading("三条规则"),
             .bullets([
-                "**固定支出按付款日扣**。房租、水电、会员这类定期付的钱，在 Assets 里设好金额、周期和下次付款日。推算时到哪天扣哪笔，到期自动记账。因为早已算进去，交房租那天数字不会突然掉一大截。",
+                "**固定支出按付款日扣**。房租、水电、会员这类定期付的钱，在钱包里设好金额、周期和下次付款日。推算时到哪天扣哪笔，到期自动记账。因为早已算进去，交房租那天数字不会突然掉一大截。",
                 "**记账初期，大额支出摊开算**。记账不满 90 天时，单笔特别大的支出（比如刚开始记账就买的电脑）按 90 天摊进日均。满 90 天后，日均就是支出总额 ÷ 记账天数。",
                 "**算哪些钱，你来定**。房子、长期投资、暂时不动的储蓄，可以不计入自由天数，它们仍算在净值里。免费版按资产整体选；**Pro** 可以逐个资产项、逐个现金账户选。",
             ]),
@@ -70,7 +70,7 @@ enum UserManual {
                 "**今天**：今天的日常支出，比日常日均高还是低。房租这类固定支出不算在内。",
             ]),
         ]),
-        ManualChapter(title: "Assets（资产与现金）", icon: "banknote", blocks: [
+        ManualChapter(title: "钱包（资产与现金）", icon: "banknote", blocks: [
             .heading("资产和现金有什么区别"),
             .bullets([
                 "**资产**（金色）：短期不打算花的钱，比如定期、股票、基金、房子。",
@@ -107,7 +107,7 @@ enum UserManual {
             .text("租金、利息、股息这类不靠上班、预计能一直到账的钱。填每次到账多少、几个月到账一次。"),
             .note("被动收入只用来算自由天数，到账时不会自动加进现金。收到了照常记一笔收入。"),
             .heading("钱与时间（Pro）"),
-            .text("在 Settings → 外观 → Assets 页面，选「经典」或「钱与时间」。只是样子不同，账本一样。"),
+            .text("在设置 → 外观 → 钱包页面，选「经典」或「钱与时间」。只是样子不同，账本一样。"),
             .bullets([
                 "右上角切到钟，整页金额换成「够日常花几天」。",
                 "净值下面那条线按账户分段，点一段跳到对应的资产或现金。",
@@ -115,7 +115,7 @@ enum UserManual {
                 "最下面「每月」把进（被动收入）和出（固定支出、贷款）放在一起比。",
             ]),
         ]),
-        ManualChapter(title: "History（历史记录）", icon: "clock.arrow.circlepath", blocks: [
+        ManualChapter(title: "明细（历史记录）", icon: "clock.arrow.circlepath", blocks: [
             .bullets([
                 "**浏览**：按月看，按天分组。点月份打开月度汇总，可以跳到任意一个月；旁边的箭头前后翻月。",
                 "**修改**：点一行，改金额、分类、日期或备注。",
@@ -124,21 +124,22 @@ enum UserManual {
             ]),
             .text("固定支出、贷款自动记的支出也在这里。标「不计日均」的，不算进日均。"),
         ]),
-        ManualChapter(title: "Settings（设置）", icon: "gearshape", blocks: [
-            .text("Settings 是一叠卡片，点卡头展开，再点一下收起。"),
+        ManualChapter(title: "设置", icon: "gearshape", blocks: [
+            .text("设置页是一叠卡片，点卡头展开，再点一下收起。"),
             .bullets([
                 "**财富自由自检**：按你的账自动判断八个里程碑，点进去看每一项还差多少。",
                 "**我的自由卡**：30 天银卡，180 天香槟金，1 年黑卡；被动收入覆盖全部开销是 ∞ 卡。卡上只写天数，不写金额。**Pro** 可以导出成卡片或海报分享。",
-                "**外观**：主题（浅色、深色、跟随系统）、首页大数字的位置、Assets 页面的样式。",
+                "**外观**：主题（浅色、深色、跟随系统）、首页大数字的位置、钱包页的样式。",
+                "**语言**：在外观卡的「语言」里选中文或 English，当场切换。没选过时跟 iOS 的语言走。",
                 "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序、合并。",
                 "**FreeGrid Pro**：对比免费版和 Pro，开始免费体验、购买或恢复购买。",
             ]),
-            .text("使用一段时间后，系统可能邀请你评分或写评论，可以直接关闭，不影响任何功能。也可以从 Settings → FreeGrid → 评价与反馈主动评价。"),
+            .text("使用一段时间后，系统可能邀请你评分或写评论，可以直接关闭，不影响任何功能。也可以从设置 → FreeGrid → 评价与反馈主动评价。"),
         ]),
         ManualChapter(title: "备份与换手机", icon: "externaldrive", blocks: [
             .text("FreeGrid 没有账号，账本只存在这台设备上，**不会自动同步到新手机**。"),
             .note("删了 App，账本就没了。卸载、重装、换手机前，先导出 JSON 备份。"),
-            .text("在 Settings → 账本 → 备份与恢复："),
+            .text("在设置 → 账本 → 备份与恢复："),
             .bullets([
                 "**导出 JSON**：完整备份，能导回 FreeGrid。",
                 "**导出 CSV**：用 Excel、Numbers 看的流水表，**不能导回**。",
@@ -151,23 +152,23 @@ enum UserManual {
         ]),
         ManualChapter(title: "常见问题", icon: "questionmark.circle", blocks: [
             .heading("自由天数为什么显示「—」？"),
-            .text("要两样都有：Assets 里填了钱，并且记过至少一笔支出。如果提示「有一笔金额不对」，去 History 找特别大或负数的那笔。"),
+            .text("要两样都有：钱包里填了钱，并且记过至少一笔支出。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。"),
             .heading("为什么和我自己算的不一样？"),
             .text("它不是「净值 ÷ 月开销」。日均是记账以来的平均，不满 90 天时大额支出会摊开；被动收入从每天的消耗里减掉；固定支出和贷款按日历扣；不计入的钱不算。"),
-            .text("对不上时，先看 Assets 里的计入设置、固定支出和被动收入，再看 History 里的支出。"),
+            .text("对不上时，先看钱包里的计入设置、固定支出和被动收入，再看明细里的支出。"),
             .heading("以前把房租记成普通支出，要删吗？"),
-            .text("不用。在 Assets 加上这笔固定支出，以后到日子自动记。添加时 App 会找出以前手记的同样金额的支出，核对后可以不再算进日均。"),
+            .text("不用。在钱包加上这笔固定支出，以后到日子自动记。添加时 App 会找出以前手记的同样金额的支出，核对后可以不再算进日均。"),
             .heading("加了被动收入，余额怎么没变？"),
             .text("被动收入只用来算自由天数。到账后记一笔收入，现金才会变。"),
             .heading("系统换了深色，App 没跟着变？"),
-            .text("Settings → 外观 → 主题，选「系统」。"),
+            .text("设置 → 外观 → 主题，选「系统」。"),
             .heading("可以先体验 Pro 吗？"),
             .text("可以。在购买页点「免费体验 7 天」，Pro 全部打开。每个 Apple 账户一次，到期自动回到免费版，**不会自动扣费**。买断优惠价在开启体验后保留 14 天，之后恢复原价；没开启过体验的，直接买也是优惠价。"),
             .heading("体验结束后，数据会丢吗？"),
             .text("不会，所有记账数据都保留。只是："),
             .bullets([
                 "体验期间设置的分类继续可用，修改需 Pro。",
-                "Assets 回到经典样式。",
+                "钱包页回到经典样式。",
                 "自由卡可以查看，不能导出。",
                 "拆好的资产、现金子账户照常显示和计算，不能修改；可以合并成一个总额继续编辑。",
                 "贷款停用：不再自动记账，也不计入自由天数，可以删除。",
@@ -251,7 +252,7 @@ private struct ManualChapterPage: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
-        .navigationTitle(chapter.title)
+        .navigationTitle(Text(chapter.title))
         .inlineNavTitle()
     }
 
@@ -288,18 +289,12 @@ private struct ManualChapterPage: View {
         }
     }
 
-    private func paragraph(_ text: String, color: Color = .ink) -> some View {
-        Text(Self.styled(text))
+    private func paragraph(_ text: LocalizedStringResource, color: Color = .ink) -> some View {
+        Text(AppLanguage.attributed(text))
             .font(.system(.subheadline, design: .rounded))
             .foregroundStyle(color)
             .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 只认 **粗体**；解析不了就原样显示
-    private static func styled(_ text: String) -> AttributedString {
-        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-            ?? AttributedString(text)
     }
 }

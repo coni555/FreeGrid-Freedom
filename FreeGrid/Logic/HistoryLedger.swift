@@ -33,7 +33,13 @@ nonisolated struct HistoryMonth: Hashable, Comparable, Sendable {
         return calendar.dateInterval(of: .month, for: start)
     }
 
-    var label: String { "\(year)年\(month)月" }
+    /// 「2026年10月」/「October 2026」
+    var label: String {
+        if AppLanguage.isChinese { return "\(year)年\(month)月" }
+        let calendar = Calendar(identifier: .gregorian)
+        guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)) else { return "\(year)-\(month)" }
+        return AppLanguage.date(date, template: "MMMMyyyy", calendar: calendar)
+    }
 }
 
 enum HistoryScope: Equatable {
@@ -230,21 +236,28 @@ enum HistoryLedger {
     /// 不足 10 天保留一位小数，其余取整。
     static func equivalentDaysLabel(_ days: Double) -> String {
         let digits = days < 10 ? 0...1 : 0...0
-        return "相当于 " + days.formatted(.number.precision(.fractionLength(digits))) + " 天"
+        let number = days.formatted(.number.precision(.fractionLength(digits)))
+        // 英文 1 天和多天写法不同
+        return number == "1" ? String(localized: "相当于 1 天") : String(localized: "相当于 \(number) 天")
     }
 
     /// 段头用的日期：今天、昨天直接说，不在今年的带上年份。
     static func dayLabel(_ day: Date, now: Date = .now, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day, .weekday], from: day)
-        let weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
-        let weekday = weekdays[((parts.weekday ?? 1) - 1 + 7) % 7]
-        var text = "\(parts.month ?? 0)月\(parts.day ?? 0)日 \(weekday)"
-        if parts.year != calendar.component(.year, from: now) {
-            text = "\(parts.year ?? 0)年" + text
+        let otherYear = parts.year != calendar.component(.year, from: now)
+        var text: String
+        if AppLanguage.isChinese {
+            let weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+            let weekday = weekdays[((parts.weekday ?? 1) - 1 + 7) % 7]
+            text = "\(parts.month ?? 0)月\(parts.day ?? 0)日 \(weekday)"
+            if otherYear { text = "\(parts.year ?? 0)年" + text }
+        } else {
+            // 「Fri, Oct 24」，不在今年的「Fri, Oct 24, 2025」
+            text = AppLanguage.date(day, template: otherYear ? "EEEMMMdyyyy" : "EEEMMMd", calendar: calendar)
         }
-        if calendar.isDate(day, inSameDayAs: now) { return "今天 · " + text }
+        if calendar.isDate(day, inSameDayAs: now) { return String(localized: "今天 · \(text)") }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
-           calendar.isDate(day, inSameDayAs: yesterday) { return "昨天 · " + text }
+           calendar.isDate(day, inSameDayAs: yesterday) { return String(localized: "昨天 · \(text)") }
         return text
     }
 }

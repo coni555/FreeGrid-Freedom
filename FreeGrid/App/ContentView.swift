@@ -14,7 +14,8 @@ struct ContentView: View {
     /// 跨启动持久化主题选择：跟随系统时不指定，否则按 isDarkMode 固定浅色或深色
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
-    @State private var selectedTab: AppTab = .dashboard
+    /// 在设置里换完语言、整棵视图重建后回到设置页
+    @State private var selectedTab: AppTab = AppLanguage.switchedInApp ? .settings : .dashboard
 
     /// 全 App 的指引；遮罩要盖住导航栏和 Tab 栏，所以由这里持有
     @State private var guide = AppGuide()
@@ -66,26 +67,26 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             StableTab { DashboardView() }.equatable()
                 .tabItem {
-                    Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
+                    Label("首页", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(AppTab.dashboard)
 
             StableTab { AssetsView() }.equatable()
                 .tabItem {
-                    Label("Assets", systemImage: "banknote")
+                    Label("钱包", systemImage: "banknote")
                 }
                 .tag(AppTab.assets)
 
             StableTab { HistoryView() }.equatable()
                 .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
+                    Label("明细", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(AppTab.history)
 
             // 不传闭包：闭包每次都算「变了」，外壳就拦不住重算
             StableTab { SettingsView() }.equatable()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label("设置", systemImage: "gearshape")
                 }
                 .tag(AppTab.settings)
         }

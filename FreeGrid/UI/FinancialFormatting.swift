@@ -24,11 +24,11 @@ enum FinancialFormatting {
     /// 增减量一直用天，不随首页的日/月/年档切换，也不显示 −0 天。
     static func daysChange(_ value: Double?) -> String {
         guard let value, value.isFinite else { return "—" }
-        if value == 0 { return "0 天" }
+        if value == 0 { return FreedomMath.GridUnit.day.amount(0) }
         let sign = value > 0 ? "+" : "−"
         let rounded = abs(value).rounded()
-        if rounded == 0 { return "\(sign)不足 1 天" }
-        return "\(sign)\(wholeNumber(rounded)) 天"
+        if rounded == 0 { return sign + String(localized: "不足 1 天") }
+        return sign + FreedomMath.GridUnit.day.amount(clampedInteger(rounded, range: 0...Int.max))
     }
 
     static func validAmount(_ value: Double, allowsZero: Bool = false) -> Bool {

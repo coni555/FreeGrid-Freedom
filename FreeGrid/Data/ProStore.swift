@@ -191,7 +191,7 @@ final class ProStore {
     /// 开始 7 天试用：向 App Store「买」那件 ¥0 的商品，交易时间就是试用开始的时间
     func startTrial() async -> PurchaseOutcome {
         guard case .loaded(let products) = productState, let trial = products.trial else {
-            return .failed("暂时读不到免费体验，请检查网络后重试。")
+            return .failed(String(localized: "暂时读不到免费体验，请检查网络后重试。"))
         }
         return await buy(trial) { [self] transaction in
             setTrialStarted(transaction.purchaseDate)
@@ -201,7 +201,7 @@ final class ProStore {
     /// 买断：专属价期内买专属价那件，过了买原价那件
     func purchase() async -> PurchaseOutcome {
         guard case .loaded(let products) = productState else {
-            return .failed("暂时读不到商品，请检查网络后重试。")
+            return .failed(String(localized: "暂时读不到商品，请检查网络后重试。"))
         }
         return await buy(hasSpecialPrice ? products.special : products.regular) { [self] transaction in
             setPurchased(transaction.revocationDate == nil)
@@ -235,13 +235,13 @@ final class ProStore {
                 await transaction.finish()
                 return .purchased
             case .success(.unverified):
-                return .failed("这笔购买没有通过 Apple 的校验，Pro 没有解锁。可以稍后点「恢复购买」再试。")
+                return .failed(String(localized: "这笔购买没有通过 Apple 的校验，Pro 没有解锁。可以稍后点「恢复购买」再试。"))
             case .userCancelled:
                 return .cancelled
             case .pending:
                 return .pending
             @unknown default:
-                return .failed("购买没有完成，请稍后再试。")
+                return .failed(String(localized: "购买没有完成，请稍后再试。"))
             }
         } catch {
             return .failed(error.localizedDescription)

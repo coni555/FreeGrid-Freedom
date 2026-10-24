@@ -41,8 +41,8 @@ enum TransferStore {
 
         var errorDescription: String? {
             switch self {
-            case .samePlace: return "转出和转入是同一个地方。"
-            case .missingPlace: return "这个账户或资产项已经不在账本里。"
+            case .samePlace: return String(localized: "转出和转入是同一个地方。")
+            case .missingPlace: return String(localized: "这个账户或资产项已经不在账本里。")
             }
         }
     }

@@ -15,13 +15,13 @@ enum LoanError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidName: return "名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "金额不对，或者超出了能记的范围。"
-        case .invalidDueDay: return "还款日请选 1–31 号。"
-        case .invalidPeriods: return "剩余期数请填 1–\(LoanSchedule.maxPeriods) 之间的整数。"
-        case .invalidInterval: return "请选每 1、2、3、6 或 12 个月一次。"
-        case .invalidNextDue: return "下次付款请选明天到一年以内的日子。"
-        case .notPending: return "这一期已经处理过了。"
+        case .invalidName: return String(localized: "名称请填写 1–20 个字，不包含换行。")
+        case .invalidAmount: return String(localized: "金额不对，或者超出了能记的范围。")
+        case .invalidDueDay: return String(localized: "还款日请选 1–31 号。")
+        case .invalidPeriods: return String(localized: "剩余期数请填 1–\(LoanSchedule.maxPeriods) 之间的整数。")
+        case .invalidInterval: return String(localized: "请选每 1、2、3、6 或 12 个月一次。")
+        case .invalidNextDue: return String(localized: "下次付款请选明天到一年以内的日子。")
+        case .notPending: return String(localized: "这一期已经处理过了。")
         }
     }
 }

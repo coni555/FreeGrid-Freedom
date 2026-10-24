@@ -38,47 +38,47 @@ final class AppGuide {
         switch tour {
         case .dashboard:
             return [
-                Step(target: .number, text: "按现在的花法，你的财富还能撑这么多天。\n下面写着大约能撑到哪一天。"),
-                Step(target: .grid, text: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。"),
+                Step(target: .number, text: String(localized: "按现在的花法，你的财富还能撑这么多天。\n下面写着大约能撑到哪一天。")),
+                Step(target: .grid, text: String(localized: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。")),
                 // 只有填了贷款、格子上有孔时才出现
-                Step(target: .repaymentDays, text: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。"),
-                Step(target: .simulate, text: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。"),
-                Step(target: .trend, text: "点这一行，展开或收起最近几周的变化。"),
+                Step(target: .repaymentDays, text: String(localized: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。")),
+                Step(target: .simulate, text: String(localized: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。")),
+                Step(target: .trend, text: String(localized: "点这一行，展开或收起最近几周的变化。")),
             ]
         case .assets:
             return [
-                Step(target: .netWorth, text: "净值 = 资产 + 现金，自动相加。\n下面这条线里，金色是资产，蓝色是现金。"),
-                Step(target: .transfer, text: "钱在资产和现金之间挪，用调拨，净值不变。\n点这一行展开。"),
-                Step(target: .buckets, text: "资产是定期、股票这类不打算马上花的钱，现金是随时能花的。\n点一行改金额；资产前面的方格，管它算不算进自由天数。"),
-                Step(target: .loans, text: "房租、水电、会员这类固定支出加在这里。\n到日子自动记一笔，自由天数会提前留出这笔钱。"),
-                Step(target: .passive, text: "租金、利息这类不靠上班的收入加在这里。\n它覆盖开销时，首页显示 ∞。"),
+                Step(target: .netWorth, text: String(localized: "净值 = 资产 + 现金，自动相加。\n下面这条线里，金色是资产，蓝色是现金。")),
+                Step(target: .transfer, text: String(localized: "钱在资产和现金之间挪，用调拨，净值不变。\n点这一行展开。")),
+                Step(target: .buckets, text: String(localized: "资产是定期、股票这类不打算马上花的钱，现金是随时能花的。\n点一行改金额；资产前面的方格，管它算不算进自由天数。")),
+                Step(target: .loans, text: String(localized: "房租、水电、会员这类固定支出加在这里。\n到日子自动记一笔，自由天数会提前留出这笔钱。")),
+                Step(target: .passive, text: String(localized: "租金、利息这类不靠上班的收入加在这里。\n它覆盖开销时，首页显示 ∞。")),
             ]
         // 顺序跟屏幕从上到下走：净值、单位、两张标签、调拨、每月的进和出
         case .moneyTimeAssets:
             return [
-                Step(target: .netWorth, text: "净值 = 资产 + 现金。\n下面这条线一段是一个账户，点一段跳到它那一边。"),
-                Step(target: .unitSwitch, text: "切到钟，整页的金额换成「够日常花几天」，\n大数字就是你的自由天数。"),
-                Step(target: .buckets, text: "点「资产」或「现金」切换，一个账户一行。\n点一行修改；点前面的方格或序号，选它算不算进自由天数。"),
-                Step(target: .transfer, text: "中间的圆钮是调拨：\n钱在资产和现金之间挪，净值不变。"),
-                Step(target: .passive, text: "「进」是租金、利息这类不靠上班的收入。\n它覆盖开销时，首页显示 ∞。"),
-                Step(target: .loans, text: "「出」是房租、会员这类固定支出，和房贷、车贷。\n到日子自动记一笔，自由天数会提前留出这笔钱。"),
+                Step(target: .netWorth, text: String(localized: "净值 = 资产 + 现金。\n下面这条线一段是一个账户，点一段跳到它那一边。")),
+                Step(target: .unitSwitch, text: String(localized: "切到钟，整页的金额换成「够日常花几天」，\n大数字就是你的自由天数。")),
+                Step(target: .buckets, text: String(localized: "点「资产」或「现金」切换，一个账户一行。\n点一行修改；点前面的方格或序号，选它算不算进自由天数。")),
+                Step(target: .transfer, text: String(localized: "中间的圆钮是调拨：\n钱在资产和现金之间挪，净值不变。")),
+                Step(target: .passive, text: String(localized: "「进」是租金、利息这类不靠上班的收入。\n它覆盖开销时，首页显示 ∞。")),
+                Step(target: .loans, text: String(localized: "「出」是房租、会员这类固定支出，和房贷、车贷。\n到日子自动记一笔，自由天数会提前留出这笔钱。")),
             ]
         case .settings:
             return [
-                Step(target: .check, text: "八个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项。"),
-                Step(target: .freedomCard, text: "你的自由卡：30 天银卡，180 天香槟金，一年黑卡。\n点开看整张卡。"),
+                Step(target: .check, text: String(localized: "八个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项。")),
+                Step(target: .freedomCard, text: String(localized: "你的自由卡：30 天银卡，180 天香槟金，一年黑卡。\n点开看整张卡。")),
                 // 只有还没买 Pro 时才出现
-                Step(target: .pro, text: "Pro 一次买断，不订阅，可以先免费体验 7 天。\n点「了解 Pro」，看免费版和 Pro 各有什么。"),
-                Step(target: .appearance, text: "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和 Assets 页的样式。"),
-                Step(target: .data, text: "「账本」里管支出分类和备份。\n换手机前，先在这里导出一份 JSON 备份。"),
-                Step(target: .about, text: "想再看一遍这些讲解，或者查使用说明，\n都在「FreeGrid」这张卡里。"),
+                Step(target: .pro, text: String(localized: "Pro 一次买断，不订阅，可以先免费体验 7 天。\n点「了解 Pro」，看免费版和 Pro 各有什么。")),
+                Step(target: .appearance, text: String(localized: "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和钱包页的样式。")),
+                Step(target: .data, text: String(localized: "「账本」里管支出分类和备份。\n换手机前，先在这里导出一份 JSON 备份。")),
+                Step(target: .about, text: String(localized: "想再看一遍这些讲解，或者查使用说明，\n都在「FreeGrid」这张卡里。")),
             ]
         case .history:
             return [
-                Step(target: .month, text: "点月份，跳到任意一个月。\n旁边的箭头可以前后翻月。"),
-                Step(target: .row, text: "点一行，修改金额、分类、日期或备注。"),
-                Step(target: .row, text: "向左滑一行，撤销这笔。", showsSwipe: true),
-                Step(target: .tools, text: "这里搜索全部记录，\n或者按分类筛选。"),
+                Step(target: .month, text: String(localized: "点月份，跳到任意一个月。\n旁边的箭头可以前后翻月。")),
+                Step(target: .row, text: String(localized: "点一行，修改金额、分类、日期或备注。")),
+                Step(target: .row, text: String(localized: "向左滑一行，撤销这笔。"), showsSwipe: true),
+                Step(target: .tools, text: String(localized: "这里搜索全部记录，\n或者按分类筛选。")),
             ]
         }
     }
@@ -414,10 +414,10 @@ struct SetupGuideOverlay: View {
 
     private var text: String {
         switch step {
-        case .welcome: return "FreeGrid 算的是：按现在的花法，你的钱还能撑多少天。\n先告诉它你有多少钱。"
-        case .cash: return "活期、微信、支付宝里随时能花的钱，填在「现金」。\n点一下这一行。"
-        case .backHome: return "记下了。\n再回首页记一笔支出，格子就会点亮。"
-        case .expense: return "记一笔今天的支出，多少都行。\n点「记支出」。"
+        case .welcome: return String(localized: "FreeGrid 算的是：按现在的花法，你的钱还能撑多少天。\n先告诉它你有多少钱。")
+        case .cash: return String(localized: "活期、微信、支付宝里随时能花的钱，填在「现金」。\n点一下这一行。")
+        case .backHome: return String(localized: "记下了。\n再回首页记一笔支出，格子就会点亮。")
+        case .expense: return String(localized: "记一笔今天的支出，多少都行。\n点「记支出」。")
         }
     }
 
@@ -453,7 +453,7 @@ struct SetupGuideOverlay: View {
         }
     }
 
-    private func actionButton(_ title: String, identifier: String, action: @escaping () -> Void) -> some View {
+    private func actionButton(_ title: LocalizedStringKey, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(.subheadline, design: .rounded))
