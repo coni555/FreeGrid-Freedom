@@ -128,7 +128,9 @@ private struct DashboardContent: View {
                 VStack(spacing: Spacing.lg) {
                     #if DEBUG
                     // 临时：首页改造方向的对比，带 -homeConcept 时换掉整页
-                    if let concept = HomeConcept.current {
+                    if let mock = HomeModulesMock.current, mock.replacesPage {
+                        MockModulesPage(mode: mock, inputs: statInputs)
+                    } else if let concept = HomeConcept.current {
                         HomeConceptBody(concept: concept, snapshot: snapshot, history: history,
                                         todaySpending: todaySpending, isDark: showsDark,
                                         onExpense: { expenseDraft = ExpenseDraft() },
@@ -220,12 +222,16 @@ private struct DashboardContent: View {
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    if snapshot.hasExpenses {
-                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                    #if DEBUG
+                    if let mock = HomeModulesMock.current {
+                        // 临时：底部组件区的效果图
+                        MockModulesArea(mode: mock, inputs: statInputs, todayCard: AnyView(todaySection))
+                    } else {
+                        bottomCards
                     }
-                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    }
+                    #else
+                    bottomCards
+                    #endif
     }
 
     // ============================================================================
@@ -362,6 +368,16 @@ private struct DashboardContent: View {
     // ============================================================================
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
+
+    @ViewBuilder
+    private var bottomCards: some View {
+        if snapshot.hasExpenses {
+            statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+        }
+        if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+            todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
+        }
+    }
 
     /// 固定三张：点一张选它显示什么，按住拖动换位置
     private var statSlots: [HomeStat] {
