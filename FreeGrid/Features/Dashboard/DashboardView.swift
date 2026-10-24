@@ -56,6 +56,12 @@ extension DashboardContent {
     fileprivate static let topID = "dashboard-top"
 }
 
+/// 点了第几张数字小卡
+private struct StatPick: Identifiable {
+    let index: Int
+    var id: Int { index }
+}
+
 /// 一次「打开记支出表单」的请求
 private struct ExpenseDraft: Identifiable {
     let id = UUID()
@@ -85,8 +91,12 @@ private struct DashboardContent: View {
     @State private var showingFreedomCard = false
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeenCard = -1
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
-    /// 底部三张数字小卡放哪三个指标，长按换
+    /// 底部三张数字小卡放哪三个指标
     @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
+    /// 点了某张数字小卡：弹出选它显示什么的半屏
+    @State private var statPick: StatPick?
+    /// 正在拖数字小卡时首页不跟着滚
+    @State private var draggingStat = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -147,6 +157,7 @@ private struct DashboardContent: View {
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
             }
             }
+            .scrollDisabled(draggingStat)
             .scrollContentBackground(.hidden)
             // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
             // 让出 1pt 它就只在安全区内裁剪, 数字不再压到时间和电量上
@@ -165,6 +176,13 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sheet(item: $statPick) { pick in
+                HomeStatPicker(index: pick.index, slots: statSlots, inputs: statInputs) { stat in
+                    withAnimation(.snappy(duration: 0.3)) {
+                        storedStatSlots = HomeStat.encode(HomeStat.replacing(statSlots, at: pick.index, with: stat))
+                    }
+                }
+            }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
                     showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
@@ -181,7 +199,7 @@ private struct DashboardContent: View {
             }
             .background {
                 ReviewInvitationPresenter(
-                    blocked: showingSimulate || showingFreedomCard || saveError != nil,
+                    blocked: showingSimulate || showingFreedomCard || statPick != nil || saveError != nil,
                     busy: expenseDraft != nil || showingAddIncome || pendingUndoID != nil
                 )
             }
@@ -345,87 +363,16 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// 固定三张；长按一张，从菜单里换成别的指标，或者左右挪
+    /// 固定三张：点一张选它显示什么，按住拖动换位置
+    private var statSlots: [HomeStat] {
+        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
+    }
+
     private var statsRow: some View {
-        let slots = HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
-        return HStack(spacing: Spacing.md) {
-            ForEach(Array(slots.enumerated()), id: \.element) { index, stat in
-                let display = stat.display(statInputs)
-                statCard(label: stat.kicker, value: display.value, unit: display.unit)
-                    #if os(iOS)
-                    // 长按时浮起来的预览保持卡片的圆角
-                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    #endif
-                    .contextMenu { statMenu(slots: slots, index: index) }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("home-stat-\(index)")
-                    .accessibilityHint("长按换成别的指标")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func statMenu(slots: [HomeStat], index: Int) -> some View {
-        Section("换成") {
-            ForEach(HomeStat.allCases) { stat in
-                Button {
-                    updateStatSlots(HomeStat.replacing(slots, at: index, with: stat))
-                } label: {
-                    if stat == slots[index] {
-                        Label(stat.title, systemImage: "checkmark")
-                    } else if let other = slots.firstIndex(of: stat) {
-                        // 已经在另一张上：选它就两张对调
-                        Text(stat.title)
-                        Text("和\(other < index ? "左边" : "右边")那张对调")
-                    } else {
-                        Text(stat.title)
-                    }
-                }
-            }
-        }
-        Section {
-            if index > 0 {
-                Button("往左挪", systemImage: "arrow.left") {
-                    updateStatSlots(HomeStat.moving(slots, at: index, by: -1))
-                }
-            }
-            if index < slots.count - 1 {
-                Button("往右挪", systemImage: "arrow.right") {
-                    updateStatSlots(HomeStat.moving(slots, at: index, by: 1))
-                }
-            }
-        }
-    }
-
-    private func updateStatSlots(_ slots: [HomeStat]) {
-        withAnimation(.snappy(duration: 0.3)) {
-            storedStatSlots = HomeStat.encode(slots)
-        }
-    }
-
-    /// 单个 stat 卡片:数字 / hairline / kicker / sub label 四层(silverline)
-    private func statCard(label: String, value: String, unit: String) -> some View {
-        VaultCard(padding: Spacing.md) {
-            VStack(alignment: .leading, spacing: 6) {
-                // 大 thin 数字(silverline 风格)
-                Text(value)
-                    .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.ink)
-                // 短 hairline 短横线
-                Rectangle()
-                    .fill(Color.inkGhost)
-                    .frame(width: 22, height: 1)
-                    .padding(.vertical, 2)
-                // kicker
-                KickerLabel(text: label)
-                // sub unit
-                Text(unit)
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-        }
+        HomeStatRow(slots: statSlots, inputs: statInputs,
+                    onReorder: { storedStatSlots = HomeStat.encode($0) },
+                    onPick: { statPick = StatPick(index: $0) },
+                    onDraggingChange: { draggingStat = $0 })
     }
 
     /// Today: Silverline 版 — 单行 bar 设计

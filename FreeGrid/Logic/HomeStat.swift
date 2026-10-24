@@ -1,4 +1,4 @@
-// 首页底部的三张数字小卡：固定三张，每张长按可以换成下面任意一个指标（免费）。
+// 首页底部的三张数字小卡：固定三张，点一张可以换成下面任意一个指标（免费），按住拖动换位置。
 // 这里决定有哪些指标、默认放哪三个、换了以后怎么排，以及每个指标显示什么。
 
 import Foundation
@@ -63,12 +63,11 @@ enum HomeStat: String, CaseIterable, Identifiable {
         return result
     }
 
-    /// 第 `index` 张往左（-1）或往右（+1）挪一格
-    static func moving(_ slots: [HomeStat], at index: Int, by offset: Int) -> [HomeStat] {
-        let target = index + offset
-        guard slots.indices.contains(index), slots.indices.contains(target) else { return slots }
+    /// 把第 `from` 张拖到第 `to` 格，中间的往旁边让
+    static func moving(_ slots: [HomeStat], from: Int, to: Int) -> [HomeStat] {
+        guard slots.indices.contains(from), slots.indices.contains(to) else { return slots }
         var result = slots
-        result.swapAt(index, target)
+        result.insert(result.remove(at: from), at: to)
         return result
     }
 

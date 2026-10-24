@@ -34,8 +34,10 @@ struct HomeStatTests {
         let slots: [HomeStat] = [.daily, .passive, .track]
         #expect(HomeStat.replacing(slots, at: 1, with: .month) == [.daily, .month, .track])
         #expect(HomeStat.replacing(slots, at: 0, with: .track) == [.track, .passive, .daily])
-        #expect(HomeStat.moving(slots, at: 2, by: -1) == [.daily, .track, .passive])
-        #expect(HomeStat.moving(slots, at: 0, by: -1) == slots)
+        #expect(HomeStat.moving(slots, from: 2, to: 1) == [.daily, .track, .passive])
+        // 第一张拖到最后，中间两张各往左让一格
+        #expect(HomeStat.moving(slots, from: 0, to: 2) == [.passive, .track, .daily])
+        #expect(HomeStat.moving(slots, from: 0, to: 3) == slots)
         #expect(HomeStat.encode([.next, .saved, .base]) == "next,saved,base")
     }
 

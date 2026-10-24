@@ -97,9 +97,9 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
-    /// 首页三张数字小卡：长按换成别的指标、往左挪，重开 App 后还是换过的样子
+    /// 首页三张数字小卡：点一张换成别的指标、按住拖到别的位置，重开 App 后还是换过的样子
     @MainActor
-    func testHomeStatCardsCanBeSwappedAndMovedByLongPress() {
+    func testHomeStatCardsCanBePickedAndDragged() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                "-UseInMemoryStore", "-proPreview", "NO"]
@@ -119,16 +119,15 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(first.label.contains("DAILY"), first.label)
         XCTAssertTrue(second.label.contains("MONTH"), second.label)
 
-        first.press(forDuration: 1.0)
-        let saved = app.buttons["本月结余率"]
+        first.tap()
+        let saved = app.buttons["stat-option-saved"]
         XCTAssertTrue(saved.waitForExistence(timeout: 3))
         saved.tap()
+        XCTAssertTrue(saved.waitForNonExistence(timeout: 3))
         XCTAssertTrue(first.label.contains("SAVED"), first.label)
 
-        second.press(forDuration: 1.0)
-        let left = app.buttons["往左挪"]
-        XCTAssertTrue(left.waitForExistence(timeout: 3))
-        left.tap()
+        // 第二张（本月）按住拖到第一张的位置
+        second.press(forDuration: 0.6, thenDragTo: first)
         XCTAssertTrue(first.label.contains("MONTH"), first.label)
         XCTAssertTrue(second.label.contains("SAVED"), second.label)
         let shot = XCTAttachment(screenshot: app.screenshot())
