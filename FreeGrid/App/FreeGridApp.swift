@@ -20,6 +20,7 @@ final class MenuActions {
 @main
 struct FreeGridApp: App {
     init() {
+        AppLanguage.install()
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-UseInMemoryStore"), arguments.contains("-ResetExpenseCategories") {
@@ -29,6 +30,8 @@ struct FreeGridApp: App {
     }
 
     @State private var storeBootstrap = StoreBootstrap()
+    /// 设置里换了语言就变：整棵视图按新语言重建
+    @AppStorage(AppLanguage.storageKey) private var language = ""
     @Environment(\.scenePhase) private var scenePhase
 
     #if os(macOS)
@@ -46,12 +49,14 @@ struct FreeGridApp: App {
                 case .ready(let container):
                     ContentView()
                         .modelContainer(container)
+                        .id(language)
                 case .failed(let failure):
                     StoreRecoveryView(failure: failure) {
                         storeBootstrap.retry()
                     }
                 }
             }
+            .environment(\.locale, AppLanguage.locale)
             #if os(macOS)
             .environment(menuActions)
             .frame(minWidth: 920, minHeight: 640)

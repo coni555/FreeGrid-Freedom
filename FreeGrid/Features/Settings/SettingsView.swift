@@ -323,21 +323,18 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        #if os(iOS)
                         DeckDivider()
-                        // 语言跟系统走：App 里不另做开关，跳到 iOS「设置 → FreeGrid」，那里有「语言」
-                        Button {
-                            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                        } label: {
-                            DeckRow(title: String(localized: "语言"), chevron: "arrow.up.right") {
-                                Text(verbatim: AppLanguage.isChinese ? "简体中文" : "English")
-                                    .font(.system(size: 15, design: .rounded))
-                                    .foregroundStyle(Color.inkFaint)
+                        // 当场换语言，不跳 iOS 设置。两个选项各用自己的语言写，切过去也认得回来的路
+                        segmentRow(String(localized: "语言")) {
+                            Picker("语言", selection: Binding(
+                                get: { AppLanguage.isChinese },
+                                set: { AppLanguage.select(chinese: $0) }
+                            )) {
+                                Text(verbatim: "中文").tag(true)
+                                Text(verbatim: "English").tag(false)
                             }
+                            .accessibilityIdentifier("language-picker")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("language-settings")
-                        #endif
                     }
                     .padding(.bottom, Spacing.xs)
                     .transition(reveal)

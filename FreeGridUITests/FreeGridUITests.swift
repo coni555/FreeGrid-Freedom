@@ -448,6 +448,40 @@ final class FreeGridUITests: XCTestCase {
 
     /// 使用说明空账本也能看：设置 → FreeGrid → 使用说明 → 一章。给了 GUIDE_SHOTS_DIR 时顺便拍图
     @MainActor
+    /// 外观卡里换语言：当场整页换成英文，停在设置页、外观卡还开着；再换回中文
+    func testLanguageSwitchesInAppAndStaysOnSettings() {
+        let app = XCUIApplication()
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
+                               "-setupGuideCompleted", "YES", "-UseInMemoryStore"]
+        app.launch()
+        app.tabBars.buttons["设置"].tap()
+        let picker = app.segmentedControls["language-picker"]
+        if !picker.waitForExistence(timeout: 2) { app.buttons["settings-card-look"].tap() }
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+
+        let output = ProcessInfo.processInfo.environment["L10N_SHOTS_DIR"]
+        func shoot(_ name: String) {
+            guard let output else { return }
+            Thread.sleep(forTimeInterval: 0.8)
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: output).appendingPathComponent(name + ".png"))
+        }
+        shoot("switch-0-zh")
+
+        picker.buttons["English"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
+        XCTAssertTrue(app.segmentedControls["language-picker"].buttons["English"].isSelected)
+        shoot("switch-1-en-settings")
+        app.tabBars.buttons["Dashboard"].tap()
+        shoot("switch-2-en-home")
+        app.tabBars.buttons["Settings"].tap()
+
+        app.segmentedControls["language-picker"].buttons["中文"].tap()
+        XCTAssertTrue(app.tabBars.buttons["设置"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["设置"].isSelected)
+    }
+
     func testUserManualOpensFromSettingsEvenWithAnEmptyLedger() throws {
         let app = XCUIApplication()
         app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES",
@@ -2169,11 +2203,9 @@ final class EnglishScreensUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         app.swipeDown()
         app.buttons["settings-card-look"].tap()
-        let language = app.buttons["language-settings"]
+        let language = app.segmentedControls["language-picker"]
         if language.waitForExistence(timeout: 3) {
-            language.tap()
-            Thread.sleep(forTimeInterval: 2)
-            try shoot("17-ios-settings")
+            try shoot("17-language")
         }
     }
 }

@@ -316,7 +316,7 @@ struct GhostButton: View {
 /// emphasized():一句话里用 *…* 标出强调的词，强调词用衬线斜体和 sky-deep 深天空蓝，其余是圆体灰字。
 /// 整句是一条可翻译的文字（「你已*财富*自由」/「You're *financially* free」），各语言自己决定强调词放哪。
 func emphasized(_ sentence: LocalizedStringResource, size: CGFloat = 17) -> Text {
-    var text = AttributedString(localized: sentence)
+    var text = AppLanguage.attributed(sentence)
     for run in text.runs {
         let isWord = run.inlinePresentationIntent?.contains(.emphasized) == true
         text[run.range].font = isWord

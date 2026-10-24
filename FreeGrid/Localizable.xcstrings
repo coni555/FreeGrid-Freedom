@@ -1139,12 +1139,12 @@
         }
       }
     },
-    "**语言**：跟随 iOS，有中文和英文。想单独给 FreeGrid 换语言，点外观卡里的「语言」，在系统设置里选。": {
+    "**语言**：在外观卡的「语言」里选中文或 English，当场切换。没选过时跟 iOS 的语言走。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Language**: follows iOS, in Chinese or English. To set a language just for FreeGrid, tap “Language” in the Appearance card and choose it in iOS Settings."
+            "value": "**Language**: pick 中文 or English under “Language” in the Appearance card, and the app switches right away. Until you pick one, FreeGrid follows your iOS language."
           }
         }
       }

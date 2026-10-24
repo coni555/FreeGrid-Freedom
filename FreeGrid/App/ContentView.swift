@@ -14,7 +14,8 @@ struct ContentView: View {
     /// 跨启动持久化主题选择：跟随系统时不指定，否则按 isDarkMode 固定浅色或深色
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @AppStorage(AppTheme.followsSystemKey, store: AppPreferences.store) private var followsSystem = false
-    @State private var selectedTab: AppTab = .dashboard
+    /// 在设置里换完语言、整棵视图重建后回到设置页
+    @State private var selectedTab: AppTab = AppLanguage.switchedInApp ? .settings : .dashboard
 
     /// 全 App 的指引；遮罩要盖住导航栏和 Tab 栏，所以由这里持有
     @State private var guide = AppGuide()

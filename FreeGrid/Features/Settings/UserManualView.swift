@@ -130,7 +130,7 @@ enum UserManual {
                 "**财富自由自检**：按你的账自动判断八个里程碑，点进去看每一项还差多少。",
                 "**我的自由卡**：30 天银卡，180 天香槟金，1 年黑卡；被动收入覆盖全部开销是 ∞ 卡。卡上只写天数，不写金额。**Pro** 可以导出成卡片或海报分享。",
                 "**外观**：主题（浅色、深色、跟随系统）、首页大数字的位置、钱包页的样式。",
-                "**语言**：跟随 iOS，有中文和英文。想单独给 FreeGrid 换语言，点外观卡里的「语言」，在系统设置里选。",
+                "**语言**：在外观卡的「语言」里选中文或 English，当场切换。没选过时跟 iOS 的语言走。",
                 "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序、合并。",
                 "**FreeGrid Pro**：对比免费版和 Pro，开始免费体验、购买或恢复购买。",
             ]),
@@ -290,7 +290,7 @@ private struct ManualChapterPage: View {
     }
 
     private func paragraph(_ text: LocalizedStringResource, color: Color = .ink) -> some View {
-        Text(AttributedString(localized: text))
+        Text(AppLanguage.attributed(text))
             .font(.system(.subheadline, design: .rounded))
             .foregroundStyle(color)
             .lineSpacing(4)
