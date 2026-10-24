@@ -41,6 +41,7 @@ struct DashboardView: View {
         return DashboardContent(
             snapshot: snapshot,
             history: history,
+            statInputs: HomeStat.Inputs(snapshot: snapshot, expenses: expenses, incomes: incomes, loans: loansInEffect),
             // 和日均比的是日常开销，自动扣的房租、月供不算
             todaySpending: today.map { day in
                 expenses.reduce(0) { sum, expense in
@@ -65,6 +66,8 @@ private struct DashboardContent: View {
     let snapshot: FinancialSnapshot
     /// 自由天数趋势，由 DashboardView 随账本一起算好
     let history: [FreedomMath.HistoryPoint]
+    /// 底部三张数字小卡要的数，同样由 DashboardView 随账本算好
+    let statInputs: HomeStat.Inputs
     let todaySpending: Double
 
     @Environment(\.modelContext) private var modelContext
@@ -82,6 +85,8 @@ private struct DashboardContent: View {
     @State private var showingFreedomCard = false
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeenCard = -1
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
+    /// 底部三张数字小卡放哪三个指标，长按换
+    @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -340,23 +345,61 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
+    /// 固定三张；长按一张，从菜单里换成别的指标，或者左右挪
     private var statsRow: some View {
-        HStack(spacing: Spacing.md) {
-            // 日均含固定支出折成的每天；有固定支出时小字拆开写，和下面只比日常的 Today 对得上
-            statCard(label: "Daily",
-                     value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
-                     unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-                         ? "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))"
-                         : "元/天")
-            // 没有被动收入时这张卡永远是 0%, 不占位置
-            if snapshot.dailyPassive > 0 {
-                statCard(label: "Passive",
-                         value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                         unit: "被动收入覆盖")
+        let slots = HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
+        return HStack(spacing: Spacing.md) {
+            ForEach(Array(slots.enumerated()), id: \.element) { index, stat in
+                let display = stat.display(statInputs)
+                statCard(label: stat.kicker, value: display.value, unit: display.unit)
+                    #if os(iOS)
+                    // 长按时浮起来的预览保持卡片的圆角
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    #endif
+                    .contextMenu { statMenu(slots: slots, index: index) }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("home-stat-\(index)")
+                    .accessibilityHint("长按换成别的指标")
             }
-            statCard(label: "Track",
-                     value: "\(snapshot.trackDays)",
-                     unit: "天记账")
+        }
+    }
+
+    @ViewBuilder
+    private func statMenu(slots: [HomeStat], index: Int) -> some View {
+        Section("换成") {
+            ForEach(HomeStat.allCases) { stat in
+                Button {
+                    updateStatSlots(HomeStat.replacing(slots, at: index, with: stat))
+                } label: {
+                    if stat == slots[index] {
+                        Label(stat.title, systemImage: "checkmark")
+                    } else if let other = slots.firstIndex(of: stat) {
+                        // 已经在另一张上：选它就两张对调
+                        Text(stat.title)
+                        Text("和\(other < index ? "左边" : "右边")那张对调")
+                    } else {
+                        Text(stat.title)
+                    }
+                }
+            }
+        }
+        Section {
+            if index > 0 {
+                Button("往左挪", systemImage: "arrow.left") {
+                    updateStatSlots(HomeStat.moving(slots, at: index, by: -1))
+                }
+            }
+            if index < slots.count - 1 {
+                Button("往右挪", systemImage: "arrow.right") {
+                    updateStatSlots(HomeStat.moving(slots, at: index, by: 1))
+                }
+            }
+        }
+    }
+
+    private func updateStatSlots(_ slots: [HomeStat]) {
+        withAnimation(.snappy(duration: 0.3)) {
+            storedStatSlots = HomeStat.encode(slots)
         }
     }
 

@@ -35,6 +35,7 @@ enum AppPreferences {
         "assetsUnit",
         ProIntro.audienceKey,
         ReviewInvitationStore.lastRequestedKey,
+        HomeStat.slotsKey,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {

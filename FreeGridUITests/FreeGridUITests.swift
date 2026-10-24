@@ -97,6 +97,59 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// 首页三张数字小卡：长按换成别的指标、往左挪，重开 App 后还是换过的样子
+    @MainActor
+    func testHomeStatCardsCanBeSwappedAndMovedByLongPress() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-UseInMemoryStore", "-proPreview", "NO"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("30")
+        app.buttons["保存"].tap()
+
+        let first = app.descendants(matching: .any)["home-stat-0"]
+        let second = app.descendants(matching: .any)["home-stat-1"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !first.isHittable { app.swipeUp() }
+        // 没有被动收入：默认是 日均 / 本月 / 记账
+        XCTAssertTrue(first.label.contains("DAILY"), first.label)
+        XCTAssertTrue(second.label.contains("MONTH"), second.label)
+
+        first.press(forDuration: 1.0)
+        let saved = app.buttons["本月结余率"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 3))
+        saved.tap()
+        XCTAssertTrue(first.label.contains("SAVED"), first.label)
+
+        second.press(forDuration: 1.0)
+        let left = app.buttons["往左挪"]
+        XCTAssertTrue(left.waitForExistence(timeout: 3))
+        left.tap()
+        XCTAssertTrue(first.label.contains("MONTH"), first.label)
+        XCTAssertTrue(second.label.contains("SAVED"), second.label)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "数字小卡-换过以后"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        app.terminate()
+        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-UseInMemoryStore", "-KeepScratchPreferences", "-proPreview", "NO"]
+        app.launch()
+        app.buttons["记支出"].tap()
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("12")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertTrue(first.label.contains("MONTH"), first.label)
+        XCTAssertTrue(second.label.contains("SAVED"), second.label)
+    }
+
     /// Pro：把一个分类改成另一个已有分类的名字，确认后两个合并，旧账都归到留下的那个。
     @MainActor
     func testRenamingIntoAnExistingCategoryMergesThem() {
