@@ -122,7 +122,7 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
 
     /// 备份里某处坏了：先说哪里，再说怎么办
     private static func broken(_ what: String) -> String {
-        "这份备份有地方坏了：\(what)。换一份备份再试。"
+        String(localized: "这份备份有地方坏了：\(what)。换一份备份再试。")
     }
 
     private static func size(_ bytes: Int) -> String {
@@ -132,49 +132,49 @@ nonisolated enum ImportValidationError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .fileTooLarge(let actual, let maximum):
-            return "这份备份太大了（\(Self.size(actual))，最多 \(Self.size(maximum))）。"
+            return String(localized: "这份备份太大了（\(Self.size(actual))，最多 \(Self.size(maximum))）。")
         case .malformedJSON:
-            return "这个文件不是 FreeGrid 导出的 JSON 备份。"
+            return String(localized: "这个文件不是 FreeGrid 导出的 JSON 备份。")
         case .unsupportedSchema(let version):
-            return "这份备份来自更新的 FreeGrid（格式 \(version)）。先更新 App，再导入。"
+            return String(localized: "这份备份来自更新的 FreeGrid（格式 \(version)）。先更新 App，再导入。")
         case .tooManyRecords(let kind, let count, let maximum):
-            return "\(kind)太多了（\(count) 条，最多 \(maximum) 条）。"
+            return String(localized: "\(kind)太多了（\(count) 条，最多 \(maximum) 条）。")
         case .invalidUUID(let field):
-            return Self.broken("\(field)的 ID 不对")
+            return Self.broken(String(localized: "\(field)的 ID 不对"))
         case .invalidDate(let field):
-            return Self.broken("\(field)的日期写法不对")
+            return Self.broken(String(localized: "\(field)的日期写法不对"))
         case .futureDate(let field):
-            return Self.broken("\(field)晚于今天")
+            return Self.broken(String(localized: "\(field)晚于今天"))
         case .emptyText(let field):
-            return Self.broken("\(field)是空的")
+            return Self.broken(String(localized: "\(field)是空的"))
         case .textTooLong(let field, let maximum):
-            return Self.broken("\(field)太长，最多 \(maximum) 个字")
+            return Self.broken(String(localized: "\(field)太长，最多 \(maximum) 个字"))
         case .amountOutOfRange(let field):
-            return "\(field)金额不对，或者超出了能记的范围。"
+            return String(localized: "\(field)金额不对，或者超出了能记的范围。")
         case .incompleteAssetBuckets:
-            return Self.broken("只有资产或只有现金，缺了另一半")
+            return Self.broken(String(localized: "只有资产或只有现金，缺了另一半"))
         case .assetChecksumMismatch:
-            return Self.broken("净值不等于资产加现金")
+            return Self.broken(String(localized: "净值不等于资产加现金"))
         case .invalidDeviceStatus:
-            return Self.broken("设备状态不对")
+            return Self.broken(String(localized: "设备状态不对"))
         case .inconsistentDeviceState:
-            return Self.broken("设备的卖出信息对不上")
+            return Self.broken(String(localized: "设备的卖出信息对不上"))
         case .assetItemsTotalMismatch:
-            return Self.broken("各资产项加起来不等于资产")
+            return Self.broken(String(localized: "各资产项加起来不等于资产"))
         case .duplicateAssetItemID:
-            return Self.broken("资产项的 ID 重复")
+            return Self.broken(String(localized: "资产项的 ID 重复"))
         case .cashAccountsTotalMismatch:
-            return Self.broken("各账户加起来不等于现金")
+            return Self.broken(String(localized: "各账户加起来不等于现金"))
         case .duplicateCashAccountID:
-            return Self.broken("账户的 ID 重复")
+            return Self.broken(String(localized: "账户的 ID 重复"))
         case .duplicateLoanID:
-            return Self.broken("固定支出或贷款的 ID 重复")
+            return Self.broken(String(localized: "固定支出或贷款的 ID 重复"))
         case .invalidLoan:
-            return Self.broken("固定支出或贷款的付款日或期数不对")
+            return Self.broken(String(localized: "固定支出或贷款的付款日或期数不对"))
         case .invalidPassiveInterval:
-            return Self.broken("被动收入的到账周期不对")
+            return Self.broken(String(localized: "被动收入的到账周期不对"))
         case .invalidExpenseCategories:
-            return Self.broken("支出分类有空名字、重名或图标不对")
+            return Self.broken(String(localized: "支出分类有空名字、重名或图标不对"))
         }
     }
 }
@@ -331,7 +331,7 @@ nonisolated enum ImportValidator {
         let ledgerCount = expenseCount + incomeCount
         guard ledgerCount <= policy.maxLedgerRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "收支",
+                kind: String(localized: "收支"),
                 count: ledgerCount,
                 maximum: policy.maxLedgerRecords
             )
@@ -340,7 +340,7 @@ nonisolated enum ImportValidator {
         let deviceCount = envelope.devices?.count ?? 0
         guard deviceCount <= policy.maxDeviceRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "设备",
+                kind: String(localized: "设备"),
                 count: deviceCount,
                 maximum: policy.maxDeviceRecords
             )
@@ -349,7 +349,7 @@ nonisolated enum ImportValidator {
         let passiveCount = envelope.passiveSources?.count ?? 0
         guard passiveCount <= policy.maxPassiveSourceRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "被动收入",
+                kind: String(localized: "被动收入"),
                 count: passiveCount,
                 maximum: policy.maxPassiveSourceRecords
             )
@@ -358,7 +358,7 @@ nonisolated enum ImportValidator {
         let assetItemCount = envelope.assetItems?.count ?? 0
         guard assetItemCount <= policy.maxAssetItemRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "资产项",
+                kind: String(localized: "资产项"),
                 count: assetItemCount,
                 maximum: policy.maxAssetItemRecords
             )
@@ -367,7 +367,7 @@ nonisolated enum ImportValidator {
         let loanCount = envelope.loans?.count ?? 0
         guard loanCount <= policy.maxLoanRecords else {
             throw ImportValidationError.tooManyRecords(
-                kind: "固定支出和贷款",
+                kind: String(localized: "固定支出和贷款"),
                 count: loanCount,
                 maximum: policy.maxLoanRecords
             )
@@ -383,14 +383,14 @@ nonisolated enum ImportValidator {
             // 历史版本会在记支出时把现金扣成负数；余额可以为负，交易金额仍必须为正。
             let total = try signedAmount(
                 raw.total,
-                field: "净值",
+                field: String(localized: "净值"),
                 maximum: hasLocked ? policy.maximumAmount * 2 : policy.maximumAmount
             )
             let locked = try raw.lockedAssets.map {
-                try amount($0, field: "资产", allowsZero: true, policy: policy)
+                try amount($0, field: String(localized: "资产"), allowsZero: true, policy: policy)
             }
             let cash = try raw.cash.map {
-                try signedAmount($0, field: "现金", maximum: policy.maximumAmount)
+                try signedAmount($0, field: String(localized: "现金"), maximum: policy.maximumAmount)
             }
             if let locked, let cash,
                abs(total - (locked + cash)) > FinancialLimits.assetChecksumTolerance {
@@ -398,7 +398,7 @@ nonisolated enum ImportValidator {
             }
 
             let updatedAt = try raw.updatedAt.map {
-                try timestamp($0, field: "资产更新时间", now: now)
+                try timestamp($0, field: String(localized: "资产更新时间"), now: now)
             }
             return ValidatedImport.Assets(
                 total: total,
@@ -418,42 +418,42 @@ nonisolated enum ImportValidator {
             if schemaVersion == strictPositiveExpenseSchemaVersion {
                 validatedAmount = try amount(
                     raw.amount,
-                    field: "支出",
+                    field: String(localized: "支出"),
                     allowsZero: false,
                     policy: policy
                 )
             } else {
                 validatedAmount = try signedAmount(
                     raw.amount,
-                    field: "支出",
+                    field: String(localized: "支出"),
                     maximum: policy.maximumAmount
                 )
             }
             expenses.append(
                 ValidatedImport.ExpenseRecord(
-                    id: try identifier(raw.id, field: "支出"),
+                    id: try identifier(raw.id, field: String(localized: "支出")),
                     amount: validatedAmount,
-                    category: try text(raw.category, field: "支出分类", maximum: policy.maxNameCharacters),
-                    date: try day(raw.date, field: "支出日期", now: now),
-                    note: try optionalText(raw.note, field: "支出备注", maximum: policy.maxNoteCharacters),
-                    createdAt: try raw.createdAt.map { try timestamp($0, field: "支出创建时间", now: now) },
-                    loanID: try identifier(raw.loanId, field: "自动扣款"),
+                    category: try text(raw.category, field: String(localized: "支出分类"), maximum: policy.maxNameCharacters),
+                    date: try day(raw.date, field: String(localized: "支出日期"), now: now),
+                    note: try optionalText(raw.note, field: String(localized: "支出备注"), maximum: policy.maxNoteCharacters),
+                    createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "支出创建时间"), now: now) },
+                    loanID: try identifier(raw.loanId, field: String(localized: "自动扣款")),
                     countsInBurn: raw.countsInBurn ?? true,
-                    cashAccountID: try identifier(raw.cashAccountId, field: "支出账户")
+                    cashAccountID: try identifier(raw.cashAccountId, field: String(localized: "支出账户"))
                 )
             )
         }
 
         let incomes = try (envelope.incomes ?? []).map { raw in
             ValidatedImport.IncomeRecord(
-                id: try identifier(raw.id, field: "收入"),
-                amount: try amount(raw.amount, field: "收入", allowsZero: false, policy: policy),
-                source: try text(raw.source, field: "收入来源", maximum: policy.maxNameCharacters),
-                date: try day(raw.date, field: "收入日期", now: now),
-                note: try optionalText(raw.note, field: "收入备注", maximum: policy.maxNoteCharacters),
+                id: try identifier(raw.id, field: String(localized: "收入")),
+                amount: try amount(raw.amount, field: String(localized: "收入"), allowsZero: false, policy: policy),
+                source: try text(raw.source, field: String(localized: "收入来源"), maximum: policy.maxNameCharacters),
+                date: try day(raw.date, field: String(localized: "收入日期"), now: now),
+                note: try optionalText(raw.note, field: String(localized: "收入备注"), maximum: policy.maxNoteCharacters),
                 isPassive: raw.isPassive ?? false,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "收入创建时间", now: now) },
-                cashAccountID: try identifier(raw.cashAccountId, field: "收入账户")
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "收入创建时间"), now: now) },
+                cashAccountID: try identifier(raw.cashAccountId, field: String(localized: "收入账户"))
             )
         }
 
@@ -462,12 +462,12 @@ nonisolated enum ImportValidator {
             guard ["active", "retired", "sold"].contains(status) else {
                 throw ImportValidationError.invalidDeviceStatus
             }
-            let purchaseDate = try day(raw.purchaseDate, field: "设备购买日期", now: now)
+            let purchaseDate = try day(raw.purchaseDate, field: String(localized: "设备购买日期"), now: now)
             let soldPrice = try raw.soldPrice.map {
-                try amount($0, field: "设备卖出价", allowsZero: true, policy: policy)
+                try amount($0, field: String(localized: "设备卖出价"), allowsZero: true, policy: policy)
             }
             let soldDate = try raw.soldDate.map {
-                try day($0, field: "设备卖出日期", now: now)
+                try day($0, field: String(localized: "设备卖出日期"), now: now)
             }
             if status == "sold" {
                 guard soldPrice != nil, let soldDate, soldDate >= purchaseDate else {
@@ -478,16 +478,16 @@ nonisolated enum ImportValidator {
             }
 
             return ValidatedImport.DeviceRecord(
-                id: try identifier(raw.id, field: "设备"),
-                name: try text(raw.name, field: "设备名称", maximum: policy.maxNameCharacters),
-                category: try text(raw.category, field: "设备分类", maximum: policy.maxNameCharacters),
-                price: try amount(raw.price, field: "设备价格", allowsZero: true, policy: policy),
+                id: try identifier(raw.id, field: String(localized: "设备")),
+                name: try text(raw.name, field: String(localized: "设备名称"), maximum: policy.maxNameCharacters),
+                category: try text(raw.category, field: String(localized: "设备分类"), maximum: policy.maxNameCharacters),
+                price: try amount(raw.price, field: String(localized: "设备价格"), allowsZero: true, policy: policy),
                 purchaseDate: purchaseDate,
                 status: status,
                 soldPrice: soldPrice,
                 soldDate: soldDate,
-                note: try optionalText(raw.note, field: "设备备注", maximum: policy.maxNoteCharacters),
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "设备创建时间", now: now) }
+                note: try optionalText(raw.note, field: String(localized: "设备备注"), maximum: policy.maxNoteCharacters),
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "设备创建时间"), now: now) }
             )
         }
 
@@ -497,38 +497,38 @@ nonisolated enum ImportValidator {
                 throw ImportValidationError.invalidPassiveInterval
             }
             return ValidatedImport.PassiveSourceRecord(
-                id: try identifier(raw.id, field: "被动收入"),
-                name: try text(raw.name, field: "被动收入名称", maximum: policy.maxNameCharacters),
+                id: try identifier(raw.id, field: String(localized: "被动收入")),
+                name: try text(raw.name, field: String(localized: "被动收入名称"), maximum: policy.maxNameCharacters),
                 monthlyAmount: try amount(
                     raw.monthlyAmount,
-                    field: "被动收入",
+                    field: String(localized: "被动收入"),
                     allowsZero: false,
                     policy: policy
                 ),
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "被动收入创建时间", now: now) },
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "被动收入创建时间"), now: now) },
                 intervalMonths: intervalMonths
             )
         }
 
         var seenAssetItemIDs = Set<UUID>()
         let assetItems = try (envelope.assetItems ?? []).map { raw in
-            let name = try text(raw.name, field: "资产项名称", maximum: FinancialLimits.assetItemNameCharacters)
+            let name = try text(raw.name, field: String(localized: "资产项名称"), maximum: FinancialLimits.assetItemNameCharacters)
             guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
                   name.rangeOfCharacter(from: .controlCharacters) == nil else {
-                throw ImportValidationError.emptyText(field: "资产项名称")
+                throw ImportValidationError.emptyText(field: String(localized: "资产项名称"))
             }
-            let id = try identifier(raw.id, field: "资产项")
+            let id = try identifier(raw.id, field: String(localized: "资产项"))
             if let id, !seenAssetItemIDs.insert(id).inserted {
                 throw ImportValidationError.duplicateAssetItemID
             }
             return ValidatedImport.AssetItemRecord(
                 id: id,
                 name: name,
-                amount: try amount(raw.amount, field: "资产项", allowsZero: true, policy: policy),
+                amount: try amount(raw.amount, field: String(localized: "资产项"), allowsZero: true, policy: policy),
                 sortOrder: raw.sortOrder,
                 countsInFreedom: raw.countsInFreedom,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "资产项创建时间", now: now) },
-                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "资产项更新时间", now: now) }
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "资产项创建时间"), now: now) },
+                updatedAt: try raw.updatedAt.map { try timestamp($0, field: String(localized: "资产项更新时间"), now: now) }
             )
         }
         if policy.checksAssetItemTotal, !assetItems.isEmpty {
@@ -540,27 +540,27 @@ nonisolated enum ImportValidator {
 
         let rawAccounts = envelope.cashAccounts ?? []
         guard rawAccounts.count <= policy.maxAssetItemRecords else {
-            throw ImportValidationError.tooManyRecords(kind: "现金账户", count: rawAccounts.count,
+            throw ImportValidationError.tooManyRecords(kind: String(localized: "现金账户"), count: rawAccounts.count,
                                                        maximum: policy.maxAssetItemRecords)
         }
         var seenAccountIDs = Set<UUID>()
         let cashAccounts = try rawAccounts.map { raw in
-            let name = try text(raw.name, field: "现金账户名称", maximum: FinancialLimits.assetItemNameCharacters)
+            let name = try text(raw.name, field: String(localized: "现金账户名称"), maximum: FinancialLimits.assetItemNameCharacters)
             guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
                   name.rangeOfCharacter(from: .controlCharacters) == nil else {
-                throw ImportValidationError.emptyText(field: "现金账户名称")
+                throw ImportValidationError.emptyText(field: String(localized: "现金账户名称"))
             }
-            let id = try identifier(raw.id, field: "现金账户")
+            let id = try identifier(raw.id, field: String(localized: "现金账户"))
             if let id, !seenAccountIDs.insert(id).inserted {
                 throw ImportValidationError.duplicateCashAccountID
             }
             return ValidatedImport.CashAccountRecord(
                 id: id,
                 name: name,
-                amount: try signedAmount(raw.amount, field: "现金账户", maximum: policy.maximumAmount),
+                amount: try signedAmount(raw.amount, field: String(localized: "现金账户"), maximum: policy.maximumAmount),
                 sortOrder: raw.sortOrder,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "现金账户创建时间", now: now) },
-                updatedAt: try raw.updatedAt.map { try timestamp($0, field: "现金账户更新时间", now: now) },
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "现金账户创建时间"), now: now) },
+                updatedAt: try raw.updatedAt.map { try timestamp($0, field: String(localized: "现金账户更新时间"), now: now) },
                 countsInFreedom: raw.countsInFreedom ?? true
             )
         }
@@ -573,12 +573,12 @@ nonisolated enum ImportValidator {
 
         var seenLoanIDs = Set<UUID>()
         let loans = try (envelope.loans ?? []).map { raw in
-            let name = try text(raw.name, field: "固定支出或贷款的名称", maximum: FinancialLimits.assetItemNameCharacters)
+            let name = try text(raw.name, field: String(localized: "固定支出或贷款的名称"), maximum: FinancialLimits.assetItemNameCharacters)
             guard name == name.trimmingCharacters(in: .whitespacesAndNewlines),
                   name.rangeOfCharacter(from: .controlCharacters) == nil else {
-                throw ImportValidationError.emptyText(field: "固定支出或贷款的名称")
+                throw ImportValidationError.emptyText(field: String(localized: "固定支出或贷款的名称"))
             }
-            let id = try identifier(raw.id, field: "固定支出或贷款")
+            let id = try identifier(raw.id, field: String(localized: "固定支出或贷款"))
             if let id, !seenLoanIDs.insert(id).inserted {
                 throw ImportValidationError.duplicateLoanID
             }
@@ -590,22 +590,22 @@ nonisolated enum ImportValidator {
                 throw ImportValidationError.invalidLoan
             }
             // 固定支出的起算日是「下次付款日的前一天」，最多在一年以后
-            let startDate = try day(raw.startDate, field: "固定支出或贷款的起算日期",
+            let startDate = try day(raw.startDate, field: String(localized: "固定支出或贷款的起算日期"),
                                     now: isOngoing ? Calendar.current.date(byAdding: .day, value: 400, to: now) ?? now : now)
             return ValidatedImport.LoanRecord(
                 id: id,
                 name: name,
-                monthlyAmount: try amount(raw.monthlyAmount, field: "固定支出或贷款的金额", allowsZero: false, policy: policy),
+                monthlyAmount: try amount(raw.monthlyAmount, field: String(localized: "固定支出或贷款的金额"), allowsZero: false, policy: policy),
                 dueDay: raw.dueDay,
                 periodsAtStart: raw.periodsAtStart,
                 startDate: startDate,
                 processedThrough: try raw.processedThrough.map {
-                    try day($0, field: "固定支出或贷款的处理日期", now: max(now, startDate))
+                    try day($0, field: String(localized: "固定支出或贷款的处理日期"), now: max(now, startDate))
                 },
-                settledDates: try (raw.settledDates ?? []).map { try day($0, field: "固定支出或贷款的已付日期", now: now) },
+                settledDates: try (raw.settledDates ?? []).map { try day($0, field: String(localized: "固定支出或贷款的已付日期"), now: now) },
                 sortOrder: raw.sortOrder,
-                createdAt: try raw.createdAt.map { try timestamp($0, field: "固定支出或贷款的创建时间", now: now) },
-                cashAccountID: try identifier(raw.cashAccountId, field: "固定支出或贷款的扣款账户"),
+                createdAt: try raw.createdAt.map { try timestamp($0, field: String(localized: "固定支出或贷款的创建时间"), now: now) },
+                cashAccountID: try identifier(raw.cashAccountId, field: String(localized: "固定支出或贷款的扣款账户")),
                 isOngoing: isOngoing,
                 intervalMonths: intervalMonths
             )
@@ -613,7 +613,7 @@ nonisolated enum ImportValidator {
 
         let expenseCategories = try envelope.expenseCategories.map { raws -> [ValidatedImport.ExpenseCategoryRecord] in
             guard raws.count <= FinancialLimits.passiveSourceRecords else {
-                throw ImportValidationError.tooManyRecords(kind: "支出分类", count: raws.count,
+                throw ImportValidationError.tooManyRecords(kind: String(localized: "支出分类"), count: raws.count,
                                                            maximum: FinancialLimits.passiveSourceRecords)
             }
             var seen = Set<String>()
@@ -635,7 +635,7 @@ nonisolated enum ImportValidator {
         }
 
         let firstRecordDate = try envelope.firstRecordDate.map {
-            try day($0, field: "首次记录日期", now: now)
+            try day($0, field: String(localized: "首次记录日期"), now: now)
         }
 
         return ValidatedImport(
@@ -655,8 +655,8 @@ nonisolated enum ImportValidator {
 
     /// 保存后的双桶必须与备份校验使用同一金额规则，现金允许为负。
     static func validateBalances(lockedAssets: Double, cash: Double) throws {
-        _ = try amount(lockedAssets, field: "资产", allowsZero: true, policy: .default)
-        _ = try signedAmount(cash, field: "现金", maximum: FinancialLimits.maximumAmount)
+        _ = try amount(lockedAssets, field: String(localized: "资产"), allowsZero: true, policy: .default)
+        _ = try signedAmount(cash, field: String(localized: "现金"), maximum: FinancialLimits.maximumAmount)
     }
 
     private static func validateSize(_ count: Int, policy: ImportPolicy) throws {

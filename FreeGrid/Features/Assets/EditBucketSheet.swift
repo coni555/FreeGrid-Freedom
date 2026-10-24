@@ -7,11 +7,11 @@ struct EditBucketSheet: View {
     enum Bucket: String, Identifiable {
         case assets, cash
         var id: String { rawValue }
-        var label: String { self == .assets ? "资产" : "现金" }
+        var label: String { self == .assets ? String(localized: "资产") : String(localized: "现金") }
         var hint: String {
             self == .assets
-                ? "不打算马上花的钱：定期、股票、基金、房子"
-                : "随时能花的钱：活期、微信、支付宝"
+                ? String(localized: "不打算马上花的钱：定期、股票、基金、房子")
+                : String(localized: "随时能花的钱：活期、微信、支付宝")
         }
         var color: Color { self == .assets ? .assetGold : .cashBlue }
         var icon: String { self == .assets ? "lock.fill" : "banknote" }
@@ -73,7 +73,8 @@ struct EditBucketSheet: View {
                             HStack(spacing: 4) {
                                 Image(systemName: new > currentAmount ? "arrow.up" : "arrow.down")
                                     .font(.system(size: 10))
-                                Text("比现在\(new > currentAmount ? "多" : "少") ¥\(abs(new - currentAmount).formatted(.number))")
+                                Text(new > currentAmount ? "比现在多 ¥\(abs(new - currentAmount).formatted(.number))"
+                                                         : "比现在少 ¥\(abs(new - currentAmount).formatted(.number))")
                                     .font(.system(.caption, design: .rounded).monospacedDigit())
                             }
                             .foregroundStyle(new > currentAmount ? Color.skyDeep : Color.inkMuted)

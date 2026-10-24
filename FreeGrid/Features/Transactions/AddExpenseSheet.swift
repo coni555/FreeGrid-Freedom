@@ -59,7 +59,7 @@ struct AddExpenseSheet: View {
                     Menu {
                         Picker("分类", selection: $category) {
                             ForEach(categories, id: \.self) { c in
-                                Text(c).tag(c)
+                                Text(ExpenseCategory.displayName(c)).tag(c)
                             }
                         }
                         Divider()
@@ -73,7 +73,7 @@ struct AddExpenseSheet: View {
                             Text("分类")
                                 .foregroundStyle(Color.ink)
                             Spacer()
-                            Text(category)
+                            Text(ExpenseCategory.displayName(category))
                                 .foregroundStyle(.tint)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.footnote.weight(.medium))

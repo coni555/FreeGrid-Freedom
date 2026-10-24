@@ -103,8 +103,11 @@ enum FreedomMath {
 
     /// 预览必须带上单位；首页大数字仍由 freedomDaysDisplay 提供裸数字。
     static func freedomDescription(_ state: FreedomState) -> String {
-        guard case .finite = state else { return freedomDaysDisplay(state) }
-        return "\(freedomDaysDisplay(state)) \(gridUnit(for: state).label)"
+        guard case .finite(let days) = state, days.isFinite, days >= 0 else { return freedomDaysDisplay(state) }
+        let unit = gridUnit(for: state)
+        // 年档带一位小数，日、月是整数，英文要分单复数
+        if unit == .year { return String(localized: "\(freedomDaysDisplay(state)) 年") }
+        return unit.amount(FinancialFormatting.clampedInteger((days / unit.daysPerCell).rounded(.down), range: 0...Int.max))
     }
 
     // ============================================================================
@@ -138,12 +141,39 @@ enum FreedomMath {
             }
         }
 
-        /// 中文单位标签
+        /// 单独写的单位（「365+ 天」「3 → 5 月」）；英文是复数
         var label: String {
             switch self {
-            case .day: return "天"
-            case .month: return "月"
-            case .year: return "年"
+            case .day: return String(localized: "天")
+            case .month: return String(localized: "月")
+            case .year: return String(localized: "年")
+            }
+        }
+
+        /// 数字连单位：「12 天」；英文按单复数写「1 day」「12 days」
+        func amount(_ count: Int) -> String {
+            switch self {
+            case .day: return String(localized: "\(count) 天")
+            case .month: return String(localized: "\(count) 月")
+            case .year: return String(localized: "\(count) 年")
+            }
+        }
+
+        /// 格子旁的图例「每格 = 1 天自由」
+        var legend: String {
+            switch self {
+            case .day: return String(localized: "每格 = 1 天自由")
+            case .month: return String(localized: "每格 = 1 月自由")
+            case .year: return String(localized: "每格 = 1 年自由")
+            }
+        }
+
+        /// 「每格 1 天自由」
+        var perCell: String {
+            switch self {
+            case .day: return String(localized: "每格 1 天自由")
+            case .month: return String(localized: "每格 1 月自由")
+            case .year: return String(localized: "每格 1 年自由")
             }
         }
     }
@@ -218,11 +248,15 @@ enum FreedomMath {
 
     /// 首页「大约撑到 …」的日期：今年之内只写月日，跨年写上年份，免得把明年 9 月读成今年 9 月
     static func depleteDateText(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        let sameYear = calendar.isDate(date, equalTo: now, toGranularity: .year)
+        guard AppLanguage.isChinese else {
+            return AppLanguage.date(date, template: sameYear ? "MMMd" : "yyyyMMMd", calendar: calendar)
+        }
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.calendar = calendar
         f.timeZone = calendar.timeZone
-        f.dateFormat = calendar.isDate(date, equalTo: now, toGranularity: .year) ? "M 月 d 日" : "yyyy 年 M 月 d 日"
+        f.dateFormat = sameYear ? "M 月 d 日" : "yyyy 年 M 月 d 日"
         return f.string(from: date)
     }
 }

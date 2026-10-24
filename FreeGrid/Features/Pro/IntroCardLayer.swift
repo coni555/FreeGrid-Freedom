@@ -123,10 +123,10 @@ struct IntroCardButtons: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            VaultButton(title: "知道了", style: .secondary, verticalPadding: 12, action: onClose)
+            VaultButton(title: String(localized: "知道了"), style: .secondary, verticalPadding: 12, action: onClose)
                 .accessibilityIdentifier("intro-card-close")
             if showsLearnMore {
-                VaultButton(title: "看看 Pro", verticalPadding: 12, action: onLearnMore)
+                VaultButton(title: String(localized: "看看 Pro"), verticalPadding: 12, action: onLearnMore)
                     .accessibilityIdentifier("intro-card-learn-more")
             }
         }

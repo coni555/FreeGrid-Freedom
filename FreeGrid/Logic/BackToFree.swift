@@ -35,9 +35,9 @@ struct BackToFreePlan: Equatable {
     var keepLine: String {
         let accounts = !assetItems.isEmpty || !cashAccounts.isEmpty
         switch (accounts, !loans.isEmpty) {
-        case (true, true): return "保留子账户和贷款，继续使用全部功能"
-        case (true, false): return "保留子账户，继续使用全部功能"
-        default: return "保留贷款，继续使用全部功能"
+        case (true, true): return String(localized: "保留子账户和贷款，继续使用全部功能")
+        case (true, false): return String(localized: "保留子账户，继续使用全部功能")
+        default: return String(localized: "保留贷款，继续使用全部功能")
         }
     }
 

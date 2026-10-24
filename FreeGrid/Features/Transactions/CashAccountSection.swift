@@ -61,10 +61,10 @@ struct CashAccountSection: View {
     private var note: String? {
         guard kind == .expense, let chosen, let amount else { return nil }
         if chosen.amount < amount {
-            return "「\(chosen.name)」只有 ¥\(chosen.amount.formatted(.number))，记完会是负数"
+            return String(localized: "「\(chosen.name)」只有 ¥\(chosen.amount.formatted(.number))，记完会是负数")
         }
         if picked == nil, fallback == nil, let first = accounts.first, first.id != chosen.id {
-            return "「\(first.name)」只剩 ¥\(first.amount.formatted(.number))，这笔从「\(chosen.name)」扣"
+            return String(localized: "「\(first.name)」只剩 ¥\(first.amount.formatted(.number))，这笔从「\(chosen.name)」扣")
         }
         return nil
     }

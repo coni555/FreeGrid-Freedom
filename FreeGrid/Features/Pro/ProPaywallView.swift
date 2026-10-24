@@ -154,7 +154,7 @@ struct ProPaywallView: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
-                KickerLabel(text: "免费").frame(width: freeWidth)
+                KickerLabel(text: String(localized: "免费")).frame(width: freeWidth)
                 KickerLabel(text: "Pro", color: .skyDeep).frame(width: proWidth)
             }
             .frame(height: 40)
@@ -243,8 +243,8 @@ struct ProPaywallView: View {
 
     private func spoken(_ cell: ProFeatures.Cell) -> String {
         switch cell {
-        case .yes: return "有"
-        case .no: return "没有"
+        case .yes: return String(localized: "有")
+        case .no: return String(localized: "没有")
         case .text(let text): return text
         }
     }
@@ -276,7 +276,7 @@ struct ProPaywallView: View {
             } else if let prices {
                 offerStatus
                 if showsTrialButton {
-                    VaultButton(title: "免费体验 \(ProOffer.trialDays) 天", icon: "sparkles", verticalPadding: 11) {
+                    VaultButton(title: String(localized: "免费体验 \(ProOffer.trialDays) 天"), icon: "sparkles", verticalPadding: 11) {
                         Task { await startTrial() }
                     }
                     .disabled(store.isWorking)
@@ -292,7 +292,7 @@ struct ProPaywallView: View {
                     .disabled(store.isWorking)
                     .accessibilityIdentifier("pro-purchase")
                 } else {
-                    VaultButton(title: "永久解锁 Pro · \(store.hasSpecialPrice ? prices.special : prices.regular)", icon: "lock.open",
+                    VaultButton(title: String(localized: "永久解锁 Pro · \(store.hasSpecialPrice ? prices.special : prices.regular)"), icon: "lock.open",
                                 verticalPadding: 11) {
                         Task { await buy() }
                     }
@@ -313,7 +313,7 @@ struct ProPaywallView: View {
                     .foregroundStyle(Color.inkMuted)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                VaultButton(title: "重试", icon: "arrow.clockwise", style: .secondary) {
+                VaultButton(title: String(localized: "重试"), icon: "arrow.clockwise", style: .secondary) {
                     Task { await store.loadProducts() }
                 }
                 .accessibilityIdentifier("pro-retry")
@@ -323,14 +323,14 @@ struct ProPaywallView: View {
             }
             HStack(spacing: Spacing.lg) {
                 if !store.ownsPro {
-                    Button { Task { await restore() } } label: { footerLabel("恢复购买") }
+                    Button { Task { await restore() } } label: { footerLabel(String(localized: "恢复购买")) }
                         .buttonStyle(.plain)
                         .disabled(store.isWorking)
                         .accessibilityIdentifier("pro-restore")
                 }
-                Button { openURL(privacyURL) } label: { footerLabel("隐私政策") }
+                Button { openURL(privacyURL) } label: { footerLabel(String(localized: "隐私政策")) }
                     .buttonStyle(.plain)
-                Button { openURL(termsURL) } label: { footerLabel("使用条款") }
+                Button { openURL(termsURL) } label: { footerLabel(String(localized: "使用条款")) }
                     .buttonStyle(.plain)
             }
         }
@@ -436,7 +436,7 @@ struct ProPaywallView: View {
         switch await store.startTrial() {
         case .purchased: notice = nil
         case .cancelled: notice = nil
-        case .pending: notice = "体验在等待批准，批准后会自动开始。"
+        case .pending: notice = String(localized: "体验在等待批准，批准后会自动开始。")
         case .failed(let message): notice = message
         }
     }
@@ -445,7 +445,7 @@ struct ProPaywallView: View {
         switch await store.purchase() {
         case .purchased: notice = nil
         case .cancelled: notice = nil
-        case .pending: notice = "这笔购买在等待批准，批准后 Pro 会自动解锁。"
+        case .pending: notice = String(localized: "这笔购买在等待批准，批准后 Pro 会自动解锁。")
         case .failed(let message): notice = message
         }
     }
@@ -454,7 +454,7 @@ struct ProPaywallView: View {
         switch await store.restore() {
         case .restored: notice = nil
         case .cancelled: notice = nil
-        case .nothingToRestore: notice = "这个 Apple 账户下没有找到 Pro 的购买记录。"
+        case .nothingToRestore: notice = String(localized: "这个 Apple 账户下没有找到 Pro 的购买记录。")
         case .failed(let message): notice = message
         }
     }

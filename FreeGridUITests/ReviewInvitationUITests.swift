@@ -20,7 +20,7 @@ final class ReviewInvitationUITests: XCTestCase {
         let probe = folder.appendingPathComponent("request.json")
         try JSONSerialization.data(withJSONObject: ledger).write(to: backup)
         let app = XCUIApplication()
-        app.launchArguments = ["-UseInMemoryStore", "-SeedBackupJSON", backup.path,
+        app.launchArguments = XCUIApplication.chineseUI + ["-UseInMemoryStore", "-SeedBackupJSON", backup.path,
                                "-setupGuideCompleted", "YES", "-historyGuideCompleted", "YES",
                                "-hideProPreviewCard", "-proPreview", "NO", "-isDarkMode", "NO",
                                "-reviewInvitation", "-ReviewRequestProbe", "-ReviewRequestProbeFile", probe.path]
@@ -78,17 +78,17 @@ final class ReviewInvitationUITests: XCTestCase {
         addExpense(app)
         app.buttons["撤销"].tap()
         waitForQuiet(app)
-        app.tabBars.buttons["History"].tap()
-        app.tabBars.buttons["Dashboard"].tap()
+        app.tabBars.buttons["明细"].tap()
+        app.tabBars.buttons["首页"].tap()
         XCTAssertEqual(requests(probe), 0)
         addExpense(app)
-        app.tabBars.buttons["History"].tap()
+        app.tabBars.buttons["明细"].tap()
         XCTAssertTrue(app.buttons["搜索"].waitForExistence(timeout: 5))
         // 留在别页超过撤销窗口，再回首页也不能把旧邀请补弹。
         let timer = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.requests(probe) > 0 }, object: nil)
         timer.isInverted = true
         wait(for: [timer], timeout: 7)
-        app.tabBars.buttons["Dashboard"].tap()
+        app.tabBars.buttons["首页"].tap()
         XCTAssertEqual(requests(probe), 0)
     }
 

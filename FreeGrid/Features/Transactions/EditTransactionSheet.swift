@@ -53,7 +53,7 @@ struct EditTransactionSheet: View {
                     // 分类这组不加小标题: 行里已经写了「分类」
                     Section {
                         Picker("分类", selection: $title) {
-                            ForEach(categories, id: \.self) { Text($0).tag($0) }
+                            ForEach(categories, id: \.self) { Text(ExpenseCategory.displayName($0)).tag($0) }
                         }
                         .accessibilityIdentifier("edit-category-picker")
                     }

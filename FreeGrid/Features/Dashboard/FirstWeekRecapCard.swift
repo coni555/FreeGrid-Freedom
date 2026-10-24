@@ -36,13 +36,13 @@ private struct FirstWeekRecapCard: View {
             WeekBars(days: summary.days, totals: summary.dailyTotals)
 
             HStack(alignment: .top, spacing: 0) {
-                stat(prefix: "¥", value: FinancialFormatting.wholeNumber(summary.total), label: "这 \(summary.days.count) 天花了")
+                stat(prefix: "¥", value: FinancialFormatting.wholeNumber(summary.total), label: String(localized: "这 \(summary.days.count) 天花了"))
                 divider
                 stat(prefix: "¥", value: summary.dailyCost.isFinite ? String(format: "%.1f", summary.dailyCost) : "—",
-                     label: "日均")
+                     label: String(localized: "日均"))
                 if let freedom = freedomText {
                     divider
-                    stat(value: freedom.value, suffix: freedom.unit, label: "还能撑")
+                    stat(value: freedom.value, suffix: freedom.unit, label: String(localized: "还能撑"))
                 }
             }
 
@@ -156,10 +156,10 @@ private struct WeekBars: View {
 
     /// 几号；今天写「今」
     private func label(for index: Int) -> String {
-        isToday(index) ? "今" : "\(Calendar.current.component(.day, from: days[index]))"
+        isToday(index) ? String(localized: "今") : "\(Calendar.current.component(.day, from: days[index]))"
     }
 
     private func spokenLabel(for index: Int) -> String {
-        isToday(index) ? "今天" : days[index].formatted(.dateTime.month(.defaultDigits).day())
+        isToday(index) ? String(localized: "今天") : days[index].formatted(.dateTime.month(.defaultDigits).day())
     }
 }

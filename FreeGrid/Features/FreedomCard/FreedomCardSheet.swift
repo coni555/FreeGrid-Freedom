@@ -50,7 +50,7 @@ struct FreedomCardSheet: View {
                     ladder(current: data.tier)
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "持卡人")
+                        KickerLabel(text: String(localized: "持卡人"))
                         UnderlinedField(isFocused: holderFocused) {
                             TextField("你的昵称", text: Binding(get: { holder }, set: { holder = String($0.prefix(12)) }))
                                 .font(.system(.title3, design: .rounded))
@@ -129,11 +129,11 @@ struct FreedomCardSheet: View {
     private var shareButtons: some View {
         if ProFeatures.canShareFreedomCard {
             HStack(spacing: Spacing.md) {
-                shareLink(image: cardImage, title: "分享卡片", icon: "creditcard", identifier: "share-freedom-card")
-                shareLink(image: posterImage, title: "分享海报", icon: "rectangle.portrait", identifier: "share-freedom-poster")
+                shareLink(image: cardImage, title: String(localized: "分享卡片"), icon: "creditcard", identifier: "share-freedom-card")
+                shareLink(image: posterImage, title: String(localized: "分享海报"), icon: "rectangle.portrait", identifier: "share-freedom-poster")
             }
         } else {
-            VaultButton(title: "分享卡片和海报 · Pro", icon: "square.and.arrow.up") { showingPro = true }
+            VaultButton(title: String(localized: "分享卡片和海报 · Pro"), icon: "square.and.arrow.up") { showingPro = true }
                 .accessibilityIdentifier("share-freedom-card-pro")
         }
     }

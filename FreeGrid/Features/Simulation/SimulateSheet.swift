@@ -101,7 +101,7 @@ struct SimulateSheet: View {
     /// 看完决定真的花了: 关掉模拟, 带着金额去记支出
     private var recordButton: some View {
         VStack(spacing: Spacing.sm) {
-            VaultButton(title: "就这么花了，记为支出", icon: "arrow.right", style: .secondary) {
+            VaultButton(title: String(localized: "就这么花了，记为支出"), icon: "arrow.right", style: .secondary) {
                 onRecordExpense?(amount)
                 dismiss()
             }
@@ -136,7 +136,7 @@ struct SimulateSheet: View {
     private var amountInput: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                KickerLabel(text: mode == .expense ? "假设花掉（元）" : "假设收入（元）")
+                KickerLabel(text: mode == .expense ? String(localized: "假设花掉（元）") : String(localized: "假设收入（元）"))
                 HStack(spacing: 6) {
                     Text("¥")
                         .font(.system(.title3, design: .rounded))
@@ -169,7 +169,7 @@ struct SimulateSheet: View {
     private func previewCard(impact: TransactionImpact) -> some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: mode == .expense ? "这笔支出的影响" : "这笔收入的影响")
+                KickerLabel(text: mode == .expense ? String(localized: "这笔支出的影响") : String(localized: "这笔收入的影响"))
 
                 TransactionImpactView(impact: impact)
 
@@ -205,7 +205,7 @@ struct SimulateSheet: View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "格子推演")
+                    KickerLabel(text: String(localized: "格子推演"))
                     Spacer()
                     Text("\(oldCount) → \(newCount) \(unit.label)")
                         .font(.system(.caption2, design: .monospaced))
@@ -214,7 +214,7 @@ struct SimulateSheet: View {
                 }
 
                 if isInvalid(o.before.freedom) || isInvalid(o.newFreedom) {
-                    Text("有一笔金额不对，暂时演示不了。去 History 找找特别大或负数的。")
+                    Text("有一笔金额不对，暂时演示不了。去明细找找特别大或负数的。")
                         .font(.system(.callout, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -244,8 +244,8 @@ struct SimulateSheet: View {
                         Image(systemName: isShrinking ? "flame" : "sparkles")
                             .font(.system(size: 11))
                             .foregroundStyle(isShrinking ? Color.flame : Color.skyDeep)
-                        Text(isShrinking ? "熄灭 \(delta) 格 · 每格 1 \(unit.label)自由"
-                                       : "点亮 \(delta) 格 · 每格 1 \(unit.label)自由")
+                        Text((isShrinking ? String(localized: "熄灭 \(delta) 格") : String(localized: "点亮 \(delta) 格"))
+                             + " · " + unit.perCell)
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                         Spacer()
@@ -262,9 +262,9 @@ struct SimulateSheet: View {
         let title: String
         let isPlaying: Bool
         switch demoPhase {
-        case .idle:    title = isShrinking ? "演示这笔熄灭哪几格" : "演示这笔点亮哪几格"; isPlaying = false
-        case .playing: title = "推演中…"; isPlaying = true
-        case .done:    title = "重播"; isPlaying = false
+        case .idle:    title = isShrinking ? String(localized: "演示这笔熄灭哪几格") : String(localized: "演示这笔点亮哪几格"); isPlaying = false
+        case .playing: title = String(localized: "推演中…"); isPlaying = true
+        case .done:    title = String(localized: "重播"); isPlaying = false
         }
         return VaultButton(title: title,
                            icon: demoPhase == .done ? "arrow.counterclockwise" : "play.fill",

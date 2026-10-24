@@ -129,8 +129,8 @@ struct DashboardHero: View {
     /// 已覆盖时的小字。记账不满 90 天时日均还不稳（和大额摊开同一个门槛），写出按几天算的，让人自己掂量这句「财富自由」
     private var coveredNote: String {
         snapshot.trackDays < FreedomMath.lumpSpreadDays
-            ? "按 \(snapshot.trackDays) 天记账估算，被动收入已覆盖开销"
-            : "按目前的记账估算，被动收入已覆盖开销"
+            ? String(localized: "按 \(snapshot.trackDays) 天记账估算，被动收入已覆盖开销")
+            : String(localized: "按目前的记账估算，被动收入已覆盖开销")
     }
 
     /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
@@ -141,16 +141,16 @@ struct DashboardHero: View {
             VStack(alignment: .leading, spacing: 2) {
                 switch snapshot.freedom {
                 case .covered:
-                    emphasized("你已", "财富", "自由", size: 18)
+                    emphasized("你已*财富*自由", size: 18)
                     Text(coveredNote)
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
                 case .insufficientData:
                     if needsSavings {
-                        emphasized("先记下", "你有多少钱", "", size: 18)
+                        emphasized("先记下*你有多少钱*", size: 18)
                     } else {
-                        emphasized("再记", "一笔支出", "", size: 18)
+                        emphasized("再记*一笔支出*", size: 18)
                     }
                     Text(needsSavings
                          ? "资产或现金都算，记完再记一笔支出"
@@ -159,14 +159,14 @@ struct DashboardHero: View {
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 4)
                 case .invalidData:
-                    emphasized("检查", "财务数据", "", size: 18)
-                    Text("有一笔金额不对，去 History 找找特别大或负数的")
+                    emphasized("检查*财务数据*", size: 18)
+                    Text("有一笔金额不对，去明细找找特别大或负数的")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
                         .padding(.top, 4)
                 case .finite:
-                    emphasized("你的", "自由", "", size: 18)
-                    Text("还能撑这么多\(heroSubUnit)")
+                    emphasized("你的*自由*", size: 18)
+                    Text(heroSubUnit)
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
                     if let d = deplete {
@@ -205,16 +205,16 @@ struct DashboardHero: View {
 
             switch snapshot.freedom {
             case .covered:
-                emphasized("你已", "财富", "自由", size: 18)
+                emphasized("你已*财富*自由", size: 18)
                 Text(coveredNote)
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)
             case .insufficientData:
                 if needsSavings {
-                    emphasized("先记下", "你有多少钱", "", size: 18)
+                    emphasized("先记下*你有多少钱*", size: 18)
                 } else {
-                    emphasized("再记", "一笔支出", "", size: 18)
+                    emphasized("再记*一笔支出*", size: 18)
                 }
                 Text(needsSavings
                      ? "资产或现金都算，记完再记一笔支出"
@@ -223,13 +223,13 @@ struct DashboardHero: View {
                     .foregroundStyle(Color.inkFaint)
                     .padding(.top, 2)
             case .invalidData:
-                emphasized("检查", "财务数据", "", size: 18)
-                Text("有一笔金额不对，去 History 找找特别大或负数的")
+                emphasized("检查*财务数据*", size: 18)
+                Text("有一笔金额不对，去明细找找特别大或负数的")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.flame)
                     .padding(.top, 2)
             case .finite:
-                emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
+                emphasized(heroSentence, size: 18)
                 if let d = deplete {
                     Text("大约撑到 \(FreedomMath.depleteDateText(d))")
                         .font(.system(.caption2, design: .rounded))
@@ -330,8 +330,22 @@ struct DashboardHero: View {
         FreedomMath.freedomDaysDisplay(snapshot.freedom)
     }
 
-    private var heroSubUnit: String {
-        FreedomMath.gridUnit(for: snapshot.freedom).label
+    /// 并排版第二行「还能撑这么多天」，跟着格子的日/月/年
+    private var heroSubUnit: LocalizedStringResource {
+        switch FreedomMath.gridUnit(for: snapshot.freedom) {
+        case .day: return "还能撑这么多天"
+        case .month: return "还能撑这么多月"
+        case .year: return "还能撑这么多年"
+        }
+    }
+
+    /// 居中版一整句
+    private var heroSentence: LocalizedStringResource {
+        switch FreedomMath.gridUnit(for: snapshot.freedom) {
+        case .day: return "你的*自由* 还能撑这么多天"
+        case .month: return "你的*自由* 还能撑这么多月"
+        case .year: return "你的*自由* 还能撑这么多年"
+        }
     }
 
     private var heroKickerText: String {

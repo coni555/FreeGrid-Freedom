@@ -122,7 +122,7 @@ struct FreedomCardView: View {
         .rotation3DEffect(.degrees(Double(tilt.width) * 9), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
         .rotation3DEffect(.degrees(Double(-tilt.height) * 7), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(data.tier.name)，自由天数 \(data.daysText) 天，持卡人 \(holder.isEmpty ? "未填" : holder)")
+        .accessibilityLabel("\(data.tier.name)，自由天数 \(data.daysText) 天，持卡人 \(holder.isEmpty ? String(localized: "未填") : holder)")
         .accessibilityIdentifier("freedom-card")
     }
 

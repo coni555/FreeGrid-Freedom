@@ -15,13 +15,13 @@ enum AssetItemError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidName: return "资产项名称请填写 1–20 个字，不包含换行。"
-        case .invalidAmount: return "金额不对，或者超出了能记的范围。"
-        case .missingItem: return "这一项已经不在账本里。"
-        case .hasItems: return "资产已经拆成多项，请在资产明细里修改。"
-        case .needsItem: return "请先选择是哪一项资产。"
+        case .invalidName: return String(localized: "资产项名称请填写 1–20 个字，不包含换行。")
+        case .invalidAmount: return String(localized: "金额不对，或者超出了能记的范围。")
+        case .missingItem: return String(localized: "这一项已经不在账本里。")
+        case .hasItems: return String(localized: "资产已经拆成多项，请在资产明细里修改。")
+        case .needsItem: return String(localized: "请先选择是哪一项资产。")
         case .notEnough(let name, let available):
-            return "「\(name)」只有 ¥\(available.formatted(.number))，拆不出这么多。"
+            return String(localized: "「\(name)」只有 ¥\(available.formatted(.number))，拆不出这么多。")
         }
     }
 }
@@ -81,7 +81,7 @@ enum AssetItemStore {
         guard try items(in: context).isEmpty,
               let assets = try context.fetch(FetchDescriptor<UserAssets>()).first,
               assets.lockedAssets > 0 else { return nil }
-        return AssetItem(name: "资产", amount: assets.lockedAssets, sortOrder: 0, countsInFreedom: countsInFreedom)
+        return AssetItem(name: String(localized: "资产"), amount: assets.lockedAssets, sortOrder: 0, countsInFreedom: countsInFreedom)
     }
 
     /// 新加的一项从哪来：新增的钱（总数变大），或者从已有的一项里拆出来（总数不变）

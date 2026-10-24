@@ -107,7 +107,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .paperNavigationContent()
-            .navigationTitle("Settings")
+            .navigationTitle("设置")
             // 旧版本里 Pro 卡能抽出来，记下的 "pro" 现在没有对应的卡
             .onAppear { if openCard == "pro" { openCard = "" } }
             .proPaywall(isPresented: $showingPro, topic: proTopic)
@@ -217,7 +217,7 @@ struct SettingsView: View {
         return DeckCard(fill: material.background,
                         edge: colorScheme == .dark ? .white.opacity(0.18) : .black.opacity(0.08), peek: peek) {
             Button { showingFreedomCard = true } label: {
-                DeckHeader(title: "我的自由卡", titleColor: material.ink) {
+                DeckHeader(title: String(localized: "我的自由卡"), titleColor: material.ink) {
                     EmptyView()
                 } trailing: {
                     Text(data.tier.label)
@@ -225,7 +225,7 @@ struct SettingsView: View {
                         .tracking(2)
                         .foregroundStyle(material.muted)
                     Spacer().frame(width: Spacing.xs)
-                    DeckReading(value: data.daysText, unit: isFinite ? "天" : nil,
+                    DeckReading(value: data.daysText, unit: isFinite ? String(localized: "天") : nil,
                                 color: material.ink, unitColor: material.muted)
                 }
             }
@@ -241,12 +241,12 @@ struct SettingsView: View {
     /// Pro 卡头下面那一行：买过、体验中、失效后还有待调整的、其余情况各一句。不写价格
     private var proCardDetail: String {
         let store = ProStore.shared
-        if store.ownsPro { return "全部功能已解锁" }
+        if store.ownsPro { return String(localized: "全部功能已解锁") }
         if store.isTrialActive, let end = store.offer.trialEndsAt {
-            return "体验中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天"
+            return String(localized: "体验中，还剩 \(ProOffer.daysLeft(until: end, from: store.now)) 天")
         }
         if let plan = backToFreePlan {
-            return "\(store.lapsedFromPurchase ? "Pro 已失效" : "体验已结束") · \(plan.pendingCount) 项待调整"
+            return String(localized: "\(store.lapsedFromPurchase ? String(localized: "Pro 已失效") : String(localized: "体验已结束")) · \(plan.pendingCount) 项待调整")
         }
         return ProFeatures.headline
     }
@@ -264,7 +264,7 @@ struct SettingsView: View {
         return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("look") } label: {
-                    DeckHeader(title: "外观", detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
+                    DeckHeader(title: String(localized: "外观"), detail: isOpen ? nil : detail(lookSummary), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
                         ThemeGlyph(isDark: colorScheme == .dark)
@@ -277,7 +277,7 @@ struct SettingsView: View {
                         DeckDivider()
                         // 分段选择器 + 动画绑定: 切换经 withAnimation 让整页换色平滑过渡,
                         // 而非裸切 .preferredColorScheme 那种单帧硬重绘("突然卡顿")。
-                        segmentRow("主题") {
+                        segmentRow(String(localized: "主题")) {
                             Picker("主题", selection: themeBinding) {
                                 Text("浅色").tag("light")
                                 Text("深色").tag("dark")
@@ -286,7 +286,7 @@ struct SettingsView: View {
                             .accessibilityIdentifier("theme-picker")
                         }
                         DeckDivider()
-                        segmentRow("首页大数字") {
+                        segmentRow(String(localized: "首页大数字")) {
                             Picker("首页大数字", selection: heroLayoutBinding) {
                                 Text("靠右").tag("leading")
                                 Text("居中").tag("vertical")
@@ -294,8 +294,8 @@ struct SettingsView: View {
                         }
                         DeckDivider()
                         // 新版「钱与时间」和经典的抽屉版，只换样子，账本和设置都一样。「钱与时间」是 Pro 的，没有 Pro 点了去购买页
-                        segmentRow("Assets 页面") {
-                            Picker("Assets 页面", selection: Binding(
+                        segmentRow(String(localized: "钱包页面")) {
+                            Picker("钱包页面", selection: Binding(
                                 get: { AssetsLayout.effective(assetsLayout) },
                                 set: { newValue in
                                     if newValue == AssetsLayout.moneyTime && !ProFeatures.canUseMoneyTimeAssets {
@@ -317,11 +317,23 @@ struct SettingsView: View {
                                         Spacer(minLength: 0)
                                         ProBadge(fill: SettingsDeck.paper(depth))
                                     }
-                                    .frame(width: 75)
+                                    .frame(width: Self.segmentWidth / 2)
                                     .offset(x: 4, y: -7)
                                     .allowsHitTesting(false)
                                 }
                             }
+                        }
+                        DeckDivider()
+                        // 当场换语言，不跳 iOS 设置。两个选项各用自己的语言写，切过去也认得回来的路
+                        segmentRow(String(localized: "语言")) {
+                            Picker("语言", selection: Binding(
+                                get: { AppLanguage.isChinese },
+                                set: { AppLanguage.select(chinese: $0) }
+                            )) {
+                                Text(verbatim: "中文").tag(true)
+                                Text(verbatim: "English").tag(false)
+                            }
+                            .accessibilityIdentifier("language-picker")
                         }
                     }
                     .padding(.bottom, Spacing.xs)
@@ -333,10 +345,13 @@ struct SettingsView: View {
 
     /// 外观卡收着时写的那一行：现在的三个选择
     private var lookSummary: String {
-        [followsSystem ? "跟随系统" : (isDarkMode ? "深色" : "浅色"),
-         heroLayout == "vertical" ? "居中" : "靠右",
-         AssetsLayout.effective(assetsLayout) == AssetsLayout.classic ? "经典" : "钱与时间"].joined(separator: " · ")
+        [followsSystem ? String(localized: "跟随系统") : (isDarkMode ? String(localized: "深色") : String(localized: "浅色")),
+         heroLayout == "vertical" ? String(localized: "居中") : String(localized: "靠右"),
+         AssetsLayout.effective(assetsLayout) == AssetsLayout.classic ? String(localized: "经典") : String(localized: "钱与时间")].joined(separator: " · ")
     }
+
+    /// 分段按钮的宽度；英文的「Money & Time」「System」更长，放宽一点
+    private static var segmentWidth: CGFloat { AppLanguage.isChinese ? 150 : 212 }
 
     /// 外观里的一行：左边名字，右边同样宽的分段按钮，三行右边缘对齐
     private func segmentRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
@@ -347,7 +362,7 @@ struct SettingsView: View {
             Spacer(minLength: Spacing.sm)
             control()
                 .pickerStyle(.segmented)
-                .frame(width: 150)
+                .frame(width: Self.segmentWidth)
         }
         .padding(.leading, 20)
         .padding(.trailing, 14)
@@ -387,10 +402,10 @@ struct SettingsView: View {
         return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(depth)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("ledger") } label: {
-                    DeckHeader(title: "账本", detail: isOpen ? nil : detail("\(categoryCount) 个分类 · 备份与恢复"), isOpen: isOpen) {
+                    DeckHeader(title: String(localized: "账本"), detail: isOpen ? nil : detail(String(localized: "\(categoryCount) 个分类 · 备份与恢复")), isOpen: isOpen) {
                         EmptyView()
                     } trailing: {
-                        DeckReading(value: records.formatted(.number), unit: "笔")
+                        DeckReading(value: records.formatted(.number), unit: String(localized: "笔"))
                     }
                 }
                 .buttonStyle(.plain)
@@ -407,7 +422,7 @@ struct SettingsView: View {
                                 showingPro = true
                             }
                         } label: {
-                            DeckRow(title: "支出分类") {
+                            DeckRow(title: String(localized: "支出分类")) {
                                 Text("\(categoryCount) 类")
                                     .font(.system(size: 13, design: .rounded))
                                     .foregroundStyle(Color.inkFaint)
@@ -427,7 +442,7 @@ struct SettingsView: View {
                         NavigationLink {
                             DataManagementView()
                         } label: {
-                            DeckRow(title: "备份与恢复") { EmptyView() }
+                            DeckRow(title: String(localized: "备份与恢复")) { EmptyView() }
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("settings-data")
@@ -488,7 +503,7 @@ struct SettingsView: View {
         return DeckCard(fill: AnyShapeStyle(SettingsDeck.paper(4)), peek: peek) {
             VStack(spacing: 0) {
                 Button { toggle("about") } label: {
-                    DeckHeader(title: "FreeGrid", detail: isOpen ? nil : detail("指引 · 说明 · 关于 · 评价"), isOpen: isOpen) {
+                    DeckHeader(title: "FreeGrid", detail: isOpen ? nil : detail(String(localized: "指引 · 说明 · 关于 · 评价")), isOpen: isOpen) {
                         VStack(spacing: 1.5) {
                             HStack(spacing: 1.5) { logoCell(Color.inkFaint); logoCell(Color.assetGold) }
                             HStack(spacing: 1.5) { logoCell(Color.cashBlue); logoCell(Color.inkFaint) }
@@ -509,7 +524,7 @@ struct SettingsView: View {
                         NavigationLink {
                             UserManualPage()
                         } label: {
-                            DeckRow(title: "使用说明") { EmptyView() }
+                            DeckRow(title: String(localized: "使用说明")) { EmptyView() }
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("user-manual")
@@ -517,12 +532,12 @@ struct SettingsView: View {
                         NavigationLink {
                             aboutPage
                         } label: {
-                            DeckRow(title: "关于") { EmptyView() }
+                            DeckRow(title: String(localized: "关于")) { EmptyView() }
                         }
                         .buttonStyle(.plain)
                         DeckDivider()
                         Button { openURL(rateURL) } label: {
-                            DeckRow(title: "评价与反馈", chevron: "arrow.up.right") { EmptyView() }
+                            DeckRow(title: String(localized: "评价与反馈"), chevron: "arrow.up.right") { EmptyView() }
                         }
                         .buttonStyle(.plain)
                     }
@@ -542,7 +557,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var guideRow: some View {
         if expenses.isEmpty && incomes.isEmpty {
-            DeckRow(title: "使用指引", titleColor: .inkFaint, chevron: nil) {
+            DeckRow(title: String(localized: "使用指引"), titleColor: .inkFaint, chevron: nil) {
                 Text("记一笔后可看")
                     .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
@@ -552,7 +567,7 @@ struct SettingsView: View {
                 // 选了一个讲解：记下重放请求，ContentView 看到后切到对应页面
                 GuideListPage(onReplay: { guide.requestReplay($0) })
             } label: {
-                DeckRow(title: "使用指引") { EmptyView() }
+                DeckRow(title: String(localized: "使用指引")) { EmptyView() }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("guide-list")
@@ -563,13 +578,13 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: Spacing.lg) {
                 settingsSection("") {
-                    settingsRow(icon: "info.circle", title: "版本") {
+                    settingsRow(icon: "info.circle", title: String(localized: "版本")) {
                         Text(appVersion)
                             .font(.system(.subheadline, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkFaint)
                     }
                     rowDivider
-                    settingsRow(icon: "lock.shield", title: "隐私政策",
+                    settingsRow(icon: "lock.shield", title: String(localized: "隐私政策"),
                                 action: { openURL(privacyURL) }) { chevron }
                     rowDivider
                     icpRow
@@ -697,10 +712,10 @@ private struct GuideListPage: View {
     @Environment(\.dismiss) private var dismiss
 
     private let items: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] = [
-        (.dashboard, "chart.line.uptrend.xyaxis", "认识首页", "replay-dashboard-guide"),
-        (.assets, "banknote", "Assets 怎么用", "replay-assets-guide"),
-        (.history, "clock.arrow.circlepath", "History 怎么用", "replay-history-guide"),
-        (.settings, "gearshape", "Settings 里有什么", "replay-settings-guide"),
+        (.dashboard, "chart.line.uptrend.xyaxis", String(localized: "认识首页"), "replay-dashboard-guide"),
+        (.assets, "banknote", String(localized: "钱包怎么用"), "replay-assets-guide"),
+        (.history, "clock.arrow.circlepath", String(localized: "明细怎么用"), "replay-history-guide"),
+        (.settings, "gearshape", String(localized: "设置里有什么"), "replay-settings-guide"),
     ]
 
     var body: some View {

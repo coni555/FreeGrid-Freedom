@@ -27,11 +27,11 @@ enum LoanSchedule {
 
     static func intervalLabel(_ months: Int) -> String {
         switch months {
-        case 1: return "每月"
-        case 3: return "每季度"
-        case 6: return "每半年"
-        case 12: return "每年"
-        default: return "每 \(months) 个月"
+        case 1: return String(localized: "每月")
+        case 3: return String(localized: "每季度")
+        case 6: return String(localized: "每半年")
+        case 12: return String(localized: "每年")
+        default: return String(localized: "每 \(months) 个月")
         }
     }
     /// 固定支出没有最后一期；界面上的状态（下次哪天、哪期没扣）只往后看这么多天，够看到一年一次的下一期

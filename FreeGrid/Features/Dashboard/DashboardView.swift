@@ -243,11 +243,10 @@ private struct DashboardContent: View {
     private func showUndoToast(id: UUID, amount: Double, isExpense: Bool) {
         pendingUndoTimer?.cancel()
 
-        let sign = isExpense ? "支出" : "收入"
         let formatted = amount.formatted(.number.precision(.fractionLength(0...2)))
         withAnimation(.spring(duration: 0.3)) {
             pendingUndoID = id
-            pendingUndoLabel = "已记\(sign) ¥\(formatted)"
+            pendingUndoLabel = isExpense ? String(localized: "已记支出 ¥\(formatted)") : String(localized: "已记收入 ¥\(formatted)")
             pendingUndoIsExpense = isExpense
         }
 
@@ -461,7 +460,7 @@ private struct DashboardContent: View {
                         Text(snapshot.dailyBurn.isFinite ? String(format: "¥%.1f", snapshot.dailyBurn) : "¥—")
                             .font(.system(size: 24, weight: .thin, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.inkMuted)
-                        KickerLabel(text: averageWord == "日均" ? "avg" : "日常")
+                        KickerLabel(text: snapshot.dailyFixed > 0 ? String(localized: "日常") : "avg")
                     }
                     .frame(minWidth: 60, alignment: .trailing)
                 }
@@ -479,15 +478,15 @@ private struct DashboardContent: View {
     /// today bar 下方的 delta 文案
     private var todayDeltaText: String {
         guard snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0, todaySpending.isFinite else {
-            return "再记几笔，就能和平时比"
+            return String(localized: "再记几笔，就能和平时比")
         }
         if todaySpending == 0 {
-            return "今日尚未消费"
+            return String(localized: "今日尚未消费")
         }
         // 当天净额为负(退款/冲正大于消费)时,"低于日均 N%" 会算出 100% 以上的
         // 荒唐数字。这种日子本来就不是"省钱",单独说清楚。
         if todaySpending < 0 {
-            return "今日净退款 ¥\(String(format: "%.1f", -todaySpending))"
+            return String(localized: "今日净退款 ¥\(String(format: "%.1f", -todaySpending))")
         }
         let diffPct = FinancialFormatting.clampedInteger(
             abs((1 - todayPercent) * 100),
@@ -495,19 +494,19 @@ private struct DashboardContent: View {
         )
         // 差不到一毛钱时说持平，不写「低 0% · 少花 ¥0.0」
         if abs(todaySpending - snapshot.dailyBurn) < 0.05 {
-            return "和\(averageWord)差不多"
+            return String(localized: "和\(averageWord)差不多")
         }
         if todaySpending > snapshot.dailyBurn {
             let over = todaySpending - snapshot.dailyBurn
-            return "比\(averageWord)高 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))"
+            return String(localized: "比\(averageWord)高 \(diffPct)% · 多花 ¥\(String(format: "%.1f", over))")
         } else {
             let savings = snapshot.dailyBurn - todaySpending
-            return "比\(averageWord)低 \(diffPct)% · 少花 ¥\(String(format: "%.1f", savings))"
+            return String(localized: "比\(averageWord)低 \(diffPct)% · 少花 ¥\(String(format: "%.1f", savings))")
         }
     }
 
     /// Today 只和日常开销比。有固定支出时上面 Daily 卡的日均含固定，这里改叫「日常开销」免得两个数对不上
-    private var averageWord: String { snapshot.dailyFixed > 0 ? "日常开销" : "日均" }
+    private var averageWord: String { snapshot.dailyFixed > 0 ? String(localized: "日常开销") : String(localized: "日均") }
 
     /// 今日花费占日均的百分比(用于颜色判断)
     private var todayPercent: Double {
@@ -564,11 +563,11 @@ private struct DashboardContent: View {
     private func legendItems(state: FreedomMath.GridState) -> some View {
         // 金色图例：总开关开、且至少有一部分资产在格子里（或者根本没有不计入的）
         if snapshot.countsAssets, snapshot.countedAssets > 0 || snapshot.uncountedAssets == 0 {
-            legendDot(color: .assetGold, label: "资产")
+            legendDot(color: .assetGold, label: String(localized: "资产"))
         }
         // 蓝色图例同理：现金账户全部不计入时格子里没有蓝色
         if snapshot.countedCash > 0 || snapshot.excludedCash == 0 {
-            legendDot(color: .cashBlue, label: "现金")
+            legendDot(color: .cashBlue, label: String(localized: "现金"))
         }
         if !state.paymentCells.isEmpty || state.showsMissedPayment {
             HStack(spacing: 6) {
@@ -592,7 +591,7 @@ private struct DashboardContent: View {
     }
 
     private func cellUnitText(state: FreedomMath.GridState) -> some View {
-        Text("每格 = 1 \(state.unit.label)自由")
+        Text(state.unit.legend)
             .font(.system(.caption2, design: .rounded))
             .foregroundStyle(Color.inkFaint)
             .fixedSize()
@@ -641,10 +640,10 @@ private struct DashboardContent: View {
 
     private var gridEmptyText: String {
         switch snapshot.freedom {
-        case .invalidData: return "有一笔金额不对，去 History 找找特别大或负数的"
+        case .invalidData: return String(localized: "有一笔金额不对，去明细找找特别大或负数的")
         // 该先做什么上面的大数字卡已经说了, 这里只解释格子是什么
-        case .insufficientData: return "每一格是一天自由，有了数据后在这里点亮"
-        case .finite, .covered: return "当前净值还没有可点亮的自由格"
+        case .insufficientData: return String(localized: "每一格是一天自由，有了数据后在这里点亮")
+        case .finite, .covered: return String(localized: "当前净值还没有可点亮的自由格")
         }
     }
 
@@ -668,13 +667,13 @@ private struct DashboardContent: View {
     /// 收支入口：支出使用 flame，收入使用 skyDeep。
     private var actionRow: some View {
         HStack(spacing: Spacing.md) {
-            VaultButton(title: "记支出",
+            VaultButton(title: String(localized: "记支出"),
                         icon: "minus",
                         style: .destructive) {
                 expenseDraft = ExpenseDraft()
             }
             .guideTarget(.expenseButton, in: guide)
-            VaultButton(title: "记收入",
+            VaultButton(title: String(localized: "记收入"),
                         icon: "plus",
                         style: .primary) {
                 showingAddIncome = true
@@ -686,7 +685,7 @@ private struct DashboardContent: View {
     private var simulateRow: some View {
         HStack {
             Spacer()
-            GhostButton(title: "模拟一笔 · 看决策影响",
+            GhostButton(title: String(localized: "模拟一笔 · 看决策影响"),
                         icon: "wand.and.stars") {
                 showingSimulate = true
             }

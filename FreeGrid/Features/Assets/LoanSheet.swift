@@ -54,7 +54,7 @@ struct LoanSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "名称")
+                        KickerLabel(text: String(localized: "名称"))
                         UnderlinedField(isFocused: focus == .name) {
                             TextField(isFixed ? "房租、水电、会员…" : "房贷、车贷…", text: $name)
                                 .font(.system(.title3, design: .rounded))
@@ -67,7 +67,7 @@ struct LoanSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: isFixed ? (intervalMonths == 1 ? "每月付多少" : "每次付多少") : "每月还多少")
+                        KickerLabel(text: isFixed ? (intervalMonths == 1 ? String(localized: "每月付多少") : String(localized: "每次付多少")) : String(localized: "每月还多少"))
                         UnderlinedField(isFocused: focus == .monthly) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("¥")
@@ -88,7 +88,7 @@ struct LoanSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack(alignment: .top, spacing: Spacing.xl) {
                         VStack(alignment: .leading, spacing: Spacing.sm) {
-                            KickerLabel(text: "每月几号还")
+                            KickerLabel(text: String(localized: "每月几号还"))
                             UnderlinedField(isFocused: false) {
                                 // 不用系统的菜单样式：它自带内边距，会和上面的标题、旁边的期数对不齐
                                 Menu {
@@ -100,9 +100,12 @@ struct LoanSheet: View {
                                         Text("\(dueDay)")
                                             .font(.system(.title3, design: .rounded).monospacedDigit())
                                             .foregroundStyle(Color.ink)
-                                        Text("日")
-                                            .font(.system(.body, design: .rounded))
-                                            .foregroundStyle(Color.inkFaint)
+                                        // 英文写「15」就够，标题已经说了是几号
+                                        if AppLanguage.isChinese {
+                                            Text(verbatim: "日")
+                                                .font(.system(.body, design: .rounded))
+                                                .foregroundStyle(Color.inkFaint)
+                                        }
                                         Spacer()
                                         Image(systemName: "chevron.up.chevron.down")
                                             .font(.system(size: 11, weight: .medium))
@@ -116,7 +119,7 @@ struct LoanSheet: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .leading, spacing: Spacing.sm) {
-                            KickerLabel(text: "还剩几期")
+                            KickerLabel(text: String(localized: "还剩几期"))
                             UnderlinedField(isFocused: focus == .periods) {
                                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                                     TextField("24", text: $periods)
@@ -135,7 +138,7 @@ struct LoanSheet: View {
                     }
 
                     // 最后一期是哪天：填错了一眼能看出来。紧贴在两栏下面，和它们是一组
-                    Text(lastDueText ?? (keepsPaidOff ? "已还清，不再扣款" : "今天到期的这期算已还，从下一期开始自动扣"))
+                    Text(lastDueText ?? (keepsPaidOff ? String(localized: "已还清，不再扣款") : String(localized: "今天到期的这期算已还，从下一期开始自动扣")))
                         .font(.system(.caption, design: .rounded).monospacedDigit())
                         .foregroundStyle(lastDueText == nil ? Color.inkFaint : Color.inkMuted)
                         .accessibilityIdentifier("loan-last-due")
@@ -178,7 +181,7 @@ struct LoanSheet: View {
                 Button("删除", role: .destructive) { delete() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("以后不再自动扣。已经扣过的留在 History。")
+                Text("以后不再自动扣。已经扣过的留在明细里。")
             }
             .onChange(of: monthly) { excluded = Set(candidates.filter { !$0.countsInBurn }.map(\.id)) }
         }
@@ -188,10 +191,10 @@ struct LoanSheet: View {
 
     private var title: String {
         switch (isFixed, isEditing) {
-        case (true, true): return "编辑固定支出"
-        case (true, false): return "添加固定支出"
-        case (false, true): return "编辑贷款"
-        case (false, false): return "添加贷款"
+        case (true, true): return String(localized: "编辑固定支出")
+        case (true, false): return String(localized: "添加固定支出")
+        case (false, true): return String(localized: "编辑贷款")
+        case (false, false): return String(localized: "添加贷款")
         }
     }
 
@@ -216,7 +219,7 @@ struct LoanSheet: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .top, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    KickerLabel(text: "几个月付一次")
+                    KickerLabel(text: String(localized: "几个月付一次"))
                     UnderlinedField(isFocused: false) {
                         Menu {
                             Picker("几个月付一次", selection: $intervalMonths) {
@@ -240,14 +243,14 @@ struct LoanSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    KickerLabel(text: "下次哪天付")
+                    KickerLabel(text: String(localized: "下次哪天付"))
                     UnderlinedField(isFocused: false) {
                         HStack {
                             DatePicker("下次哪天付", selection: $nextDue, in: nextDueRange, displayedComponents: .date)
                                 .labelsHidden()
                                 .tint(Color.skyDeep)
                                 // 和 App 里其他日期一样写中文，不跟系统语言
-                                .environment(\.locale, Locale(identifier: "zh_CN"))
+                                .environment(\.locale, AppLanguage.locale)
                                 .accessibilityIdentifier("fixed-next-due")
                             Spacer(minLength: 0)
                         }
@@ -266,9 +269,9 @@ struct LoanSheet: View {
     private var scheduleText: String {
         guard intervalMonths != 1 else {
             let day = Calendar.current.component(.day, from: nextDue)
-            return "到日子自动记一笔支出，之后每月 \(day) 日一次"
+            return String(localized: "到日子自动记一笔支出，之后每月 \(day) 日一次")
         }
-        return "金额填一次付的总数（\(intervalMonths) 个月的钱）。\n到日子自动记一笔支出，之后\(Self.intervalLabel(intervalMonths))一次"
+        return String(localized: "金额填一次付的总数（\(intervalMonths) 个月的钱）。\n到日子自动记一笔支出，之后\(Self.intervalLabel(intervalMonths))一次")
     }
 
     // MARK: - 从哪个账户扣
@@ -276,7 +279,7 @@ struct LoanSheet: View {
     /// 房贷一般绑着一张卡：指定了就只从它扣，它余额不够这期就算没扣成
     private var accountField: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            KickerLabel(text: "从哪个账户扣")
+            KickerLabel(text: String(localized: "从哪个账户扣"))
             UnderlinedField(isFocused: false) {
                 Menu {
                     Picker("从哪个账户扣", selection: $cashAccountID) {
@@ -287,7 +290,7 @@ struct LoanSheet: View {
                     }
                 } label: {
                     HStack {
-                        Text(cashAccounts.first { $0.id == cashAccountID }?.name ?? "按扣款顺序")
+                        Text(cashAccounts.first { $0.id == cashAccountID }?.name ?? String(localized: "按扣款顺序"))
                             .font(.system(.title3, design: .rounded))
                             .foregroundStyle(Color.ink)
                         Spacer()
@@ -323,7 +326,9 @@ struct LoanSheet: View {
                 focus = nil
             } label: {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("找到 \(candidates.count) 笔 ¥\(FinancialFormatting.wholeNumber(Double(monthly) ?? 0)) 的支出，是以前记的\(isFixed ? "吗" : "月供吗")？")
+                    Text(isFixed
+                         ? "找到 \(candidates.count) 笔 ¥\(FinancialFormatting.wholeNumber(Double(monthly) ?? 0)) 的支出，是以前记的吗？"
+                         : "找到 \(candidates.count) 笔 ¥\(FinancialFormatting.wholeNumber(Double(monthly) ?? 0)) 的支出，是以前记的月供吗？")
                         .font(.system(.footnote, design: .rounded))
                         .foregroundStyle(Color.ink)
                         .multilineTextAlignment(.leading)
@@ -345,7 +350,7 @@ struct LoanSheet: View {
                         if expense.id != candidates.last?.id { Hairline(color: .hairlineSoft) }
                     }
                 }
-                Text("勾上的不再另算进日均消费（固定支出已经折进去了），记录照样留在 History。")
+                Text("勾上的不再另算进日均消费（固定支出已经折进去了），记录照样留在明细里。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }
@@ -365,7 +370,8 @@ struct LoanSheet: View {
                     Text(Self.fullDate(expense.date))
                         .font(.system(.subheadline, design: .rounded).monospacedDigit())
                         .foregroundStyle(Color.ink)
-                    Text(expense.note.isEmpty ? expense.category : "\(expense.category) · \(expense.note)")
+                    Text(expense.note.isEmpty ? ExpenseCategory.displayName(expense.category)
+                         : "\(ExpenseCategory.displayName(expense.category)) · \(expense.note)")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .lineLimit(1)
@@ -395,11 +401,12 @@ struct LoanSheet: View {
     private var lastDueText: String? {
         guard let count = periodCount,
               let last = LoanSchedule.dueDates(after: .now, dueDay: dueDay, count: count).last else { return nil }
-        return "最后一期：" + Self.fullDate(last)
+        return String(localized: "最后一期：\(Self.fullDate(last))")
     }
 
-    /// 「2028 年 10 月 14 日」，不跟系统语言走，和 App 其他地方的日期写法一致
+    /// 「2028 年 10 月 14 日」/「Oct 14, 2028」，跟界面语言走
     static func fullDate(_ date: Date) -> String {
+        guard AppLanguage.isChinese else { return AppLanguage.date(date, template: "yyyyMMMd") }
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return "\(parts.year ?? 0) 年 \(parts.month ?? 0) 月 \(parts.day ?? 0) 日"
     }

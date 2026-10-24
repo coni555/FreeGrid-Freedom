@@ -16,8 +16,8 @@ struct LoanDrawer: View {
     var body: some View {
         // 没有 Pro 时停用的贷款不算进每月合计和下次扣款
         let summary = LoanRows.Summary(loans: ProFeatures.loansInEffect(loans), expenses: expenses)
-        AccountDrawer(title: "固定支出", color: .cashBlue, count: loans.isEmpty ? nil : "\(loans.count) 笔",
-                      total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: "/月",
+        AccountDrawer(title: String(localized: "固定支出"), color: .cashBlue, count: loans.isEmpty ? nil : String(localized: "\(loans.count) 笔"),
+                      total: loans.isEmpty ? nil : summary.monthlyTotal, totalSuffix: String(localized: "/月"),
                       punched: ProFeatures.loansInEffect(loans).contains(where: \.punchesGrid),
                       subtitle: loans.isEmpty ? LoanRows.emptyLine : summary.line,
                       isOpen: $isOpen, headerID: "loans-drawer") {
@@ -55,7 +55,7 @@ struct LoanRows: View {
     private var canManageLoans: Bool { ProFeatures.canManageLoans }
 
     /// 还没加过时，标题下面那行
-    static let emptyLine = "房租、水电、会员，到日子自动记账"
+    static let emptyLine = String(localized: "房租、水电、会员，到日子自动记账")
 
     /// 每月一共付多少、下次哪天扣哪笔、有几期没扣成：标题行和新版「每月」里用
     struct Summary {
@@ -63,6 +63,8 @@ struct LoanRows: View {
         let monthlyTotal: Double
         /// 「有 1 期没扣成，展开处理」或「下次 10月25日 扣「车贷」」
         let line: String
+        /// 有没扣成的期数；这时 line 说的是它
+        let hasPending: Bool
 
         init(loans: [Loan], expenses: [Expense], now: Date = .now) {
             let payments = expenses.filter { $0.loanID != nil }
@@ -70,13 +72,14 @@ struct LoanRows: View {
             let active = zip(loans, statuses).filter { !$0.1.isPaidOff }
             monthlyTotal = active.reduce(0) { $0 + $1.0.monthlyEquivalent }
             let pending = statuses.reduce(0) { $0 + $1.pending.count }
+            hasPending = pending > 0
             if pending > 0 {
-                line = "有 \(pending) 期没扣成，展开处理"
+                line = String(localized: "有 \(pending) 期没扣成，展开处理")
             } else if let (loan, date) = active.compactMap({ pair in pair.1.nextDue.map { (pair.0, $0) } })
                         .min(by: { $0.1 < $1.1 }) {
-                line = "下次 \(LoanRows.monthDay(date)) 扣「\(loan.name)」"
+                line = String(localized: "下次 \(LoanRows.monthDay(date)) 扣「\(loan.name)」")
             } else {
-                line = "没有要付的了"
+                line = String(localized: "没有要付的了")
             }
         }
     }
@@ -89,15 +92,15 @@ struct LoanRows: View {
             ForEach(Array(zip(loans, statuses)), id: \.0.id) { loan, status in
                 loanRow(loan, status: status)
             }
-            DrawerAddRow(title: "添加固定支出", showsPro: false, identifier: "add-fixed-button") { adding = .fixed }
-            DrawerAddRow(title: "添加贷款", showsPro: !canManageLoans, identifier: "add-loan-button") {
+            DrawerAddRow(title: String(localized: "添加固定支出"), showsPro: false, identifier: "add-fixed-button") { adding = .fixed }
+            DrawerAddRow(title: String(localized: "添加贷款"), showsPro: !canManageLoans, identifier: "add-loan-button") {
                 if canManageLoans { adding = .loan } else { showingPro = true }
             }
             if !loans.isEmpty {
                 let lockedLoans = !canManageLoans && loans.contains { !$0.isOngoing }
                 DrawerFooter(text: lockedLoans
-                             ? "贷款是 Pro 功能，已停用：不自动记账，不计入自由天数。点那一行可以删除。"
-                             : "到日子在 App 里自动记一笔，从现金扣，不会动你的银行卡。自由天数会把每期的钱先留出来。",
+                             ? String(localized: "贷款是 Pro 功能，已停用：不自动记账，不计入自由天数。点那一行可以删除。")
+                             : String(localized: "到日子在 App 里自动记一笔，从现金扣，不会动你的银行卡。自由天数会把每期的钱先留出来。"),
                              locked: lockedLoans, showsActions: false)
             }
         }
@@ -115,7 +118,7 @@ struct LoanRows: View {
             }
             Button("取消", role: .cancel) { pendingDelete = nil }
         } message: { _ in
-            Text("以后不再自动扣。已经扣过的留在 History。")
+            Text("以后不再自动扣。已经扣过的留在明细里。")
         }
         .confirmationDialog(
             resolving.map { "\(Self.monthDay($0.dueDate))这期 ¥\(FinancialFormatting.wholeNumber($0.loan.monthlyAmount))" } ?? "",
@@ -142,12 +145,12 @@ struct LoanRows: View {
         let paused = !loan.isOngoing && !canManageLoans
         var detail: String
         if paused {
-            detail = "已停用 · 解锁 Pro 后恢复"
+            detail = String(localized: "已停用 · 解锁 Pro 后恢复")
         } else if loan.isOngoing {
-            detail = loan.intervalMonths == 1 ? "每月 \(loan.dueDay) 日"
-                : "\(LoanSheet.intervalLabel(loan.intervalMonths)) · 下次 \(status.nextDue.map(Self.monthDay) ?? "—")"
+            detail = loan.intervalMonths == 1 ? String(localized: "每月 \(loan.dueDay) 日")
+                : String(localized: "\(LoanSheet.intervalLabel(loan.intervalMonths)) · 下次 \(status.nextDue.map(Self.monthDay) ?? "—")")
         } else {
-            detail = paidOff ? "已还清" : "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期"
+            detail = paidOff ? String(localized: "已还清") : String(localized: "每月 \(loan.dueDay) 日 · 还剩 \(status.remaining) 期")
         }
         if !paidOff, !paused, let account = boundAccount(of: loan) { detail += " · \(account.name)" }
         return VStack(alignment: .leading, spacing: 0) {
@@ -194,7 +197,7 @@ struct LoanRows: View {
                     resolving = PendingPayment(loan: loan, dueDate: due)
                 } label: {
                     HStack(spacing: 6) {
-                        Text("\(Self.monthDay(due))这期没扣：\(boundAccount(of: loan).map { "「\($0.name)」余额不够" } ?? "现金不够")")
+                        Text("\(Self.monthDay(due))这期没扣：\(boundAccount(of: loan).map { String(localized: "「\($0.name)」余额不够") } ?? String(localized: "现金不够"))")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                         Text("处理")
@@ -228,6 +231,7 @@ struct LoanRows: View {
 
     /// 「11月14日」
     static func monthDay(_ date: Date) -> String {
+        guard AppLanguage.isChinese else { return AppLanguage.date(date, template: "MMMd") }
         let parts = Calendar.current.dateComponents([.month, .day], from: date)
         return "\(parts.month ?? 0)月\(parts.day ?? 0)日"
     }
