@@ -10,12 +10,12 @@ final class HistorySearchScrollUITests: XCTestCase {
         continueAfterFailure = false
         for run in 0..<5 {
             let app = XCUIApplication()
-            app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+            app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                    "-hideProPreviewCard", "-proPreview", "YES", "-UseInMemoryStore", "-SeedBackupJSON",
                                    folder + "/ledgers/10000.json", "-HistorySearchMetricsFile", folder + "/\(phase)/cold-\(run).json"]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 60))
-            app.tabBars.buttons["History"].tap()
+            app.tabBars.buttons["明细"].tap()
             XCTAssertTrue(app.buttons["搜索"].waitForExistence(timeout: 10))
             app.buttons["搜索"].tap()
             let field = app.textFields["history-search-field"]
@@ -35,12 +35,12 @@ final class HistorySearchScrollUITests: XCTestCase {
         }
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                "-hideProPreviewCard", "-proPreview", "YES", "-UseInMemoryStore", "-SeedBackupJSON",
                                folder + "/ledgers/10000.json", "-HistorySearchMetricsFile", folder + "/\(phase)/native.json"]
         app.launch()
         XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 60))
-        app.tabBars.buttons["History"].tap()
+        app.tabBars.buttons["明细"].tap()
         var rounds: [[String: Any]] = []
         for opening in 0..<2 {
             app.buttons["搜索"].tap()

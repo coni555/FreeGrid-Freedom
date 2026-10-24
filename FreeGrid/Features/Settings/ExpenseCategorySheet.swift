@@ -27,7 +27,15 @@ struct ExpenseCategorySheet: View {
 
     private var isEditing: Bool { existingName != nil }
     private var shownIcon: String { pickedIcon ?? ExpenseCategoryIcons.defaultIcon(for: cleanedName ?? "") }
-    private var cleanedName: String? { try? ExpenseCategoryOptions.cleanName(name) }
+    /// 清理后要存的名字。默认九类在英文界面下显示英文名：输入的正好是某个默认分类的显示名时，
+    /// 存回它的中文原名，免得一编辑就把旧账改了名，或者多出一个同义的新分类
+    private var cleanedName: String? {
+        guard let typed = try? ExpenseCategoryOptions.cleanName(name) else { return nil }
+        return ExpenseCategory.canonical.first {
+            ExpenseCategory.displayName($0).caseInsensitiveCompare(typed) == .orderedSame
+        } ?? typed
+    }
+    private func shown(_ stored: String?) -> String { stored.map(ExpenseCategory.displayName) ?? "" }
     /// 名字和另一个已有分类相同（不分大小写）时，保存就是并进它
     private var mergeTarget: String? {
         guard isEditing, let cleanedName else { return nil }
@@ -39,7 +47,7 @@ struct ExpenseCategorySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "名称")
+                        KickerLabel(text: String(localized: "名称"))
                         UnderlinedField(isFocused: nameFocused) {
                             HStack(spacing: Spacing.md) {
                                 Image(systemName: shownIcon)
@@ -56,13 +64,13 @@ struct ExpenseCategorySheet: View {
                         }
                         if let mergeTarget {
                             Text(recordCount > 0
-                                 ? "已有「\(mergeTarget)」。保存后这 \(recordCount) 笔并进去，「\(existingName ?? "")」不再单独列出。"
-                                 : "已有「\(mergeTarget)」。保存后「\(existingName ?? "")」并进去，不再单独列出。")
+                                 ? "已有「\(shown(mergeTarget))」。保存后这 \(recordCount) 笔并进去，「\(shown(existingName))」不再单独列出。"
+                                 : "已有「\(shown(mergeTarget))」。保存后「\(shown(existingName))」并进去，不再单独列出。")
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                                 .accessibilityIdentifier("category-merge-hint")
                         } else if isEditing, recordCount > 0, let cleanedName, cleanedName != existingName {
-                            Text("改名后，这个分类下的 \(recordCount) 笔记录一起改成「\(cleanedName)」。")
+                            Text("改名后，这个分类下的 \(recordCount) 笔记录一起改成「\(shown(cleanedName))」。")
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                         }
@@ -71,7 +79,7 @@ struct ExpenseCategorySheet: View {
                     // 合并时留下的是那个分类自己的图标，这里选了也不生效，先收起来
                     if mergeTarget == nil {
                     VStack(alignment: .leading, spacing: Spacing.md) {
-                        KickerLabel(text: "图标")
+                        KickerLabel(text: String(localized: "图标"))
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 52), spacing: Spacing.sm)],
                                   spacing: Spacing.sm) {
                             ForEach(ExpenseCategoryIcons.choices, id: \.self) { icon in
@@ -113,14 +121,14 @@ struct ExpenseCategorySheet: View {
                         .accessibilityIdentifier("save-category")
                 }
             }
-            .confirmationDialog("把「\(existingName ?? "")」并进「\(mergeTarget ?? "")」？",
+            .confirmationDialog("把「\(shown(existingName))」并进「\(shown(mergeTarget))」？",
                                 isPresented: $confirmingMerge, titleVisibility: .visible) {
                 Button("合并") { save() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text(recordCount > 0 ? "\(recordCount) 笔记录会改到「\(mergeTarget ?? "")」名下，合并后不能自动拆回。" : "合并后不能自动拆回。")
+                Text(recordCount > 0 ? "\(recordCount) 笔记录会改到「\(shown(mergeTarget))」名下，合并后不能自动拆回。" : "合并后不能自动拆回。")
             }
-            .confirmationDialog("删除「\(existingName ?? "")」？", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            .confirmationDialog("删除「\(shown(existingName))」？", isPresented: $confirmingDelete, titleVisibility: .visible) {
                 Button("删除", role: .destructive) {
                     do {
                         try onDelete?()
@@ -134,7 +142,7 @@ struct ExpenseCategorySheet: View {
                 Text("记支出时不再出现这个选项。已有的记录不变；想找回，重新添加同名分类。")
             }
             .onAppear {
-                name = existingName ?? ""
+                name = shown(existingName)
                 pickedIcon = existingIcon
                 nameFocused = !isEditing
             }

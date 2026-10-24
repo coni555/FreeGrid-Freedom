@@ -41,7 +41,7 @@ struct CashAccountSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "名称")
+                        KickerLabel(text: String(localized: "名称"))
                         UnderlinedField(isFocused: focus == .name) {
                             TextField("微信、支付宝、招行卡…", text: $name)
                                 .font(.system(.title3, design: .rounded))
@@ -54,7 +54,7 @@ struct CashAccountSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "余额")
+                        KickerLabel(text: String(localized: "余额"))
                         UnderlinedField(isFocused: focus == .amount, accent: .cashBlue) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("¥")
@@ -71,7 +71,7 @@ struct CashAccountSheet: View {
                         }
                         if !isEditing, !sources.isEmpty {
                             MoneySourcePicker(options: sources, selection: $source, amount: enteredAmount,
-                                              total: total, bucket: "现金", splitVerb: "拆出",
+                                              total: total, bucket: String(localized: "现金"),
                                               identifierPrefix: "cash-account")
                                 .padding(.top, Spacing.md)
                         }

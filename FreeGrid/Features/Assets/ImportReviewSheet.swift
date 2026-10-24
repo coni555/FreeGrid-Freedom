@@ -66,14 +66,14 @@ struct ImportReviewSheet: View {
     private var summaryCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                KickerLabel(text: "导入预览")
-                summaryRow("新增支出", "\(preview.expensesNew.count - skippedSuspectedExpenses.count) 笔")
-                summaryRow("新增收入", "\(preview.incomesNew.count) 笔")
+                KickerLabel(text: String(localized: "导入预览"))
+                summaryRow(String(localized: "新增支出"), String(localized: "\(preview.expensesNew.count - skippedSuspectedExpenses.count) 笔"))
+                summaryRow(String(localized: "新增收入"), String(localized: "\(preview.incomesNew.count) 笔"))
                 if preview.devicesNew.count > 0 {
-                    summaryRow("新增设备", "\(preview.devicesNew.count) 个")
+                    summaryRow(String(localized: "新增设备"), String(localized: "\(preview.devicesNew.count) 个"))
                 }
                 if preview.passiveSourcesNew.count > 0 {
-                    summaryRow("新增被动收入", "\(preview.passiveSourcesNew.count) 个")
+                    summaryRow(String(localized: "新增被动收入"), String(localized: "\(preview.passiveSourcesNew.count) 个"))
                 }
                 let existingDuplicates = preview.expenseDuplicates.existing
                     + preview.incomeDuplicates.existing
@@ -84,10 +84,10 @@ struct ImportReviewSheet: View {
                     + preview.deviceDuplicates.inFile
                     + preview.passiveSourceDuplicates.inFile
                 if existingDuplicates > 0 {
-                    summaryRow("账本里已有，跳过", "\(existingDuplicates) 条")
+                    summaryRow(String(localized: "账本里已有，跳过"), String(localized: "\(existingDuplicates) 条"))
                 }
                 if fileDuplicates > 0 {
-                    summaryRow("备份里重复，跳过", "\(fileDuplicates) 条")
+                    summaryRow(String(localized: "备份里重复，跳过"), String(localized: "\(fileDuplicates) 条"))
                 }
             }
         }
@@ -96,7 +96,7 @@ struct ImportReviewSheet: View {
     private var suspectedDuplicatesCard: some View {
         VaultCard {
             LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "可能重复 · 请核对")
+                KickerLabel(text: String(localized: "可能重复 · 请核对"))
                 Text("这几笔可能已经导入过。是同一笔的，关掉它的开关。")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
@@ -110,7 +110,7 @@ struct ImportReviewSheet: View {
                         }
                     )) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("保留 · \(record.category) · ¥\(money(record.amount))")
+                            Text("保留 · \(ExpenseCategory.displayName(record.category)) · ¥\(money(record.amount))")
                             Text(record.date, format: .dateTime.year().month().day())
                             Text(record.note).lineLimit(2)
                         }
@@ -118,7 +118,7 @@ struct ImportReviewSheet: View {
                     }
                     .accessibilityIdentifier("keep-suspected-expense-\(index)")
                 }
-                summaryRow("手动跳过", "\(skippedSuspectedExpenses.count) 笔")
+                summaryRow(String(localized: "手动跳过"), String(localized: "\(skippedSuspectedExpenses.count) 笔"))
             }
         }
     }
@@ -140,7 +140,7 @@ struct ImportReviewSheet: View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "分类对齐")
+                    KickerLabel(text: String(localized: "分类对齐"))
                     Spacer()
                     if reviewCount > 0 {
                         Text("\(reviewCount) 个待确认")
@@ -167,7 +167,7 @@ struct ImportReviewSheet: View {
                     if entry.wrappedValue.needsReview {
                         Circle().fill(Color.flame).frame(width: 6, height: 6)
                     }
-                    Text(entry.wrappedValue.raw)
+                    Text(ExpenseCategory.displayName(entry.wrappedValue.raw))
                         .font(.system(.callout, design: .rounded).weight(.medium))
                         .foregroundStyle(Color.ink)
                 }
@@ -184,7 +184,7 @@ struct ImportReviewSheet: View {
                     Text("保留：\(entry.wrappedValue.raw)").tag(entry.wrappedValue.raw)
                 }
                 ForEach(preview.categoryNames, id: \.self) { c in
-                    Text(c).tag(c)
+                    Text(ExpenseCategory.displayName(c)).tag(c)
                 }
             }
             .pickerStyle(.menu)
@@ -196,23 +196,23 @@ struct ImportReviewSheet: View {
     private var strategyCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "资产和现金怎么办")
-                summaryRow("备份里的资产", "¥\(money(preview.importedAssets.lockedAssets))")
-                summaryRow("备份里的现金", "¥\(money(preview.importedAssets.cash))")
-                summaryRow("备份里的净值", "¥\(money(preview.importedAssets.total))")
+                KickerLabel(text: String(localized: "资产和现金怎么办"))
+                summaryRow(String(localized: "备份里的资产"), "¥\(money(preview.importedAssets.lockedAssets))")
+                summaryRow(String(localized: "备份里的现金"), "¥\(money(preview.importedAssets.cash))")
+                summaryRow(String(localized: "备份里的净值"), "¥\(money(preview.importedAssets.total))")
                 Hairline()
-                strategyOption(.skipAssets, "只导入收支记录", "现在的资产和现金不变")
+                strategyOption(.skipAssets, String(localized: "只导入收支记录"), String(localized: "现在的资产和现金不变"))
                 Hairline()
                 strategyOption(
                     .replace,
-                    "换成备份里的",
-                    "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))" + replaceItemsNote
+                    String(localized: "换成备份里的"),
+                    String(localized: "资产 ¥\(money(preview.importedAssets.lockedAssets)) + 现金 ¥\(money(preview.importedAssets.cash))") + replaceItemsNote
                 )
                 Hairline()
                 strategyOption(
                     .addToCash,
-                    "加进现金",
-                    "现金 +¥\(money(preview.importedAssets.total))"
+                    String(localized: "加进现金"),
+                    String(localized: "现金 +¥\(money(preview.importedAssets.total))")
                 )
             }
         }
@@ -225,10 +225,10 @@ struct ImportReviewSheet: View {
     /// 资产项跟着资产桶一起被替换：备份里有就恢复，没有而现在有就合并成总数
     private var replaceItemsNote: String {
         if !preview.importedAssetItems.isEmpty {
-            return "，含 \(preview.importedAssetItems.count) 个资产项"
+            return String(localized: "，含 \(preview.importedAssetItems.count) 个资产项")
         }
         if preview.currentAssetItemCount > 0 {
-            return "；现有 \(preview.currentAssetItemCount) 个资产项会并成一个总数"
+            return String(localized: "；现有 \(preview.currentAssetItemCount) 个资产项会并成一个总数")
         }
         return ""
     }

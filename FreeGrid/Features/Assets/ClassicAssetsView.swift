@@ -90,7 +90,7 @@ struct ClassicAssetsView: View {
             .scrollContentBackground(.hidden)
             .dismissKeyboardOnScroll()
             .background(Color.paper)
-            .navigationTitle("Assets")
+            .navigationTitle("钱包")
             .saveErrorAlert($saveError)
             .proPaywall(isPresented: $showingPro, topic: assetItems.isEmpty ? .cash : .assets)
             .sheet(isPresented: $showingAddPassive) {
@@ -133,7 +133,7 @@ struct ClassicAssetsView: View {
         VaultCard(emphasis: .high, padding: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "Net Worth · 净值")
+                    KickerLabel(text: String(localized: "Net Worth · 净值"))
                     Spacer()
                     // 净值、资产、现金的关系看懂一次就够了, 平时收在问号里
                     Button {
@@ -193,10 +193,10 @@ struct ClassicAssetsView: View {
         }
     }
 
-    /// 时间固定用中文 (「25分钟前」), 不跟系统语言走成英文
+    /// 时间跟界面语言走 (「25分钟前」/「25 min. ago」)；不用系统地区，免得中文界面里冒出英文
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.locale = AppLanguage.locale
         formatter.dateTimeStyle = .named
         return formatter
     }()
@@ -269,7 +269,7 @@ struct ClassicAssetsView: View {
         return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: "Passive · 被动收入")
+                    KickerLabel(text: String(localized: "Passive · 被动收入"))
                     Spacer()
                     Button {
                         showingAddPassive = true
@@ -351,7 +351,7 @@ struct ClassicAssetsView: View {
                         Text(s.name)
                             .font(.system(.subheadline, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.ink)
-                        Text((s.intervalNote.map { $0 + " · " } ?? "") + "¥\(FinancialFormatting.wholeNumber(s.monthlyAmount))/月 · ¥\(s.monthlyAmount.isFinite ? String(format: "%.1f", s.monthlyAmount / 30) : "—")/天")
+                        Text((s.intervalNote.map { $0 + " · " } ?? "") + String(localized: "¥\(FinancialFormatting.wholeNumber(s.monthlyAmount))/月 · ¥\(s.monthlyAmount.isFinite ? String(format: "%.1f", s.monthlyAmount / 30) : "—")/天"))
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(Color.inkFaint)
                     }
@@ -450,13 +450,13 @@ struct ClassicAssetsView: View {
 
     private var cashPlaces: [PlaceOption] {
         cashAccounts.isEmpty
-            ? [PlaceOption(place: .cashTotal, name: "现金", amount: cashAmount)]
+            ? [PlaceOption(place: .cashTotal, name: String(localized: "现金"), amount: cashAmount)]
             : cashAccounts.map { PlaceOption(place: .cashAccount($0.id), name: $0.name, amount: $0.amount) }
     }
 
     private var assetPlaces: [PlaceOption] {
         assetItems.isEmpty
-            ? [PlaceOption(place: .assetsTotal, name: "资产", amount: lockedAssetsAmount)]
+            ? [PlaceOption(place: .assetsTotal, name: String(localized: "资产"), amount: lockedAssetsAmount)]
             : assetItems.map { PlaceOption(place: .assetItem($0.id), name: $0.name, amount: $0.amount) }
     }
 
@@ -541,7 +541,7 @@ struct ClassicAssetsView: View {
                 }
             }
 
-            VaultButton(title: "确认调拨", icon: "arrow.left.arrow.right", style: .secondary) {
+            VaultButton(title: String(localized: "确认调拨"), icon: "arrow.left.arrow.right", style: .secondary) {
                 doTransfer(from: from.place, to: to.place)
             }
             .disabled(entered <= 0)

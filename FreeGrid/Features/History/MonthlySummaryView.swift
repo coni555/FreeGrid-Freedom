@@ -39,7 +39,7 @@ struct MonthlySummaryView: View {
             } else {
                 LazyVStack(spacing: Spacing.md) {
                     if onSelect != nil {
-                        GhostButton(title: "查看全部时间的明细") { select(.allTime) }
+                        GhostButton(title: String(localized: "查看全部时间的明细")) { select(.allTime) }
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     ForEach(months) { monthCard($0) }
@@ -68,7 +68,7 @@ struct MonthlySummaryView: View {
                                 .font(.system(.headline, design: .rounded))
                                 .foregroundStyle(Color.ink)
                             Spacer()
-                            Text("净 " + FinancialFormatting.signedYuan(stat.net))
+                            Text("净 \(FinancialFormatting.signedYuan(stat.net))")
                                 .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
                                 .foregroundStyle(stat.net >= 0 ? Color.mossGreen : Color.flame)
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -76,15 +76,15 @@ struct MonthlySummaryView: View {
                                 .foregroundStyle(Color.inkFaint)
                         }
                         HStack(spacing: Spacing.xl) {
-                            amountStat("支出", stat.totalExpense, Color.ink)
-                            amountStat("收入", stat.totalIncome, Color.skyDeep)
+                            amountStat(String(localized: "支出"), stat.totalExpense, Color.ink)
+                            amountStat(String(localized: "收入"), stat.totalIncome, Color.skyDeep)
                         }
                     }
                 }
                 .buttonStyle(.plain)
 
                 if onSelect != nil {
-                    GhostButton(title: "查看这个月的明细") { select(.month(stat.month)) }
+                    GhostButton(title: String(localized: "查看这个月的明细")) { select(.month(stat.month)) }
                         .accessibilityIdentifier("open-month-\(stat.id)")
                 }
 
@@ -93,7 +93,7 @@ struct MonthlySummaryView: View {
                     let maxCat = stat.categories.first?.total ?? 1
                     VStack(spacing: Spacing.sm) {
                         ForEach(stat.categories, id: \.category) { c in
-                            categoryRow(c.category, c.total, maxCat: maxCat, monthTotal: stat.totalExpense)
+                            categoryRow(ExpenseCategory.displayName(c.category), c.total, maxCat: maxCat, monthTotal: stat.totalExpense)
                         }
                     }
                 }
@@ -123,7 +123,8 @@ struct MonthlySummaryView: View {
             Text(name)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkMuted)
-                .frame(width: 52, alignment: .leading)
+                // 英文分类名更长（Breakfast、Shopping），给宽一点
+                .frame(width: AppLanguage.isChinese ? 52 : 76, alignment: .leading)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.mist)

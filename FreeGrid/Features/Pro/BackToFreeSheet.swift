@@ -46,7 +46,7 @@ struct BackToFreeSheet: View {
                     VStack(spacing: Spacing.lg) {
                         // 都调整完就没有可保留的了
                         if plan.hasProContent { proCard }
-                        VaultButton(title: "继续使用免费版", style: .secondary) { dismiss() }
+                        VaultButton(title: String(localized: "继续使用免费版"), style: .secondary) { dismiss() }
                             .accessibilityIdentifier("back-to-free-done")
                     }
                 }
@@ -72,7 +72,7 @@ struct BackToFreeSheet: View {
             switch step {
             case .mergeAssets: Text("资产总额 ¥\(lockedAssets.formatted(.number)) 保持不变。合并后无法恢复原来的拆分，之后解锁 Pro 需要重新拆分。")
             case .mergeCash: Text("现金总额 ¥\(cash.formatted(.number)) 保持不变。合并后无法恢复原来的拆分，之后解锁 Pro 需要重新拆分。")
-            case .deleteLoans: Text("已记的还款保留在 History。删除后无法恢复。")
+            case .deleteLoans: Text("已记的还款保留在明细里。删除后无法恢复。")
             }
         }
     }
@@ -97,31 +97,31 @@ struct BackToFreeSheet: View {
     // MARK: - 三张卡
 
     private var assetsCard: some View {
-        var lines = ["把各项合并为一个资产总额，金额不变。"]
+        var lines = [String(localized: "把各项合并为一个资产总额，金额不变。")]
         if !plan.excludedAssets.isEmpty {
-            let after = plan.assetsCountAfterMerging ? "统一计入" : "整体不计入"
-            lines.append("\(Self.quoted(plan.excludedAssets))目前未计入自由天数。合并后资产\(after)，之后可整体选择是否计入。")
+            let after = plan.assetsCountAfterMerging ? String(localized: "统一计入") : String(localized: "整体不计入")
+            lines.append(String(localized: "\(Self.quoted(plan.excludedAssets))目前未计入自由天数。合并后资产\(after)，之后可整体选择是否计入。"))
         }
-        return card(title: "资产", count: "\(plan.assetItems.count) 项", names: plan.assetItems,
-                    status: "合并后可继续编辑", lines: lines, change: change(mergingAssets: true),
-                    action: Action(title: "合并资产", id: "back-to-free-merge-assets") { confirming = .mergeAssets })
+        return card(title: String(localized: "资产"), count: String(localized: "\(plan.assetItems.count) 项"), names: plan.assetItems,
+                    status: String(localized: "合并后可继续编辑"), lines: lines, change: change(mergingAssets: true),
+                    action: Action(title: String(localized: "合并资产"), id: "back-to-free-merge-assets") { confirming = .mergeAssets })
     }
 
     private var cashCard: some View {
-        var lines = ["把各账户合并为一个现金总额，余额不变。收支直接计入现金。"]
+        var lines = [String(localized: "把各账户合并为一个现金总额，余额不变。收支直接计入现金。")]
         if !plan.excludedCash.isEmpty {
-            lines.append("\(Self.quoted(plan.excludedCash))目前未计入自由天数，合并后现金全部计入。")
+            lines.append(String(localized: "\(Self.quoted(plan.excludedCash))目前未计入自由天数，合并后现金全部计入。"))
         }
-        return card(title: "现金", count: "\(plan.cashAccounts.count) 个账户", names: plan.cashAccounts,
-                    status: "合并后可继续编辑", lines: lines, change: change(mergingAssets: false),
-                    action: Action(title: "合并账户", id: "back-to-free-merge-cash") { confirming = .mergeCash })
+        return card(title: String(localized: "现金"), count: String(localized: "\(plan.cashAccounts.count) 个账户"), names: plan.cashAccounts,
+                    status: String(localized: "合并后可继续编辑"), lines: lines, change: change(mergingAssets: false),
+                    action: Action(title: String(localized: "合并账户"), id: "back-to-free-merge-cash") { confirming = .mergeCash })
     }
 
     private var loansCard: some View {
-        card(title: "贷款", count: "\(plan.loans.count) 笔", names: plan.loans, status: "已停用",
-             lines: ["不再自动记账，也不计入自由天数。免费版不支持贷款，建议删除；已记的还款保留在 History。"],
+        card(title: String(localized: "贷款"), count: String(localized: "\(plan.loans.count) 笔"), names: plan.loans, status: String(localized: "已停用"),
+             lines: [String(localized: "不再自动记账，也不计入自由天数。免费版不支持贷款，建议删除；已记的还款保留在明细里。")],
              change: nil,
-             action: Action(title: "删除贷款", id: "back-to-free-delete-loans", color: .flame) { confirming = .deleteLoans })
+             action: Action(title: String(localized: "删除贷款"), id: "back-to-free-delete-loans", color: .flame) { confirming = .deleteLoans })
     }
 
     private struct Action {
@@ -284,9 +284,9 @@ struct BackToFreeSheet: View {
             Text("其他功能")
                 .font(.system(.footnote, design: .rounded).weight(.medium))
                 .foregroundStyle(Color.inkMuted)
-            ForEach([("支出分类", "体验期间设置的分类继续可用，修改需 Pro。"),
-                     ("资产视图", "恢复经典视图。"),
-                     ("自由卡", "可以查看，分享需 Pro。")], id: \.0) { name, text in
+            ForEach([(String(localized: "支出分类"), String(localized: "体验期间设置的分类继续可用，修改需 Pro。")),
+                     (String(localized: "资产视图"), String(localized: "恢复经典视图。")),
+                     (String(localized: "自由卡"), String(localized: "可以查看，分享需 Pro。"))], id: \.0) { name, text in
                 (Text(name + "：").foregroundStyle(Color.inkMuted) + Text(text).foregroundStyle(Color.inkFaint))
                     .font(.system(.footnote, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
@@ -301,9 +301,9 @@ struct BackToFreeSheet: View {
 
     private var confirmTitle: String {
         switch confirming {
-        case .mergeAssets: return "合并 \(plan.assetItems.count) 项资产？"
-        case .mergeCash: return "合并 \(plan.cashAccounts.count) 个现金账户？"
-        case .deleteLoans: return "删除 \(plan.loans.count) 笔贷款？"
+        case .mergeAssets: return String(localized: "合并 \(plan.assetItems.count) 项资产？")
+        case .mergeCash: return String(localized: "合并 \(plan.cashAccounts.count) 个现金账户？")
+        case .deleteLoans: return String(localized: "删除 \(plan.loans.count) 笔贷款？")
         case nil: return ""
         }
     }
@@ -319,7 +319,7 @@ struct BackToFreeSheet: View {
         let beforeText = FreedomMath.freedomDescription(before)
         let afterText = FreedomMath.freedomDescription(after)
         guard beforeText != afterText else { return nil }
-        return "自由天数 \(beforeText) → \(afterText)"
+        return String(localized: "自由天数 \(beforeText) → \(afterText)")
     }
 
     private static func quoted(_ names: [String]) -> String {

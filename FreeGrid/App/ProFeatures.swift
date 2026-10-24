@@ -31,30 +31,30 @@ enum ProFeatures {
 
     /// 只列已经做好的；新功能做完再加到这里。一屏放得下
     static let comparison: [Row] = [
-        Row(title: "记账 · 固定支出 · 备份", free: .yes, pro: .yes),
-        Row(title: "自由天数 · 格子 · 模拟", free: .yes, pro: .yes),
-        Row(title: "支出分类", free: .text("默认九类"), pro: .text("随你定义"), topics: [.categories]),
-        Row(title: "资产与现金", free: .text("一个总数"), pro: .text("拆成子账户"), topics: [.assets, .cash]),
+        Row(title: String(localized: "记账 · 固定支出 · 备份"), free: .yes, pro: .yes),
+        Row(title: String(localized: "自由天数 · 格子 · 模拟"), free: .yes, pro: .yes),
+        Row(title: String(localized: "支出分类"), free: .text(String(localized: "默认九类")), pro: .text(String(localized: "随你定义")), topics: [.categories]),
+        Row(title: String(localized: "资产与现金"), free: .text(String(localized: "一个总数")), pro: .text(String(localized: "拆成子账户")), topics: [.assets, .cash]),
         // 免费版只有资产总开关（整体算或不算），现金总是算；Pro 每个资产项、每个现金账户自己决定
-        Row(title: "计入自由天数", free: .text("资产整体选"), pro: .text("逐个选"), topics: [.freedomSwitch],
-            info: Info(title: "按自己的方式算自由", body: [
-                "不是每一笔钱都打算现在动用。",
-                "资产和现金拆成子账户后，每一个都能单独选计不计入自由天数。",
-                "日常花的钱照常计入；房子、车子、留给以后的储蓄可以不计入。",
-                "不计入的仍在净值里，只是不进自由天数。新加的子账户默认计入。免费版只能整体选资产计不计入，现金总是计入。",
+        Row(title: String(localized: "计入自由天数"), free: .text(String(localized: "资产整体选")), pro: .text(String(localized: "逐个选")), topics: [.freedomSwitch],
+            info: Info(title: String(localized: "按自己的方式算自由"), body: [
+                String(localized: "不是每一笔钱都打算现在动用。"),
+                String(localized: "资产和现金拆成子账户后，每一个都能单独选计不计入自由天数。"),
+                String(localized: "日常花的钱照常计入；房子、车子、留给以后的储蓄可以不计入。"),
+                String(localized: "不计入的仍在净值里，只是不进自由天数。新加的子账户默认计入。免费版只能整体选资产计不计入，现金总是计入。"),
             ])),
-        Row(title: "资产视图", free: .text("经典"), pro: .text("钱与时间"), topics: [.assetsView]),
+        Row(title: String(localized: "资产视图"), free: .text(String(localized: "经典")), pro: .text(String(localized: "钱与时间")), topics: [.assetsView]),
         // 给背着贷款的人：还款照常进行时，扣掉每期月供还剩多少自由天数（不是还清倒计时）
-        Row(title: "贷款与分期", free: .no, pro: .text("按还款计划算"), topics: [.loans],
-            info: Info(title: "有负债，也能看见自由", body: [
-                "房贷、车贷，或是其他每月还款，都可以纳入自由天数测算。",
-                "即使肩负还款责任，也能更清楚地了解自己的财务状况，以及当下真正拥有多少自由。",
+        Row(title: String(localized: "贷款与分期"), free: .no, pro: .text(String(localized: "按还款计划算")), topics: [.loans],
+            info: Info(title: String(localized: "有负债，也能看见自由"), body: [
+                String(localized: "房贷、车贷，或是其他每月还款，都可以纳入自由天数测算。"),
+                String(localized: "即使肩负还款责任，也能更清楚地了解自己的财务状况，以及当下真正拥有多少自由。"),
             ])),
-        Row(title: "自由卡", free: .text("查看"), pro: .text("导出分享"), topics: [.freedomCard]),
+        Row(title: String(localized: "自由卡"), free: .text(String(localized: "查看")), pro: .text(String(localized: "导出分享")), topics: [.freedomCard]),
     ]
 
     /// 设置页 Pro 卡头下面那一行，用户 2026-10-17 定的原话。不写价格（价格只在购买页出现）
-    static let headline = "管理更细致，自由更清晰"
+    static let headline = String(localized: "管理更细致，自由更清晰")
 
     static var canCustomizeExpenseCategories: Bool { ProStore.shared.isUnlocked }
     /// 增、删、改资产项。已经拆好的项不管有没有 Pro 都看得到。

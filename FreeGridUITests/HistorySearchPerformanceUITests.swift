@@ -15,13 +15,13 @@ final class HistorySearchPerformanceUITests: XCTestCase {
         }
         for count in [100, 1000, 5000, 10000] {
             let app = XCUIApplication()
-            app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+            app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                    "-hideProPreviewCard", "-proPreview", "YES", "-UseInMemoryStore", "-SeedBackupJSON",
                                    folder + "/ledgers/\(count).json", "-HistorySearchMetricsFile",
                                    folder + "/\(phase)/native-\(count).json"]
             app.launch()
             XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 60))
-            app.tabBars.buttons["History"].tap()
+            app.tabBars.buttons["明细"].tap()
             XCTAssertTrue(app.buttons["搜索"].waitForExistence(timeout: 10))
             for opening in 0..<(count <= 1000 ? 2 : 1) {
                 let started = Date()

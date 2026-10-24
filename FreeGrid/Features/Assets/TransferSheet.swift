@@ -29,13 +29,13 @@ struct TransferSheet: View {
 
     private var cashOptions: [Option] {
         cashAccounts.isEmpty
-            ? [Option(place: .cashTotal, name: "现金", amount: assetsArr.first?.cash ?? 0)]
+            ? [Option(place: .cashTotal, name: String(localized: "现金"), amount: assetsArr.first?.cash ?? 0)]
             : cashAccounts.map { Option(place: .cashAccount($0.id), name: $0.name, amount: $0.amount) }
     }
 
     private var assetOptions: [Option] {
         assetItems.isEmpty
-            ? [Option(place: .assetsTotal, name: "资产", amount: assetsArr.first?.lockedAssets ?? 0)]
+            ? [Option(place: .assetsTotal, name: String(localized: "资产"), amount: assetsArr.first?.lockedAssets ?? 0)]
             : assetItems.map { Option(place: .assetItem($0.id), name: $0.name, amount: $0.amount) }
     }
 
@@ -117,7 +117,7 @@ struct TransferSheet: View {
                                                                assetItems: assetItems, cashAccounts: cashAccounts)
         return VStack(alignment: .leading, spacing: Spacing.xl) {
             HStack(spacing: Spacing.sm) {
-                placeCard(label: "从", option: from, excluding: nil, identifier: "transfer-from-menu") { self.from = $0 }
+                placeCard(label: String(localized: "从"), option: from, excluding: nil, identifier: "transfer-from-menu") { self.from = $0 }
                 Button {
                     withAnimation(.snappy(duration: 0.28)) { (self.from, self.to) = (to.place, from.place) }
                 } label: {
@@ -131,7 +131,7 @@ struct TransferSheet: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("对调方向")
                 .accessibilityIdentifier("transfer-swap")
-                placeCard(label: "到", option: to, excluding: from.place, identifier: "transfer-to-menu") { self.to = $0 }
+                placeCard(label: String(localized: "到"), option: to, excluding: from.place, identifier: "transfer-to-menu") { self.to = $0 }
             }
 
             VStack(alignment: .leading, spacing: Spacing.sm) {

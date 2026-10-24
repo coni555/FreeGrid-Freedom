@@ -16,7 +16,7 @@ enum LedgerTransaction: Identifiable {
     /// 只把搜索需要的事实复制出去，不把 SwiftData 模型传给后台。
     var searchRecord: HistorySearch.Record {
         HistorySearch.Record(key: .init(id: id, isIncome: kind == .income), date: date,
-                             amount: amount, title: title, note: note,
+                             amount: amount, title: displayTitle, note: displayNote,
                              isLoanPayment: isLoanPayment, isExcludedFromBurn: isExcludedFromBurn)
     }
 
@@ -46,6 +46,16 @@ enum LedgerTransaction: Identifiable {
         case .expense(let expense): return expense.note
         case .income(let income): return income.note
         }
+    }
+
+    /// 界面上显示的标题：默认分类按当前语言，自建分类、贷款名和收入来源原样
+    var displayTitle: String {
+        kind == .expense ? ExpenseCategory.displayName(title) : title
+    }
+
+    /// 自动扣款的那句备注是 App 写进账本的，按当前语言显示；用户自己写的原样
+    var displayNote: String {
+        isLoanPayment && note == LoanStore.autoPaymentNote ? String(localized: "自动扣款") : note
     }
 
     /// Pro 现金账户：这笔记在哪个账户
@@ -94,12 +104,8 @@ enum LedgerTransaction: Identifiable {
     var undoMessage: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        let noteText = note.isEmpty ? "" : " · \(note)"
-        return """
-        \(formatter.string(from: date)) · \(title)\(noteText)
-        \(FinancialFormatting.signedYuan(cashChange))
-
-        撤销后现金变化：\(FinancialFormatting.signedYuan(-cashChange))
-        """
+        let noteText = displayNote.isEmpty ? "" : " · \(displayNote)"
+        return "\(formatter.string(from: date)) · \(displayTitle)\(noteText)\n\(FinancialFormatting.signedYuan(cashChange))\n\n"
+            + String(localized: "撤销后现金变化：\(FinancialFormatting.signedYuan(-cashChange))")
     }
 }

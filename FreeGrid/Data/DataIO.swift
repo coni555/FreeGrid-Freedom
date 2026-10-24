@@ -17,11 +17,11 @@ enum DataIO {
         var errorDescription: String? {
             switch self {
             case .stalePreview:
-                return "账本已在预览后发生变化。请取消并重新选择备份，核对新的预览后再导入。"
+                return String(localized: "账本已在预览后发生变化。请取消并重新选择备份，核对新的预览后再导入。")
             case .invalidCategoryMapping(let category):
-                return "导入分类映射无效：\(category)"
+                return String(localized: "导入分类映射无效：\(category)")
             case .invalidStoredValue(let field):
-                return "本地数据中的\(field)无法安全导出"
+                return String(localized: "本地数据中的\(field)无法安全导出")
             }
         }
     }
@@ -308,11 +308,11 @@ enum DataIO {
         }
         var rows: [Row] = []
         rows += expenses.map {
-            Row(date: day.string(from: $0.date), kind: "支出", label: $0.category,
+            Row(date: day.string(from: $0.date), kind: String(localized: "支出"), label: ExpenseCategory.displayName($0.category),
                 amount: $0.amount, note: $0.note, allowsSignedAmount: true)
         }
         rows += incomes.map {
-            Row(date: day.string(from: $0.date), kind: "收入", label: $0.source,
+            Row(date: day.string(from: $0.date), kind: String(localized: "收入"), label: $0.source,
                 amount: $0.amount, note: $0.note, allowsSignedAmount: false)
         }
         rows.sort { $0.date < $1.date }
@@ -350,11 +350,11 @@ enum DataIO {
         }
 
         var csv = "\u{FEFF}"
-        csv += "日期,类型,类别/来源,金额,备注\n"
+        csv += String(localized: "日期,类型,类别/来源,金额,备注\n")
         for row in rows {
             let formattedAmount = try amount(
                 row.amount,
-                field: row.kind + "金额",
+                field: String(localized: "\(row.kind)金额"),
                 allowsSigned: row.allowsSignedAmount
             )
             csv += "\(row.date),\(row.kind),\(escape(row.label)),"
@@ -886,7 +886,7 @@ enum DataIO {
     }
 
     private static func annotatedExpenseNote(rawCategory: String, note: String) -> String {
-        note.isEmpty ? "原分类·\(rawCategory)" : "\(note) · 原分类·\(rawCategory)"
+        note.isEmpty ? String(localized: "原分类·\(rawCategory)") : String(localized: "\(note) · 原分类·\(rawCategory)")
     }
 
     // 文本可以包含任意分隔符，字段边界必须由类型保留。

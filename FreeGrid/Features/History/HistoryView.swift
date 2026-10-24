@@ -62,7 +62,7 @@ struct HistoryView: View {
             .background(Color.paper)
             .paperNavigationContent()
             .background { HistorySearchDataSource(search: search).equatable() }
-            .navigationTitle("History")
+            .navigationTitle("明细")
             .historySearchKeyboardMetrics()
             .navigationDestination(isPresented: $showingMonths) {
                 MonthlySummaryView { scope = $0 }
@@ -177,7 +177,7 @@ struct HistoryView: View {
                 }
 
                 if days.isEmpty {
-                    listMessage("这里还没有记录")
+                    listMessage(String(localized: "这里还没有记录"))
                         .onAppear { guide.forget(.row) }
                 }
             }
@@ -240,9 +240,12 @@ struct HistoryView: View {
                 } else if let result = search.result {
                     if result.summary.count == 0 {
                         listMessage(
-                            ExpenseCategory.canonical.contains { $0.contains(result.query) }
-                                ? "没有匹配的记录\n想按分类看，用右上角的筛选"
-                                : "没有匹配的记录"
+                            ExpenseCategory.canonical.contains {
+                                $0.contains(result.query)
+                                    || ExpenseCategory.displayName($0).localizedCaseInsensitiveContains(result.query)
+                            }
+                                ? String(localized: "没有匹配的记录\n想按分类看，用右上角的筛选")
+                                : String(localized: "没有匹配的记录")
                         )
                         .multilineTextAlignment(.center)
                     } else {
@@ -320,7 +323,7 @@ struct HistoryView: View {
     @ViewBuilder
     private func searchSuggestions(_ notes: [String]) -> some View {
         if notes.isEmpty {
-            listMessage("输入备注或金额")
+            listMessage(String(localized: "输入备注或金额"))
         } else {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text("输入备注或金额，或者点一个常写的备注")
@@ -404,10 +407,10 @@ struct HistoryView: View {
                     .guideTarget(.month, in: guide)
                     Spacer()
                     if case .month(let month) = scope {
-                        monthStepButton("chevron.left", label: "上个月", enabled: month > range.lowerBound) {
+                        monthStepButton("chevron.left", label: String(localized: "上个月"), enabled: month > range.lowerBound) {
                             scope = .month(month.shifted(by: -1))
                         }
-                        monthStepButton("chevron.right", label: "下个月", enabled: month < range.upperBound) {
+                        monthStepButton("chevron.right", label: String(localized: "下个月"), enabled: month < range.upperBound) {
                             scope = .month(month.shifted(by: 1))
                         }
                     } else {
@@ -429,7 +432,7 @@ struct HistoryView: View {
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
-                    KickerLabel(text: "支出")
+                    KickerLabel(text: String(localized: "支出"))
                     if let days = equivalentDays(summary) {
                         // 首页的日均是尺子: 这个月花掉的钱相当于平时多少天的开销
                         Text("· " + HistoryLedger.equivalentDaysLabel(days))
@@ -441,11 +444,11 @@ struct HistoryView: View {
 
                 HStack(spacing: Spacing.lg) {
                     if summary.income != 0 {
-                        scopeStat("收入", FinancialFormatting.yuan(summary.income))
-                        scopeStat("净", FinancialFormatting.signedYuan(summary.net))
+                        scopeStat(String(localized: "收入"), FinancialFormatting.yuan(summary.income))
+                        scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
                     } else if let average = dailyAverage(summary) {
                         // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
-                        scopeStat("日均", FinancialFormatting.yuan(average))
+                        scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
                     }
                     Spacer()
                     Text("\(summary.count) 笔")
@@ -474,7 +477,7 @@ struct HistoryView: View {
     private var scopeLabel: String {
         switch scope {
         case .month(let month): return month.label
-        case .allTime: return "全部时间"
+        case .allTime: return String(localized: "全部时间")
         }
     }
 
@@ -510,8 +513,8 @@ struct HistoryView: View {
     private func filterName(_ filter: Selection) -> String? {
         switch filter {
         case .all: return nil
-        case .income: return "收入"
-        case .category(let name): return name
+        case .income: return String(localized: "收入")
+        case .category(let name): return ExpenseCategory.displayName(name)
         }
     }
 
@@ -521,9 +524,9 @@ struct HistoryView: View {
         let groups = result.months
         // 跨了几个月时写出起止，知道这个合计是多长时间里的
         let span = groups.count > 1
-            ? " · \(groups[groups.count - 1].month.label) 至 \(groups[0].month.label)" : ""
+            ? String(localized: " · \(groups[groups.count - 1].month.label) 至 \(groups[0].month.label)") : ""
         return HStack(spacing: Spacing.md) {
-            Text("找到 \(summary.count) 笔" + span)
+            Text(String(localized: "找到 \(summary.count) 笔") + span)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .lineLimit(1)
@@ -552,17 +555,17 @@ struct HistoryView: View {
     ) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip(label: "全部", amount: nil, selected: active == .all) {
+                chip(label: String(localized: "全部"), amount: nil, selected: active == .all) {
                     selection = .all
                 }
                 if income != 0 {
-                    chip(label: "收入", amount: income, selected: active == .income) {
+                    chip(label: String(localized: "收入"), amount: income, selected: active == .income) {
                         selection = (active == .income) ? .all : .income
                     }
                 }
                 ForEach(categories, id: \.category) { item in
                     let this = Selection.category(item.category)
-                    chip(label: item.category, amount: item.total, selected: active == this,
+                    chip(label: ExpenseCategory.displayName(item.category), amount: item.total, selected: active == this,
                          icon: chipIcon(for: item.category)) {
                         // 二次点击同一 chip = 取消选中
                         selection = (active == this) ? .all : this

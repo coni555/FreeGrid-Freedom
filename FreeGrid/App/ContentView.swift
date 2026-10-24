@@ -66,26 +66,26 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             StableTab { DashboardView() }.equatable()
                 .tabItem {
-                    Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
+                    Label("首页", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(AppTab.dashboard)
 
             StableTab { AssetsView() }.equatable()
                 .tabItem {
-                    Label("Assets", systemImage: "banknote")
+                    Label("钱包", systemImage: "banknote")
                 }
                 .tag(AppTab.assets)
 
             StableTab { HistoryView() }.equatable()
                 .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
+                    Label("明细", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(AppTab.history)
 
             // 不传闭包：闭包每次都算「变了」，外壳就拦不住重算
             StableTab { SettingsView() }.equatable()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label("设置", systemImage: "gearshape")
                 }
                 .tag(AppTab.settings)
         }

@@ -89,7 +89,7 @@ struct ExpenseCategoriesView: View {
                 Text("自定义支出分类是 Pro 功能：添加自己的分类、配图标、改名、拖动排序。现有的九个分类照常可用。")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
-                VaultButton(title: "了解 FreeGrid Pro", icon: "sparkles") { showingPro = true }
+                VaultButton(title: String(localized: "了解 FreeGrid Pro"), icon: "sparkles") { showingPro = true }
                     .padding(.top, Spacing.xs)
                     .accessibilityIdentifier("open-pro-from-categories")
             }
@@ -103,7 +103,7 @@ struct ExpenseCategoriesView: View {
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
                 .padding(.horizontal, Spacing.sm)
-            VaultButton(title: "解锁 Pro", icon: "sparkles") { showingPro = true }
+            VaultButton(title: String(localized: "解锁 Pro"), icon: "sparkles") { showingPro = true }
                 .accessibilityIdentifier("open-pro-from-categories")
         }
     }
@@ -115,7 +115,7 @@ struct ExpenseCategoriesView: View {
         let counts = recordCounts
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
-                KickerLabel(text: "你的支出分类")
+                KickerLabel(text: String(localized: "你的支出分类"))
                 Spacer()
                 Text("\(items.count) 个")
                     .font(.system(.caption, design: .monospaced))
@@ -159,7 +159,7 @@ struct ExpenseCategoriesView: View {
                     .font(.system(size: 16, weight: .light))
                     .foregroundStyle(Color.inkMuted)
                     .frame(width: 24)
-                Text(item.name)
+                Text(ExpenseCategory.displayName(item.name))
                     .font(.system(.body, design: .rounded))
                     .foregroundStyle(Color.ink)
                 Spacer(minLength: Spacing.sm)

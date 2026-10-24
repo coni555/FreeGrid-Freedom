@@ -11,10 +11,10 @@ extension FreedomMath {
         var description: String {
             switch state {
             case .finite(let days):
-                return "\(FinancialFormatting.wholeNumber(days.rounded(.down))) 天"
-            case .covered: return "已覆盖"
-            case .insufficientData: return "数据不足"
-            case .invalidData: return "无法估算"
+                return GridUnit.day.amount(FinancialFormatting.clampedInteger(days.rounded(.down), range: 0...Int.max))
+            case .covered: return String(localized: "已覆盖")
+            case .insufficientData: return String(localized: "数据不足")
+            case .invalidData: return String(localized: "无法估算")
             }
         }
     }

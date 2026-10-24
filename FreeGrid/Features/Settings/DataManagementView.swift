@@ -69,7 +69,7 @@ struct DataManagementView: View {
         ), presenting: largeBackupRequest) { request in
             Button("取消", role: .cancel) {
                 largeBackupRequest = nil
-                importStatus = "已取消导入"
+                importStatus = String(localized: "已取消导入")
             }
             Button("继续检查") {
                 largeBackupRequest = nil
@@ -83,10 +83,10 @@ struct DataManagementView: View {
     private var exportCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Export · 导出")
+                KickerLabel(text: String(localized: "Export · 导出"))
                 HStack(spacing: Spacing.sm) {
-                    compactDataButton("导出 CSV", icon: "tablecells") { exportNow(.csv) }
-                    compactDataButton("导出 JSON", icon: "curlybraces") { exportNow(.json) }
+                    compactDataButton(String(localized: "导出 CSV"), icon: "tablecells") { exportNow(.csv) }
+                    compactDataButton(String(localized: "导出 JSON"), icon: "curlybraces") { exportNow(.json) }
                 }
                 Text("CSV 用 Excel / Numbers 打开看；JSON 用来备份和恢复记账数据，外观这类本机设置要重新选")
                     .font(.system(.caption2, design: .rounded))
@@ -98,8 +98,8 @@ struct DataManagementView: View {
     private var importCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Import · 导入")
-                compactDataButton("从 JSON 导入", icon: "square.and.arrow.down") {
+                KickerLabel(text: String(localized: "Import · 导入"))
+                compactDataButton(String(localized: "从 JSON 导入"), icon: "square.and.arrow.down") {
                     showingFileImporter = true
                 }
                 .disabled(isReadingImport)
@@ -122,7 +122,7 @@ struct DataManagementView: View {
     private var purgeCard: some View {
         VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Reset · 清空")
+                KickerLabel(text: String(localized: "Reset · 清空"))
                 Button {
                     showingPurgeAlert = true
                 } label: {
@@ -175,20 +175,20 @@ struct DataManagementView: View {
             switch format {
             case .csv:
                 data = try DataIO.exportCSV(context: modelContext)
-                name = "FreeGrid-记账-\(timestamp)-\(nonce).csv"
+                name = String(localized: "FreeGrid-记账-\(timestamp)-\(nonce).csv")
             case .json:
                 // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样
                 data = try DataIO.exportJSON(
                     context: modelContext,
                     categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions))
-                name = "FreeGrid-备份-\(timestamp)-\(nonce).json"
+                name = String(localized: "FreeGrid-备份-\(timestamp)-\(nonce).json")
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
             try data.write(to: url, options: .atomic)
             importStatus = nil
             shareItem = ExportShareItem(url: url)
         } catch {
-            importStatus = "导出失败：\(error.localizedDescription)"
+            importStatus = String(localized: "导出失败：\(error.localizedDescription)")
         }
     }
 
@@ -197,23 +197,23 @@ struct DataManagementView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else {
-                importStatus = "未选择文件"
+                importStatus = String(localized: "未选择文件")
                 return
             }
             readImport(url)
         case .failure(let error):
-            importStatus = "这个文件读不出来：\(error.localizedDescription)"
+            importStatus = String(localized: "这个文件读不出来：\(error.localizedDescription)")
         }
     }
 
     private func readImport(_ url: URL, policy: ImportPolicy = .default, allowLargeRetry: Bool = true) {
         guard !isReadingImport else { return }
         isReadingImport = true
-        importStatus = "正在检查备份…"
+        importStatus = String(localized: "正在检查备份…")
         Task {
             defer { isReadingImport = false }
             guard url.startAccessingSecurityScopedResource() else {
-                importStatus = "无法访问该文件"
+                importStatus = String(localized: "无法访问该文件")
                 return
             }
             defer { url.stopAccessingSecurityScopedResource() }
@@ -231,12 +231,12 @@ struct DataManagementView: View {
             } catch let error as ImportValidationError where error.isResourceLimit && allowLargeRetry {
                 if let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
                     largeBackupRequest = LargeBackupRequest(url: url, bytes: bytes, reason: error.localizedDescription)
-                    importStatus = "备份超过常规导入限额，等待确认恢复。"
+                    importStatus = String(localized: "备份超过常规导入限额，等待确认恢复。")
                 } else {
-                    importStatus = "无法确认备份大小，请重新选择文件。"
+                    importStatus = String(localized: "无法确认备份大小，请重新选择文件。")
                 }
             } catch {
-                importStatus = "导入不了：\(error.localizedDescription)"
+                importStatus = String(localized: "导入不了：\(error.localizedDescription)")
             }
         }
     }
@@ -259,24 +259,24 @@ struct DataManagementView: View {
                                                           restoredExpenses: result.expensesAdded) {
             introAudience = audience.rawValue
         }
-        var lines: [String] = ["导入完成"]
-        lines.append("支出 +\(result.expensesAdded)（跳过 \(preview.expensesSkipped) 笔重复）")
-        lines.append("收入 +\(result.incomesAdded)（跳过 \(preview.incomesSkipped) 笔重复）")
+        var lines: [String] = [String(localized: "导入完成")]
+        lines.append(String(localized: "支出 +\(result.expensesAdded)（跳过 \(preview.expensesSkipped) 笔重复）"))
+        lines.append(String(localized: "收入 +\(result.incomesAdded)（跳过 \(preview.incomesSkipped) 笔重复）"))
         let manuallySkipped = skippingSuspectedExpenses.intersection(preview.suspectedExpenseIndices).count
-        if manuallySkipped > 0 { lines.append("可能重复的支出：你跳过了 \(manuallySkipped) 笔") }
+        if manuallySkipped > 0 { lines.append(String(localized: "可能重复的支出：你跳过了 \(manuallySkipped) 笔")) }
         if result.devicesAdded > 0 {
-            lines.append("设备 +\(result.devicesAdded)")
+            lines.append(String(localized: "设备 +\(result.devicesAdded)"))
         }
         if result.passiveSourcesAdded > 0 {
-            lines.append("被动收入 +\(result.passiveSourcesAdded)")
+            lines.append(String(localized: "被动收入 +\(result.passiveSourcesAdded)"))
         }
         switch strategy {
         case .replace:
-            lines.append("净值已替换为 ¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
+            lines.append(String(localized: "净值已替换为 ¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))"))
         case .addToCash:
-            lines.append("现金 +¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))")
+            lines.append(String(localized: "现金 +¥\(FinancialFormatting.wholeNumber(preview.jsonAssetsTotal))"))
         case .skipAssets:
-            lines.append("净值未变动")
+            lines.append(String(localized: "净值未变动"))
         }
         importStatus = lines.joined(separator: "\n")
         pendingImport = nil
@@ -285,9 +285,9 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            importStatus = "已清空记账数据"
+            importStatus = String(localized: "已清空记账数据")
         } catch {
-            importStatus = "清空失败：\(error.localizedDescription)"
+            importStatus = String(localized: "清空失败：\(error.localizedDescription)")
         }
     }
 }

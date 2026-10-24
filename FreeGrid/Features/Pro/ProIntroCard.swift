@@ -29,8 +29,8 @@ private struct ProIntroCard: View {
 
             // 免费更新在前，写明所有人都有（AGENTS「宣发」）
             VStack(alignment: .leading, spacing: 12) {
-                update("固定支出", "房租、订阅按到期日自动扣，自由天数不再跳水")
-                update("日均更稳", "记账不满 90 天时，一笔大额不再让日均暴涨")
+                update(String(localized: "固定支出"), String(localized: "房租、订阅按到期日自动扣，自由天数不再跳水"))
+                update(String(localized: "日均更稳"), String(localized: "记账不满 90 天时，一笔大额不再让日均暴涨"))
                 Text("以上所有人都有，一直免费。")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkFaint)

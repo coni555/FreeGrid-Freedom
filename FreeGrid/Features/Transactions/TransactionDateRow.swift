@@ -11,12 +11,12 @@ struct TransactionDateRow: View {
         let calendar = Calendar.current
         let yesterday = calendar.date(byAdding: .day, value: -1, to: .now) ?? .now
         HStack(spacing: Spacing.sm) {
-            quickChip("今天", selected: calendar.isDateInToday(date)) { date = .now }
-            quickChip("昨天", selected: calendar.isDate(date, inSameDayAs: yesterday)) { date = yesterday }
+            quickChip(String(localized: "今天"), selected: calendar.isDateInToday(date)) { date = .now }
+            quickChip(String(localized: "昨天"), selected: calendar.isDate(date, inSameDayAs: yesterday)) { date = yesterday }
             Spacer()
             DatePicker("日期", selection: $date, in: ...latestDate, displayedComponents: .date)
                 .labelsHidden()
-                .environment(\.locale, Locale(identifier: "zh_CN"))
+                .environment(\.locale, AppLanguage.locale)
         }
     }
 

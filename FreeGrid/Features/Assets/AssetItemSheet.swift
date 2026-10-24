@@ -30,7 +30,7 @@ struct AssetItemSheet: View {
     @FocusState private var focus: Field?
 
     private var isEditing: Bool { existing != nil }
-    private var title: String { isEditing ? "编辑资产项" : "添加资产项" }
+    private var title: String { isEditing ? String(localized: "编辑资产项") : String(localized: "添加资产项") }
     private var pickedSource: SourceOption? { sources.first { $0.source == source } }
     private var enteredAmount: Double? {
         Double(amount).flatMap { FinancialFormatting.validAmount($0, allowsZero: true) ? $0 : nil }
@@ -46,7 +46,7 @@ struct AssetItemSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "名称")
+                        KickerLabel(text: String(localized: "名称"))
                         UnderlinedField(isFocused: focus == .name) {
                             TextField("房、车、定期、基金…", text: $name)
                                 .font(.system(.title3, design: .rounded))
@@ -59,7 +59,7 @@ struct AssetItemSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "金额")
+                        KickerLabel(text: String(localized: "金额"))
                         UnderlinedField(isFocused: focus == .amount, accent: .assetGold) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("¥")
@@ -76,7 +76,7 @@ struct AssetItemSheet: View {
                         }
                         if !isEditing, !sources.isEmpty {
                             MoneySourcePicker(options: sources, selection: $source, amount: enteredAmount,
-                                              total: total, bucket: "资产", splitVerb: "拆出",
+                                              total: total, bucket: String(localized: "资产"),
                                               identifierPrefix: "asset-item")
                                 .padding(.top, Spacing.md)
                         }

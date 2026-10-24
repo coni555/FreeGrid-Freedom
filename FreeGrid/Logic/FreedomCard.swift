@@ -37,22 +37,22 @@ enum FreedomCardTier: Int, CaseIterable, Comparable {
 
     var name: String {
         switch self {
-        case .paper: return "纸卡"
-        case .silver: return "银卡"
-        case .champagne: return "香槟金卡"
-        case .obsidian: return "黑卡"
-        case .infinite: return "∞ 卡"
+        case .paper: return String(localized: "纸卡")
+        case .silver: return String(localized: "银卡")
+        case .champagne: return String(localized: "香槟金卡")
+        case .obsidian: return String(localized: "黑卡")
+        case .infinite: return String(localized: "∞ 卡")
         }
     }
 
     /// 等级表里的一句：多少天起
     var threshold: String {
         switch self {
-        case .paper: return "起步"
-        case .silver: return "30 天"
-        case .champagne: return "180 天"
-        case .obsidian: return "1 年"
-        case .infinite: return "被动收入覆盖开销"
+        case .paper: return String(localized: "起步")
+        case .silver: return String(localized: "30 天")
+        case .champagne: return String(localized: "180 天")
+        case .obsidian: return String(localized: "1 年")
+        case .infinite: return String(localized: "被动收入覆盖开销")
         }
     }
 }
@@ -94,9 +94,9 @@ struct FreedomCardData: Equatable {
     /// 海报上的一句话
     var posterLine: String {
         switch freedom {
-        case .finite: return "我的自由\n还能撑 \(daysText) 天"
-        case .covered: return "我的被动收入\n已经覆盖了全部开销"
-        case .insufficientData, .invalidData: return "我在用 FreeGrid\n数我的自由"
+        case .finite: return String(localized: "我的自由\n还能撑 \(daysText) 天")
+        case .covered: return String(localized: "我的被动收入\n已经覆盖了全部开销")
+        case .insufficientData, .invalidData: return String(localized: "我在用 FreeGrid\n数我的自由")
         }
     }
 
@@ -119,6 +119,6 @@ enum FreedomCardPrompt {
     /// 纸卡是起点，不值得提示；从银卡开始
     static func text(current: FreedomCardTier, highestSeen: Int, hasFreedomNumber: Bool) -> String? {
         guard hasFreedomNumber, current > .paper, current.rawValue > highestSeen else { return nil }
-        return highestSeen < 0 ? "你有一张\(current.name)了" : "自由卡升级成了\(current.name)"
+        return highestSeen < 0 ? String(localized: "你有一张\(current.name)了") : String(localized: "自由卡升级成了\(current.name)")
     }
 }

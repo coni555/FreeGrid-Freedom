@@ -20,7 +20,7 @@ struct PassiveSourceSheet: View {
     @State private var confirmingDelete = false
 
     private var isEditing: Bool { existing != nil }
-    private var title: String { isEditing ? "编辑被动收入" : "添加被动收入" }
+    private var title: String { isEditing ? String(localized: "编辑被动收入") : String(localized: "添加被动收入") }
     /// 填的是每次到账多少，折成每月再存
     private var enteredMonthly: Double? {
         guard let amount = Double(monthly), FinancialFormatting.validAmount(amount) else { return nil }
@@ -33,7 +33,7 @@ struct PassiveSourceSheet: View {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     // 名字
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "名称")
+                        KickerLabel(text: String(localized: "名称"))
                         UnderlinedField(isFocused: focus == .name) {
                             TextField("租金、利息、股息、版税…", text: $name)
                                 .font(.system(.title3, design: .rounded))
@@ -46,7 +46,7 @@ struct PassiveSourceSheet: View {
 
                     // 每次到账多少
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: intervalMonths == 1 ? "每月收入" : "每次到账多少")
+                        KickerLabel(text: intervalMonths == 1 ? String(localized: "每月收入") : String(localized: "每次到账多少"))
                         UnderlinedField(isFocused: focus == .monthly, accent: .mossGreen) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("¥")
@@ -66,7 +66,7 @@ struct PassiveSourceSheet: View {
 
                     // 几个月到账一次，下面一行换算成每月、每天
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        KickerLabel(text: "几个月到账一次")
+                        KickerLabel(text: String(localized: "几个月到账一次"))
                         UnderlinedField(isFocused: false) {
                             Menu {
                                 Picker("几个月到账一次", selection: $intervalMonths) {
@@ -153,7 +153,7 @@ struct PassiveSourceSheet: View {
     @ViewBuilder
     private var summary: some View {
         if let m = enteredMonthly {
-            let perDay = "每天 ¥\(String(format: "%.1f", m / 30))"
+            let perDay = String(localized: "每天 ¥\(String(format: "%.1f", m / 30))")
             Text(intervalMonths == 1 ? "相当于\(perDay)" : "折合每月 ¥\(FinancialFormatting.wholeNumber(m)) · \(perDay)")
                 .font(.system(.caption, design: .rounded).monospacedDigit())
                 .foregroundStyle(Color.mossGreen)

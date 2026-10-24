@@ -10,6 +10,23 @@ enum ExpenseCategory {
     /// 兜底分类(归一不出来时的默认)
     static let fallback = "其他"
 
+    /// 界面上显示的名字。账本里存的始终是中文原名（备份、导入、统计都按它对），
+    /// 默认九类按当前语言显示，用户自建的分类原样显示。
+    nonisolated static func displayName(_ stored: String) -> String {
+        switch stored {
+        case "早餐": return String(localized: "早餐")
+        case "午餐": return String(localized: "午餐")
+        case "晚餐": return String(localized: "晚餐")
+        case "购物": return String(localized: "购物")
+        case "交通": return String(localized: "交通")
+        case "娱乐": return String(localized: "娱乐")
+        case "成长投资": return String(localized: "成长投资")
+        case "医疗": return String(localized: "医疗")
+        case "其他": return String(localized: "其他")
+        default: return stored
+        }
+    }
+
     /// 外来标签 → canonical 的高置信别名表(只放"几乎不会错"的)。
     /// 英文 key 走小写匹配(早期 web 旧版分类键);中文 key 精确匹配。
     /// 拿不准的(food / 订阅 / 日用 / 人情 …)故意不放, 让它们落到 needs-review,

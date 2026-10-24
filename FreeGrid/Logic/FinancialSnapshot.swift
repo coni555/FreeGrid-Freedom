@@ -84,13 +84,15 @@ struct FinancialSnapshot {
     /// 首页图例旁的说明：都计入时没有；资产一点没计入是「资产未计入」，只算了一部分是「部分资产未计入」；
     /// 有现金账户没计入时是「部分现金未计入」；两样都有时合成一句
     var uncountedAssetsNote: String? {
-        let assetNote = uncountedAssets > 0 ? (countedAssets > 0 ? "部分资产" : "资产") : nil
-        let cashNote = excludedCash > 0 ? (countedCash > 0 ? "部分现金" : "现金") : nil
+        let assetNote = uncountedAssets > 0
+            ? (countedAssets > 0 ? String(localized: "部分资产未计入") : String(localized: "资产未计入")) : nil
+        let cashNote = excludedCash > 0
+            ? (countedCash > 0 ? String(localized: "部分现金未计入") : String(localized: "现金未计入")) : nil
         switch (assetNote, cashNote) {
         case (nil, nil): return nil
-        case (let asset?, nil): return asset + "未计入"
-        case (nil, let cash?): return cash + "未计入"
-        case (_?, _?): return "部分资金未计入"
+        case (let asset?, nil): return asset
+        case (nil, let cash?): return cash
+        case (_?, _?): return String(localized: "部分资金未计入")
         }
     }
     /// 有不计入自由天数的钱（资产或现金）。趋势往回推时这部分算不清，早期的 0 不写出来
