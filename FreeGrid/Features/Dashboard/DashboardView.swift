@@ -115,21 +115,7 @@ private struct DashboardContent: View {
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    #if DEBUG
-                    // 临时：首页改造方向的对比，带 -homeConcept 时换掉整页
-                    if let concept = HomeConcept.current {
-                        HomeConceptBody(concept: concept, snapshot: snapshot, history: history,
-                                        todaySpending: todaySpending, isDark: showsDark,
-                                        onExpense: { expenseDraft = ExpenseDraft() },
-                                        onIncome: { showingAddIncome = true },
-                                        onSimulate: { showingSimulate = true })
-                            .id(Self.topID)
-                    } else {
-                        classicHome
-                    }
-                    #else
                     classicHome
-                    #endif
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
