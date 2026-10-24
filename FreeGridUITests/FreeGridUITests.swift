@@ -97,9 +97,9 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
-    /// 首页三张数字小卡：点一张换成别的指标、按住拖到别的位置，重开 App 后还是换过的样子
+    /// 首页数字小卡：点一张换内容、按住拖动换位置、移除、添加、关掉今日对比，重开 App 后还是改过的样子
     @MainActor
-    func testHomeStatCardsCanBePickedAndDragged() {
+    func testHomeStatCardsCanBeChangedMovedAddedAndRemoved() {
         let app = XCUIApplication()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
                                "-UseInMemoryStore", "-proPreview", "NO"]
@@ -111,29 +111,48 @@ final class FreeGridUITests: XCTestCase {
         amount.typeText("30")
         app.buttons["保存"].tap()
 
-        let first = app.descendants(matching: .any)["home-stat-0"]
-        let second = app.descendants(matching: .any)["home-stat-1"]
-        XCTAssertTrue(first.waitForExistence(timeout: 5))
-        for _ in 0..<4 where !first.isHittable { app.swipeUp() }
-        // 没有被动收入：默认是 日均 / 本月 / 记账
-        XCTAssertTrue(first.label.contains("DAILY"), first.label)
-        XCTAssertTrue(second.label.contains("MONTH"), second.label)
+        func card(_ stat: String) -> XCUIElement { app.descendants(matching: .any)["home-stat-\(stat)"] }
+        // 没有被动收入：默认是 日均 / 本月 / 记账，下面是今日对比
+        XCTAssertTrue(card("daily").waitForExistence(timeout: 5))
+        for _ in 0..<4 where !card("daily").isHittable { app.swipeUp() }
+        XCTAssertTrue(card("month").exists)
+        XCTAssertTrue(card("track").exists)
+        XCTAssertTrue(app.descendants(matching: .any)["today-strip"].exists)
 
-        first.tap()
-        let saved = app.buttons["stat-option-saved"]
-        XCTAssertTrue(saved.waitForExistence(timeout: 3))
-        saved.tap()
-        XCTAssertTrue(saved.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(first.label.contains("SAVED"), first.label)
+        // 点日均换成可动用资产
+        card("daily").tap()
+        let base = app.buttons["stat-option-base"]
+        XCTAssertTrue(base.waitForExistence(timeout: 3))
+        base.tap()
+        XCTAssertTrue(card("base").waitForExistence(timeout: 3))
+        XCTAssertFalse(card("daily").exists)
 
-        // 第二张（本月）按住拖到第一张的位置
-        second.press(forDuration: 0.6, thenDragTo: first)
-        XCTAssertTrue(first.label.contains("MONTH"), first.label)
-        XCTAssertTrue(second.label.contains("SAVED"), second.label)
+        // 本月按住拖到第一格
+        card("month").press(forDuration: 0.6, thenDragTo: card("base"))
+        XCTAssertLessThan(card("month").frame.minX, card("base").frame.minX)
+
+        // 移除记账天数
+        card("track").tap()
+        let remove = app.buttons["remove-home-stat"]
+        XCTAssertTrue(remove.waitForExistence(timeout: 3))
+        remove.tap()
+        XCTAssertTrue(card("track").waitForNonExistence(timeout: 3))
+
+        // 添加今日花销，关掉今日对比长条
+        app.buttons["add-home-stat"].tap()
+        let today = app.buttons["stat-option-today"]
+        XCTAssertTrue(today.waitForExistence(timeout: 3))
+        today.tap()
+        let toggle = app.switches["today-strip-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.switches.firstMatch.tap()
         let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "数字小卡-换过以后"
+        shot.name = "数字小卡-添加卡片"
         shot.lifetime = .keepAlways
         add(shot)
+        app.swipeDown(velocity: .fast)
+        XCTAssertTrue(card("today").waitForExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["today-strip"].exists)
 
         app.terminate()
         app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
@@ -144,9 +163,12 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("12")
         app.buttons["保存"].tap()
-        XCTAssertTrue(first.waitForExistence(timeout: 5))
-        XCTAssertTrue(first.label.contains("MONTH"), first.label)
-        XCTAssertTrue(second.label.contains("SAVED"), second.label)
+        XCTAssertTrue(card("month").waitForExistence(timeout: 5))
+        XCTAssertTrue(card("base").exists)
+        XCTAssertTrue(card("today").exists)
+        XCTAssertFalse(card("track").exists)
+        XCTAssertLessThan(card("month").frame.minX, card("base").frame.minX)
+        XCTAssertFalse(app.descendants(matching: .any)["today-strip"].exists)
     }
 
     /// Pro：把一个分类改成另一个已有分类的名字，确认后两个合并，旧账都归到留下的那个。

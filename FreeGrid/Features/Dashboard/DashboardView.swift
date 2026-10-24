@@ -36,30 +36,19 @@ struct DashboardView: View {
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
             now: snapshot.now
         )
-        // 今天的起止只算一次；逐笔调 isDateInToday 在几千笔的账本上要好几毫秒
-        let today = Calendar.current.dateInterval(of: .day, for: snapshot.now)
+        // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
+        let statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
         return DashboardContent(
             snapshot: snapshot,
             history: history,
-            statInputs: HomeStat.Inputs(snapshot: snapshot, expenses: expenses, incomes: incomes, loans: loansInEffect),
-            // 和日均比的是日常开销，自动扣的房租、月供不算
-            todaySpending: today.map { day in
-                expenses.reduce(0) { sum, expense in
-                    expense.countsInBurn && expense.date >= day.start && expense.date < day.end ? sum + expense.amount : sum
-                }
-            } ?? 0
+            statInputs: statInputs,
+            todaySpending: statInputs.todaySpending
         )
     }
 }
 
 extension DashboardContent {
     fileprivate static let topID = "dashboard-top"
-}
-
-/// 点了第几张数字小卡
-private struct StatPick: Identifiable {
-    let index: Int
-    var id: Int { index }
 }
 
 /// 一次「打开记支出表单」的请求
@@ -91,10 +80,13 @@ private struct DashboardContent: View {
     @State private var showingFreedomCard = false
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeenCard = -1
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
-    /// 底部三张数字小卡放哪三个指标
+    /// 底部放哪几张数字小卡
     @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
-    /// 点了某张数字小卡：弹出选它显示什么的半屏
-    @State private var statPick: StatPick?
+    /// 今日对比长条放不放
+    @AppStorage("homeShowsToday", store: AppPreferences.store) private var showsToday = true
+    /// 点了某张数字小卡：弹出换内容、移除的半屏
+    @State private var pickedStat: HomeStat?
+    @State private var showingStatAdder = false
     /// 正在拖数字小卡时首页不跟着滚
     @State private var draggingStat = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
@@ -128,9 +120,7 @@ private struct DashboardContent: View {
                 VStack(spacing: Spacing.lg) {
                     #if DEBUG
                     // 临时：首页改造方向的对比，带 -homeConcept 时换掉整页
-                    if let mock = HomeModulesMock.current, mock.replacesPage {
-                        MockModulesPage(mode: mock, inputs: statInputs)
-                    } else if let concept = HomeConcept.current {
+                    if let concept = HomeConcept.current {
                         HomeConceptBody(concept: concept, snapshot: snapshot, history: history,
                                         todaySpending: todaySpending, isDark: showsDark,
                                         onExpense: { expenseDraft = ExpenseDraft() },
@@ -178,12 +168,11 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
-            .sheet(item: $statPick) { pick in
-                HomeStatPicker(index: pick.index, slots: statSlots, inputs: statInputs) { stat in
-                    withAnimation(.snappy(duration: 0.3)) {
-                        storedStatSlots = HomeStat.encode(HomeStat.replacing(statSlots, at: pick.index, with: stat))
-                    }
-                }
+            .sheet(item: $pickedStat) { stat in
+                HomeStatPicker(stat: stat, slots: statSlots, inputs: statInputs, onChange: setStatSlots)
+            }
+            .sheet(isPresented: $showingStatAdder) {
+                HomeStatAdder(slots: statSlots, inputs: statInputs, onChange: setStatSlots, showsToday: $showsToday)
             }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
@@ -201,7 +190,7 @@ private struct DashboardContent: View {
             }
             .background {
                 ReviewInvitationPresenter(
-                    blocked: showingSimulate || showingFreedomCard || statPick != nil || saveError != nil,
+                    blocked: showingSimulate || showingFreedomCard || pickedStat != nil || showingStatAdder || saveError != nil,
                     busy: expenseDraft != nil || showingAddIncome || pendingUndoID != nil
                 )
             }
@@ -222,16 +211,7 @@ private struct DashboardContent: View {
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    #if DEBUG
-                    if let mock = HomeModulesMock.current {
-                        // 临时：底部组件区的效果图
-                        MockModulesArea(mode: mock, inputs: statInputs, todayCard: AnyView(todaySection))
-                    } else {
-                        bottomCards
-                    }
-                    #else
-                    bottomCards
-                    #endif
+                    bottomCards      // 数字小卡 + 今日对比，放哪些由用户定
     }
 
     // ============================================================================
@@ -369,26 +349,52 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
+    /// 底部：数字小卡（几张、哪几张由用户定）→ 今日对比长条（可以关）→「添加卡片」。一笔支出都没有时都不放
     @ViewBuilder
     private var bottomCards: some View {
         if snapshot.hasExpenses {
-            statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
-        }
-        if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-            todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
+            if !statSlots.isEmpty {
+                statsRow
+            }
+            if showsToday, snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+                todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
+                    .accessibilityIdentifier("today-strip")
+            }
+            Button {
+                showingStatAdder = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11))
+                    Text("添加卡片")
+                        .font(.system(.caption, design: .rounded))
+                }
+                .foregroundStyle(Color.inkFaint)
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("add-home-stat")
         }
     }
 
-    /// 固定三张：点一张选它显示什么，按住拖动换位置
     private var statSlots: [HomeStat] {
         HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
     }
 
+    /// 点一张换内容或移除，按住拖动换位置
     private var statsRow: some View {
-        HomeStatRow(slots: statSlots, inputs: statInputs,
-                    onReorder: { storedStatSlots = HomeStat.encode($0) },
-                    onPick: { statPick = StatPick(index: $0) },
-                    onDraggingChange: { draggingStat = $0 })
+        HomeStatGrid(slots: statSlots, inputs: statInputs,
+                     onReorder: setStatSlots,
+                     onPick: { pickedStat = $0 },
+                     onDraggingChange: { draggingStat = $0 })
+    }
+
+    private func setStatSlots(_ slots: [HomeStat]) {
+        withAnimation(.snappy(duration: 0.3)) {
+            storedStatSlots = HomeStat.encode(slots)
+        }
     }
 
     /// Today: Silverline 版 — 单行 bar 设计

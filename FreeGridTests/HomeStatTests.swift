@@ -1,4 +1,4 @@
-// 首页三张数字小卡：默认放哪三个、换和挪之后的顺序、本月 / 结余率 / 下次固定支出算出来的数。
+// 首页数字小卡：没改过时放哪几张、加减换挪之后的顺序、每行几张，以及本月 / 今日 / 记账天数 / 可动用资产 / 下次固定支出算出来的数。
 import Foundation
 import Testing
 @testable import FreeGrid
@@ -10,35 +10,50 @@ struct HomeStatTests {
 
     private func at(_ day: String) -> Date { TestSupport.day(day).addingTimeInterval(12 * 3600) }
 
-    private func snapshot(_ expenses: [Expense], cash: Double = 10_000) -> FinancialSnapshot {
+    private func snapshot(_ expenses: [Expense], cash: Double = 10_000, locked: Double = 0) -> FinancialSnapshot {
         let assets = UserAssets(total: 0)
         assets.cash = cash
+        assets.lockedAssets = locked
         return FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets, loans: [],
                                  now: now, countsAssets: true)
     }
 
-    private func inputs(expenses: [Expense], incomes: [Income] = [], loans: [Loan] = []) -> HomeStat.Inputs {
-        HomeStat.Inputs(snapshot: snapshot(expenses), expenses: expenses, incomes: incomes, loans: loans)
+    private func inputs(expenses: [Expense], loans: [Loan] = []) -> HomeStat.Inputs {
+        HomeStat.Inputs(snapshot: snapshot(expenses), expenses: expenses, loans: loans)
     }
 
-    @Test func defaultsMatchTheOldCardsAndFillTheHiddenPassiveSlot() {
+    @Test func defaultsMatchTheOldCardsAndStoredListsKeepTheirOrder() {
         #expect(HomeStat.slots(stored: "", hasPassive: true) == [.daily, .passive, .track])
         #expect(HomeStat.slots(stored: "", hasPassive: false) == [.daily, .month, .track])
-        // 存坏了（重复、不认识、数量不对）都回到默认
-        #expect(HomeStat.slots(stored: "daily,daily,track", hasPassive: false) == [.daily, .month, .track])
-        #expect(HomeStat.slots(stored: "daily,weekly,track", hasPassive: false) == [.daily, .month, .track])
-        #expect(HomeStat.slots(stored: "next,saved,base", hasPassive: false) == [.next, .saved, .base])
+        // 拿掉的「本月结余率」、认不出的、重复的都跳过，其余按存的顺序
+        #expect(HomeStat.slots(stored: "saved,daily,daily,weekly,next", hasPassive: false) == [.daily, .next])
+        #expect(HomeStat.slots(stored: "base,today,month,track,daily", hasPassive: false)
+                == [.base, .today, .month, .track, .daily])
+        // 全都移除了也记得，不回到默认
+        #expect(HomeStat.encode([]) == "none")
+        #expect(HomeStat.slots(stored: HomeStat.encode([]), hasPassive: true).isEmpty)
     }
 
-    @Test func replacingWithACardAlreadyShownSwapsThem() {
+    @Test func addingRemovingSwappingAndDragging() {
         let slots: [HomeStat] = [.daily, .passive, .track]
         #expect(HomeStat.replacing(slots, at: 1, with: .month) == [.daily, .month, .track])
         #expect(HomeStat.replacing(slots, at: 0, with: .track) == [.track, .passive, .daily])
+        #expect(HomeStat.toggling(slots, .today) == [.daily, .passive, .track, .today])
+        #expect(HomeStat.toggling(slots, .passive) == [.daily, .track])
         #expect(HomeStat.moving(slots, from: 2, to: 1) == [.daily, .track, .passive])
-        // 第一张拖到最后，中间两张各往左让一格
+        // 第一张拖到最后，中间两张各往前让一格
         #expect(HomeStat.moving(slots, from: 0, to: 2) == [.passive, .track, .daily])
         #expect(HomeStat.moving(slots, from: 0, to: 3) == slots)
-        #expect(HomeStat.encode([.next, .saved, .base]) == "next,saved,base")
+        #expect(HomeStat.encode([.next, .base]) == "next,base")
+    }
+
+    @Test func rowsHoldAtMostThreeAndNeverLeaveOneAlone() {
+        #expect(HomeStat.rowSizes(count: 0) == [])
+        #expect(HomeStat.rowSizes(count: 1) == [1])
+        #expect(HomeStat.rowSizes(count: 3) == [3])
+        #expect(HomeStat.rowSizes(count: 4) == [2, 2])
+        #expect(HomeStat.rowSizes(count: 5) == [3, 2])
+        #expect(HomeStat.rowSizes(count: 7) == [3, 2, 2])
     }
 
     @Test func monthComparesWithTheSameSpanOfLastMonth() {
@@ -49,21 +64,37 @@ struct HomeStatTests {
             Expense(amount: 500, category: "午餐", date: at("2026-09-10")),
             Expense(amount: 900, category: "购物", date: at("2026-09-28")),
         ]
-        let display = HomeStat.month.display(inputs(expenses: expenses))
-        #expect(display == .init(value: "400", unit: "比上月同期少 20%"))
-
+        #expect(HomeStat.month.display(inputs(expenses: expenses)) == .init(value: "400", unit: "比上月同期少 20%"))
         let firstMonth = HomeStat.month.display(inputs(expenses: [Expense(amount: 80, category: "午餐", date: at("2026-10-02"))]))
         #expect(firstMonth == .init(value: "80", unit: "元 · 本月已花"))
     }
 
-    @Test func savedRateUsesThisMonthsIncome() {
-        let expenses = [Expense(amount: 3_100, category: "购物", date: at("2026-10-10"))]
-        let incomes = [Income(amount: 5_000, source: "工资", date: at("2026-10-05")),
-                       Income(amount: 9_000, source: "工资", date: at("2026-09-05"))]
-        #expect(HomeStat.saved.display(inputs(expenses: expenses, incomes: incomes)) == .init(value: "38%", unit: "本月收入留下"))
-        #expect(HomeStat.saved.display(inputs(expenses: expenses)) == .init(value: "—", unit: "本月还没记收入"))
-        let over = [Income(amount: 2_000, source: "工资", date: at("2026-10-05"))]
-        #expect(HomeStat.saved.display(inputs(expenses: expenses, incomes: over)) == .init(value: "−55%", unit: "本月花得比挣得多"))
+    @Test func todayComparesTheDaysSpendingWithTheUsualDay() {
+        #expect(HomeStat.todayComparison(today: 0, dailyBurn: 100, word: "日均") == "今天还没花")
+        #expect(HomeStat.todayComparison(today: 120, dailyBurn: 100, word: "日均") == "比日均高 20%")
+        #expect(HomeStat.todayComparison(today: 75, dailyBurn: 100, word: "日常") == "比日常低 25%")
+        #expect(HomeStat.todayComparison(today: -30, dailyBurn: 100, word: "日均") == "今天净退款")
+        // 今天的数只算今天的日常支出
+        let expenses = [Expense(amount: 40, category: "午餐", date: at("2026-10-24")),
+                        Expense(amount: 60, category: "晚餐", date: at("2026-10-23"))]
+        #expect(inputs(expenses: expenses).todaySpending == 40)
+    }
+
+    @Test func trackTellsHowLongUntilTheDailyAverageSettles() {
+        // 第一笔在 9 天前：记了 10 天，再记 80 天
+        let young = HomeStat.track.display(inputs(expenses: [Expense(amount: 30, category: "午餐", date: at("2026-10-15"))]))
+        #expect(young == .init(value: "10", unit: "再记录 80 天，日均趋势会更清晰"))
+        let settled = HomeStat.track.display(inputs(expenses: [Expense(amount: 30, category: "午餐", date: at("2026-01-01"))]))
+        #expect(settled.unit == "天记账")
+    }
+
+    @Test func baseSplitAddsUpToAHundred() {
+        #expect(HomeStat.baseSplit(assets: 22_000, cash: 14_000) == "资产 61% · 现金 39%")
+        #expect(HomeStat.baseSplit(assets: 0, cash: 5_000) == "全是现金")
+        #expect(HomeStat.baseSplit(assets: 5_000, cash: 0) == "全是资产")
+        #expect(HomeStat.baseSplit(assets: 0, cash: 0) == "元 · 可动用资产")
+        // 极小的一边也至少写 1%
+        #expect(HomeStat.baseSplit(assets: 1, cash: 9_999) == "资产 1% · 现金 99%")
     }
 
     @Test func nextShowsTheSoonestFixedExpense() {
