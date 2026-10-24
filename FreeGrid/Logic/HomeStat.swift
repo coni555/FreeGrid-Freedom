@@ -31,14 +31,14 @@ enum HomeStat: String, CaseIterable, Identifiable {
     /// 选卡时的名字
     var title: String {
         switch self {
-        case .daily: return "日均消费"
-        case .month: return "本月花销"
-        case .today: return "今日花销"
-        case .track: return "记账天数"
-        case .base: return "可动用资产"
-        case .passive: return "被动收入覆盖"
-        case .next: return "下次固定支出"
-        case .todayBar: return "今日对比长条"
+        case .daily: return String(localized: "日均消费")
+        case .month: return String(localized: "本月花销")
+        case .today: return String(localized: "今日花销")
+        case .track: return String(localized: "记账天数")
+        case .base: return String(localized: "可动用资产")
+        case .passive: return String(localized: "被动收入覆盖率")
+        case .next: return String(localized: "下次固定支出")
+        case .todayBar: return String(localized: "今日对比长条")
         }
     }
 
@@ -111,66 +111,74 @@ enum HomeStat: String, CaseIterable, Identifiable {
             return Display(
                 value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
                 unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-                    ? "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))"
-                    : "元/天")
+                    ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
+                    : String(localized: "元/天"))
         case .month:
             return Display(value: FinancialFormatting.wholeNumber(inputs.monthSpent),
                            unit: Self.monthComparison(spent: inputs.monthSpent, lastMonth: inputs.lastMonthSameSpan))
         case .today:
             return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending),
                            unit: Self.todayComparison(today: inputs.todaySpending, dailyBurn: snapshot.dailyBurn,
-                                                      word: snapshot.dailyFixed > 0 ? "日常" : "日均"))
+                                                      routine: snapshot.dailyFixed > 0))
         case .track:
             // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）
             let days = snapshot.trackDays
             return Display(value: "\(days)",
                            unit: days < FreedomMath.lumpSpreadDays
-                               ? "再记录 \(FreedomMath.lumpSpreadDays - days) 天，日均趋势会更清晰"
-                               : "天记账")
+                               ? String(localized: "再记录 \(FreedomMath.lumpSpreadDays - days) 天，日均趋势会更清晰")
+                               : String(localized: "天记账"))
         case .base:
             return Display(value: FinancialFormatting.wholeNumber(snapshot.freedomBase),
                            unit: Self.baseSplit(assets: snapshot.countedAssets, cash: snapshot.countedCash))
         case .passive:
             return Display(value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                           unit: snapshot.dailyPassive > 0 ? "被动收入覆盖" : "还没有被动收入")
+                           unit: snapshot.dailyPassive > 0 ? String(localized: "被动收入覆盖") : String(localized: "还没有被动收入"))
         case .next:
-            guard let next = inputs.nextFixed else { return Display(value: "—", unit: "没有固定支出") }
+            guard let next = inputs.nextFixed else { return Display(value: "—", unit: String(localized: "没有固定支出")) }
             return Display(value: "\(next.daysAway)",
-                           unit: "天后 · \(next.name) \(FinancialFormatting.yuan(next.amount, precision: 0))")
+                           unit: String(localized: "天后 · \(next.name) \(FinancialFormatting.yuan(next.amount, precision: 0))"))
         case .todayBar:
             // 首页上长条自己画；这里是编辑面板里那一行
-            return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: "占一整行 · 今天和日常比")
+            return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: String(localized: "占一整行 · 今天和日常比"))
         }
     }
 
     /// 本月到今天花的和上个月同一段（1 号到同一天）比。上个月这段没有记录时只写「本月已花」
     static func monthComparison(spent: Double, lastMonth: Double?) -> String {
-        guard let lastMonth, lastMonth > 0 else { return "元 · 本月已花" }
+        guard let lastMonth, lastMonth > 0 else { return String(localized: "元 · 本月已花") }
         let change = (spent - lastMonth) / lastMonth
-        if abs(change) < 0.01 { return "和上月同期差不多" }
+        if abs(change) < 0.01 { return String(localized: "和上月同期差不多") }
         let pct = FinancialFormatting.percentage(abs(change), maximum: 999)
-        return change > 0 ? "比上月同期多 \(pct)" : "比上月同期少 \(pct)"
+        return change > 0 ? String(localized: "比上月同期多 \(pct)") : String(localized: "比上月同期少 \(pct)")
     }
 
-    /// 今天的日常支出和日常日均比；房租这类自动扣的不算
-    static func todayComparison(today: Double, dailyBurn: Double, word: String) -> String {
-        if today < 0 { return "今天净退款" }
-        if today == 0 { return "今天还没花" }
-        guard dailyBurn.isFinite, dailyBurn > 0 else { return "元 · 今天" }
-        if abs(today - dailyBurn) < 0.05 { return "和\(word)差不多" }
+    /// 今天的日常支出和日常日均比；房租这类自动扣的不算。有固定支出时叫「日常」，和含固定的日均分开。
+    /// 每种说法写成整句，英文语序不同，不拼词
+    static func todayComparison(today: Double, dailyBurn: Double, routine: Bool) -> String {
+        if today < 0 { return String(localized: "今天净退款") }
+        if today == 0 { return String(localized: "今天还没花") }
+        guard dailyBurn.isFinite, dailyBurn > 0 else { return String(localized: "元 · 今天") }
+        if abs(today - dailyBurn) < 0.05 {
+            return routine ? String(localized: "和日常差不多") : String(localized: "和日均差不多")
+        }
         let pct = FinancialFormatting.percentage(abs(today - dailyBurn) / dailyBurn, maximum: 9_999)
-        return today > dailyBurn ? "比\(word)高 \(pct)" : "比\(word)低 \(pct)"
+        switch (today > dailyBurn, routine) {
+        case (true, true): return String(localized: "比日常高 \(pct)")
+        case (true, false): return String(localized: "比日均高 \(pct)")
+        case (false, true): return String(localized: "比日常低 \(pct)")
+        case (false, false): return String(localized: "比日均低 \(pct)")
+        }
     }
 
     /// 计入自由天数的钱里资产和现金各占多少，两个百分比加起来正好 100%
     static func baseSplit(assets: Double, cash: Double) -> String {
         let total = assets + cash
-        guard total > 0, assets.isFinite, cash.isFinite else { return "元 · 可动用资产" }
-        if assets <= 0 { return "全是现金" }
-        if cash <= 0 { return "全是资产" }
+        guard total > 0, assets.isFinite, cash.isFinite else { return String(localized: "元 · 可动用资产") }
+        if assets <= 0 { return String(localized: "全是现金") }
+        if cash <= 0 { return String(localized: "全是资产") }
         let assetPct = FinancialFormatting.clampedInteger(assets / total * 100, range: 1...99,
                                                           rounded: .toNearestOrAwayFromZero)
-        return "资产 \(assetPct)% · 现金 \(100 - assetPct)%"
+        return String(localized: "资产 \(assetPct)% · 现金 \(100 - assetPct)%")
     }
 
     // MARK: - 算这些指标要的数

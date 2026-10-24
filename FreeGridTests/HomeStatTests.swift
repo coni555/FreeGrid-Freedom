@@ -66,10 +66,10 @@ struct HomeStatTests {
     }
 
     @Test func todayComparesTheDaysSpendingWithTheUsualDay() {
-        #expect(HomeStat.todayComparison(today: 0, dailyBurn: 100, word: "日均") == "今天还没花")
-        #expect(HomeStat.todayComparison(today: 120, dailyBurn: 100, word: "日均") == "比日均高 20%")
-        #expect(HomeStat.todayComparison(today: 75, dailyBurn: 100, word: "日常") == "比日常低 25%")
-        #expect(HomeStat.todayComparison(today: -30, dailyBurn: 100, word: "日均") == "今天净退款")
+        #expect(HomeStat.todayComparison(today: 0, dailyBurn: 100, routine: false) == "今天还没花")
+        #expect(HomeStat.todayComparison(today: 120, dailyBurn: 100, routine: false) == "比日均高 20%")
+        #expect(HomeStat.todayComparison(today: 75, dailyBurn: 100, routine: true) == "比日常低 25%")
+        #expect(HomeStat.todayComparison(today: -30, dailyBurn: 100, routine: false) == "今天净退款")
         // 今天的数只算今天的日常支出
         let expenses = [Expense(amount: 40, category: "午餐", date: at("2026-10-24")),
                         Expense(amount: 60, category: "晚餐", date: at("2026-10-23"))]

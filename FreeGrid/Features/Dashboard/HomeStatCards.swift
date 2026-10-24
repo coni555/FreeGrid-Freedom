@@ -280,7 +280,7 @@ struct HomeStatEditor: View {
         #endif
     }
 
-    private func sectionHeader(_ text: String) -> some View {
+    private func sectionHeader(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.system(.caption, design: .rounded))
             .foregroundStyle(Color.inkMuted)

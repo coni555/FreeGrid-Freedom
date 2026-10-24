@@ -2210,6 +2210,14 @@ final class EnglishScreensUITests: XCTestCase {
         try shoot("01-dashboard")
         app.swipeUp()
         try shoot("02-dashboard-bottom")
+        // 首页卡片的编辑面板，再把卡全加上看英文小字
+        if app.buttons["edit-home-stats"].exists {
+            app.buttons["edit-home-stats"].tap()
+            try shoot("02b-edit-cards")
+            if app.buttons["Add All"].exists { app.buttons["Add All"].tap() }
+            app.buttons["Done"].tap()
+            try shoot("02c-dashboard-all-cards")
+        }
         app.swipeDown()
 
         app.buttons["Add Expense"].firstMatch.tap()
@@ -2285,8 +2293,10 @@ final class EnglishScreensUITests: XCTestCase {
 
         app.tabBars.buttons["Settings"].tap()
         app.swipeDown()
-        app.buttons["settings-card-look"].tap()
         let language = app.segmentedControls["language-picker"]
+        if !language.waitForExistence(timeout: 2), app.buttons["settings-card-look"].exists {
+            app.buttons["settings-card-look"].tap()
+        }
         if language.waitForExistence(timeout: 3) {
             try shoot("17-language")
         }
