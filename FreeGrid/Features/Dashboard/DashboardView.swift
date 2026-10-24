@@ -116,7 +116,21 @@ private struct DashboardContent: View {
                         .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
-                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true },
+                                  footer: mockHeroFooter)
+                    #if DEBUG
+                    if HomeMock.order == "B" {
+                        actionRow
+                        simulateRow
+                        gridSection.guideTarget(.grid, in: guide)
+                        mockNumbers
+                    } else {
+                        gridSection.guideTarget(.grid, in: guide)
+                        actionRow
+                        simulateRow
+                        mockNumbers
+                    }
+                    #else
                     gridSection      // 按天、月或年显示自由网格
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
@@ -127,6 +141,7 @@ private struct DashboardContent: View {
                     if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
                         todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
                     }
+                    #endif
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -260,33 +275,22 @@ private struct DashboardContent: View {
 
     /// 顶部一行: 左边的靶心是深浅色开关, 右边切换大数字布局。
     /// 两个开关 Settings 的「外观」里也有; 首页这两个留给已经用惯的老用户。
+    @ViewBuilder
     private var topBar: some View {
+        #if DEBUG
+        switch HomeMock.top {
+        case "B": mockTopWordmarkOnly
+        case "C": mockTopThemeOnly
+        default: currentTopBar
+        }
+        #else
+        currentTopBar
+        #endif
+    }
+
+    private var currentTopBar: some View {
         HStack(spacing: Spacing.sm) {
-            Button(action: {
-                // 首页这个开关只在浅色、深色之间切；跟随系统时点它，就固定成和现在相反的那个
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isDarkMode = !showsDark
-                    followsSystem = false
-                }
-            }) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.ink, lineWidth: 1)
-                        .frame(width: 22, height: 22)
-                    if showsDark {
-                        Image(systemName: "moon.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.sky)
-                    } else {
-                        Circle()
-                            .fill(Color.sky)
-                            .frame(width: 9, height: 9)
-                    }
-                }
-                .contentShape(Rectangle())   // 扩大点击区
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(showsDark ? "切换浅色模式" : "切换深色模式")
+            themeToggle
 
             Text("FreeGrid")
                 .font(.system(.subheadline, design: .rounded).weight(.medium))
@@ -314,6 +318,34 @@ private struct DashboardContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel(heroLayout == "vertical" ? "大数字放右边" : "大数字放中间")
         }
+    }
+
+    private var themeToggle: some View {
+            Button(action: {
+                // 首页这个开关只在浅色、深色之间切；跟随系统时点它，就固定成和现在相反的那个
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isDarkMode = !showsDark
+                    followsSystem = false
+                }
+            }) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.ink, lineWidth: 1)
+                        .frame(width: 22, height: 22)
+                    if showsDark {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.sky)
+                    } else {
+                        Circle()
+                            .fill(Color.sky)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+                .contentShape(Rectangle())   // 扩大点击区
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(showsDark ? "切换浅色模式" : "切换深色模式")
     }
 
     // ============================================================================
@@ -485,7 +517,7 @@ private struct DashboardContent: View {
                     LifeGrid(unit: state.unit, count: state.count,
                              assetCells: state.assetCells, paymentCells: state.paymentCells,
                              showsMissedPayment: state.showsMissedPayment)
-                        .padding(.vertical, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
                 }
 
                 if state.count > 0 {
@@ -563,12 +595,21 @@ private struct DashboardContent: View {
         state.isOverflow ? "\(state.count)+ \(state.unit.label)" : ""
     }
 
-    /// 空网格时的提示:暗色 SF symbol + 文案
+    /// 空网格时的提示：九个还没点亮的描边小格 + 文案
     private var emptyGridHint: some View {
-        VStack(spacing: Spacing.sm) {
-            Image(systemName: "square.grid.3x3.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.inkFaint)
+        VStack(spacing: Spacing.md) {
+            Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                ForEach(0..<3, id: \.self) { _ in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                .stroke(Color.inkGhost, lineWidth: 1)
+                                .frame(width: 12, height: 12)
+                        }
+                    }
+                }
+            }
+            .accessibilityHidden(true)
             Text(gridEmptyText)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
@@ -685,3 +726,221 @@ private struct ReviewInvitationPresenter: View {
         }
     }
 }
+
+// ============================================================================
+// MARK: - 临时：首页方案对比（用户选定后删）
+// ============================================================================
+
+extension DashboardContent {
+    /// 方案 D 把数字并进大数字卡底部；其他方案没有
+    fileprivate var mockHeroFooter: AnyView? {
+        #if DEBUG
+        guard HomeMock.stats == "D", snapshot.hasExpenses else { return nil }
+        return AnyView(mockHeroStrip)
+        #else
+        return nil
+        #endif
+    }
+}
+
+#if DEBUG
+/// 启动参数 `-homeMockStats A|B|C|D`、`-homeMockOrder A|B`、`-homeMockTop A|B|C`，缺省都是 A（现状）
+enum HomeMock {
+    private static func value(_ key: String) -> String {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-homeMock\(key)"), i + 1 < args.count else { return "A" }
+        return args[i + 1]
+    }
+    static let stats = value("Stats")
+    static let order = value("Order")
+    static let top = value("Top")
+}
+
+extension DashboardContent {
+    @ViewBuilder
+    fileprivate var mockNumbers: some View {
+        if snapshot.hasExpenses {
+            switch HomeMock.stats {
+            case "B": mockMergedCard
+            case "C": mockCompactRow
+            case "D": EmptyView()
+            default:
+                statsRow
+                if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 { todaySection }
+            }
+        }
+    }
+
+    private var dailyValue: String {
+        snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—"
+    }
+    private var dailyUnit: String {
+        snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
+            ? "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))"
+            : "元/天"
+    }
+    private var todayValue: String { FinancialFormatting.wholeNumber(todaySpending) }
+    private var todayShort: String {
+        guard snapshot.dailyBurn > 0, todaySpending > 0 else { return "今天还没花" }
+        let pct = FinancialFormatting.clampedInteger(abs((1 - todayPercent) * 100), range: 0...9_999)
+        return todaySpending > snapshot.dailyBurn ? "比\(averageWord)高 \(pct)%" : "比\(averageWord)低 \(pct)%"
+    }
+
+    private func todayBar(height: CGFloat = 2, marker: Bool = true) -> some View {
+        GeometryReader { geo in
+            let pct = todayPercent > 0 ? max(0.04, min(todayPercent, 1.0)) : 0
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Color.mist2).frame(height: height)
+                Rectangle().fill(Color.sky).frame(width: geo.size.width * CGFloat(pct), height: height)
+                if marker {
+                    Rectangle().fill(Color.skyDeep).frame(width: 1.5, height: 10)
+                        .offset(x: geo.size.width * CGFloat(pct) - 0.75)
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: marker ? 10 : height)
+    }
+
+    /// B：日均和今日合成一张卡，被动收入和记账天数降成底部一行小字
+    private var mockMergedCard: some View {
+        VaultCard(padding: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(dailyValue)
+                            .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.ink)
+                        HStack(spacing: 6) {
+                            KickerLabel(text: "Daily")
+                            Text(dailyUnit)
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(todayValue)
+                            .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.ink)
+                        KickerLabel(text: "Today")
+                    }
+                }
+                todayBar()
+                HStack {
+                    Text(todayDeltaText)
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                    Spacer()
+                }
+                Hairline(color: .hairlineSoft)
+                HStack {
+                    if snapshot.dailyPassive > 0 {
+                        Text("被动收入覆盖 \(FinancialFormatting.percentage(snapshot.passiveRatio))")
+                    }
+                    Spacer()
+                    Text("已记账 \(snapshot.trackDays) 天")
+                }
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.inkFaint)
+            }
+        }
+    }
+
+    /// C：一行三张小卡，Today 也变成小卡（短横线换成和日常比的细条），去掉单独的 Today 大卡和 Track
+    private var mockCompactRow: some View {
+        HStack(spacing: Spacing.md) {
+            mockSmallCard(value: dailyValue, label: "Daily", unit: dailyUnit) {
+                Rectangle().fill(Color.inkGhost).frame(width: 22, height: 1)
+            }
+            mockSmallCard(value: todayValue, label: "Today", unit: todayShort) {
+                todayBar(height: 1, marker: false)
+            }
+            if snapshot.dailyPassive > 0 {
+                mockSmallCard(value: FinancialFormatting.percentage(snapshot.passiveRatio),
+                              label: "Passive", unit: "被动收入覆盖") {
+                    Rectangle().fill(Color.inkGhost).frame(width: 22, height: 1)
+                }
+            } else {
+                mockSmallCard(value: "\(snapshot.trackDays)", label: "Track", unit: "天记账") {
+                    Rectangle().fill(Color.inkGhost).frame(width: 22, height: 1)
+                }
+            }
+        }
+    }
+
+    private func mockSmallCard<Line: View>(value: String, label: String, unit: String,
+                                           @ViewBuilder line: () -> Line) -> some View {
+        VaultCard(padding: Spacing.md) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(value)
+                    .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.ink)
+                line().padding(.vertical, 2)
+                KickerLabel(text: label)
+                Text(unit)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+    }
+
+    /// D：不要单独的数字卡，三栏数字放进大数字卡，中间用竖细线隔开
+    fileprivate var mockHeroStrip: some View {
+        HStack(spacing: 0) {
+            mockStripItem(value: dailyValue, label: "Daily")
+            Rectangle().fill(Color.hairlineSoft).frame(width: 1, height: 34)
+            mockStripItem(value: todayValue, label: "Today")
+            if snapshot.dailyPassive > 0 {
+                Rectangle().fill(Color.hairlineSoft).frame(width: 1, height: 34)
+                mockStripItem(value: FinancialFormatting.percentage(snapshot.passiveRatio), label: "Passive")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func mockStripItem(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 22, weight: .thin, design: .rounded).monospacedDigit())
+                .foregroundStyle(Color.ink)
+            KickerLabel(text: label)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 顶栏 B：两个圆按钮都去掉（设置里都有），左边换成小格子标
+    fileprivate var mockTopWordmarkOnly: some View {
+        HStack(spacing: Spacing.sm) {
+            Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+                GridRow {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.assetGold).frame(width: 7, height: 7)
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.assetGold).frame(width: 7, height: 7)
+                }
+                GridRow {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.cashBlue).frame(width: 7, height: 7)
+                    RoundedRectangle(cornerRadius: 1.5).stroke(Color.cashBlue, lineWidth: 1).frame(width: 7, height: 7)
+                }
+            }
+            Text("FreeGrid")
+                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                .foregroundStyle(Color.ink)
+            Spacer()
+        }
+        .frame(height: 22)
+    }
+
+    /// 顶栏 C：只留深浅色开关，布局切换只在设置里
+    fileprivate var mockTopThemeOnly: some View {
+        HStack(spacing: Spacing.sm) {
+            themeToggle
+            Text("FreeGrid")
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(Color.ink)
+            Spacer()
+        }
+    }
+}
+#endif

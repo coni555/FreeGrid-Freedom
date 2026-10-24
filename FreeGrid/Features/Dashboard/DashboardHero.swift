@@ -12,6 +12,8 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
+    /// 临时：首页方案对比里「数字并进大数字卡」那一版的数字条，用户选定后删
+    var footer: AnyView? = nil
     @State private var longPressed = 0
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
@@ -47,7 +49,7 @@ struct DashboardHero: View {
                     Text("被动收入不够覆盖了")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.flame)
-                } else {
+                } else if case .finite = snapshot.freedom {
                     Text("按现在的收支估算")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Color.inkGhost)
@@ -78,13 +80,18 @@ struct DashboardHero: View {
                         Text("看看")
                             .font(.system(.caption, design: .rounded).weight(.medium))
                             .foregroundStyle(Color.skyDeep)
-                        Spacer(minLength: 0)
                     }
+                    .frame(maxWidth: .infinity, alignment: heroLayout == "vertical" ? .center : .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity)
                 .accessibilityIdentifier("freedom-card-prompt")
+            }
+
+            if let footer {
+                Hairline().padding(.top, Spacing.xs)
+                footer
             }
 
             // ─── 底部: 趋势。一行摘要常驻, 点它展开或收起折线 ───
@@ -98,8 +105,9 @@ struct DashboardHero: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
+                // 浅色和其他卡一样是白卡；深色比其他卡深一档，衬出流星
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.paper)
+                    .fill(Color.surfaceHi)
                 if isDarkMode {
                     MeteorLayer()
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -169,7 +177,7 @@ struct DashboardHero: View {
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
                     if let d = deplete {
-                        Text("大约撑到 \(depleteDateString(d))")
+                        Text("大约撑到 \(FreedomMath.depleteDateText(d))")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .padding(.top, 4)
@@ -180,13 +188,15 @@ struct DashboardHero: View {
 
             Spacer()
 
-            Text(freedomDaysDisplay)
-                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.35)
-                .padding(.vertical, -8)
-                .layoutPriority(0)
+            if hasNumber {
+                Text(freedomDaysDisplay)
+                    .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                    .foregroundStyle(numberColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.35)
+                    .padding(.vertical, -8)
+                    .layoutPriority(0)
+            }
         }
     }
 
@@ -194,12 +204,15 @@ struct DashboardHero: View {
     @ViewBuilder
     private func heroBodyVertical(deplete: Date?) -> some View {
         VStack(alignment: .center, spacing: Spacing.sm) {
-            Text(freedomDaysDisplay)
-                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.35)
-                .padding(.vertical, -8)
+            if hasNumber {
+                // 数字自带的行高上下留白很大，收紧一些，首屏才放得下记账按钮
+                Text(freedomDaysDisplay)
+                    .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                    .foregroundStyle(numberColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.35)
+                    .padding(.vertical, -16)
+            }
 
             switch snapshot.freedom {
             case .covered:
@@ -229,7 +242,7 @@ struct DashboardHero: View {
             case .finite:
                 emphasized("你的", "自由", " 还能撑这么多\(heroSubUnit)", size: 18)
                 if let d = deplete {
-                    Text("大约撑到 \(depleteDateString(d))")
+                    Text("大约撑到 \(FreedomMath.depleteDateText(d))")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 2)
@@ -250,7 +263,7 @@ struct DashboardHero: View {
             withAnimation(.snappy(duration: 0.32)) { trendExpanded.toggle() }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(history.count - 1) 周自由趋势")
+                Text("\(history.count - 1) 周自由趋势 · 估算")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                 Spacer()
@@ -269,20 +282,18 @@ struct DashboardHero: View {
         .guideTarget(.trend, in: guide)
         .accessibilityIdentifier("hero-trend-toggle")
         .accessibilityLabel(summaryText == last.description
-                            ? "\(history.count - 1) 周自由趋势，现在 \(last.description)"
-                            : "\(history.count - 1) 周自由趋势，\(first.description) 到 \(last.description)")
+                            ? "\(history.count - 1) 周自由趋势估算，现在 \(last.description)"
+                            : "\(history.count - 1) 周自由趋势估算，\(first.description) 到 \(last.description)")
         .accessibilityValue(trendExpanded ? "已展开" : "已收起")
         .accessibilityHint(trendExpanded ? "收起折线" : "展开折线")
 
         if trendExpanded {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
+            // 趋势是按账目（和现在的被动收入）往回推的，标题里已写「估算」
+            Group {
                 if let values = FreedomMath.historyPlotValues(history) {
                     Sparkline(values: values)
                         .frame(height: 36)
                 }
-                Text(snapshot.dailyPassive > 0 ? "根据账目和现在的被动收入估算" : "根据账目估算")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
             }
             .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
         }
@@ -310,14 +321,6 @@ struct DashboardHero: View {
         )
     }
 
-    /// 格式化"约 X 月 X 日"
-    private func depleteDateString(_ d: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M 月 d 日"
-        return f.string(from: d)
-    }
-
     /// 三联 stat 卡片:横向 3 个独立 VaultCard,各自有 padding 和描边
     /// 设计动机:工具 App 需要清晰的"信息卡片"层级,这里 3 个并列 stat
     private var freedomDays: Double {
@@ -325,6 +328,16 @@ struct DashboardHero: View {
         case .finite(let days): return days
         case .covered: return .infinity
         case .insufficientData, .invalidData: return .nan
+        }
+    }
+
+    private var numberColor: Color { isFreedomCovered ? .mossGreen : .ink }
+
+    /// 还没算出自由天数时不画大数字，只留文字
+    private var hasNumber: Bool {
+        switch snapshot.freedom {
+        case .covered, .finite: return true
+        case .insufficientData, .invalidData: return false
         }
     }
 

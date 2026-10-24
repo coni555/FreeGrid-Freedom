@@ -215,4 +215,14 @@ enum FreedomMath {
               ) else { return nil }
         return Calendar.current.date(byAdding: .day, value: days, to: .now)
     }
+
+    /// 首页「大约撑到 …」的日期：今年之内只写月日，跨年写上年份，免得把明年 9 月读成今年 9 月
+    static func depleteDateText(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.calendar = calendar
+        f.timeZone = calendar.timeZone
+        f.dateFormat = calendar.isDate(date, equalTo: now, toGranularity: .year) ? "M 月 d 日" : "yyyy 年 M 月 d 日"
+        return f.string(from: date)
+    }
 }
