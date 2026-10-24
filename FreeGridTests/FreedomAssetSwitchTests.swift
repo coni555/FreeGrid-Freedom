@@ -121,7 +121,7 @@ struct FreedomAssetSwitchTests {
 
     // MARK: - 自检
 
-    @Test func checklistFreedomItemsFollowTheSwitchButNetWorthItemDoesNot() throws {
+    @Test func checklistFreedomItemsFollowTheSwitch() throws {
         let ledger = assets(locked: 22_000, cash: 14_000)
         func item(_ id: Int, _ summary: FreedomSummary) throws -> FreedomCheckItem {
             try #require(summary.items.first { $0.id == id })
@@ -130,27 +130,27 @@ struct FreedomAssetSwitchTests {
                                            now: now, countsAssets: true)
         let off = FreedomChecklist.evaluate(expenses: burn120, passiveSources: [], assets: ledger,
                                             now: now, countsAssets: false)
-        // 开：300 天，过 180 但没到 365
-        #expect(try item(4, on).done)
-        #expect(try !item(5, on).done)
-        #expect(try item(4, on).detail == "当前 300 / 180 天")
+        // 开：300 天，过 30、180，没到 365
+        #expect(try item(1, on).done)
+        #expect(try item(2, on).done)
+        #expect(try !item(3, on).done)
+        #expect(try item(2, on).detail == "当前 300 / 180 天")
         #expect(on.nextStopTitle == "自由天数 365 天")
         #expect(on.remainText == "还差 65 天")
-        // 关：116 天，两项都没过，数字和首页同一个
-        #expect(try !item(4, off).done)
-        #expect(try item(4, off).detail == "当前 116 / 180 天")
-        #expect(try item(5, off).detail == "当前 116 / 365 天")
+        // 关：116 天，过 30，没到 180，数字和首页同一个
+        #expect(try item(1, off).done)
+        #expect(try !item(2, off).done)
+        #expect(try item(2, off).detail == "当前 116 / 180 天")
+        #expect(try item(3, off).detail == "当前 116 / 365 天")
         #expect(off.nextStopTitle == "自由天数 180 天")
         #expect(off.remainText == "还差 64 天")
-        // 「记录了可变现资产」看净值，不跟开关
-        #expect(try item(3, on).done)
-        #expect(try item(3, off).done)
-        // 只有现金为 0、资产有钱：净值项仍达成，自由天数项归零
+        // 只有资产、开关关着：自由天数项归零
         let onlyAssets = FreedomChecklist.evaluate(expenses: burn120, passiveSources: [],
                                                    assets: assets(locked: 22_000, cash: 0),
                                                    now: now, countsAssets: false)
-        #expect(try item(3, onlyAssets).done)
-        #expect(try item(4, onlyAssets).detail == "当前 0 / 180 天")
+        #expect(try !item(1, onlyAssets).done)
+        #expect(try item(2, onlyAssets).detail == "当前 0 / 180 天")
+        #expect(onlyAssets.remainText == "还差 30 天")
     }
 
     // MARK: - 趋势

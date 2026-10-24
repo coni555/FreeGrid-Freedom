@@ -36,6 +36,8 @@ enum AppPreferences {
         ProIntro.audienceKey,
         ReviewInvitationStore.lastRequestedKey,
         HomeStat.slotsKey,
+        FreedomGoal.monthsKey,
+        FreedomGoal.incomeKey,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {
@@ -45,6 +47,15 @@ enum AppPreferences {
             let key = String(argument.dropFirst())
             if key == ReviewInvitationStore.lastRequestedKey, let timestamp = Double(value), timestamp.isFinite {
                 defaults.set(timestamp, forKey: key)
+                continue
+            }
+            // 目标几个月存成整数、收入存成数字，@AppStorage 读字符串读不出来
+            if key == FreedomGoal.monthsKey, let months = Int(value) {
+                defaults.set(months, forKey: key)
+                continue
+            }
+            if key == FreedomGoal.incomeKey, let income = Double(value) {
+                defaults.set(income, forKey: key)
                 continue
             }
             switch value.uppercased() {

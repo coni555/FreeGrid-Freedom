@@ -1,4 +1,4 @@
-// 展示 FreedomChecklist 计算出的八项自检结果。
+// 自检页：最上面是「我的目标」（离职 / GAP），下面是里程碑清单，最后一行写记账天数够不够让日均变稳。
 
 import SwiftUI
 import SwiftData
@@ -6,6 +6,7 @@ import SwiftData
 struct CheckView: View {
 
     @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
     @Query private var assetItems: [AssetItem]
@@ -13,25 +14,39 @@ struct CheckView: View {
     private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    @AppStorage(FreedomGoal.monthsKey, store: AppPreferences.store) private var goalMonths = 0
+    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
+    @State private var editingGoal = false
 
-    /// 8 项自检 + 汇总 — 逻辑统一在 FreedomChecklist, collapsed 卡与本页共用
-    private var summary: FreedomSummary {
-        FreedomChecklist.evaluate(expenses: expenses,
-                                  passiveSources: passiveSources,
-                                  assets: assetsArr.first,
-                                  assetItems: assetItems,
-                                  cashAccounts: cashAccounts,
-                                  loans: ProFeatures.loansInEffect(loans),
-                                  countsAssets: countsAssets)
+    private var snapshot: FinancialSnapshot {
+        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
+                          countsAssets: countsAssets)
+    }
+
+    private var goal: FreedomGoal? {
+        guard FreedomGoal.monthsRange.contains(goalMonths) else { return nil }
+        return FreedomGoal(months: goalMonths, leaveDate: goalLeaveDate.map { Date(timeIntervalSince1970: $0) })
     }
 
     // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)
     var body: some View {
-        let result = summary
+        let snapshot = snapshot
+        let recorded = FreedomGoalMath.recordedMonthlyIncome(incomes)
+        let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome, recordedIncome: recorded)
+        let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
+        let result = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         ScrollView {
-            VStack(spacing: Spacing.lg) {
-                heroCard(result)
-                checklistCard(result)
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                FreedomGoalCard(result: result) { editingGoal = true }
+                checklistCard(summary)
+                if let note = summary.dataNote {
+                    Text(note)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.horizontal, Spacing.xs)
+                }
             }
             .padding()
         }
@@ -39,51 +54,34 @@ struct CheckView: View {
         .background(Color.paper)
         .navigationTitle("财富自由自检")
         .inlineNavTitle()
-    }
-
-    // MARK: - Hero 进度卡
-
-    private func heroCard(_ summary: FreedomSummary) -> some View {
-        VaultCard(emphasis: .high, padding: Spacing.xl) {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: "Freedom Checklist")
-
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(summary.doneCount)")
-                        .font(.system(size: 56, weight: .ultraLight, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.ink)
-                    Text("/ \(summary.total)")
-                        .font(.system(size: 22, weight: .ultraLight, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.inkFaint)
-                    Spacer()
-                    Text(FinancialFormatting.percentage(summary.progress))
-                        .font(.system(.callout, design: .monospaced).monospacedDigit())
-                        .foregroundStyle(Color.skyDeep)
-                }
-
-                // 进度长条 silverline 风
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.mist)
-                        Capsule()
-                            .fill(Color.skyDeep)
-                            .frame(width: max(2, geo.size.width * summary.progress))
-                    }
-                }
-                .frame(height: 4)
-
-                Text("八个里程碑，看看你走到了哪一步")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
+        .sheet(isPresented: $editingGoal) {
+            FreedomGoalSheet(existing: goal, enteredIncome: enteredIncome, recordedIncome: recorded,
+                             snapshot: snapshot) { newGoal, income in
+                goalMonths = newGoal.months
+                goalLeaveDate = newGoal.leaveDate?.timeIntervalSince1970
+                enteredIncome = income
+            } onClear: {
+                goalMonths = 0
+                goalLeaveDate = nil
             }
         }
     }
 
-    // MARK: - 8 项列表卡
+    // MARK: - 里程碑
 
     private func checklistCard(_ summary: FreedomSummary) -> some View {
         VaultCard(padding: 0) {
             VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: String(localized: "Milestones · 里程碑"))
+                    Spacer()
+                    Text("\(summary.doneCount) / \(summary.total)")
+                        .font(.system(.callout, design: .monospaced).monospacedDigit())
+                        .foregroundStyle(Color.skyDeep)
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.lg)
+                .padding(.bottom, Spacing.sm)
                 ForEach(Array(summary.items.enumerated()), id: \.element.id) { idx, item in
                     checklistRow(item: item)
                         .padding(.horizontal, Spacing.lg)
@@ -92,13 +90,13 @@ struct CheckView: View {
                     }
                 }
             }
-            .padding(.vertical, Spacing.xs)
+            .padding(.bottom, Spacing.xs)
         }
     }
 
     private func checklistRow(item: FreedomCheckItem) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            // 状态点: 达成 = sky 实心 + 勾, 未达成 = outline
+            // 状态点: 达成 = sky 描边 + 勾, 未达成 = outline
             ZStack {
                 Circle()
                     .stroke(item.done ? Color.skyDeep : Color.inkFaint.opacity(0.6), lineWidth: 1.2)
@@ -112,17 +110,18 @@ struct CheckView: View {
             .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("\(item.id). \(item.title)")
+                Text(item.title)
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(item.done ? Color.ink : Color.inkMuted)
 
                 if item.done {
-                    Text("已达成")
+                    // 没有进度条的项（每月有结余）达成后仍写一句数字
+                    Text(item.progress == nil && !item.detail.isEmpty
+                         ? String(localized: "已达成 · \(item.detail)") : String(localized: "已达成"))
                         .font(.system(.caption2, design: .monospaced))
                         .tracking(0.5)
                         .foregroundStyle(Color.skyDeep)
                 } else {
-                    // 量化项(1/4/5/7/8): 细进度条 + 当前/目标; 二元项(2/3/6): 跳过
                     if let p = item.progress {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
@@ -133,12 +132,13 @@ struct CheckView: View {
                             }
                         }
                         .frame(height: 4)
+                    }
+                    if !item.detail.isEmpty {
                         Text(item.detail)
                             .font(.system(.caption2, design: .monospaced))
                             .tracking(0.5)
                             .foregroundStyle(Color.inkFaint)
                     }
-                    // 怎么前进
                     Text("怎么前进 · \(item.hint)")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)

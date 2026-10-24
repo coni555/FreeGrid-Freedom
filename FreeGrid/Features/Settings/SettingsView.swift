@@ -49,6 +49,10 @@ struct SettingsView: View {
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 设了离职 / GAP 目标时，自检卡的圆环换成离目标多近
+    @AppStorage(FreedomGoal.monthsKey, store: AppPreferences.store) private var goalMonths = 0
+    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -67,12 +71,17 @@ struct SettingsView: View {
 
     var body: some View {
         let snapshot = snapshot
-        let summary = FreedomChecklist.evaluate(snapshot: snapshot, passiveSources: passiveSources)
+        let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
+                                            recordedIncome: FreedomGoalMath.recordedMonthlyIncome(incomes))
+        let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
+        let goal = FreedomGoal.monthsRange.contains(goalMonths)
+            ? FreedomGoal(months: goalMonths, leaveDate: goalLeaveDate.map { Date(timeIntervalSince1970: $0) }) : nil
+        let goalResult = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         return NavigationStack {
             ScrollView {
                 // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
                 VStack(spacing: -SettingsDeck.tuck) {
-                    checkCard(summary)
+                    checkCard(summary, goal: goalResult)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coverHeight = $0 }
                         .guideTarget(.check, in: guide)
                         .zIndex(6)
@@ -156,11 +165,12 @@ struct SettingsView: View {
     }
 
     // MARK: - 第 1 张：自检（封面，点了 push 完整自检）
-    private func checkCard(_ summary: FreedomSummary) -> some View {
-        DeckCard(tucked: false) { checkRow(summary) }
+    private func checkCard(_ summary: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
+        DeckCard(tucked: false) { checkRow(summary, goal: goal) }
     }
 
-    private func checkRow(_ s: FreedomSummary) -> some View {
+    /// 设了目标：圆环是离目标多近，下面写目标和结论；没设：圆环是达成了几个里程碑，下面写下一站
+    private func checkRow(_ s: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
         NavigationLink {
             CheckView()
         } label: {
@@ -169,14 +179,22 @@ struct SettingsView: View {
                 ZStack {
                     Circle().stroke(Color.mist2, lineWidth: 5)
                     Circle()
-                        .trim(from: 0, to: s.progress)
+                        .trim(from: 0, to: goal?.progress ?? s.progress)
                         .stroke(Color.skyDeep, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    (Text("\(s.doneCount)")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
-                     + Text("/\(s.total)")
-                        .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
-                        .foregroundStyle(Color.ink)
+                    if let goal {
+                        Text(FinancialFormatting.percentage(goal.progress))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+                            .minimumScaleFactor(0.6)
+                            .padding(6)
+                            .foregroundStyle(Color.ink)
+                    } else {
+                        (Text("\(s.doneCount)")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+                         + Text("/\(s.total)")
+                            .font(.system(size: 11, weight: .regular, design: .rounded).monospacedDigit()))
+                            .foregroundStyle(Color.ink)
+                    }
                 }
                 .frame(width: 56, height: 56)
 
@@ -184,7 +202,14 @@ struct SettingsView: View {
                     Text("财富自由自检")
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    if let stop = s.nextStopTitle {
+                    if let goal {
+                        Text("我的目标 · 撑 \(goal.goal.months) 个月")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        Text(goal.statusLine)
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color.skyDeep)
+                    } else if let stop = s.nextStopTitle {
                         Text("下一站 · \(stop)")
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
