@@ -152,6 +152,16 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(card("next").waitForExistence(timeout: 3))
         XCTAssertFalse(card("todayBar").exists)
 
+        // 七张小卡排成三行：收起只留第一行（3 张），再展开
+        let toggle = app.buttons["home-cards-toggle"]
+        for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
+        toggle.tap()
+        XCTAssertTrue(card("next").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(card("month").exists)
+        XCTAssertEqual(toggle.value as? String, "已收起")
+        toggle.tap()
+        XCTAssertTrue(card("next").waitForExistence(timeout: 3))
+
         // 重开 App 后还是改过的样子
         app.terminate()
         launch(keepingPreferences: true)

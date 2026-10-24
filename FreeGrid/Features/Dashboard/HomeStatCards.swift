@@ -30,6 +30,8 @@ struct HomeCardsGrid: View {
                     }
                 }
                 .buttonStyle(.plain)
+                // 展开时多出来的卡淡入，收起时淡出；位置变化跟着一起滑
+                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
                 .layoutValue(key: IsWideCard.self, value: item.isWide)
                 .onDrag {
                     dragging = item

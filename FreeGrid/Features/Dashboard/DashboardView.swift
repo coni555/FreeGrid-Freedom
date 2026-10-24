@@ -82,6 +82,8 @@ private struct DashboardContent: View {
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
     /// 底部放哪几张数字小卡
     @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
+    /// 卡片多于一行时，展开还是收起（收起只留第一行），记住上次的选择
+    @AppStorage("homeCardsExpanded", store: AppPreferences.store) private var cardsExpanded = true
     /// 编辑卡片：点任意一张卡或「编辑卡片」打开
     @State private var showingStatEditor = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
@@ -352,27 +354,56 @@ private struct DashboardContent: View {
                 // 全都移除了：留一个虚线框，告诉人从哪里加回来
                 HomeStatEmptySlot(onEdit: { showingStatEditor = true })
             } else {
-                HomeCardsGrid(items: items, slots: statSlots, inputs: statInputs,
+                // 多于一行时可以收起，收起只留第一行；和大数字卡里的趋势一样，一行细字是开关
+                let firstRow = HomeStat.rows(items).first ?? []
+                let hiddenCount = items.count - firstRow.count
+                HomeCardsGrid(items: cardsExpanded || hiddenCount == 0 ? items : firstRow,
+                              slots: statSlots, inputs: statInputs,
                               todayBar: AnyView(todaySection),
                               onEdit: { showingStatEditor = true },
                               onReorder: { storedStatSlots = HomeStat.encode($0) })
-                Button {
-                    showingStatEditor = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 11))
-                        Text("编辑卡片")
-                            .font(.system(.caption, design: .rounded))
+                HStack(alignment: .center) {
+                    if hiddenCount > 0 {
+                        Button {
+                            withAnimation(.snappy(duration: 0.32)) { cardsExpanded.toggle() }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(cardsExpanded ? "收起" : "展开其余 \(hiddenCount) 张")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .contentTransition(.opacity)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .rotationEffect(.degrees(cardsExpanded ? 180 : 0))
+                            }
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("home-cards-toggle")
+                        .accessibilityLabel(cardsExpanded ? "收起卡片，只留第一行" : "展开其余 \(hiddenCount) 张卡片")
+                        .accessibilityValue(cardsExpanded ? "已展开" : "已收起")
                     }
-                    .foregroundStyle(Color.inkMuted)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
-                    .contentShape(Capsule())
+                    Spacer()
+                    Button {
+                        showingStatEditor = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 11))
+                            Text("编辑卡片")
+                                .font(.system(.caption, design: .rounded))
+                        }
+                        .foregroundStyle(Color.inkMuted)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("edit-home-stats")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("edit-home-stats")
             }
         }
     }
