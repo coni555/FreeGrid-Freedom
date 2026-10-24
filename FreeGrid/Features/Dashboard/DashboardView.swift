@@ -111,22 +111,21 @@ private struct DashboardContent: View {
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
-                    topBar           // 一行 wordmark
-                        .id(Self.topID)
-                    DashboardHero(history: history, snapshot: snapshot,
-                                  isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
-                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
-                    gridSection      // 按天、月或年显示自由网格
-                        .guideTarget(.grid, in: guide)
-                    actionRow        // 支出 + 收入
-                    simulateRow      // 模拟决策
-                    if snapshot.hasExpenses {
-                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                    #if DEBUG
+                    // 临时：首页改造方向的对比，带 -homeConcept 时换掉整页
+                    if let concept = HomeConcept.current {
+                        HomeConceptBody(concept: concept, snapshot: snapshot, history: history,
+                                        todaySpending: todaySpending, isDark: showsDark,
+                                        onExpense: { expenseDraft = ExpenseDraft() },
+                                        onIncome: { showingAddIncome = true },
+                                        onSimulate: { showingSimulate = true })
+                            .id(Self.topID)
+                    } else {
+                        classicHome
                     }
-                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    }
+                    #else
+                    classicHome
+                    #endif
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -183,6 +182,27 @@ private struct DashboardContent: View {
             }
             .saveErrorAlert($saveError)
         }
+    }
+
+    /// 首页现在的样子
+    @ViewBuilder
+    private var classicHome: some View {
+                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
+                    topBar           // 一行 wordmark
+                        .id(Self.topID)
+                    DashboardHero(history: history, snapshot: snapshot,
+                                  isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
+                    gridSection      // 按天、月或年显示自由网格
+                        .guideTarget(.grid, in: guide)
+                    actionRow        // 支出 + 收入
+                    simulateRow      // 模拟决策
+                    if snapshot.hasExpenses {
+                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
+                    }
+                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
+                    }
     }
 
     // ============================================================================
