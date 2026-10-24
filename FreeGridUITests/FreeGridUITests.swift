@@ -97,6 +97,89 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["咖啡"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// 首页卡片：首页上按住拖动换位置（小卡和今日长条都行）；编辑面板里移除、加回来、全部添加，重开 App 后还在；最后恢复默认
+    @MainActor
+    func testHomeCardsAreDraggedOnHomeAndEditedInThePanel() {
+        let app = XCUIApplication()
+        func launch(keepingPreferences: Bool) {
+            app.launchArguments = ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                   "-UseInMemoryStore", "-proPreview", "NO"]
+                + (keepingPreferences ? ["-KeepScratchPreferences"] : [])
+            app.launch()
+            app.buttons["记支出"].tap()
+            let amount = app.textFields["0.00"]
+            XCTAssertTrue(amount.waitForExistence(timeout: 3))
+            amount.tap()
+            amount.typeText("30")
+            app.buttons["保存"].tap()
+        }
+        func card(_ stat: String) -> XCUIElement { app.buttons["home-stat-\(stat)"] }
+        let done = app.buttons["home-stat-editor-done"]
+
+        launch(keepingPreferences: false)
+        // 没有被动收入：默认是 日均 / 本月 / 记账，下面是今日对比长条
+        XCTAssertTrue(card("daily").waitForExistence(timeout: 5))
+        for _ in 0..<4 where !app.buttons["edit-home-stats"].isHittable { app.swipeUp() }
+        XCTAssertTrue(card("month").exists)
+        XCTAssertTrue(card("track").exists)
+        XCTAssertTrue(card("todayBar").exists)
+        XCTAssertGreaterThan(card("todayBar").frame.minY, card("daily").frame.maxY)
+
+        // 首页上直接拖：本月拖到日均的位置；今日长条拖到最前面，还是占一整行
+        card("month").press(forDuration: 1.2, thenDragTo: card("daily"))
+        XCTAssertLessThan(card("month").frame.minX, card("daily").frame.minX)
+        card("todayBar").press(forDuration: 1.2, thenDragTo: card("month"))
+        XCTAssertLessThan(card("todayBar").frame.maxY, card("month").frame.minY)
+        XCTAssertGreaterThan(card("todayBar").frame.width, card("month").frame.width * 2)
+
+        // 点一张卡打开编辑面板；移除记账天数和今日长条，它们回到「还可以添加」；再全部添加
+        card("daily").tap()
+        XCTAssertTrue(done.waitForExistence(timeout: 3))
+        app.buttons["remove-stat-track"].tap()
+        app.buttons["remove-stat-todayBar"].tap()
+        XCTAssertTrue(app.buttons["add-stat-track"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["add-stat-todayBar"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "编辑卡片"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["add-all-stats"].tap()
+        XCTAssertTrue(app.buttons["remove-stat-next"].waitForExistence(timeout: 3))
+        // 再拿掉今日长条
+        app.buttons["remove-stat-todayBar"].tap()
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(card("next").waitForExistence(timeout: 3))
+        XCTAssertFalse(card("todayBar").exists)
+
+        // 七张小卡排成三行：收起只留第一行（3 张），再展开
+        let toggle = app.buttons["home-cards-toggle"]
+        for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
+        toggle.tap()
+        XCTAssertTrue(card("next").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(card("month").exists)
+        XCTAssertEqual(toggle.value as? String, "已收起")
+        toggle.tap()
+        XCTAssertTrue(card("next").waitForExistence(timeout: 3))
+
+        // 重开 App 后还是改过的样子
+        app.terminate()
+        launch(keepingPreferences: true)
+        XCTAssertTrue(card("next").waitForExistence(timeout: 5))
+        XCTAssertTrue(card("base").exists)
+        XCTAssertFalse(card("todayBar").exists)
+
+        // 恢复默认
+        for _ in 0..<4 where !app.buttons["edit-home-stats"].isHittable { app.swipeUp() }
+        app.buttons["edit-home-stats"].tap()
+        XCTAssertTrue(done.waitForExistence(timeout: 3))
+        app.buttons["reset-home-stats"].tap()
+        done.tap()
+        XCTAssertTrue(card("todayBar").waitForExistence(timeout: 3))
+        XCTAssertTrue(card("track").exists)
+        XCTAssertFalse(card("base").exists)
+    }
+
     /// Pro：把一个分类改成另一个已有分类的名字，确认后两个合并，旧账都归到留下的那个。
     @MainActor
     func testRenamingIntoAnExistingCategoryMergesThem() {
@@ -2127,6 +2210,14 @@ final class EnglishScreensUITests: XCTestCase {
         try shoot("01-dashboard")
         app.swipeUp()
         try shoot("02-dashboard-bottom")
+        // 首页卡片的编辑面板，再把卡全加上看英文小字
+        if app.buttons["edit-home-stats"].exists {
+            app.buttons["edit-home-stats"].tap()
+            try shoot("02b-edit-cards")
+            if app.buttons["Add All"].exists { app.buttons["Add All"].tap() }
+            app.buttons["Done"].tap()
+            try shoot("02c-dashboard-all-cards")
+        }
         app.swipeDown()
 
         app.buttons["Add Expense"].firstMatch.tap()
@@ -2202,8 +2293,10 @@ final class EnglishScreensUITests: XCTestCase {
 
         app.tabBars.buttons["Settings"].tap()
         app.swipeDown()
-        app.buttons["settings-card-look"].tap()
         let language = app.segmentedControls["language-picker"]
+        if !language.waitForExistence(timeout: 2), app.buttons["settings-card-look"].exists {
+            app.buttons["settings-card-look"].tap()
+        }
         if language.waitForExistence(timeout: 3) {
             try shoot("17-language")
         }

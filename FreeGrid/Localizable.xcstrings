@@ -495,44 +495,44 @@
         }
       }
     },
-    "%lld 周自由趋势": {
+    "%lld 周自由趋势 · 估算": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld-week freedom trend"
+            "value": "%lld-week freedom trend · estimated"
           }
         }
       }
     },
-    "%lld 周自由趋势，%@ 到 %@": {
+    "%lld 周自由趋势估算，%@ 到 %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld-week freedom trend, %2$@ to %3$@"
+            "value": "%1$lld-week freedom trend (estimated), %2$@ to %3$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "new",
-            "value": "%1$lld 周自由趋势，%2$@ 到 %3$@"
+            "value": "%1$lld 周自由趋势估算，%2$@ 到 %3$@"
           }
         }
       }
     },
-    "%lld 周自由趋势，现在 %@": {
+    "%lld 周自由趋势估算，现在 %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld-week freedom trend, now %2$@"
+            "value": "%1$lld-week freedom trend (estimated), now %2$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "new",
-            "value": "%1$lld 周自由趋势，现在 %2$@"
+            "value": "%1$lld 周自由趋势估算，现在 %2$@"
           }
         }
       }
@@ -859,12 +859,32 @@
         }
       }
     },
-    "**今天**：今天的日常支出，比日常日均高还是低。房租这类固定支出不算在内。": {
+    "**下次固定支出**：最近一笔房租、订阅或月供还有几天扣。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Today**: today's everyday spending, above or below your everyday average. Fixed expenses like rent aren't included."
+            "value": "**Next**: days until your next rent, subscription or loan payment comes out."
+          }
+        }
+      }
+    },
+    "**今日对比长条**：今天的日常支出和日常日均比，房租这类固定支出不算在内。它和小卡一样能拖、能移除，只是总占一整行。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Today bar**: today's everyday spending against your everyday average; fixed expenses like rent aren't included. You can drag and remove it like the cards; it just always takes a full row."
+          }
+        }
+      }
+    },
+    "**今日花销**：今天的日常支出，比日常日均高还是低。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Today**: today's everyday spending, above or below your everyday average."
           }
         }
       }
@@ -915,6 +935,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "**Net worth** = assets + cash, calculated for you. Tap a row to change an amount."
+          }
+        }
+      }
+    },
+    "**可动用资产**：算进自由天数的现金和资产一共多少，小字是资产和现金各占几成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Funds**: the cash and assets that count toward Freedom Days. The small text shows how much is assets and how much is cash."
           }
         }
       }
@@ -1029,6 +1059,16 @@
         }
       }
     },
+    "**本月花销**：本月 1 号到今天花了多少，和上个月同一段比。自动扣的房租、月供也算在内。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Month**: what you've spent from the 1st to today, compared with the same days last month. Automatic rent and loan payments are included."
+          }
+        }
+      }
+    },
     "**查找**：右上角搜索金额或备注，旁边的按钮按分类筛选。": {
       "localizations": {
         "en": {
@@ -1129,12 +1169,12 @@
         }
       }
     },
-    "**记账天数**：从第一笔支出到今天。": {
+    "**记账天数**：从第一笔支出到今天。不满 90 天时写着再记多少天，日均趋势会更清晰。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Track**: days from your first expense to today."
+            "value": "**Track**: days from your first expense to today. Before day 90, it shows how many more days until your daily average settles."
           }
         }
       }
@@ -1895,6 +1935,16 @@
         }
       }
     },
+    "下次固定支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next fixed expense"
+          }
+        }
+      }
+    },
     "下面几张卡，点卡头抽出来，再点一下收回。\n「外观」里换深浅色、首页大数字的位置和钱包页的样式。": {
       "localizations": {
         "en": {
@@ -2255,12 +2305,32 @@
         }
       }
     },
+    "今天净退款": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net refund today"
+          }
+        }
+      }
+    },
     "今天到期的这期算已还，从下一期开始自动扣": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Today's payment counts as paid; automatic payments start with the next one"
+          }
+        }
+      }
+    },
+    "今天还没花": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing spent today"
           }
         }
       }
@@ -2275,12 +2345,32 @@
         }
       }
     },
+    "今日对比长条": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today bar"
+          }
+        }
+      }
+    },
     "今日尚未消费": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Nothing spent today"
+          }
+        }
+      }
+    },
+    "今日花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent today"
           }
         }
       }
@@ -2835,6 +2925,36 @@
         }
       }
     },
+    "元 · 今天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥ · today"
+          }
+        }
+      }
+    },
+    "元 · 可动用资产": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥ · available funds"
+          }
+        }
+      }
+    },
+    "元 · 本月已花": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥ · spent this month"
+          }
+        }
+      }
+    },
     "元/天": {
       "localizations": {
         "en": {
@@ -2885,6 +3005,26 @@
         }
       }
     },
+    "全是现金": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All cash"
+          }
+        }
+      }
+    },
+    "全是资产": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All assets"
+          }
+        }
+      }
+    },
     "全部": {
       "localizations": {
         "en": {
@@ -2911,6 +3051,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "All time"
+          }
+        }
+      }
+    },
+    "全部添加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add All"
           }
         }
       }
@@ -3021,6 +3171,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add a few more entries to compare with usual"
+          }
+        }
+      }
+    },
+    "再记录 %lld 天，日均趋势会更清晰": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more day for a clearer average"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more days for a clearer average"
+                }
+              }
+            }
           }
         }
       }
@@ -3597,6 +3769,16 @@
         }
       }
     },
+    "占一整行 · 今天和日常比": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full row · today vs. everyday"
+          }
+        }
+      }
+    },
     "卡的材质跟着自由天数变：30 天银卡，180 天香槟金，1 年黑卡；被动收入覆盖全部开销是 ∞ 卡。": {
       "localizations": {
         "en": {
@@ -3763,6 +3945,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "You can view it; sharing needs Pro."
+          }
+        }
+      }
+    },
+    "可动用资产": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available funds"
           }
         }
       }
@@ -3999,6 +4191,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "About the same as your %@"
+          }
+        }
+      }
+    },
+    "和上月同期差不多": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About the same as last month"
+          }
+        }
+      }
+    },
+    "和日均差不多": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In line with average"
+          }
+        }
+      }
+    },
+    "和日常差不多": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In line with everyday"
           }
         }
       }
@@ -4261,6 +4483,16 @@
         }
       }
     },
+    "在首页上": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Dashboard"
+          }
+        }
+      }
+    },
     "填金额、分类（收入选来源）和日期，「今天」「昨天」一点就选。": {
       "localizations": {
         "en": {
@@ -4447,6 +4679,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "days"
+          }
+        }
+      }
+    },
+    "天后 · %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days · %1$@ %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "天后 · %1$@ %2$@"
           }
         }
       }
@@ -4687,6 +4935,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Center"
+          }
+        }
+      }
+    },
+    "展开其余 %lld 张": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show %lld more"
+          }
+        }
+      }
+    },
+    "展开其余 %lld 张卡片": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show %lld more card"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show %lld more cards"
+                }
+              }
+            }
           }
         }
       }
@@ -4965,6 +5245,16 @@
         }
       }
     },
+    "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点任意一张卡，或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You choose which cards sit at the bottom and in what order. On the Dashboard, press and hold a card until it lifts, then drag it where you want it. Tap any card, or “Edit Cards” below them, to open the editor: the cards on your Dashboard are at the top; tap the minus on the left to remove one, or drag the handle on the right to reorder. Removed cards move down to “More Cards”; tap the plus to add one back, or tap “Add All”. If things get messy, tap “Reset to Default”. When the cards take more than one row, “Show less / Show N more” appears at the bottom left; collapsed, only the first row stays, so drag your favorites there. The cards you can choose from:"
+          }
+        }
+      }
+    },
     "开始记账满 30 天": {
       "localizations": {
         "en": {
@@ -5035,6 +5325,26 @@
         }
       }
     },
+    "往前挪": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Earlier"
+          }
+        }
+      }
+    },
+    "往后挪": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Later"
+          }
+        }
+      }
+    },
     "微信、支付宝、招行卡…": {
       "localizations": {
         "en": {
@@ -5101,6 +5411,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restoring brings back Pro, not your ledger. Import your ledger from a JSON backup."
+          }
+        }
+      }
+    },
+    "恢复默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset to Default"
           }
         }
       }
@@ -5603,6 +5923,26 @@
         }
       }
     },
+    "按住右边的把手拖动调整顺序；在首页上按住卡片也能直接拖": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag the handle on the right to reorder. You can also press and hold a card on the Dashboard to drag it."
+          }
+        }
+      }
+    },
+    "按住拖动换位置，点一下编辑卡片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press and hold to move. Tap to edit cards."
+          }
+        }
+      }
+    },
     "按分类筛选": {
       "localizations": {
         "en": {
@@ -5985,6 +6325,26 @@
         }
       }
     },
+    "收起": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show less"
+          }
+        }
+      }
+    },
+    "收起卡片，只留第一行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse cards to the first row"
+          }
+        }
+      }
+    },
     "收起折线": {
       "localizations": {
         "en": {
@@ -6209,6 +6569,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Steadier daily average"
+          }
+        }
+      }
+    },
+    "日均消费": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily average"
           }
         }
       }
@@ -6591,6 +6961,16 @@
         }
       }
     },
+    "本月花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This month"
+          }
+        }
+      }
+    },
     "来源": {
       "localizations": {
         "en": {
@@ -6627,26 +7007,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "View This Month"
-          }
-        }
-      }
-    },
-    "根据账目估算": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimated from your records"
-          }
-        }
-      }
-    },
-    "根据账目和现在的被动收入估算": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimated from your records and current passive income"
           }
         }
       }
@@ -7051,6 +7411,66 @@
         }
       }
     },
+    "比上月同期多 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ more than last month"
+          }
+        }
+      }
+    },
+    "比上月同期少 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ less than last month"
+          }
+        }
+      }
+    },
+    "比日均低 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ below average"
+          }
+        }
+      }
+    },
+    "比日均高 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ above average"
+          }
+        }
+      }
+    },
+    "比日常低 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ below everyday"
+          }
+        }
+      }
+    },
+    "比日常高 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ above everyday"
+          }
+        }
+      }
+    },
     "比现在多 ¥%@": {
       "localizations": {
         "en": {
@@ -7111,6 +7531,16 @@
         }
       }
     },
+    "没有固定支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No fixed expenses"
+          }
+        }
+      }
+    },
     "没有要付的了": {
       "localizations": {
         "en": {
@@ -7161,12 +7591,32 @@
         }
       }
     },
+    "添加%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@"
+          }
+        }
+      }
+    },
     "添加分类": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Add Category"
+          }
+        }
+      }
+    },
+    "添加卡片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Cards"
           }
         }
       }
@@ -7837,6 +8287,26 @@
         }
       }
     },
+    "移除%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@"
+          }
+        }
+      }
+    },
+    "移除的卡会回到这里，随时可以加回来": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed cards come back here; add them again anytime."
+          }
+        }
+      }
+    },
     "笔": {
       "localizations": {
         "en": {
@@ -7989,6 +8459,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit Category"
+          }
+        }
+      }
+    },
+    "编辑卡片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Cards"
           }
         }
       }
@@ -8429,6 +8909,16 @@
         }
       }
     },
+    "被动收入覆盖率": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passive coverage"
+          }
+        }
+      }
+    },
     "被动覆盖 100%": {
       "localizations": {
         "en": {
@@ -8755,6 +9245,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "In your first 90 days, one big purchase no longer sends the daily average soaring"
+          }
+        }
+      }
+    },
+    "记账天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days tracked"
           }
         }
       }
@@ -9199,6 +9699,22 @@
         }
       }
     },
+    "资产 %lld%% · 现金 %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assets %1$lld%% · Cash %2$lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "资产 %1$lld%% · 现金 %2$lld%%"
+          }
+        }
+      }
+    },
     "资产 ¥%@ + 现金 ¥%@": {
       "localizations": {
         "en": {
@@ -9531,6 +10047,16 @@
         }
       }
     },
+    "还可以添加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More Cards"
+          }
+        }
+      }
+    },
     "还差 %lld 天": {
       "localizations": {
         "en": {
@@ -9599,6 +10125,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No amounts yet"
+          }
+        }
+      }
+    },
+    "还没有被动收入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No passive income yet"
           }
         }
       }
@@ -9949,6 +10485,16 @@
         }
       }
     },
+    "都在首页上了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All cards are on your Dashboard"
+          }
+        }
+      }
+    },
     "重播": {
       "localizations": {
         "en": {
@@ -10211,6 +10757,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dashboard"
+          }
+        }
+      }
+    },
+    "首页上还没有卡片，从下面加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No cards on your Dashboard yet. Add some below."
           }
         }
       }

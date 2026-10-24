@@ -144,6 +144,7 @@ flowchart TD
 | 界面文字（中文、英文） | `Localizable.xcstrings`；写法见下面「中英文」一段 |
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
 | 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
+| 首页底部卡片（几张小卡 + 今日对比长条，放哪些、什么顺序由用户定） | 有哪些卡、没改过时放哪些、怎么排成行（长条占一整行）、每张算出什么在 `Logic/HomeStat.swift`；首页上的卡片和按住拖动（系统拖放）、「编辑卡片」面板（移除、添加、全部添加、把手排序、恢复默认）在 `Features/Dashboard/HomeStatCards.swift`；顺序存在偏好 `homeStatSlots` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 新版 Assets、History、Settings 的顶部背景与状态栏底色 | `UI/NavigationBackground.swift`；导航内容用 `paperNavigationContent()`，外层导航容器用 `paperNavigationBackground()` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |

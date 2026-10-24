@@ -36,17 +36,13 @@ struct DashboardView: View {
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
             now: snapshot.now
         )
-        // 今天的起止只算一次；逐笔调 isDateInToday 在几千笔的账本上要好几毫秒
-        let today = Calendar.current.dateInterval(of: .day, for: snapshot.now)
+        // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
+        let statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
         return DashboardContent(
             snapshot: snapshot,
             history: history,
-            // 和日均比的是日常开销，自动扣的房租、月供不算
-            todaySpending: today.map { day in
-                expenses.reduce(0) { sum, expense in
-                    expense.countsInBurn && expense.date >= day.start && expense.date < day.end ? sum + expense.amount : sum
-                }
-            } ?? 0
+            statInputs: statInputs,
+            todaySpending: statInputs.todaySpending
         )
     }
 }
@@ -65,6 +61,8 @@ private struct DashboardContent: View {
     let snapshot: FinancialSnapshot
     /// 自由天数趋势，由 DashboardView 随账本一起算好
     let history: [FreedomMath.HistoryPoint]
+    /// 底部三张数字小卡要的数，同样由 DashboardView 随账本算好
+    let statInputs: HomeStat.Inputs
     let todaySpending: Double
 
     @Environment(\.modelContext) private var modelContext
@@ -82,6 +80,12 @@ private struct DashboardContent: View {
     @State private var showingFreedomCard = false
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeenCard = -1
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupFinished = false
+    /// 底部放哪几张数字小卡
+    @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
+    /// 卡片多于一行时，展开还是收起（收起只留第一行），记住上次的选择
+    @AppStorage("homeCardsExpanded", store: AppPreferences.store) private var cardsExpanded = true
+    /// 编辑卡片：点任意一张卡或「编辑卡片」打开
+    @State private var showingStatEditor = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -111,22 +115,7 @@ private struct DashboardContent: View {
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
-                    topBar           // 一行 wordmark
-                        .id(Self.topID)
-                    DashboardHero(history: history, snapshot: snapshot,
-                                  isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
-                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
-                    gridSection      // 按天、月或年显示自由网格
-                        .guideTarget(.grid, in: guide)
-                    actionRow        // 支出 + 收入
-                    simulateRow      // 模拟决策
-                    if snapshot.hasExpenses {
-                        statsRow     // stat 卡片横向; 一笔支出都没有时只会是「—」和 0
-                    }
-                    if snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
-                        todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
-                    }
+                    classicHome
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -161,6 +150,10 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sheet(isPresented: $showingStatEditor) {
+                HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
+                               onReset: { storedStatSlots = "" })
+            }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
                     showUndoToast(id: inc.id, amount: inc.amount, isExpense: false)
@@ -177,12 +170,28 @@ private struct DashboardContent: View {
             }
             .background {
                 ReviewInvitationPresenter(
-                    blocked: showingSimulate || showingFreedomCard || saveError != nil,
+                    blocked: showingSimulate || showingFreedomCard || showingStatEditor || saveError != nil,
                     busy: expenseDraft != nil || showingAddIncome || pendingUndoID != nil
                 )
             }
             .saveErrorAlert($saveError)
         }
+    }
+
+    /// 首页现在的样子
+    @ViewBuilder
+    private var classicHome: some View {
+                    // 首屏: 结论(数字, 带可收起的趋势) → 它的图(格子) → 动作(记账、模拟)
+                    topBar           // 一行 wordmark
+                        .id(Self.topID)
+                    DashboardHero(history: history, snapshot: snapshot,
+                                  isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
+                    gridSection      // 按天、月或年显示自由网格
+                        .guideTarget(.grid, in: guide)
+                    actionRow        // 支出 + 收入
+                    simulateRow      // 模拟决策
+                    bottomCards      // 小卡和今日对比长条，放哪些、什么顺序由用户定
     }
 
     // ============================================================================
@@ -319,48 +328,78 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    private var statsRow: some View {
-        HStack(spacing: Spacing.md) {
-            // 日均含固定支出折成的每天；有固定支出时小字拆开写，和下面只比日常的 Today 对得上
-            statCard(label: "Daily",
-                     value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
-                     unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-                         ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
-                         : String(localized: "元/天"))
-            // 没有被动收入时这张卡永远是 0%, 不占位置
-            if snapshot.dailyPassive > 0 {
-                statCard(label: "Passive",
-                         value: FinancialFormatting.percentage(snapshot.passiveRatio),
-                         unit: String(localized: "被动收入覆盖"))
+    /// 底部：小卡和今日对比长条（放哪些、什么顺序由用户定）→「编辑卡片」。一笔支出都没有时都不放
+    @ViewBuilder
+    private var bottomCards: some View {
+        if snapshot.hasExpenses {
+            // 今日对比要有日均才有可比的；没有时先不画，顺序里还留着它
+            let hasToday = snapshot.dailyBurn.isFinite && snapshot.dailyBurn > 0
+            let items = statSlots.filter { $0 != .todayBar || hasToday }
+            if items.isEmpty {
+                // 全都移除了：留一个虚线框，告诉人从哪里加回来
+                HomeStatEmptySlot(onEdit: { showingStatEditor = true })
+            } else {
+                // 多于一行时可以收起，收起只留第一行；和大数字卡里的趋势一样，一行细字是开关
+                let firstRow = HomeStat.rows(items).first ?? []
+                let hiddenCount = items.count - firstRow.count
+                HomeCardsGrid(items: cardsExpanded || hiddenCount == 0 ? items : firstRow,
+                              slots: statSlots, inputs: statInputs,
+                              todayBar: AnyView(todaySection),
+                              onEdit: { showingStatEditor = true },
+                              onReorder: { storedStatSlots = HomeStat.encode($0) })
+                HStack(alignment: .center) {
+                    if hiddenCount > 0 {
+                        Button {
+                            withAnimation(.snappy(duration: 0.32)) { cardsExpanded.toggle() }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(cardsExpanded ? "收起" : "展开其余 \(hiddenCount) 张")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .contentTransition(.opacity)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .rotationEffect(.degrees(cardsExpanded ? 180 : 0))
+                            }
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("home-cards-toggle")
+                        .accessibilityLabel(cardsExpanded ? "收起卡片，只留第一行" : "展开其余 \(hiddenCount) 张卡片")
+                        .accessibilityValue(cardsExpanded ? "已展开" : "已收起")
+                    }
+                    Spacer()
+                    Button {
+                        showingStatEditor = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 11))
+                            Text("编辑卡片")
+                                .font(.system(.caption, design: .rounded))
+                        }
+                        .foregroundStyle(Color.inkMuted)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("edit-home-stats")
+                }
             }
-            statCard(label: "Track",
-                     value: "\(snapshot.trackDays)",
-                     unit: String(localized: "天记账"))
         }
     }
 
-    /// 单个 stat 卡片:数字 / hairline / kicker / sub label 四层(silverline)
-    private func statCard(label: String, value: String, unit: String) -> some View {
-        VaultCard(padding: Spacing.md) {
-            VStack(alignment: .leading, spacing: 6) {
-                // 大 thin 数字(silverline 风格)
-                Text(value)
-                    .font(.system(size: 28, weight: .thin, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.ink)
-                // 短 hairline 短横线
-                Rectangle()
-                    .fill(Color.inkGhost)
-                    .frame(width: 22, height: 1)
-                    .padding(.vertical, 2)
-                // kicker
-                KickerLabel(text: label)
-                // sub unit
-                Text(unit)
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
+    private var statSlots: [HomeStat] {
+        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
+    }
+
+    private func setStatSlots(_ slots: [HomeStat]) {
+        withAnimation(.snappy(duration: 0.3)) {
+            storedStatSlots = HomeStat.encode(slots)
         }
     }
 
@@ -484,7 +523,7 @@ private struct DashboardContent: View {
                     LifeGrid(unit: state.unit, count: state.count,
                              assetCells: state.assetCells, paymentCells: state.paymentCells,
                              showsMissedPayment: state.showsMissedPayment)
-                        .padding(.vertical, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
                 }
 
                 if state.count > 0 {
@@ -562,12 +601,21 @@ private struct DashboardContent: View {
         state.isOverflow ? "\(state.count)+ \(state.unit.label)" : ""
     }
 
-    /// 空网格时的提示:暗色 SF symbol + 文案
+    /// 空网格时的提示：九个还没点亮的描边小格 + 文案
     private var emptyGridHint: some View {
-        VStack(spacing: Spacing.sm) {
-            Image(systemName: "square.grid.3x3.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.inkFaint)
+        VStack(spacing: Spacing.md) {
+            Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                ForEach(0..<3, id: \.self) { _ in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                .stroke(Color.inkGhost, lineWidth: 1)
+                                .frame(width: 12, height: 12)
+                        }
+                    }
+                }
+            }
+            .accessibilityHidden(true)
             Text(gridEmptyText)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(Color.inkFaint)
