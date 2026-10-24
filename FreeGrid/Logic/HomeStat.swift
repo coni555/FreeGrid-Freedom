@@ -57,31 +57,6 @@ enum HomeStat: String, CaseIterable, Identifiable {
         slots.isEmpty ? noneValue : slots.map(\.rawValue).joined(separator: ",")
     }
 
-    /// 第 `index` 张换成 `stat`。它已经在别的位置时两张对调，不会重复
-    static func replacing(_ slots: [HomeStat], at index: Int, with stat: HomeStat) -> [HomeStat] {
-        guard slots.indices.contains(index) else { return slots }
-        var result = slots
-        if let other = result.firstIndex(of: stat) {
-            result.swapAt(index, other)
-        } else {
-            result[index] = stat
-        }
-        return result
-    }
-
-    /// 把第 `from` 张拖到第 `to` 格，中间的往旁边让
-    static func moving(_ slots: [HomeStat], from: Int, to: Int) -> [HomeStat] {
-        guard slots.indices.contains(from), slots.indices.contains(to) else { return slots }
-        var result = slots
-        result.insert(result.remove(at: from), at: to)
-        return result
-    }
-
-    /// 已经在首页上就拿掉，不在就加到最后
-    static func toggling(_ slots: [HomeStat], _ stat: HomeStat) -> [HomeStat] {
-        slots.contains(stat) ? slots.filter { $0 != stat } : slots + [stat]
-    }
-
     /// 一行最多三张；不整除时前面的行多一张，4 张排成两行两张，不留单独一张
     static func rowSizes(count: Int) -> [Int] {
         guard count > 0 else { return [] }

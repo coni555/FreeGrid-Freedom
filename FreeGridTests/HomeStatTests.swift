@@ -1,4 +1,4 @@
-// 首页数字小卡：没改过时放哪几张、加减换挪之后的顺序、每行几张，以及本月 / 今日 / 记账天数 / 可动用资产 / 下次固定支出算出来的数。
+// 首页数字小卡：没改过时放哪几张、存下来的顺序、每行几张，以及本月 / 今日 / 记账天数 / 可动用资产 / 下次固定支出算出来的数。
 import Foundation
 import Testing
 @testable import FreeGrid
@@ -32,19 +32,6 @@ struct HomeStatTests {
         // 全都移除了也记得，不回到默认
         #expect(HomeStat.encode([]) == "none")
         #expect(HomeStat.slots(stored: HomeStat.encode([]), hasPassive: true).isEmpty)
-    }
-
-    @Test func addingRemovingSwappingAndDragging() {
-        let slots: [HomeStat] = [.daily, .passive, .track]
-        #expect(HomeStat.replacing(slots, at: 1, with: .month) == [.daily, .month, .track])
-        #expect(HomeStat.replacing(slots, at: 0, with: .track) == [.track, .passive, .daily])
-        #expect(HomeStat.toggling(slots, .today) == [.daily, .passive, .track, .today])
-        #expect(HomeStat.toggling(slots, .passive) == [.daily, .track])
-        #expect(HomeStat.moving(slots, from: 2, to: 1) == [.daily, .track, .passive])
-        // 第一张拖到最后，中间两张各往前让一格
-        #expect(HomeStat.moving(slots, from: 0, to: 2) == [.passive, .track, .daily])
-        #expect(HomeStat.moving(slots, from: 0, to: 3) == slots)
-        #expect(HomeStat.encode([.next, .base]) == "next,base")
     }
 
     @Test func rowsHoldAtMostThreeAndNeverLeaveOneAlone() {

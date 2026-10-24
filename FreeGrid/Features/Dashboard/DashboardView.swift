@@ -84,11 +84,8 @@ private struct DashboardContent: View {
     @AppStorage(HomeStat.slotsKey, store: AppPreferences.store) private var storedStatSlots = ""
     /// 今日对比长条放不放
     @AppStorage("homeShowsToday", store: AppPreferences.store) private var showsToday = true
-    /// 点了某张数字小卡：弹出换内容、移除的半屏
-    @State private var pickedStat: HomeStat?
-    @State private var showingStatAdder = false
-    /// 正在拖数字小卡时首页不跟着滚
-    @State private var draggingStat = false
+    /// 编辑卡片：点任意一张卡或「编辑卡片」打开
+    @State private var showingStatEditor = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -149,7 +146,6 @@ private struct DashboardContent: View {
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
             }
             }
-            .scrollDisabled(draggingStat)
             .scrollContentBackground(.hidden)
             // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
             // 让出 1pt 它就只在安全区内裁剪, 数字不再压到时间和电量上
@@ -168,11 +164,12 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
-            .sheet(item: $pickedStat) { stat in
-                HomeStatPicker(stat: stat, slots: statSlots, inputs: statInputs, onChange: setStatSlots)
-            }
-            .sheet(isPresented: $showingStatAdder) {
-                HomeStatAdder(slots: statSlots, inputs: statInputs, onChange: setStatSlots, showsToday: $showsToday)
+            .sheet(isPresented: $showingStatEditor) {
+                HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots, showsToday: $showsToday,
+                               onReset: {
+                                   storedStatSlots = ""
+                                   showsToday = true
+                               })
             }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
@@ -190,7 +187,7 @@ private struct DashboardContent: View {
             }
             .background {
                 ReviewInvitationPresenter(
-                    blocked: showingSimulate || showingFreedomCard || pickedStat != nil || showingStatAdder || saveError != nil,
+                    blocked: showingSimulate || showingFreedomCard || showingStatEditor || saveError != nil,
                     busy: expenseDraft != nil || showingAddIncome || pendingUndoID != nil
                 )
             }
@@ -349,46 +346,45 @@ private struct DashboardContent: View {
     // MARK: - Hero & 三联卡 (UI 组件)
     // ============================================================================
 
-    /// 底部：数字小卡（几张、哪几张由用户定）→ 今日对比长条（可以关）→「添加卡片」。一笔支出都没有时都不放
+    /// 底部：数字小卡（几张、哪几张由用户定）→ 今日对比长条（可以关）→「编辑卡片」。一笔支出都没有时都不放
     @ViewBuilder
     private var bottomCards: some View {
         if snapshot.hasExpenses {
+            let hasToday = showsToday && snapshot.dailyBurn.isFinite && snapshot.dailyBurn > 0
             if !statSlots.isEmpty {
-                statsRow
+                HomeStatGrid(slots: statSlots, inputs: statInputs, onEdit: { showingStatEditor = true })
             }
-            if showsToday, snapshot.dailyBurn.isFinite, snapshot.dailyBurn > 0 {
+            if hasToday {
                 todaySection // 今日 vs 日均; 还没有日均时没有可比的东西
                     .accessibilityIdentifier("today-strip")
             }
-            Button {
-                showingStatAdder = true
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11))
-                    Text("添加卡片")
-                        .font(.system(.caption, design: .rounded))
+            if statSlots.isEmpty && !hasToday {
+                // 全都移除了：留一个虚线框，告诉人从哪里加回来
+                HomeStatEmptySlot(onEdit: { showingStatEditor = true })
+            } else {
+                Button {
+                    showingStatEditor = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 11))
+                        Text("编辑卡片")
+                            .font(.system(.caption, design: .rounded))
+                    }
+                    .foregroundStyle(Color.inkMuted)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+                    .contentShape(Capsule())
                 }
-                .foregroundStyle(Color.inkFaint)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("edit-home-stats")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("add-home-stat")
         }
     }
 
     private var statSlots: [HomeStat] {
         HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
-    }
-
-    /// 点一张换内容或移除，按住拖动换位置
-    private var statsRow: some View {
-        HomeStatGrid(slots: statSlots, inputs: statInputs,
-                     onReorder: setStatSlots,
-                     onPick: { pickedStat = $0 },
-                     onDraggingChange: { draggingStat = $0 })
     }
 
     private func setStatSlots(_ slots: [HomeStat]) {

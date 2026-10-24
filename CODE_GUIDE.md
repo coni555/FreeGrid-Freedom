@@ -141,7 +141,7 @@ flowchart TD
 | 页面顺序、Tab 名称 | `App/ContentView.swift` |
 | 首页大数字、文案和两种布局 | `Features/Dashboard/DashboardHero.swift` |
 | 首页卡片顺序、记账入口 | `Features/Dashboard/DashboardView.swift` |
-| 首页底部数字小卡（几张、哪几张由用户定）和今日对比长条 | 有哪些指标、没改过时放哪几张、每行几张、每个算出什么在 `Logic/HomeStat.swift`；卡片、跨行拖动、换内容和「添加卡片」的半屏在 `Features/Dashboard/HomeStatCards.swift`；放哪些存在偏好 `homeStatSlots`，今日对比开关是 `homeShowsToday` |
+| 首页底部数字小卡（几张、哪几张由用户定）和今日对比长条 | 有哪些指标、没改过时放哪几张、每行几张、每个算出什么在 `Logic/HomeStat.swift`；首页上的卡片（只显示，点了打开编辑面板）、「编辑卡片」面板（移除、添加、全部添加、拖动排序、恢复默认）在 `Features/Dashboard/HomeStatCards.swift`；放哪些存在偏好 `homeStatSlots`，今日对比开关是 `homeShowsToday` |
 | 资产/现金颜色、卡片和按钮风格 | `UI/DesignSystem.swift` |
 | 新版 Assets、History、Settings 的顶部背景与状态栏底色 | `UI/NavigationBackground.swift`；导航内容用 `paperNavigationContent()`，外层导航容器用 `paperNavigationBackground()` |
 | 网格颜色、大小、呼吸动画 | `Features/Dashboard/LifeGrid.swift` |
