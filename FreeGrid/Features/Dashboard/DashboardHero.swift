@@ -12,8 +12,6 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
-    /// 临时：首页方案对比里「数字并进大数字卡」那一版的数字条，用户选定后删
-    var footer: AnyView? = nil
     @State private var longPressed = 0
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
@@ -87,11 +85,6 @@ struct DashboardHero: View {
                 .buttonStyle(.plain)
                 .transition(.opacity)
                 .accessibilityIdentifier("freedom-card-prompt")
-            }
-
-            if let footer {
-                Hairline().padding(.top, Spacing.xs)
-                footer
             }
 
             // ─── 底部: 趋势。一行摘要常驻, 点它展开或收起折线 ───
@@ -188,15 +181,13 @@ struct DashboardHero: View {
 
             Spacer()
 
-            if hasNumber {
-                Text(freedomDaysDisplay)
-                    .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                    .foregroundStyle(numberColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.35)
-                    .padding(.vertical, -8)
-                    .layoutPriority(0)
-            }
+            Text(freedomDaysDisplay)
+                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.35)
+                .padding(.vertical, -8)
+                .layoutPriority(0)
         }
     }
 
@@ -204,15 +195,13 @@ struct DashboardHero: View {
     @ViewBuilder
     private func heroBodyVertical(deplete: Date?) -> some View {
         VStack(alignment: .center, spacing: Spacing.sm) {
-            if hasNumber {
-                // 数字自带的行高上下留白很大，收紧一些，首屏才放得下记账按钮
-                Text(freedomDaysDisplay)
-                    .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
-                    .foregroundStyle(numberColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.35)
-                    .padding(.vertical, -16)
-            }
+            // 数字自带的行高上下留白很大，收紧一些，首屏才放得下记账按钮
+            Text(freedomDaysDisplay)
+                .font(.system(size: 110, weight: .ultraLight, design: .rounded).monospacedDigit())
+                .foregroundStyle(isFreedomCovered ? Color.mossGreen : Color.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.35)
+                .padding(.vertical, -16)
 
             switch snapshot.freedom {
             case .covered:
@@ -328,16 +317,6 @@ struct DashboardHero: View {
         case .finite(let days): return days
         case .covered: return .infinity
         case .insufficientData, .invalidData: return .nan
-        }
-    }
-
-    private var numberColor: Color { isFreedomCovered ? .mossGreen : .ink }
-
-    /// 还没算出自由天数时不画大数字，只留文字
-    private var hasNumber: Bool {
-        switch snapshot.freedom {
-        case .covered, .finite: return true
-        case .insufficientData, .invalidData: return false
         }
     }
 
