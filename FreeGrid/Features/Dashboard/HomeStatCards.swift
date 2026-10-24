@@ -86,7 +86,8 @@ private struct CardDropDelegate: DropDelegate {
     }
 }
 
-private struct IsWideCard: LayoutValueKey {
+/// 排版在主线程外也会读它，不能跟着模块默认归到主线程
+nonisolated private struct IsWideCard: LayoutValueKey {
     static let defaultValue = false
 }
 
