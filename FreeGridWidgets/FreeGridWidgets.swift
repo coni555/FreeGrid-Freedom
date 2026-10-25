@@ -101,7 +101,7 @@ struct DashboardWidget: Widget {
             DashboardEntryView(entry: entry)
         }
         .configurationDisplayName("自由看板")
-        .description("自由天数，加上你选的两项数字。Pro 功能。")
+        .description("你的自由天数，和你最关心的两项数字。")
         .supportedFamilies([.systemMedium])
     }
 }
@@ -155,7 +155,7 @@ struct GoalWidget: Widget {
             GoalEntryView(entry: entry)
         }
         .configurationDisplayName("我的目标")
-        .description("离自己的目标还差多少天自由，定了日子的倒数还有几天。Pro 功能。")
+        .description("给自由定个目标，也为重要的日子留个倒计时。")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }

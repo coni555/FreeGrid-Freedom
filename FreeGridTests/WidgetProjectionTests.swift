@@ -39,6 +39,9 @@ struct WidgetProjectionTests {
         #expect(result.days[0].freedom.value == FreedomMath.freedomDaysDisplay(home.freedom))
         #expect(result.days[0].freedom.value == "100")          // 10050 ÷ 100
         #expect(result.days[0].freedom.kicker == "Freedom Days")
+        #expect(result.days[0].freedom.caption == "此刻拥有的自由")
+        #expect(result.days[0].stats["daily"]?.kicker == "Daily Spend")
+        #expect(result.days[0].stats["track"]?.kicker == "Track")
         #expect(result.days[0].stats["daily"]?.value == "100.0")
         #expect(result.days[0].stats["today"]?.value == "100")
         // 明天没记账：同样 1000 摊到 11 天，日均 90.9，自由天数 110；今天花的回到 0
@@ -83,7 +86,7 @@ struct WidgetProjectionTests {
         #expect(today.name == "GAP")
         #expect(today.daysUntil == 10)
         #expect(today.freedomDays == "100")
-        #expect(today.targetLine == "还差 265 天自由")
+        #expect(today.targetLine == "距离目标还差 265 天")
         #expect(pro.days[1].goals[0].daysUntil == 9)
         #expect(pro.days[10].goals[0].daysUntil == 0)
         #expect(pro.days[11].goals[0].daysUntil == -1)

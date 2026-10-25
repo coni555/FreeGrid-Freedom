@@ -81,6 +81,16 @@
         }
       }
     },
+    "你的自由天数，和你最关心的两项数字。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Freedom Days, with the two numbers you care about most."
+          }
+        }
+      }
+    },
     "元/天": {
       "localizations": {
         "en": {
@@ -221,6 +231,16 @@
         }
       }
     },
+    "此刻拥有的自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom you have right now"
+          }
+        }
+      }
+    },
     "比上月同期少 12%": {
       "localizations": {
         "en": {
@@ -281,12 +301,12 @@
         }
       }
     },
-    "离自己的目标还差多少天自由，定了日子的倒数还有几天。Pro 功能。": {
+    "给自由定个目标，也为重要的日子留个倒计时。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "How many Freedom Days you still need for your goal, and a countdown if it has a date. A Pro feature."
+            "value": "Give your freedom a goal, and count down to the days that matter."
           }
         }
       }
@@ -321,16 +341,6 @@
         }
       }
     },
-    "自由天数，加上你选的两项数字。Pro 功能。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Freedom Days plus two numbers you choose. A Pro feature."
-          }
-        }
-      }
-    },
     "自由看板": {
       "localizations": {
         "en": {
@@ -361,22 +371,12 @@
         }
       }
     },
-    "还差 24 天自由": {
+    "距离目标还差 24 天": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "24 Freedom Days to go"
-          }
-        }
-      }
-    },
-    "还能撑这么多天": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "days left"
+            "value": "24 days to your goal"
           }
         }
       }

@@ -7680,6 +7680,16 @@
         }
       }
     },
+    "此刻拥有的自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom you have right now"
+          }
+        }
+      }
+    },
     "每 %lld 个月": {
       "localizations": {
         "en": {
@@ -10814,6 +10824,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "If you don't open FreeGrid for more than 30 days, widgets stop at the last day and ask you to open the app."
+          }
+        }
+      }
+    },
+    "距离目标还差 %lld 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@ to your goal"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

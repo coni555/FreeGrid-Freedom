@@ -76,18 +76,18 @@ enum WidgetSample {
             date: now,
             freedom: WidgetSnapshot.Freedom(
                 state: .finite, value: "341", kicker: "Freedom Days",
-                caption: String(localized: "还能撑这么多天"), short: String(localized: "341 天"),
+                caption: String(localized: "此刻拥有的自由"), short: String(localized: "341 天"),
                 unit: String(localized: "天"), inline: String(localized: "自由 341 天"), dailyCost: 128.6),
             stats: [
-                "daily": WidgetSnapshot.Stat(kicker: "Daily", title: String(localized: "日均消费"),
+                "daily": WidgetSnapshot.Stat(kicker: "Daily Spend", title: String(localized: "日均消费"),
                                              value: "128.6", unit: String(localized: "元/天")),
-                "month": WidgetSnapshot.Stat(kicker: "Month", title: String(localized: "本月花销"),
+                "month": WidgetSnapshot.Stat(kicker: "Monthly Spend", title: String(localized: "本月花销"),
                                              value: "2,860", unit: String(localized: "比上月同期少 12%")),
             ],
             goals: [WidgetSnapshot.Goal(
                 id: UUID(uuidString: "00000000-0000-0000-0000-000000000189")!, name: "GAP", targetDays: 365,
                 deadline: deadline, deadlineText: nil, daysUntil: 189, progress: 341.0 / 365, enough: false, freedomDays: "341",
-                freedomLine: String(localized: "现在 341 / 365 天"), targetLine: String(localized: "还差 24 天自由"),
+                freedomLine: String(localized: "现在 341 / 365 天"), targetLine: String(localized: "距离目标还差 24 天"),
                 countdownLine: String(localized: "GAP · 189 天后"))])
     }
 

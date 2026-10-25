@@ -200,7 +200,7 @@ struct GoalSmallView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WidgetKicker(text: goal.name, color: .skyDeep)
+            WidgetKicker(text: "Goal · \(goal.name)", color: .skyDeep)
             Spacer(minLength: 0)
             headline
             WidgetProgressLine(progress: goal.progress, done: goal.enough)
@@ -248,7 +248,8 @@ struct GoalMediumView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WidgetKicker(text: goal.deadlineText.map { "\(goal.name) · \($0)" } ?? goal.name, color: .skyDeep)
+            WidgetKicker(text: goal.deadlineText.map { "Goal · \(goal.name) · \($0)" } ?? "Goal · \(goal.name)",
+                         color: .skyDeep)
             Spacer(minLength: 0)
             HStack(alignment: .center, spacing: 12) {
                 figure(goal.freedomDays ?? (goal.enough ? "∞" : "—"), label: words.text.now,
