@@ -132,6 +132,8 @@ struct ContentView: View {
         // 打开 App 和回到前台时补扣到期的房租、月供
         .task {
             processDuePayments()
+            // 打开 App 就给小组件写一份；和 App Store 核对 Pro 的结果有变化时下面再写
+            WidgetPublisher.publish(in: modelContext)
             // 早期开发版里资产拆分后总开关还管着各项；现在由各项自己决定，旧的「关」交给各项接手
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
@@ -161,7 +163,7 @@ struct ContentView: View {
         .onChange(of: ProStore.shared.hasCheckedEntitlements) {
             processDuePayments()
             checkProLapse()
-            // 打开 App 时：补扣完、知道有没有 Pro 之后，给小组件写一份新的
+            // 核对完 Pro 再写一份：体验到期、退款后 Pro 小组件跟着变
             WidgetPublisher.publish(in: modelContext)
         }
         // 离开 App 时再写一份：这次打开记的账、改的目标、换的语言都在里面

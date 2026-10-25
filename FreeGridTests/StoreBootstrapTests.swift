@@ -55,6 +55,16 @@ struct StoreBootstrapTests {
     }
 
     @MainActor
+    /// 有了 App Group 以后账本也不能搬进共享容器：老用户升级后打开的还是原来那个文件
+    @Test func ledgerStaysInTheAppsOwnContainer() throws {
+        let url = StoreBootstrap.configuration().url
+        let shared = try #require(FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup))
+        #expect(!url.path.hasPrefix(shared.path))
+        #expect(url.deletingLastPathComponent() == URL.applicationSupportDirectory)
+        #expect(url.lastPathComponent == "default.store")
+    }
+
     @Test func forcedFailureUsesStableSafeCode() {
         let failure = StoreBootstrap.Failure.make(
             from: StoreBootstrap.BootstrapError.forcedFailure
