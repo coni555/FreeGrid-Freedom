@@ -3,6 +3,11 @@
 import SwiftUI
 import SwiftData
 import Combine
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 private enum AppTab: Hashable {
     case dashboard
@@ -270,17 +275,46 @@ extension ContentView {
     }
 
     /// 最后一次存账 3 秒后，后台的三页一页一页补算，中间隔一会儿，免得挤在同一帧里卡一下。
-    /// 连着记好几笔时等停手再算，不和下一张表单的动画抢。还没打开过的页面加了口令也不会建出来
+    /// 有表单开着（正在记下一笔、改一笔、模拟）就先不算，等它关上 1.5 秒后再算：补算时 SwiftData 会顺带叫醒首页和开着的表单，
+    /// 正在输入时主线程被占满，点金额栏会像没反应。还没打开过的页面加了口令也不会建出来
     private func scheduleCatchUp() {
         catchUp?.cancel()
         catchUp = Task {
             try? await Task.sleep(for: .seconds(3))
             for tab in [AppTab.dashboard, .assets, .history, .settings] where tab != selectedTab {
+                await waitUntilNoSheet()
                 guard !Task.isCancelled else { return }
                 refreshTokens[tab, default: 0] += 1
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
+    }
+
+    /// 等到没有表单开着；刚关上的再等 1.5 秒，让收起的动画走完、也看看是不是马上又要记下一笔
+    private func waitUntilNoSheet() async {
+        var hadSheet = false
+        while !Task.isCancelled {
+            if Self.isShowingSheet {
+                hadSheet = true
+            } else if hadSheet {
+                hadSheet = false
+                try? await Task.sleep(for: .seconds(1.5))
+                continue
+            } else {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+    }
+
+    private static var isShowingSheet: Bool {
+        #if os(iOS)
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+            .contains { $0.presentedViewController != nil }
+        #else
+        NSApplication.shared.keyWindow?.attachedSheet != nil
+        #endif
     }
 
     private func tab(for tour: AppGuide.Tour) -> AppTab {
