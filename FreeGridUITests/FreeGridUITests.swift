@@ -1790,7 +1790,15 @@ final class FreeGridUITests: XCTestCase {
         app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
         let link = app.buttons["pro-back-to-free"]
         XCTAssertTrue(link.waitForExistence(timeout: 5))
-        if !link.isHittable { app.swipeUp() }
+        // 对照表下面的链接可能藏在底部购买栏后面（系统仍算它点得到）：滑到它整个露在购买栏上面为止
+        let barTop = ["pro-notice", "pro-start-trial", "pro-purchase"]
+            .map { app.descendants(matching: .any)[$0].firstMatch }
+            .filter(\.exists)
+            .map(\.frame.minY)
+            .min() ?? app.frame.maxY
+        for _ in 0..<4 where link.frame.maxY > barTop {
+            app.swipeUp()
+        }
         link.tap()
         XCTAssertTrue(app.staticTexts["Pro 体验已结束"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["back-to-free-merge-cash"].exists)

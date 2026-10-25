@@ -49,6 +49,8 @@ struct SettingsView: View {
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 自己填的每月收入：自检卡的「每月有结余」要用
+    @AppStorage(MonthlySaving.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -67,7 +69,9 @@ struct SettingsView: View {
 
     var body: some View {
         let snapshot = snapshot
-        let summary = FreedomChecklist.evaluate(snapshot: snapshot, passiveSources: passiveSources)
+        let saving = SavingMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
+                                            recordedIncome: SavingMath.recordedMonthlyIncome(incomes))
+        let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
         return NavigationStack {
             ScrollView {
                 // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
@@ -160,6 +164,7 @@ struct SettingsView: View {
         DeckCard(tucked: false) { checkRow(summary) }
     }
 
+    /// 圆环是达成了几个里程碑，下面写下一站。GAP 是自己的目标，不上这张卡（想天天看的人放到首页卡片）
     private func checkRow(_ s: FreedomSummary) -> some View {
         NavigationLink {
             CheckView()

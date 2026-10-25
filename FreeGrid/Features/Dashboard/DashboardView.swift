@@ -18,6 +18,8 @@ struct DashboardView: View {
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 目标长条：在自检或首页改了目标，这里跟着重算
+    @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
 
     /// 整本账的计算都在这里做：只有账本或口径变了才重算。
     /// 首页自己的弹层、撤销条变化时只重画 DashboardContent，不再扫一遍几千笔支出
@@ -37,7 +39,11 @@ struct DashboardView: View {
             now: snapshot.now
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
-        let statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
+        var statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
+        // 目标是 Pro：没有 Pro 时首页不放目标卡（编辑面板里也不列）；和首页的自由天数直接比
+        if ProFeatures.canSetGoals {
+            statInputs.goals = FreedomGoalStore.decode(storedGoals).map { FreedomGoalProgress(goal: $0, snapshot: snapshot) }
+        }
         return DashboardContent(
             snapshot: snapshot,
             history: history,
@@ -86,6 +92,9 @@ private struct DashboardContent: View {
     @AppStorage("homeCardsExpanded", store: AppPreferences.store) private var cardsExpanded = true
     /// 编辑卡片：点任意一张卡或「编辑卡片」打开
     @State private var showingStatEditor = false
+    /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
+    @State private var editingGoal: FreedomGoal?
+    @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -153,6 +162,13 @@ private struct DashboardContent: View {
             .sheet(isPresented: $showingStatEditor) {
                 HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
                                onReset: { storedStatSlots = "" })
+            }
+            .sheet(item: $editingGoal) { goal in
+                FreedomGoalSheet(existing: goal, snapshot: snapshot) { saved in
+                    storedGoals = FreedomGoalStore.encode(FreedomGoalStore.saving(saved, into: FreedomGoalStore.decode(storedGoals)))
+                } onDelete: {
+                    storedGoals = FreedomGoalStore.encode(FreedomGoalStore.decode(storedGoals).filter { $0.id != goal.id })
+                }
             }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
@@ -345,6 +361,7 @@ private struct DashboardContent: View {
                 HomeCardsGrid(items: cardsExpanded || hiddenCount == 0 ? items : firstRow,
                               slots: statSlots, inputs: statInputs,
                               todayBar: AnyView(todaySection),
+                              onGoal: { editingGoal = $0 },
                               onEdit: { showingStatEditor = true },
                               onReorder: { storedStatSlots = HomeStat.encode($0) })
                 HStack(alignment: .center) {
@@ -393,8 +410,12 @@ private struct DashboardContent: View {
         }
     }
 
+    /// 存着的顺序里，删掉了的目标、没有 Pro 时的目标卡不算
     private var statSlots: [HomeStat] {
-        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0)
+        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0).filter {
+            if case .goal = $0 { return statInputs.goal(for: $0) != nil }
+            return true
+        }
     }
 
     private func setStatSlots(_ slots: [HomeStat]) {

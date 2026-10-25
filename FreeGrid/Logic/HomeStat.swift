@@ -1,16 +1,51 @@
-// 首页底部的卡片：几张小卡和一条今日对比长条，放哪些、什么顺序由用户定（免费）。首页上按住拖动排序，
+// 首页底部的卡片：几张小卡、今日对比长条和自己的目标长条，放哪些、什么顺序由用户定（免费；目标本身是 Pro）。首页上按住拖动排序，
 // 点卡片或「编辑卡片」打开面板加、移除、恢复默认。这里决定有哪些卡、没改过时放哪些、怎么排成行，以及每张显示什么。
 
 import Foundation
 
-enum HomeStat: String, CaseIterable, Identifiable {
+enum HomeStat: Hashable, Identifiable {
     // 顺序就是选卡时的顺序：先「花了多少」，再「坚持了多久」，再「有多少钱」，再是要留意的，最后是长条
     case daily, month, today, track, base, passive, next
     /// 今日对比长条：和小卡一样能拖、能移除，但总是占一整行
     case todayBar
+    /// 自己的一个目标（Pro）：每个目标一张长条，用目标的 id 认；没改过时不在首页上，没有 Pro 时不显示、也不能加
+    case goal(UUID)
+
+    /// 固定的这几张，按选卡时的顺序
+    static let builtIn: [HomeStat] = [.daily, .month, .today, .track, .base, .passive, .next, .todayBar]
+
+    /// 存在偏好里的名字；目标是「goal-」加 id
+    var rawValue: String {
+        switch self {
+        case .daily: return "daily"
+        case .month: return "month"
+        case .today: return "today"
+        case .track: return "track"
+        case .base: return "base"
+        case .passive: return "passive"
+        case .next: return "next"
+        case .todayBar: return "todayBar"
+        case .goal(let id): return "goal-" + id.uuidString
+        }
+    }
+
+    init?(rawValue: String) {
+        if let stat = Self.builtIn.first(where: { $0.rawValue == rawValue }) {
+            self = stat
+        } else if rawValue.hasPrefix("goal-"), let id = UUID(uuidString: String(rawValue.dropFirst(5))) {
+            self = .goal(id)
+        } else {
+            return nil
+        }
+    }
 
     /// 占一整行的长条
-    var isWide: Bool { self == .todayBar }
+    var isWide: Bool {
+        switch self {
+        case .todayBar, .goal: return true
+        default: return false
+        }
+    }
 
     var id: String { rawValue }
 
@@ -25,10 +60,11 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .passive: return "Passive"
         case .next: return "Next"
         case .todayBar: return "Today"
+        case .goal: return "Goal"
         }
     }
 
-    /// 选卡时的名字
+    /// 选卡时的名字；目标用它自己的名字，见 `title(in:)`
     var title: String {
         switch self {
         case .daily: return String(localized: "日均消费")
@@ -39,7 +75,13 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .passive: return String(localized: "被动收入覆盖率")
         case .next: return String(localized: "下次固定支出")
         case .todayBar: return String(localized: "今日对比长条")
+        case .goal: return String(localized: "我的目标")
         }
+    }
+
+    func title(in inputs: Inputs) -> String {
+        guard let goal = inputs.goal(for: self) else { return title }
+        return String(localized: "目标 · \(goal.goal.displayName)")
     }
 
     // MARK: - 放哪几张
@@ -140,6 +182,11 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .todayBar:
             // 首页上长条自己画；这里是编辑面板里那一行
             return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: String(localized: "占一整行 · 今天和日常比"))
+        case .goal:
+            // 首页上长条自己画；这里是编辑面板里那一行：现在的自由天数，还差多少
+            guard let result = inputs.goal(for: self) else { return Display(value: "—", unit: "") }
+            return Display(value: result.freedomDaysText ?? (result.enough == true ? "∞" : "—"),
+                           unit: result.targetLine ?? result.freedomLine)
         }
     }
 
@@ -200,6 +247,16 @@ enum HomeStat: String, CaseIterable, Identifiable {
         let todaySpending: Double
         /// 最近一笔还没付的固定支出或月供
         let nextFixed: NextFixed?
+        /// 自己的目标和首页自由天数比的结果；没有 Pro 时是空的（首页上不显示目标卡）。首页另外算好填进来
+        var goals: [FreedomGoalProgress] = []
+
+        func goal(for stat: HomeStat) -> FreedomGoalProgress? {
+            guard case .goal(let id) = stat else { return nil }
+            return goals.first { $0.goal.id == id }
+        }
+
+        /// 现在能放到首页的目标卡
+        var goalStats: [HomeStat] { goals.map { .goal($0.goal.id) } }
 
         init(snapshot: FinancialSnapshot, monthSpent: Double, lastMonthSameSpan: Double?,
              todaySpending: Double, nextFixed: NextFixed?) {

@@ -105,4 +105,26 @@ struct HomeStatTests {
         #expect(HomeStat.next.display(inputs(expenses: expenses, loans: loans)) == .init(value: "5", unit: "天后 · 会员 ¥25"))
         #expect(HomeStat.next.display(inputs(expenses: expenses)) == .init(value: "—", unit: "没有固定支出"))
     }
+
+    @Test func eachGoalIsAWideCardThatIsOffUntilAdded() throws {
+        let goal = FreedomGoal(name: "GAP", targetDays: 730, deadline: try #require(Calendar.current.date(byAdding: .day, value: 30, to: now)))
+        let stat = HomeStat.goal(goal.id)
+        #expect(HomeStat(rawValue: stat.rawValue) == stat)
+        #expect(stat.isWide)
+        #expect(!HomeStat.slots(stored: "", hasPassive: true).contains(stat))
+        #expect(HomeStat.slots(stored: "\(stat.rawValue),daily,goal-nope", hasPassive: false) == [stat, .daily])
+        #expect(HomeStat.rows([.daily, stat, .month, .today]) == [[.daily], [stat], [.month, .today]])
+
+        // 日均 100、现金 10,000：首页 100 天自由，目标直接和它比
+        let expenses = [Expense(amount: 1_000, category: "午餐", date: at("2026-10-15"))]
+        var withGoal = inputs(expenses: expenses)
+        #expect(withGoal.goalStats.isEmpty)
+        withGoal.goals = [FreedomGoalProgress(goal: goal, snapshot: withGoal.snapshot)]
+        #expect(withGoal.goalStats == [stat])
+        #expect(stat.title(in: withGoal) == "目标 · GAP")
+        #expect(stat.display(withGoal) == .init(value: "100", unit: "还差 630 天自由"))
+        // 删掉了的目标：显示不出来
+        withGoal.goals = []
+        #expect(stat.display(withGoal) == .init(value: "—", unit: ""))
+    }
 }

@@ -50,6 +50,14 @@ struct LocalizationTests {
         #expect(String(format: format, locale: english, 15, 24) == "Day 15 monthly · 24 payments left")
     }
 
+    @Test func englishGapLinesUsePlural() throws {
+        let countdown = try englishBundle.localizedString(forKey: "%@ · %lld 天后", value: nil, table: nil)
+        #expect(String(format: countdown, locale: english, "GAP", 1) == "GAP · in 1 day")
+        #expect(String(format: countdown, locale: english, "GAP", 189) == "GAP · in 189 days")
+        let milestone = try englishBundle.localizedString(forKey: "当前 %@ / %lld 天", value: nil, table: nil)
+        #expect(String(format: milestone, locale: english, "116", 180) == "Now 116 / 180 days")
+    }
+
     @Test func autoPaymentNoteIsShownInTheInterfaceLanguage() throws {
         let loanID = UUID()
         let payment = Expense(amount: 3000, category: "房贷", note: LoanStore.autoPaymentNote, date: .now)
