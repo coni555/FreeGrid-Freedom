@@ -2,6 +2,12 @@
 
 import SwiftUI
 import SwiftData
+import Combine
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 private enum AppTab: Hashable {
     case dashboard
@@ -32,8 +38,10 @@ struct ContentView: View {
     @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
     @State private var weekRecap: FirstWeekRecap.Summary?
 
-    // 起步引导走到哪一步由账本决定
-    @Query private var expenses: [Expense]
+    // 起步引导走到哪一步由账本决定。只要知道有没有支出：取一笔就够。
+    // 不挂整本账：这里一取数，SwiftData 会通知所有看过这些支出的页面，记一笔时首页就要多算一遍。
+    // 新用户的 7 天小结要整本账时，用 allExpenses() 现取
+    @Query(ContentView.anyExpense) private var firstExpenses: [Expense]
     @Query private var assetsArr: [UserAssets]
 
     @Environment(\.modelContext) private var modelContext
@@ -46,6 +54,13 @@ struct ContentView: View {
     @State private var presentingBackToFree = false
     /// 没有 Pro 时点了看板、目标小组件：打开购买页
     @State private var showingWidgetPro = false
+    /// 后台 Tab 的补算口令：记完账空闲下来后逐页加一，那一页按最新的账重画一次（见 TabFreeze）
+    @State private var refreshTokens: [AppTab: Int] = [:]
+    @State private var catchUp: Task<Void, Never>?
+    /// 页面会读到的东西变了几次，后台页面切回来时比一比（见 TabDataClock）
+    @State private var dataClock = TabDataClock()
+    /// 跟随系统深浅色时，系统换了也算变化
+    @Environment(\.colorScheme) private var colorScheme
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -69,26 +84,26 @@ struct ContentView: View {
 
     private var tabView: some View {
         TabView(selection: $selectedTab) {
-            StableTab { DashboardView() }.equatable()
+            StableTab(activity: activity(.dashboard), clock: dataClock) { DashboardView() }.equatable()
                 .tabItem {
                     Label("首页", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(AppTab.dashboard)
 
-            StableTab { AssetsView() }.equatable()
+            StableTab(activity: activity(.assets), clock: dataClock) { AssetsView() }.equatable()
                 .tabItem {
                     Label("钱包", systemImage: "banknote")
                 }
                 .tag(AppTab.assets)
 
-            StableTab { HistoryView() }.equatable()
+            StableTab(activity: activity(.history), clock: dataClock) { HistoryView() }.equatable()
                 .tabItem {
                     Label("明细", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(AppTab.history)
 
             // 不传闭包：闭包每次都算「变了」，外壳就拦不住重算
-            StableTab { SettingsView() }.equatable()
+            StableTab(activity: activity(.settings), clock: dataClock) { SettingsView() }.equatable()
                 .tabItem {
                     Label("设置", systemImage: "gearshape")
                 }
@@ -111,6 +126,7 @@ struct ContentView: View {
         }
         // 设置 → 使用指引里选了一个讲解：切到它讲的那一页
         .onChange(of: guide.replayRequests) { old, new in
+            dataClock.tick()
             if let tour = new.first(where: { $0.value > old[$0.key, default: 0] })?.key {
                 selectedTab = tab(for: tour)
             }
@@ -147,6 +163,8 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            // 隔了一夜再回来，「今天」也变了
+            dataClock.tick()
             processDuePayments()
             checkProLapse()
             Task {
@@ -154,8 +172,6 @@ struct ContentView: View {
                 await offerWeekRecap()
             }
         }
-        // 第 7 天记下一笔时就弹，不用等下次打开
-        .onChange(of: expenses.count) { Task { await offerWeekRecap() } }
         .task { checkProLapse() }
         // 体验到点、退款在 App 开着时也会发生
         .onChange(of: ProStore.shared.isUnlocked) { checkProLapse() }
@@ -166,6 +182,7 @@ struct ContentView: View {
             // 核对完 Pro 再写一份：体验到期、退款后 Pro 小组件跟着变
             WidgetPublisher.publish(in: modelContext)
         }
+        .background { tabFreezeSignals }
         // 离开 App 时再写一份：这次打开记的账、改的目标、换的语言都在里面
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { WidgetPublisher.publish(in: modelContext) }
@@ -189,15 +206,21 @@ struct ContentView: View {
     }
 }
 
-/// 四个 Tab 的根页面不从 ContentView 拿任何参数。包一层永远「没变」的外壳：
-/// 切 Tab 时 ContentView 重画，外壳挡住，里面的页面不跟着把几千笔账重算一遍；
-/// 页面自己的数据（@Query、@AppStorage）和环境变了照常刷新
+/// 四个 Tab 的根页面只从 ContentView 拿「在不在前台」。包一层外壳：
+/// 切 Tab 时 ContentView 重画，只有前后台变了的两页往下传，其余页面不跟着把几千笔账重算一遍；
+/// 页面自己的数据（@Query、@AppStorage）和环境变了照常刷新，在后台时由页面里的 TabFreeze 挡住
 private struct StableTab<Content: View>: View, Equatable {
+    let activity: TabActivity
+    let clock: TabDataClock
     @ViewBuilder let content: () -> Content
 
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.activity == rhs.activity }
 
-    var body: some View { content() }
+    var body: some View {
+        content()
+            .environment(\.tabActivity, activity)
+            .environment(\.tabDataClock, clock)
+    }
 }
 
 extension ContentView {
@@ -209,7 +232,7 @@ extension ContentView {
         if !ProIntro.isSuppressedForTesting {
             let audience = ProIntro.Audience(rawValue: introAudience)
             if audience == .newcomer, !recapShown,
-               FirstWeekRecap.recordedDays(expenses) >= FirstWeekRecap.requiredDays { return false }
+               FirstWeekRecap.recordedDays(allExpenses()) >= FirstWeekRecap.requiredDays { return false }
             if audience == .returning, !introShown,
                !ProStore.shared.ownsPro, !ProStore.shared.offer.hasStartedTrial { return false }
         }
@@ -227,6 +250,70 @@ extension ContentView {
         menuActions.addExpense || menuActions.addIncome
         #else
         false
+        #endif
+    }
+
+    /// 后台页面要知道的变化（见 TabFreeze）。单独挂一个看不见的视图，免得根层那串修饰符太长、编译器算不过来
+    private var tabFreezeSignals: some View {
+        Color.clear
+            // 账本存过一次：后台的页面先不动，等空闲下来再逐页补算，切过去时就不用现算。
+            // 第 7 天记下一笔时，小结也不用等下次打开就弹
+            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+                dataClock.tick()
+                scheduleCatchUp()
+                Task { await offerWeekRecap() }
+            }
+            // 偏好（资产计不计入、目标、首页卡片、深浅色……）、Pro 状态、系统深浅色变了：后台页面切回来时重算
+            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+                .receive(on: RunLoop.main)) { _ in dataClock.tick() }
+            .onChange(of: ProStore.shared.isUnlocked) { dataClock.tick() }
+            .onChange(of: colorScheme) { dataClock.tick() }
+    }
+
+    private func activity(_ tab: AppTab) -> TabActivity {
+        TabActivity(isActive: selectedTab == tab, refreshToken: refreshTokens[tab, default: 0])
+    }
+
+    /// 最后一次存账 3 秒后，后台的三页一页一页补算，中间隔一会儿，免得挤在同一帧里卡一下。
+    /// 有表单开着（正在记下一笔、改一笔、模拟）就先不算，等它关上 1.5 秒后再算：补算时 SwiftData 会顺带叫醒首页和开着的表单，
+    /// 正在输入时主线程被占满，点金额栏会像没反应。还没打开过的页面加了口令也不会建出来
+    private func scheduleCatchUp() {
+        catchUp?.cancel()
+        catchUp = Task {
+            try? await Task.sleep(for: .seconds(3))
+            for tab in [AppTab.dashboard, .assets, .history, .settings] where tab != selectedTab {
+                await waitUntilNoSheet()
+                guard !Task.isCancelled else { return }
+                refreshTokens[tab, default: 0] += 1
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+    }
+
+    /// 等到没有表单开着；刚关上的再等 1.5 秒，让收起的动画走完、也看看是不是马上又要记下一笔
+    private func waitUntilNoSheet() async {
+        var hadSheet = false
+        while !Task.isCancelled {
+            if Self.isShowingSheet {
+                hadSheet = true
+            } else if hadSheet {
+                hadSheet = false
+                try? await Task.sleep(for: .seconds(1.5))
+                continue
+            } else {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+    }
+
+    private static var isShowingSheet: Bool {
+        #if os(iOS)
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+            .contains { $0.presentedViewController != nil }
+        #else
+        NSApplication.shared.keyWindow?.attachedSheet != nil
         #endif
     }
 
@@ -267,10 +354,11 @@ extension ContentView {
     private func offerWeekRecap() async {
         guard !recapShown, weekRecap == nil, !ProIntro.isSuppressedForTesting,
               ProIntro.Audience(rawValue: introAudience) == .newcomer, selectedTab == .dashboard,
-              FirstWeekRecap.recordedDays(expenses) >= FirstWeekRecap.requiredDays else { return }
+              FirstWeekRecap.recordedDays(allExpenses()) >= FirstWeekRecap.requiredDays else { return }
         try? await Task.sleep(for: .seconds(1.2))
         let store = ProStore.shared
         await store.loadProducts()
+        let expenses = allExpenses()
         guard FirstWeekRecap.shouldShow(audience: ProIntro.Audience(rawValue: introAudience), alreadyShown: recapShown,
                                         recordedDays: FirstWeekRecap.recordedDays(expenses)),
               weekRecap == nil, !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard,
@@ -278,7 +366,7 @@ extension ContentView {
         else { return }
         let mentionsPro = FirstWeekRecap.mentionsPro(ownsPro: store.ownsPro, hasStartedTrial: store.offer.hasStartedTrial,
                                                      canStartTrial: ProIntro.trialIsAvailable(store))
-        let summary = FirstWeekRecap.summary(expenses: expenses, snapshot: dashboardSnapshot(), mentionsPro: mentionsPro)
+        let summary = FirstWeekRecap.summary(expenses: expenses, snapshot: dashboardSnapshot(expenses), mentionsPro: mentionsPro)
         // 卡片自己做出现的动画，弹层本身不滑入
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -307,13 +395,24 @@ extension ContentView {
 
     /// 和首页同样的算法和输入，卡片上的日均、自由天数和首页一致。
     /// 只在要弹卡片时现取，不在这里多挂几个 @Query（不然每改一笔资产整个 TabView 都要重算）
-    private func dashboardSnapshot() -> FinancialSnapshot {
+    private func dashboardSnapshot(_ expenses: [Expense]) -> FinancialSnapshot {
         func all<Model: PersistentModel>(_ type: Model.Type) -> [Model] {
             (try? modelContext.fetch(FetchDescriptor<Model>())) ?? []
         }
         return FinancialSnapshot(expenses: expenses, passiveSources: all(PassiveSource.self), assets: assetsArr.first,
                                  assetItems: all(AssetItem.self), cashAccounts: all(CashAccount.self),
                                  loans: ProFeatures.loansInEffect(all(Loan.self)), countsAssets: FreedomSettings.countsAssets)
+    }
+
+    /// 只取一笔支出，用来判断账本是不是空的
+    private static var anyExpense: FetchDescriptor<Expense> {
+        var descriptor = FetchDescriptor<Expense>()
+        descriptor.fetchLimit = 1
+        return descriptor
+    }
+
+    private func allExpenses() -> [Expense] {
+        (try? modelContext.fetch(FetchDescriptor<Expense>())) ?? []
     }
 
     /// Pro 刚失效、账本里又有体验期间加的资产项、现金账户或贷款时，弹「回到免费版」。没有就只记下这次变化。
@@ -348,7 +447,7 @@ extension ContentView {
     /// 起步引导现在该显示哪一步；nil 表示不显示。
     /// 只给一笔支出都没有的新账本；在 History 和 Settings 里不拦着用户。
     private var setupStep: SetupGuideStep? {
-        guard !setupGuideCompleted, guide.tour == nil, expenses.isEmpty else { return nil }
+        guard !setupGuideCompleted, guide.tour == nil, firstExpenses.isEmpty else { return nil }
         let assets = assetsArr.first
         let hasMoney = ((assets?.cash ?? 0) + (assets?.lockedAssets ?? 0)) > 0
         switch (selectedTab, hasMoney) {

@@ -17,7 +17,7 @@ FreeGrid/
 │   ├── Simulation/   模拟决策及格子动画
 │   ├── History/      历史记录和月度汇总
 │   └── Settings/     设置、数据管理（导出/导入/清空）和财富自由自检
-└── UI/           共用卡片、按钮、金额格式、预览、错误提示和界面语言（AppLanguage）
+└── UI/           共用卡片、按钮、金额格式、预览、错误提示、界面语言（AppLanguage）和后台 Tab 冻结（TabFreeze）
 Shared/           App 和桌面小组件都编译的：颜色（ColorTokens）、小组件读的那份数（WidgetSnapshot）、小组件的样子（WidgetViews）
 FreeGridWidgets/  系统小组件扩展（iOS）：时间线、可选项、三种小组件
 Config/           两边的 App Group 权限、App 的网址登记
@@ -103,6 +103,9 @@ flowchart TD
 6. `LedgerStore` 插入支出、现金减去 30、更新最早支出日期，检查最终双桶余额后明确调用数据库保存。失败会还原本次操作，表单显示错误并保留输入。若数据库入口已有其他未保存修改，则先拒绝新操作，避免一起回滚它们。
 7. 成功后才调用 `onSaved` 通知首页，再 `dismiss()` 关闭表单。
 8. 首页的 `@Query` 读到新记录，重新生成摘要并绘制页面；撤销按钮调用 `LedgerStore.undo` 删除记录并反向调整现金。
+9. 钱包、明细、设置这时在后台，不跟着重算（[TabFreeze](FreeGrid/UI/TabFreeze.swift)）：它们的 `@Query` 照样变，但页面只记下「数据变过」，继续显示冻住的内容。停手 3 秒后，`ContentView` 收到存档通知（`ModelContext.didSave`），给这三页逐个发补算口令，每页隔半秒按最新的账重画；没来得及补算就切过去的，切过去时现算。这样保存那一下只有首页在算。页面在后台时什么都不读，SwiftUI 不会再把偏好、Pro 状态这些变化通知给它；所以 `ContentView` 在存账、改偏好、Pro 变化、重放引导、回到前台、换深浅色时给 `TabDataClock` 加一，页面切回来或补算时比一比这个数，变过就重算。
+
+**新页面要跟着冻住**：Tab 根页面原来的 body 改名为 `page`，body 写成 `TabFreeze(activity: tabActivity, state: freeze) { page }.equatable()`。读 `@Query` 的计算都放在 `page` 最外层算好再往下传：`ScrollViewReader`、`GeometryReader` 这类容器里的内容会被单独重跑，在那里读整本账就冻不住了（明细页的 `ScopedLedger`、钱包页的 `loanSummary` 就是这样提出来的）。根层 `ContentView` 也不挂整本账的 `@Query`：哪里一取整本支出，SwiftData 会顺带通知所有看过这些支出的页面再算一遍。
 
 假设目前现金 1000 元、今天已记支出 100 元、无其他资产或被动收入：再记午餐 30 元后，现金是 970 元，日均消费是 130 元，自由天数约 7.46 天。预览和真正保存之后用同一套计算规则。
 
@@ -193,7 +196,7 @@ Pro 的购买沿这条路径工作：`Features/Pro/ProPaywallView.swift` 是购�
 
 **Pro 介绍弹窗** 沿这条路径工作：第一次打开带这段代码的版本（2.0 起）时，`ContentView` 看账本里有没有支出，把「新用户 / 老用户」记进偏好 `proIntroAudience`，之后不再变。启动和回到前台时调 `offerProIntro`：只有老用户、而且在首页时才往下走；停一下、等商品读完，再用 `ProIntro.shouldOffer` 判断（新用户、买过、开始过体验、读不到体验商品都不弹）。弹 `ProIntroCard`：整页压暗，屏幕中间浮起一张卡，先讲 2.0 的免费更新，再提一句 Pro；卡片真的出现时才记 `proIntroShown`，没弹成的下次打开再试。「看看 Pro」收起卡片，在同一个弹层里换成购买页（macOS 用 `.proPaywall` 另开），「知道了」或点卡片外面直接收起。UI 测试和拍图（`-UseInMemoryStore`）默认不弹，要测时加 `-proIntro`。
 
-**新用户的第一周小结** 沿这条路径工作：只给 `proIntroAudience` 是新用户的设备。启动、回到前台和支出笔数变化时调 `offerWeekRecap`：`FirstWeekRecap.recordedDays` 数有自己记的支出的日子（自动扣的房租、月供不算），满 7 天、在首页、没有别的引导和弹窗时，停一下再看一遍，然后用 `FirstWeekRecap.summary` 算最早记账的 7 天每日合计，日均和自由天数直接取和首页同样输入的 `FinancialSnapshot`（`dashboardSnapshot` 现取，不在 ContentView 多挂 @Query）。弹法和老用户卡片共用 `introCard`；卡片真的出现时记 `firstWeekRecapShown`。Pro 那一句只在 `FirstWeekRecap.mentionsPro` 为真时出现（没买、没开始过体验、读得到体验商品）。预览时带 `-proIntroAudience newcomer -proIntro` 和一份记满 7 天的账本。
+**新用户的第一周小结** 沿这条路径工作：只给 `proIntroAudience` 是新用户的设备。启动、回到前台和每次存账后调 `offerWeekRecap`：`FirstWeekRecap.recordedDays` 数有自己记的支出的日子（自动扣的房租、月供不算），满 7 天、在首页、没有别的引导和弹窗时，停一下再看一遍，然后用 `FirstWeekRecap.summary` 算最早记账的 7 天每日合计，日均和自由天数直接取和首页同样输入的 `FinancialSnapshot`（整本支出用 `allExpenses` 现取，`dashboardSnapshot` 同样现取，不在 ContentView 多挂 @Query）。弹法和老用户卡片共用 `introCard`；卡片真的出现时记 `firstWeekRecapShown`。Pro 那一句只在 `FirstWeekRecap.mentionsPro` 为真时出现（没买、没开始过体验、读得到体验商品）。预览时带 `-proIntroAudience newcomer -proIntro` 和一份记满 7 天的账本。
 
 **回到免费版**：Pro 从能用变成不能用（体验到期、退款）时，`ContentView` 调 `ProStore.takeLapse`（本机记着上次能不能用，同一次变化只报一次），账本里有资产项、现金账户或带期数的贷款（`BackToFreePlan.hasProContent`）就弹 `Features/Pro/BackToFreeSheet.swift`：逐项说明现状，资产、现金当场合并（资产走 `AssetItemStore.mergeIntoTotalKeepingSwitch`，和 Assets 抽屉同一个入口），并用 `BackToFreePlan.freedomAfterMerging` 写出合并后的自由天数；贷款引导删除。关掉后，购买页对照表下面的「继续使用免费版」还能打开它。
 

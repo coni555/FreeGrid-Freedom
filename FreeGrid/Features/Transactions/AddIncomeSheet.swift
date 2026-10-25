@@ -4,10 +4,6 @@ import SwiftUI
 import SwiftData
 
 struct AddIncomeSheet: View {
-
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-
     /// 保存成功回调 — DashboardView 用它显示 5 秒撤销 toast
     var onSaved: ((Income) -> Void)? = nil
 
@@ -19,6 +15,31 @@ struct AddIncomeSheet: View {
     @Query private var loans: [Loan]
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
+
+    /// 整本账的计算在这里做一次，只有账本变了才重算。表单每敲一个数字都会重画，那里只用算好的结果
+    var body: some View {
+        IncomeForm(
+            onSaved: onSaved,
+            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                                        assetItems: assetItems, cashAccounts: cashAccounts,
+                                        loans: ProFeatures.loansInEffect(loans)),
+            cashAccounts: cashAccounts,
+            cash: assetsArr.first?.cash ?? 0
+        )
+    }
+}
+
+/// 收入表单的输入部分。账本算出来的财务摘要从外面传进来
+private struct IncomeForm: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let onSaved: ((Income) -> Void)?
+    let snapshot: FinancialSnapshot
+    let cashAccounts: [CashAccount]
+    /// 现在的现金，检查记完会不会超出能存的范围
+    let cash: Double
+
     @State private var pickedAccount: UUID?
     @AppStorage(CashAccountPreferences.lastIncomeAccountKey, store: AppPreferences.store) private var lastIncomeAccount = ""
 
@@ -90,11 +111,6 @@ struct AddIncomeSheet: View {
         }
     }
 
-    private var snapshot: FinancialSnapshot {
-        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
-    }
-
     /// 输入有效性: 金额、来源、备注和日期都必须落在备份可表示边界内。
     private var isValid: Bool {
         let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -106,7 +122,7 @@ struct AddIncomeSheet: View {
               Calendar.current.startOfDay(for: date) <= Calendar.current.startOfDay(for: .now) else {
             return false
         }
-        let resultingCash = (assetsArr.first?.cash ?? 0) + value
+        let resultingCash = cash + value
         return resultingCash.isFinite && abs(resultingCash) <= FinancialLimits.maximumAmount
     }
 

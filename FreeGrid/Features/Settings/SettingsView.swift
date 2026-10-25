@@ -67,7 +67,17 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
+    @Environment(\.tabActivity) private var tabActivity
+    @Environment(\.tabDataClock) private var tabDataClock
+    @State private var freeze = TabFreezeState()
+
+    /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
+    }
+
+    @ViewBuilder
+    private var page: some View {
         let snapshot = snapshot
         let saving = SavingMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
                                             recordedIncome: SavingMath.recordedMonthlyIncome(incomes))

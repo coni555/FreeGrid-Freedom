@@ -50,13 +50,26 @@ struct HistoryView: View {
     /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
     private typealias Selection = HistorySearch.Filter
 
+    @Environment(\.tabActivity) private var tabActivity
+    @Environment(\.tabDataClock) private var tabDataClock
+    @State private var freeze = TabFreezeState()
+
+    /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
+    }
+
+    @ViewBuilder
+    private var page: some View {
+        // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
+        let isEmpty = expenses.isEmpty && incomes.isEmpty
+        let ledger = isEmpty || isSearching ? nil : ScopedLedger(expenses: expenses, incomes: incomes, scope: scope)
         NavigationStack {
             Group {
-                if expenses.isEmpty && incomes.isEmpty {
+                if isEmpty {
                     emptyState
                 } else {
-                    historyList
+                    historyList(ledger)
                 }
             }
             .background(Color.paper)
@@ -98,16 +111,16 @@ struct HistoryView: View {
             }
             .onChange(of: showingFilters ? selection : .all) { _, value in search.setFilter(value) }
             .onChange(of: search.appliedQuery) { monthExpansion = [:] }
-            .task(id: expenses.isEmpty && incomes.isEmpty) {
+            .task(id: isEmpty) {
                 // 账本里有记录才指引；等列表排好位置再开始
-                guard !guideCompleted, !(expenses.isEmpty && incomes.isEmpty) else { return }
+                guard !guideCompleted, !isEmpty else { return }
                 try? await Task.sleep(for: .milliseconds(600))
                 guard !guideCompleted, !isSearching, editing == nil else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.history) }
             }
             .task(id: guide.replays(of: .history)) {
                 // 从设置页重放：先回到本月、收起搜索和筛选，圈的位置才和首次进来时一样
-                guard !(expenses.isEmpty && incomes.isEmpty), guide.takeReplay(.history) else { return }
+                guard !isEmpty, guide.takeReplay(.history) else { return }
                 resetForGuide()
                 try? await Task.sleep(for: .milliseconds(600))
                 guard !Task.isCancelled else { return }
@@ -147,19 +160,37 @@ struct HistoryView: View {
     // MARK: - 列表
     // ============================================================================
 
-    private var historyList: some View {
+    /// 当前范围里的账，和范围卡上要的月份范围、日均。在 page 顶层算好再交给列表
+    private struct ScopedLedger {
+        let transactions: [LedgerTransaction]
+        let monthRange: ClosedRange<HistoryMonth>
+        let dailyBurn: Double
+
+        init(expenses: [Expense], incomes: [Income], scope: HistoryScope) {
+            transactions = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: scope)
+            monthRange = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
+            // 只在按月查看时折算成天，全部时间用不到
+            if case .month = scope {
+                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses)).dailyBurn
+            } else {
+                dailyBurn = 0
+            }
+        }
+    }
+
+    private func historyList(_ ledger: ScopedLedger?) -> some View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { searchSections }
-                else { ledgerSections }
+                else if let ledger { ledgerSections(ledger) }
             }
             .ledgerListStyle()
             .onChange(of: scrollToTop) { proxy.scrollTo(Self.topID, anchor: .top) }
         }
     }
 
-    private var ledgerSections: some View {
-        let scoped = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: scope)
+    private func ledgerSections(_ ledger: ScopedLedger) -> some View {
+        let scoped = ledger.transactions
         let summary = HistoryLedger.summary(scoped)
         let categories = HistoryLedger.categoryTotals(scoped)
         let active = showingFilters ? activeSelection(categories: categories, income: summary.income) : .all
@@ -169,7 +200,7 @@ struct HistoryView: View {
         let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
         return Group {
             Section {
-                scopeCard(summary)
+                scopeCard(summary, ledger: ledger)
                     .id(Self.topID)
                 if showingFilters && (!categories.isEmpty || summary.income != 0) {
                     chipRow(categories, income: summary.income, active: active)
@@ -382,8 +413,8 @@ struct HistoryView: View {
     // MARK: - 时间范围卡片
     // ============================================================================
 
-    private func scopeCard(_ summary: HistorySummary) -> some View {
-        let range = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
+    private func scopeCard(_ summary: HistorySummary, ledger: ScopedLedger) -> some View {
+        let range = ledger.monthRange
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 0) {
@@ -433,7 +464,7 @@ struct HistoryView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     KickerLabel(text: String(localized: "支出"))
-                    if let days = equivalentDays(summary) {
+                    if let days = equivalentDays(summary, dailyBurn: ledger.dailyBurn) {
                         // 首页的日均是尺子: 这个月花掉的钱相当于平时多少天的开销
                         Text("· " + HistoryLedger.equivalentDaysLabel(days))
                             .font(.kicker)
@@ -468,9 +499,8 @@ struct HistoryView: View {
     }
 
     /// 只在按月查看时折算；全部时间折出来就是追踪天数，没有信息
-    private func equivalentDays(_ summary: HistorySummary) -> Double? {
+    private func equivalentDays(_ summary: HistorySummary, dailyBurn: Double) -> Double? {
         guard case .month = scope else { return nil }
-        let dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses)).dailyBurn
         return HistoryLedger.equivalentDays(expense: summary.expense, dailyBurn: dailyBurn)
     }
 

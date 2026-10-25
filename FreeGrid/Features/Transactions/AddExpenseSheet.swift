@@ -4,12 +4,9 @@ import SwiftUI
 import SwiftData
 
 struct AddExpenseSheet: View {
-
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-
     /// 保存成功回调 — DashboardView 用它显示 5 秒撤销 toast
     var onSaved: ((Expense) -> Void)? = nil
+    private let initialAmount: String
 
     // 预览需要读所有现有数据,实时算"如果加这一笔,自由天数变化"
     @Query private var expenses: [Expense]
@@ -19,6 +16,42 @@ struct AddExpenseSheet: View {
     @Query private var loans: [Loan]
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
+
+    /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
+    init(initialAmount: String = "", onSaved: ((Expense) -> Void)? = nil) {
+        self.onSaved = onSaved
+        self.initialAmount = initialAmount
+    }
+
+    /// 整本账的计算在这里做一次，只有账本变了才重算。表单每敲一个数字都会重画，那里只用算好的结果：
+    /// 原来每次重画都把几千笔支出读好几遍，刚打开、刚点金额栏时主线程被占着，点了像没反应
+    var body: some View {
+        ExpenseForm(
+            initialAmount: initialAmount, onSaved: onSaved,
+            categories: ExpenseCategoryStorage.pickable(encodedOptions, recorded: expenses.filter { $0.loanID == nil }.map(\.category),
+                                                        unlocked: ProFeatures.canCustomizeExpenseCategories),
+            snapshot: FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                                        assetItems: assetItems, cashAccounts: cashAccounts,
+                                        loans: ProFeatures.loansInEffect(loans)),
+            cashAccounts: cashAccounts,
+            cash: assetsArr.first?.cash ?? 0
+        )
+    }
+}
+
+/// 支出表单的输入部分。账本算出来的分类和财务摘要从外面传进来
+private struct ExpenseForm: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let onSaved: ((Expense) -> Void)?
+    let categories: [String]
+    let snapshot: FinancialSnapshot
+    let cashAccounts: [CashAccount]
+    /// 现在的现金，检查记完会不会超出能存的范围
+    let cash: Double
+
     /// Pro 现金账户：用户手动换的账户；nil = 按扣款顺序自动挑
     @State private var pickedAccount: UUID?
 
@@ -31,15 +64,13 @@ struct AddExpenseSheet: View {
     @State private var showingCategories = false
     @State private var showingPro = false
 
-    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedOptions = ""
-    private var categories: [String] {
-        ExpenseCategoryStorage.pickable(encodedOptions, recorded: expenses.filter { $0.loanID == nil }.map(\.category),
-                                        unlocked: ProFeatures.canCustomizeExpenseCategories)
-    }
-
-    /// `initialAmount` 给「模拟完直接记为支出」用: 表单打开时金额已经填好
-    init(initialAmount: String = "", onSaved: ((Expense) -> Void)? = nil) {
+    init(initialAmount: String, onSaved: ((Expense) -> Void)?, categories: [String], snapshot: FinancialSnapshot,
+         cashAccounts: [CashAccount], cash: Double) {
         self.onSaved = onSaved
+        self.categories = categories
+        self.snapshot = snapshot
+        self.cashAccounts = cashAccounts
+        self.cash = cash
         _amount = State(initialValue: initialAmount)
     }
 
@@ -139,11 +170,6 @@ struct AddExpenseSheet: View {
                            picked: $pickedAccount)
     }
 
-    private var snapshot: FinancialSnapshot {
-        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
-    }
-
     private var isAmountValid: Bool {
         guard let value = Double(amount),
               categories.contains(category),
@@ -152,7 +178,7 @@ struct AddExpenseSheet: View {
               Calendar.current.startOfDay(for: date) <= Calendar.current.startOfDay(for: .now) else {
             return false
         }
-        let resultingCash = (assetsArr.first?.cash ?? 0) - value
+        let resultingCash = cash - value
         return resultingCash.isFinite && abs(resultingCash) <= FinancialLimits.maximumAmount
     }
 
