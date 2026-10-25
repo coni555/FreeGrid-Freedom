@@ -20,7 +20,7 @@ struct FreedomCardSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     /// 卡上「完成几个里程碑」要和设置页一样，「每月有结余」那一项要知道收入
-    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
+    @AppStorage(MonthlySaving.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     @AppStorage("freedomCardHolder", store: AppPreferences.store) private var holder = ""
     @AppStorage(FreedomCardPrompt.highestSeenKey, store: AppPreferences.store) private var highestSeen = -1
 
@@ -33,8 +33,8 @@ struct FreedomCardSheet: View {
     private var data: FreedomCardData {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
-        let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
-                                            recordedIncome: FreedomGoalMath.recordedMonthlyIncome(incomes))
+        let saving = SavingMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
+                                            recordedIncome: SavingMath.recordedMonthlyIncome(incomes))
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
         return FreedomCardData(snapshot: snapshot, summary: summary)
     }

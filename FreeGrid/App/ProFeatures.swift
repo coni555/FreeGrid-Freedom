@@ -52,10 +52,10 @@ enum ProFeatures {
             ])),
         Row(title: String(localized: "自由卡"), free: .text(String(localized: "查看")), pro: .text(String(localized: "导出分享")), topics: [.freedomCard]),
         // 自检里「我的目标」和首页的目标卡（用户 2026-10-25 定为 Pro）
-        Row(title: String(localized: "自己的目标"), free: .no, pro: .text(String(localized: "最多三个")), topics: [.goals],
+        Row(title: String(localized: "自己的目标"), free: .no, pro: .text(String(localized: "随你定")), topics: [.goals],
             info: Info(title: String(localized: "给自由定个目标"), body: [
                 String(localized: "比如攒够半年的应急金，或者给 GAP 定个日子。"),
-                String(localized: "目标用自由天数表示：看还差多少天、按现在的速度每月能多几天；定了日子，再看那天够不够。"),
+                String(localized: "目标用自由天数表示，直接和首页的自由天数比，一眼看出还差多少；也可以再定一个日子倒数。"),
             ])),
     ]
 

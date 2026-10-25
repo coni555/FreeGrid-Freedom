@@ -1,4 +1,4 @@
-// 自检页：一张里程碑卡，分记录、自由天数、现金流三组，每组可以收起；最下面是「我的目标」（Pro，最多三个），没有时只有一行入口。
+// 自检页：一张里程碑卡，分记录、自由天数、现金流三组，每组可以收起；最下面是「我的目标」（Pro，个数不限），没有时只有一行入口。
 
 import SwiftUI
 import SwiftData
@@ -15,7 +15,7 @@ struct CheckView: View {
     @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
-    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
+    @AppStorage(MonthlySaving.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     /// 收起的组，逗号分隔；记住上次的选择
     @AppStorage(Self.collapsedKey, store: AppPreferences.store) private var collapsedGroups = ""
     /// 打开目标面板：新目标时 goal 是 nil
@@ -41,10 +41,10 @@ struct CheckView: View {
     // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)
     var body: some View {
         let snapshot = snapshot
-        let recorded = FreedomGoalMath.recordedMonthlyIncome(incomes)
-        let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome, recordedIncome: recorded)
+        let recorded = SavingMath.recordedMonthlyIncome(incomes)
+        let saving = SavingMath.saving(snapshot: snapshot, enteredIncome: enteredIncome, recordedIncome: recorded)
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
-        let results = goals.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
+        let results = goals.map { FreedomGoalProgress(goal: $0, snapshot: snapshot) }
         ScrollView {
             checklistCard(summary, goals: results)
                 .padding()
@@ -54,10 +54,8 @@ struct CheckView: View {
         .navigationTitle("财富自由自检")
         .inlineNavTitle()
         .sheet(item: $editingGoal) { edit in
-            FreedomGoalSheet(existing: edit.goal, enteredIncome: enteredIncome, recordedIncome: recorded,
-                             snapshot: snapshot) { saved, income in
+            FreedomGoalSheet(existing: edit.goal, snapshot: snapshot) { saved in
                 storedGoals = FreedomGoalStore.encode(FreedomGoalStore.saving(saved, into: goals))
-                enteredIncome = income
             } onDelete: {
                 storedGoals = FreedomGoalStore.encode(goals.filter { $0.id != edit.goal?.id })
             }
@@ -70,7 +68,7 @@ struct CheckView: View {
 
     // MARK: - 里程碑
 
-    private func checklistCard(_ summary: FreedomSummary, goals: [FreedomGoalMath.Result]) -> some View {
+    private func checklistCard(_ summary: FreedomSummary, goals: [FreedomGoalProgress]) -> some View {
         VaultCard(padding: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {

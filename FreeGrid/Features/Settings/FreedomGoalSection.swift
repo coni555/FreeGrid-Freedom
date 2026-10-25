@@ -1,11 +1,11 @@
 // 自检页里程碑卡最下面的「我的目标」（Pro）：每个目标一行，和里程碑同样的排法；只定天数的是靶心，定了日子的是旗子，
-// 有日子的右边是超细的「189 天后」。少于三个时最下面一行「加一个自己的目标」，没有 Pro 时后面标个小 PRO。
+// 有日子的右边是超细的「189 天后」。都和首页的自由天数直接比。最下面一行「加一个自己的目标」，没有 Pro 时后面标个小 PRO。
 // 目标不算进里程碑的达成数：那是大家共用的清单，目标只是自己的。
 
 import SwiftUI
 
 struct FreedomGoalSection: View {
-    let results: [FreedomGoalMath.Result]
+    let results: [FreedomGoalProgress]
     /// 没有 Pro 时点哪里都去购买页（由 CheckView 决定）
     let unlocked: Bool
     let onAdd: () -> Void
@@ -14,29 +14,19 @@ struct FreedomGoalSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if !results.isEmpty {
-                HStack(alignment: .firstTextBaseline) {
-                    KickerLabel(text: String(localized: "Mine · 我的目标"))
-                    Spacer()
-                    Text("\(results.count)/\(FreedomGoalStore.limit)")
-                        .font(.system(.caption2, design: .monospaced).monospacedDigit())
-                        .foregroundStyle(Color.inkFaint)
-                }
-                .padding(.top, Spacing.lg)
+                KickerLabel(text: String(localized: "Mine · 我的目标"))
+                    .padding(.top, Spacing.lg)
                 .padding(.bottom, Spacing.xs)
                 ForEach(Array(results.enumerated()), id: \.element.goal.id) { index, result in
                     Button { onEdit(result.goal) } label: { goalRow(result) }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("goal-row-\(index)")
-                    if index < results.count - 1 || results.count < FreedomGoalStore.limit {
-                        Hairline().padding(.leading, 30)
-                    }
+                    Hairline().padding(.leading, 30)
                 }
             }
-            if results.count < FreedomGoalStore.limit {
-                Button(action: onAdd) { addRow }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("goal-add")
-            }
+            Button(action: onAdd) { addRow }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("goal-add")
         }
     }
 
@@ -78,11 +68,11 @@ struct FreedomGoalSection: View {
         .contentShape(Rectangle())
     }
 
-    /// 一行：图标、名字（右边有日子时是还有几天，没日子时是目标天数），日期，进度条，结论，小字
-    private func goalRow(_ result: FreedomGoalMath.Result) -> some View {
+    /// 一行：图标、名字（右边有日子时是还有几天，没日子时是目标天数），日期，进度条，现在多少、还差多少
+    private func goalRow(_ result: FreedomGoalProgress) -> some View {
         let goal = result.goal
         return HStack(alignment: .top, spacing: 12) {
-            GoalIcon(dated: goal.deadline != nil, done: goal.deadline == nil && result.enough == true)
+            GoalIcon(dated: goal.deadline != nil, done: result.enough == true)
                 .padding(.top, 3)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -94,25 +84,19 @@ struct FreedomGoalSection: View {
                     Spacer(minLength: Spacing.sm)
                     if let daysUntil = result.daysUntil, daysUntil > 0 {
                         GapCountdownNumber(daysUntil: daysUntil, size: 28, unitFont: .caption)
-                    } else if goal.deadline == nil, let target = goal.targetDays {
-                        Text(FreedomGoal.targetName(target))
+                    } else if goal.deadline == nil {
+                        Text(FreedomGoal.targetName(goal.targetDays))
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(Color.inkFaint)
                     }
                 }
                 if let deadline = goal.deadline {
-                    Text(Self.dateLine(deadline, target: goal.targetDays))
+                    Text(Self.dateLine(deadline))
                         .font(.system(.caption2, design: .monospaced))
                         .tracking(0.5)
                         .foregroundStyle(Color.inkFaint)
                 }
-                if let daysUntil = result.daysUntil, daysUntil < 0 {
-                    Text("这一天已经过了，点这里换一个日期")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                } else {
-                    details(result)
-                }
+                details(result)
             }
         }
         .padding(.vertical, 12)
@@ -120,12 +104,12 @@ struct FreedomGoalSection: View {
         .contentShape(Rectangle())
     }
 
-    private func details(_ result: FreedomGoalMath.Result) -> some View {
+    private func details(_ result: FreedomGoalProgress) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            if result.daysUntil == 0 {
-                Text("就是今天")
+            if let daysUntil = result.daysUntil, daysUntil <= 0 {
+                Text(daysUntil == 0 ? "就是今天" : "这一天已经过了，点这里换一个日期")
                     .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.skyDeep)
+                    .foregroundStyle(daysUntil == 0 ? Color.skyDeep : Color.inkMuted)
             }
             if let progress = result.progress {
                 CheckProgressBar(progress: progress)
@@ -144,25 +128,17 @@ struct FreedomGoalSection: View {
                         .fixedSize()
                 }
             }
-            if let note = result.footnote {
-                Text(note)
-                    .font(.system(.caption, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.inkFaint)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 
-    /// 「2027年5月2日 · 想撑两年」；不是今年的日子带上年份
-    static func dateLine(_ date: Date, target: Int?, now: Date = .now) -> String {
+    /// 「2027年5月2日」；不是今年的日子带上年份
+    static func dateLine(_ date: Date, now: Date = .now) -> String {
         let sameYear = Calendar.current.isDate(date, equalTo: now, toGranularity: .year)
-        let day = AppLanguage.date(date, template: sameYear ? "MMMd" : "yyyyMMMd")
-        guard let target else { return day }
-        return String(localized: "\(day) · 想撑\(FreedomGoal.targetName(target))")
+        return AppLanguage.date(date, template: sameYear ? "MMMd" : "yyyyMMMd")
     }
 }
 
-/// 目标的小图标：只定天数是靶心（达成了换成勾），定了日子是旗子
+/// 目标的小图标：只定天数是靶心，定了日子是旗子；达成了换成勾
 struct GoalIcon: View {
     let dated: Bool
     let done: Bool

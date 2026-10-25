@@ -50,7 +50,7 @@ struct SettingsView: View {
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     /// 自己填的每月收入：自检卡的「每月有结余」要用
-    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
+    @AppStorage(MonthlySaving.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     private let icpNumber = "浙ICP备2026045014号-1A"
     private let privacyURL = URL(string: "https://github.com/coni555/FreeGrid-Freedom/blob/main/PRIVACY.md")!
@@ -69,8 +69,8 @@ struct SettingsView: View {
 
     var body: some View {
         let snapshot = snapshot
-        let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
-                                            recordedIncome: FreedomGoalMath.recordedMonthlyIncome(incomes))
+        let saving = SavingMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
+                                            recordedIncome: SavingMath.recordedMonthlyIncome(incomes))
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
         return NavigationStack {
             ScrollView {

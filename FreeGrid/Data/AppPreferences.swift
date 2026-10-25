@@ -37,7 +37,7 @@ enum AppPreferences {
         ReviewInvitationStore.lastRequestedKey,
         HomeStat.slotsKey,
         FreedomGoalStore.key,
-        FreedomGoal.incomeKey,
+        MonthlySaving.incomeKey,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {
@@ -50,7 +50,7 @@ enum AppPreferences {
                 continue
             }
             // 收入存成数字，@AppStorage 读字符串读不出来；目标是 JSON 字符串，照常存
-            if key == FreedomGoal.incomeKey, let income = Double(value) {
+            if key == MonthlySaving.incomeKey, let income = Double(value) {
                 defaults.set(income, forKey: key)
                 continue
             }

@@ -183,13 +183,10 @@ enum HomeStat: Hashable, Identifiable {
             // 首页上长条自己画；这里是编辑面板里那一行
             return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: String(localized: "占一整行 · 今天和日常比"))
         case .goal:
-            // 首页上长条自己画；这里是编辑面板里那一行：有日子的写还有几天，没日子的写现在的自由天数
+            // 首页上长条自己画；这里是编辑面板里那一行：现在的自由天数，还差多少
             guard let result = inputs.goal(for: self) else { return Display(value: "—", unit: "") }
-            if let daysUntil = result.daysUntil {
-                if daysUntil < 0 { return Display(value: "—", unit: String(localized: "这一天已经过了")) }
-                return Display(value: "\(daysUntil)", unit: result.freedomLine)
-            }
-            return Display(value: result.freedomDaysText ?? "—", unit: result.targetLine ?? result.freedomLine)
+            return Display(value: result.freedomDaysText ?? (result.enough == true ? "∞" : "—"),
+                           unit: result.targetLine ?? result.freedomLine)
         }
     }
 
@@ -250,10 +247,10 @@ enum HomeStat: Hashable, Identifiable {
         let todaySpending: Double
         /// 最近一笔还没付的固定支出或月供
         let nextFixed: NextFixed?
-        /// 自己的目标算好的结果；没有 Pro 时是空的（首页上不显示目标卡）。首页另外算好填进来
-        var goals: [FreedomGoalMath.Result] = []
+        /// 自己的目标和首页自由天数比的结果；没有 Pro 时是空的（首页上不显示目标卡）。首页另外算好填进来
+        var goals: [FreedomGoalProgress] = []
 
-        func goal(for stat: HomeStat) -> FreedomGoalMath.Result? {
+        func goal(for stat: HomeStat) -> FreedomGoalProgress? {
             guard case .goal(let id) = stat else { return nil }
             return goals.first { $0.goal.id == id }
         }

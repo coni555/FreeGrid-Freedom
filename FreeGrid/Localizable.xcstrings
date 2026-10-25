@@ -173,16 +173,6 @@
         }
       }
     },
-    "%@ · 想撑%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ · to last %2$@"
-          }
-        }
-      }
-    },
     "%@ · 每月 ¥%@\n删除后被动覆盖率会下降。": {
       "localizations": {
         "en": {
@@ -205,16 +195,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ · that day has passed"
-          }
-        }
-      }
-    },
-    "%@ · 这一天已经过了，点这里换一个日期": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ · that day has passed. Tap to pick a new date"
           }
         }
       }
@@ -650,6 +630,28 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 天后": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld days"
                 }
               }
             }
@@ -4710,16 +4712,6 @@
         }
       }
     },
-    "填上每月收入，看每月能多几天": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add your monthly income to see how many days you gain each month"
-          }
-        }
-      }
-    },
     "填上每月收入，算到那天会有多少": {
       "localizations": {
         "en": {
@@ -4976,12 +4968,12 @@
         }
       }
     },
-    "天数和日子至少选一项": {
+    "天数要填 1 到 36500 之间的整数": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose a number of days, a date, or both"
+            "value": "Days must be a whole number from 1 to 36,500"
           }
         }
       }
@@ -5780,16 +5772,6 @@
         }
       }
     },
-    "想撑%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "to last %@"
-          }
-        }
-      }
-    },
     "想用自己的分类记账，可以免费体验 %lld 天 Pro。": {
       "localizations": {
         "en": {
@@ -6388,26 +6370,6 @@
         }
       }
     },
-    "按现在的速度，每月约多 %@ 天自由": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "At this pace, about %@ more Freedom Days a month"
-          }
-        }
-      }
-    },
-    "按现在的速度，每月约少 %@ 天自由": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "At this pace, about %@ fewer Freedom Days a month"
-          }
-        }
-      }
-    },
     "按目前的记账估算，被动收入已覆盖开销": {
       "localizations": {
         "en": {
@@ -6544,6 +6506,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo this entry?"
+          }
+        }
+      }
+    },
+    "攒够 %lld 天": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Save up %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Save up %lld days"
+                }
+              }
+            }
           }
         }
       }
@@ -7270,16 +7254,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last payment: %@"
-          }
-        }
-      }
-    },
-    "最多三个": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Up to three"
           }
         }
       }
@@ -8768,12 +8742,12 @@
         }
       }
     },
-    "目标用自由天数表示：看还差多少天、按现在的速度每月能多几天；定了日子，再看那天够不够。": {
+    "目标用自由天数表示，直接和首页的自由天数比，一眼看出还差多少；也可以再定一个日子倒数。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Goals are counted in Freedom Days: see how many you still need and how many you gain each month at this pace. Add a date to see whether you'll have enough by then."
+            "value": "Goals are counted in Freedom Days and compared straight with the number on your home screen, so you can see at a glance how far you have to go. You can also add a date to count down to."
           }
         }
       }
@@ -11222,16 +11196,6 @@
         }
       }
     },
-    "那天约 %@ 天自由": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About %@ Freedom Days by then"
-          }
-        }
-      }
-    },
     "部分现金未计入": {
       "localizations": {
         "en": {
@@ -11464,6 +11428,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Touch and hold to drag into order; swipe left to delete. Deleting a category doesn't change past entries; renaming updates them."
+          }
+        }
+      }
+    },
+    "随你定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your call"
           }
         }
       }

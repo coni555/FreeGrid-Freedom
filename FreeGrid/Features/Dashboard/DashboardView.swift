@@ -20,7 +20,6 @@ struct DashboardView: View {
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     /// 目标长条：在自检或首页改了目标，这里跟着重算
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
-    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     /// 整本账的计算都在这里做：只有账本或口径变了才重算。
     /// 首页自己的弹层、撤销条变化时只重画 DashboardContent，不再扫一遍几千笔支出
@@ -41,20 +40,15 @@ struct DashboardView: View {
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
         var statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
-        let recordedIncome = FreedomGoalMath.recordedMonthlyIncome(incomes)
-        // 目标是 Pro：没有 Pro 时首页不放目标卡（编辑面板里也不列）
-        let goals = ProFeatures.canSetGoals ? FreedomGoalStore.decode(storedGoals) : []
-        if !goals.isEmpty {
-            let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
-                                                recordedIncome: recordedIncome)
-            statInputs.goals = goals.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
+        // 目标是 Pro：没有 Pro 时首页不放目标卡（编辑面板里也不列）；和首页的自由天数直接比
+        if ProFeatures.canSetGoals {
+            statInputs.goals = FreedomGoalStore.decode(storedGoals).map { FreedomGoalProgress(goal: $0, snapshot: snapshot) }
         }
         return DashboardContent(
             snapshot: snapshot,
             history: history,
             statInputs: statInputs,
-            todaySpending: statInputs.todaySpending,
-            recordedIncome: recordedIncome
+            todaySpending: statInputs.todaySpending
         )
     }
 }
@@ -76,8 +70,6 @@ private struct DashboardContent: View {
     /// 底部三张数字小卡要的数，同样由 DashboardView 随账本算好
     let statInputs: HomeStat.Inputs
     let todaySpending: Double
-    /// GAP 面板里「不填就按记录」用的每月收入
-    let recordedIncome: Double?
 
     @Environment(\.modelContext) private var modelContext
     /// 讲解和起步引导要圈出这一页上的位置
@@ -103,7 +95,6 @@ private struct DashboardContent: View {
     /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
     @State private var editingGoal: FreedomGoal?
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
-    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -173,10 +164,8 @@ private struct DashboardContent: View {
                                onReset: { storedStatSlots = "" })
             }
             .sheet(item: $editingGoal) { goal in
-                FreedomGoalSheet(existing: goal, enteredIncome: enteredIncome,
-                                 recordedIncome: recordedIncome, snapshot: snapshot) { saved, income in
+                FreedomGoalSheet(existing: goal, snapshot: snapshot) { saved in
                     storedGoals = FreedomGoalStore.encode(FreedomGoalStore.saving(saved, into: FreedomGoalStore.decode(storedGoals)))
-                    enteredIncome = income
                 } onDelete: {
                     storedGoals = FreedomGoalStore.encode(FreedomGoalStore.decode(storedGoals).filter { $0.id != goal.id })
                 }
