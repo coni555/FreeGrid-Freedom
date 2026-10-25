@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F3W1D6E7000000000000000C /* FreeGridWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F3W1D6E70000000000000001 /* FreeGridWidgets.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F34FDE162FC569A7003AA776 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,34 @@
 			remoteGlobalIDString = F34FDE052FC569A6003AA776;
 			remoteInfo = FreeGrid;
 		};
+		F3W1D6E7000000000000000E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F34FDDFE2FC569A5003AA776 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F3W1D6E70000000000000005;
+			remoteInfo = FreeGridWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F3W1D6E7000000000000000D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F3W1D6E7000000000000000C /* FreeGridWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F34FDE062FC569A6003AA776 /* FreeGrid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreeGrid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F34FDE152FC569A7003AA776 /* FreeGridTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FreeGridTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F34FDE1F2FC569A7003AA776 /* FreeGridUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FreeGridUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F3W1D6E70000000000000001 /* FreeGridWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FreeGridWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -37,6 +63,13 @@
 				Secrets.swift,
 			);
 			target = F34FDE052FC569A6003AA776 /* FreeGrid */;
+		};
+		F3W1D6E70000000000000004 /* Exceptions for "FreeGridWidgets" folder in "FreeGridWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F3W1D6E70000000000000005 /* FreeGridWidgets */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -57,6 +90,19 @@
 		F34FDE222FC569A7003AA776 /* FreeGridUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FreeGridUITests;
+			sourceTree = "<group>";
+		};
+		F3W1D6E70000000000000002 /* FreeGridWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F3W1D6E70000000000000004 /* Exceptions for "FreeGridWidgets" folder in "FreeGridWidgets" target */,
+			);
+			path = FreeGridWidgets;
+			sourceTree = "<group>";
+		};
+		F3W1D6E70000000000000003 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +129,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F3W1D6E70000000000000007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -92,6 +145,8 @@
 				F34FDE082FC569A6003AA776 /* FreeGrid */,
 				F34FDE182FC569A7003AA776 /* FreeGridTests */,
 				F34FDE222FC569A7003AA776 /* FreeGridUITests */,
+				F3W1D6E70000000000000002 /* FreeGridWidgets */,
+				F3W1D6E70000000000000003 /* Shared */,
 				F34FDE072FC569A6003AA776 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -102,6 +157,7 @@
 				F34FDE062FC569A6003AA776 /* FreeGrid.app */,
 				F34FDE152FC569A7003AA776 /* FreeGridTests.xctest */,
 				F34FDE1F2FC569A7003AA776 /* FreeGridUITests.xctest */,
+				F3W1D6E70000000000000001 /* FreeGridWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,13 +172,16 @@
 				F34FDE022FC569A6003AA776 /* Sources */,
 				F34FDE032FC569A6003AA776 /* Frameworks */,
 				F34FDE042FC569A6003AA776 /* Resources */,
+				F3W1D6E7000000000000000D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F3W1D6E7000000000000000F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				F34FDE082FC569A6003AA776 /* FreeGrid */,
+				F3W1D6E70000000000000003 /* Shared */,
 			);
 			name = FreeGrid;
 			packageProductDependencies = (
@@ -177,6 +236,29 @@
 			productReference = F34FDE1F2FC569A7003AA776 /* FreeGridUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		F3W1D6E70000000000000005 /* FreeGridWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F3W1D6E70000000000000009 /* Build configuration list for PBXNativeTarget "FreeGridWidgets" */;
+			buildPhases = (
+				F3W1D6E70000000000000006 /* Sources */,
+				F3W1D6E70000000000000007 /* Frameworks */,
+				F3W1D6E70000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F3W1D6E70000000000000002 /* FreeGridWidgets */,
+				F3W1D6E70000000000000003 /* Shared */,
+			);
+			name = FreeGridWidgets;
+			packageProductDependencies = (
+			);
+			productName = FreeGridWidgets;
+			productReference = F3W1D6E70000000000000001 /* FreeGridWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -198,6 +280,9 @@
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = F34FDE052FC569A6003AA776;
 					};
+					F3W1D6E70000000000000005 = {
+						CreatedOnToolsVersion = 27.1;
+					};
 				};
 			};
 			buildConfigurationList = F34FDE012FC569A5003AA776 /* Build configuration list for PBXProject "FreeGrid" */;
@@ -218,6 +303,7 @@
 				F34FDE052FC569A6003AA776 /* FreeGrid */,
 				F34FDE142FC569A7003AA776 /* FreeGridTests */,
 				F34FDE1E2FC569A7003AA776 /* FreeGridUITests */,
+				F3W1D6E70000000000000005 /* FreeGridWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -238,6 +324,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		F34FDE1D2FC569A7003AA776 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F3W1D6E70000000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -268,6 +361,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F3W1D6E70000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -280,6 +380,12 @@
 			isa = PBXTargetDependency;
 			target = F34FDE052FC569A6003AA776 /* FreeGrid */;
 			targetProxy = F34FDE202FC569A7003AA776 /* PBXContainerItemProxy */;
+		};
+		F3W1D6E7000000000000000F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = F3W1D6E70000000000000005 /* FreeGridWidgets */;
+			targetProxy = F3W1D6E7000000000000000E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -405,6 +511,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Config/FreeGrid.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Config/FreeGrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 6N2BLP248U;
@@ -414,6 +522,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FreeGrid-Info.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -452,6 +561,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Config/FreeGrid.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Config/FreeGrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 6N2BLP248U;
@@ -461,6 +572,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FreeGrid-Info.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -604,6 +716,70 @@
 			};
 			name = Release;
 		};
+		F3W1D6E7000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FreeGridWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = 6N2BLP248U;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeGridWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FreeGrid;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.conilab.FreeGrid.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		F3W1D6E7000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FreeGridWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = 6N2BLP248U;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeGridWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FreeGrid;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.conilab.FreeGrid.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -639,6 +815,15 @@
 			buildConfigurations = (
 				F34FDE302FC569A7003AA776 /* Debug */,
 				F34FDE312FC569A7003AA776 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F3W1D6E70000000000000009 /* Build configuration list for PBXNativeTarget "FreeGridWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F3W1D6E7000000000000000A /* Debug */,
+				F3W1D6E7000000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

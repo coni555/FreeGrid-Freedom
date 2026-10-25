@@ -4,7 +4,7 @@ import Foundation
 enum ProFeatures {
     /// 从哪个功能进的购买页：对照表上那一行淡淡地标出来
     enum Topic {
-        case categories, assets, cash, freedomSwitch, assetsView, loans, freedomCard, goals
+        case categories, assets, cash, freedomSwitch, assetsView, loans, freedomCard, goals, widgets
     }
 
     /// 对照表一格：打勾、横杠（没有）、或者一个短词
@@ -57,6 +57,8 @@ enum ProFeatures {
                 String(localized: "比如攒够半年的应急金，或者给 GAP 定个日子。"),
                 String(localized: "目标用自由天数表示，直接和首页的自由天数比，一眼看出还差多少；也可以再定一个日子倒数。"),
             ])),
+        // 系统桌面和锁屏的小组件：自由天数免费，看板（自由天数加两项自选的数）和目标是 Pro（用户 2026-10-25 定）
+        Row(title: String(localized: "桌面小组件"), free: .text(String(localized: "自由天数")), pro: .text(String(localized: "看板 · 目标")), topics: [.widgets]),
     ]
 
     /// 设置页 Pro 卡头下面那一行，用户 2026-10-17 定的原话。不写价格（价格只在购买页出现）

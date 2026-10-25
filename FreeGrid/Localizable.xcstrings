@@ -1099,6 +1099,16 @@
         }
       }
     },
+    "**我的目标**（Pro）：桌面小号、中号，锁屏圆形和长条。写着还差多少天自由，定了日子的倒数还有几天。长按点「编辑小组件」选看哪个目标。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**My goal** (Pro): small and medium on the Home Screen, circular and rectangular on the Lock Screen. Shows how many Freedom Days you still need, and counts down if the goal has a date. Touch and hold, then tap \"Edit Widget\" to choose the goal."
+          }
+        }
+      }
+    },
     "**我的自由卡**：30 天银卡，180 天香槟金，1 年黑卡；被动收入覆盖全部开销是 ∞ 卡。卡上只写天数，不写金额。**Pro** 可以导出成卡片或海报分享。": {
       "localizations": {
         "en": {
@@ -1235,6 +1245,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "**Freedom Days**: how many days your money would last at your current spending."
+          }
+        }
+      }
+    },
+    "**自由天数**：桌面小号；锁屏圆形、长条，以及日期旁边的一行。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Freedom Days**: small on the Home Screen; circular, rectangular, and the line next to the date on the Lock Screen."
+          }
+        }
+      }
+    },
+    "**自由看板**（Pro）：桌面中号，自由天数旁边放两项数字。长按小组件点「编辑小组件」，从日均、本月花销、记账天数这些里面选。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Freedom Dashboard** (Pro): medium on the Home Screen, with two numbers next to your Freedom Days. Touch and hold the widget, tap \"Edit Widget\", and pick from daily average, this month's spending, days tracked and more."
           }
         }
       }
@@ -1637,6 +1667,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your Pro Trial Has Ended"
+          }
+        }
+      }
+    },
+    "Pro 小组件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro widget"
           }
         }
       }
@@ -4672,6 +4712,26 @@
         }
       }
     },
+    "在桌面或锁屏上长按空白处，点「编辑」→「添加小组件」，找到 FreeGrid。小组件上的数和首页一样，每天零点自己往前走；记了账，回到桌面就会更新。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold an empty spot on your Home Screen or Lock Screen, tap \"Edit\" → \"Add Widget\", and find FreeGrid. Widgets show the same numbers as the Dashboard and move on by themselves at midnight; after you record something, they update when you go back to the Home Screen."
+          }
+        }
+      }
+    },
+    "在自检里加一个目标，这里就会显示。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a goal in Freedom Check and it will show up here."
+          }
+        }
+      }
+    },
     "在设置 → 外观 → 钱包页面，选「经典」或「钱与时间」。只是样子不同，账本一样。": {
       "localizations": {
         "en": {
@@ -5434,6 +5494,16 @@
         }
       }
     },
+    "已经过了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passed"
+          }
+        }
+      }
+    },
     "已覆盖": {
       "localizations": {
         "en": {
@@ -5984,6 +6054,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skipped by you"
+          }
+        }
+      }
+    },
+    "打开 FreeGrid 更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open FreeGrid to update"
           }
         }
       }
@@ -7490,6 +7570,26 @@
         }
       }
     },
+    "桌面和锁屏小组件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Screen and Lock Screen widgets"
+          }
+        }
+      }
+    },
+    "桌面小组件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets"
+          }
+        }
+      }
+    },
     "检查*财务数据*": {
       "localizations": {
         "en": {
@@ -7576,6 +7676,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking the backup…"
+          }
+        }
+      }
+    },
+    "此刻拥有的自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom you have right now"
           }
         }
       }
@@ -8454,6 +8564,16 @@
         }
       }
     },
+    "现在": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now"
+          }
+        }
+      }
+    },
     "现在 %@ / %lld 天": {
       "localizations": {
         "en": {
@@ -8732,6 +8852,16 @@
         }
       }
     },
+    "目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goal"
+          }
+        }
+      }
+    },
     "目标 · %@": {
       "localizations": {
         "en": {
@@ -8778,6 +8908,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "about %@"
+          }
+        }
+      }
+    },
+    "看板 · 目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dashboard · Goals"
+          }
+        }
+      }
+    },
+    "看板和目标小组件属于 Pro，点一下了解。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dashboard and goal widgets are part of Pro. Tap to learn more."
+          }
+        }
+      }
+    },
+    "看板和目标小组件换成一句说明，自由天数小组件照常。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dashboard and goal widgets show a short note instead; the Freedom Days widget keeps working."
           }
         }
       }
@@ -9238,6 +9398,16 @@
         }
       }
     },
+    "自由 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom %@"
+          }
+        }
+      }
+    },
     "自由卡": {
       "localizations": {
         "en": {
@@ -9362,6 +9532,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "How Freedom Days work"
+          }
+        }
+      }
+    },
+    "自由天数照常；看板和目标小组件换成一句说明。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom Days keeps working; the dashboard and goal widgets show a short note instead."
           }
         }
       }
@@ -10634,6 +10814,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starter"
+          }
+        }
+      }
+    },
+    "超过 30 天没打开 FreeGrid，小组件会停在最后一天，提示打开 App 更新。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you don't open FreeGrid for more than 30 days, widgets stop at the last day and ask you to open the app."
+          }
+        }
+      }
+    },
+    "距离目标还差 %lld 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@ to your goal"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

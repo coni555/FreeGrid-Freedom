@@ -86,12 +86,13 @@ final class StoreBootstrap {
     }
 
     nonisolated static func makeContainer(isStoredInMemoryOnly: Bool = false) throws -> ModelContainer {
-        let schema = schema
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: isStoredInMemoryOnly
-        )
-        return try ModelContainer(for: schema, configurations: [configuration])
+        try ModelContainer(for: schema, configurations: [configuration(isStoredInMemoryOnly: isStoredInMemoryOnly)])
+    }
+
+    /// 账本固定放在 App 自己的容器里。App 有了 App Group（给小组件用）以后，SwiftData 默认会把账本搬进共享容器、
+    /// 改开那一份（2026-10-25 真机上遇到）；小组件不读账本，不让它搬，升级前后打开的始终是同一个文件
+    nonisolated static func configuration(isStoredInMemoryOnly: Bool = false) -> ModelConfiguration {
+        ModelConfiguration(schema: schema, isStoredInMemoryOnly: isStoredInMemoryOnly, groupContainer: .none)
     }
 
     private static func makeProductionContainer() throws -> ModelContainer {

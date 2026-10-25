@@ -44,6 +44,8 @@ struct ContentView: View {
     @State private var backToFreePending = false
     /// 正在试着弹，别再开一轮
     @State private var presentingBackToFree = false
+    /// 没有 Pro 时点了看板、目标小组件：打开购买页
+    @State private var showingWidgetPro = false
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -130,6 +132,8 @@ struct ContentView: View {
         // 打开 App 和回到前台时补扣到期的房租、月供
         .task {
             processDuePayments()
+            // 打开 App 就给小组件写一份；和 App Store 核对 Pro 的结果有变化时下面再写
+            WidgetPublisher.publish(in: modelContext)
             // 早期开发版里资产拆分后总开关还管着各项；现在由各项自己决定，旧的「关」交给各项接手
             if !FreedomSettings.countsAssets, (try? AssetItemStore.adoptSwitchOff(in: modelContext)) == true {
                 AppPreferences.store.set(true, forKey: FreedomSettings.countsAssetsKey)
@@ -159,7 +163,20 @@ struct ContentView: View {
         .onChange(of: ProStore.shared.hasCheckedEntitlements) {
             processDuePayments()
             checkProLapse()
+            // 核对完 Pro 再写一份：体验到期、退款后 Pro 小组件跟着变
+            WidgetPublisher.publish(in: modelContext)
         }
+        // 离开 App 时再写一份：这次打开记的账、改的目标、换的语言都在里面
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { WidgetPublisher.publish(in: modelContext) }
+        }
+        // 点小组件打开 App：没有 Pro 时点的是 Pro 小组件就去购买页，其余回首页
+        .onOpenURL { url in
+            guard url.scheme == WidgetLink.scheme else { return }
+            selectedTab = .dashboard
+            if url.host() == WidgetLink.pro.host(), !ProFeatures.canSetGoals { showingWidgetPro = true }
+        }
+        .proPaywall(isPresented: $showingWidgetPro, topic: .widgets)
         .sheet(isPresented: $showingBackToFree) {
             BackToFreeSheet().onAppear { backToFreePending = false }
         }
