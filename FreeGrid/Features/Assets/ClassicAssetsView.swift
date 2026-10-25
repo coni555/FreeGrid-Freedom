@@ -43,7 +43,21 @@ struct ClassicAssetsView: View {
     @State private var showingExplain = false
     @State private var transferExpanded = false
 
+    @Environment(\.tabActivity) private var tabActivity
+    @Environment(\.tabDataClock) private var tabDataClock
+    @State private var freeze = TabFreezeState()
+
+    /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
+    }
+
+    @ViewBuilder
+    private var page: some View {
+        // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
+                                         assets: assetsArr.first, assetItems: assetItems,
+                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
         NavigationStack {
             ScrollViewReader { scroller in
             ScrollView {
@@ -59,7 +73,7 @@ struct ClassicAssetsView: View {
                     LoanDrawer()
                         .guideTarget(.loans, in: guide)
                         .id(AppGuide.Target.loans)
-                    passiveCard
+                    passiveCard(snapshot)
                         .guideTarget(.passive, in: guide)
                         .id(AppGuide.Target.passive)
                 }
@@ -262,11 +276,8 @@ struct ClassicAssetsView: View {
 
     // MARK: - 被动收入卡片
     // 顶部 kicker + "+" / 大数字覆盖率 / 月入·日均 subtitle / 已有源列表(每行 × 删除, 点行编辑)
-    private var passiveCard: some View {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
-                                         assets: assetsArr.first, assetItems: assetItems,
-                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
-        return VaultCard {
+    private func passiveCard(_ snapshot: FinancialSnapshot) -> some View {
+        VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(alignment: .firstTextBaseline) {
                     KickerLabel(text: String(localized: "Passive · 被动收入"))

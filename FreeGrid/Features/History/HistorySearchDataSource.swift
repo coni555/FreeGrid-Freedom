@@ -9,6 +9,8 @@ struct HistorySearchDataSource: View, Equatable {
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
+    /// 明细在后台时不重建搜索索引，切回来再建（见 TabFreeze）
+    @Environment(\.tabActivity) private var tabActivity
     @State private var observer = HistorySearchModelObserver()
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.search === rhs.search }
@@ -18,15 +20,19 @@ struct HistorySearchDataSource: View, Equatable {
         let identities: [ObjectIdentifier]
         let locale: Locale
         let calendar: Calendar
+        let isActive: Bool
     }
 
     var body: some View {
-        let input = Input(identities: expenses.map(ObjectIdentifier.init) + incomes.map(ObjectIdentifier.init),
-                          locale: locale, calendar: calendar)
+        // 在后台时连账本都不读：@Query 在读的时候才去取
+        let isActive = tabActivity.isActive
+        let input = Input(identities: isActive ? expenses.map(ObjectIdentifier.init) + incomes.map(ObjectIdentifier.init) : [],
+                          locale: locale, calendar: calendar, isActive: isActive)
         Color.clear
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
             .onChange(of: input, initial: true) { _, value in
+                guard value.isActive else { return observer.pause() }
                 observer.update(search: search, expenses: expenses, incomes: incomes,
                                 locale: value.locale, calendar: value.calendar)
             }
@@ -55,6 +61,11 @@ final class HistorySearchModelObserver {
         managedModels = Set(expenses.filter { $0.modelContext != nil }.map(ObjectIdentifier.init) +
                             incomes.filter { $0.modelContext != nil }.map(ObjectIdentifier.init))
         refresh()
+    }
+
+    /// 不再跟着字段变化重建，之前排着的那次也作废；下一次 update 时整份重建
+    func pause() {
+        generation += 1
     }
 
     private func refresh() {

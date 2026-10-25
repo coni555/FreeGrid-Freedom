@@ -41,9 +41,20 @@ struct MoneyTimeAssetsView: View {
     private var cash: Double { assetsArr.first?.cash ?? 0 }
     private var netWorth: Double { lockedAssets + cash }
 
+    @Environment(\.tabActivity) private var tabActivity
+    @Environment(\.tabDataClock) private var tabDataClock
+    @State private var freeze = TabFreezeState()
+
+    /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
+    }
+
+    private var page: some View {
+        // 读整本账的都在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
         let snapshot = snapshot
         let unit: AmountUnit = isDays ? .days(perDay: snapshot.dailyBurn) : .money
+        let loanSummary = LoanRows.Summary(loans: ProFeatures.loansInEffect(loans), expenses: expenses)
         return NavigationStack {
             ScrollViewReader { scroller in
                 ScrollView {
@@ -52,7 +63,7 @@ struct MoneyTimeAssetsView: View {
                             .id(Self.topID)
                         vault(snapshot)
                             .padding(.top, 34)
-                        monthly(snapshot, unit: unit)
+                        monthly(snapshot, unit: unit, loanSummary: loanSummary)
                             .padding(.top, 36)
                     }
                     .padding(.horizontal, 20)
@@ -404,9 +415,8 @@ struct MoneyTimeAssetsView: View {
 
     // MARK: - 每月：进和出
 
-    private func monthly(_ snapshot: FinancialSnapshot, unit: AmountUnit) -> some View {
+    private func monthly(_ snapshot: FinancialSnapshot, unit: AmountUnit, loanSummary: LoanRows.Summary) -> some View {
         let income = passiveSources.reduce(0) { $0 + $1.monthlyAmount }
-        let loanSummary = LoanRows.Summary(loans: ProFeatures.loansInEffect(loans), expenses: expenses)
         let outflow = loanSummary.monthlyTotal
         let largest = max(income, outflow, 1)
         let net = income - outflow

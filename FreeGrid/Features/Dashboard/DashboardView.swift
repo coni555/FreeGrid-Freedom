@@ -23,7 +23,16 @@ struct DashboardView: View {
 
     /// 整本账的计算都在这里做：只有账本或口径变了才重算。
     /// 首页自己的弹层、撤销条变化时只重画 DashboardContent，不再扫一遍几千笔支出
+    @Environment(\.tabActivity) private var tabActivity
+    @Environment(\.tabDataClock) private var tabDataClock
+    @State private var freeze = TabFreezeState()
+
+    /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
+    }
+
+    private var page: some View {
         let loansInEffect = ProFeatures.loansInEffect(loans)
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect,
