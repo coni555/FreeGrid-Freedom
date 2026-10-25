@@ -287,7 +287,8 @@ struct BackToFreeSheet: View {
             ForEach([(String(localized: "支出分类"), String(localized: "体验期间设置的分类继续可用，修改需 Pro。")),
                      (String(localized: "资产视图"), String(localized: "恢复经典视图。")),
                      (String(localized: "自由卡"), String(localized: "可以查看，分享需 Pro。")),
-                     (String(localized: "我的目标"), String(localized: "可以在自检里查看，修改需 Pro；首页的目标卡已收起。"))], id: \.0) { name, text in
+                     (String(localized: "我的目标"), String(localized: "可以在自检里查看，修改需 Pro；首页的目标卡已收起。")),
+                     (String(localized: "桌面小组件"), String(localized: "自由天数照常；看板和目标小组件换成一句说明。"))], id: \.0) { name, text in
                 (Text(name + "：").foregroundStyle(Color.inkMuted) + Text(text).foregroundStyle(Color.inkFaint))
                     .font(.system(.footnote, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)

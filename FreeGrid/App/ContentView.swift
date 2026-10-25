@@ -44,6 +44,8 @@ struct ContentView: View {
     @State private var backToFreePending = false
     /// 正在试着弹，别再开一轮
     @State private var presentingBackToFree = false
+    /// 没有 Pro 时点了看板、目标小组件：打开购买页
+    @State private var showingWidgetPro = false
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -159,7 +161,20 @@ struct ContentView: View {
         .onChange(of: ProStore.shared.hasCheckedEntitlements) {
             processDuePayments()
             checkProLapse()
+            // 打开 App 时：补扣完、知道有没有 Pro 之后，给小组件写一份新的
+            WidgetPublisher.publish(in: modelContext)
         }
+        // 离开 App 时再写一份：这次打开记的账、改的目标、换的语言都在里面
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { WidgetPublisher.publish(in: modelContext) }
+        }
+        // 点小组件打开 App：没有 Pro 时点的是 Pro 小组件就去购买页，其余回首页
+        .onOpenURL { url in
+            guard url.scheme == WidgetLink.scheme else { return }
+            selectedTab = .dashboard
+            if url.host() == WidgetLink.pro.host(), !ProFeatures.canSetGoals { showingWidgetPro = true }
+        }
+        .proPaywall(isPresented: $showingWidgetPro, topic: .widgets)
         .sheet(isPresented: $showingBackToFree) {
             BackToFreeSheet().onAppear { backToFreePending = false }
         }

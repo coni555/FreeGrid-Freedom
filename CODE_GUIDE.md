@@ -17,8 +17,13 @@ FreeGrid/
 │   ├── Simulation/   模拟决策及格子动画
 │   ├── History/      历史记录和月度汇总
 │   └── Settings/     设置、数据管理（导出/导入/清空）和财富自由自检
-└── UI/           共用颜色、卡片、按钮、金额格式、预览、错误提示和界面语言（AppLanguage）
+└── UI/           共用卡片、按钮、金额格式、预览、错误提示和界面语言（AppLanguage）
+Shared/           App 和桌面小组件都编译的：颜色（ColorTokens）、小组件读的那份数（WidgetSnapshot）、小组件的样子（WidgetViews）
+FreeGridWidgets/  系统小组件扩展（iOS）：时间线、可选项、三种小组件
+Config/           两边的 App Group 权限、App 的网址登记
 ```
+
+**桌面小组件**：账本不出 App 自己的容器。App 用首页同一套规则（[WidgetProjection](FreeGrid/Logic/WidgetProjection.swift)）从今天起每天算一份，写成 App Group 里的一个 JSON（[WidgetPublisher](FreeGrid/Data/WidgetPublisher.swift)），打开 App 核对完 Pro 后和离开 App 时各写一次，内容没变不写。小组件只读这个文件，每天零点换下一份；字都是 App 按界面语言写好的。自由天数免费；看板和目标是 Pro，没有 Pro 时显示一句说明、点了打开购买页（`freegrid://pro`）。
 
 界面文字都在 `FreeGrid/Localizable.xcstrings`（String Catalog）：开发语言是简体中文，中文原句就是 key，英文写在每条的 `en` 里。
 

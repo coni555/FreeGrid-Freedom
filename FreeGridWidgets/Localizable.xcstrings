@@ -1,0 +1,396 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
+    "341 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "341 days"
+          }
+        }
+      }
+    },
+    "GAP · 189 天后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GAP · in 189 days"
+          }
+        }
+      }
+    },
+    "Pro 小组件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro widget"
+          }
+        }
+      }
+    },
+    "上面一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top"
+          }
+        }
+      }
+    },
+    "下次固定支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next fixed expense"
+          }
+        }
+      }
+    },
+    "下面一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom"
+          }
+        }
+      }
+    },
+    "今日花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent today"
+          }
+        }
+      }
+    },
+    "元/天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥ per day"
+          }
+        }
+      }
+    },
+    "可动用资产": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available funds"
+          }
+        }
+      }
+    },
+    "在自检里加一个目标，这里就会显示。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a goal in Freedom Check and it will show up here."
+          }
+        }
+      }
+    },
+    "天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days"
+          }
+        }
+      }
+    },
+    "天后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days"
+          }
+        }
+      }
+    },
+    "就是今天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's the day"
+          }
+        }
+      }
+    },
+    "已经过了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passed"
+          }
+        }
+      }
+    },
+    "我的目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My goal"
+          }
+        }
+      }
+    },
+    "打开 FreeGrid": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open FreeGrid"
+          }
+        }
+      }
+    },
+    "打开 FreeGrid 更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open FreeGrid to update"
+          }
+        }
+      }
+    },
+    "打开一次 App，这里就会显示自由天数。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the app once and your Freedom Days will show up here."
+          }
+        }
+      }
+    },
+    "数字": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Number"
+          }
+        }
+      }
+    },
+    "日均消费": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily average"
+          }
+        }
+      }
+    },
+    "本月花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This month"
+          }
+        }
+      }
+    },
+    "比上月同期少 12%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "12% less than last month"
+          }
+        }
+      }
+    },
+    "现在": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now"
+          }
+        }
+      }
+    },
+    "现在 341 / 365 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now 341 / 365 days"
+          }
+        }
+      }
+    },
+    "目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goal"
+          }
+        }
+      }
+    },
+    "看哪一个目标。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which goal to show."
+          }
+        }
+      }
+    },
+    "看板和目标小组件属于 Pro，点一下了解。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dashboard and goal widgets are part of Pro. Tap to learn more."
+          }
+        }
+      }
+    },
+    "离自己的目标还差多少天自由，定了日子的倒数还有几天。Pro 功能。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many Freedom Days you still need for your goal, and a countdown if it has a date. A Pro feature."
+          }
+        }
+      }
+    },
+    "自由 341 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom 341 days"
+          }
+        }
+      }
+    },
+    "自由天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom Days"
+          }
+        }
+      }
+    },
+    "自由天数旁边放哪两项。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The two numbers next to your Freedom Days."
+          }
+        }
+      }
+    },
+    "自由天数，加上你选的两项数字。Pro 功能。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom Days plus two numbers you choose. A Pro feature."
+          }
+        }
+      }
+    },
+    "自由看板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freedom Dashboard"
+          }
+        }
+      }
+    },
+    "被动收入覆盖率": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passive coverage"
+          }
+        }
+      }
+    },
+    "记账天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days tracked"
+          }
+        }
+      }
+    },
+    "还差 24 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24 Freedom Days to go"
+          }
+        }
+      }
+    },
+    "还能撑这么多天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days left"
+          }
+        }
+      }
+    },
+    "首页的自由天数，桌面和锁屏都能放。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Freedom Days from the home screen, on your Home Screen or Lock Screen."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
