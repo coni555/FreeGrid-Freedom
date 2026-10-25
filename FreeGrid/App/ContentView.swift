@@ -42,6 +42,8 @@ struct ContentView: View {
     @State private var showingBackToFree = false
     /// 该弹「回到免费版」、还没真的出现过。别的弹层开着时它出不来，留着下次再弹
     @State private var backToFreePending = false
+    /// 正在试着弹，别再开一轮
+    @State private var presentingBackToFree = false
 
     #if os(macOS)
     @Environment(MenuActions.self) private var menuActions
@@ -298,7 +300,6 @@ extension ContentView {
     }
 
     /// Pro 刚失效、账本里又有体验期间加的资产项、现金账户或贷款时，弹「回到免费版」。没有就只记下这次变化。
-    /// 没弹出来（别的弹层开着）就留着，下次回到前台再弹
     private func checkProLapse() {
         if ProStore.shared.takeLapse() {
             let plan = BackToFreePlan(assetItems: (try? modelContext.fetch(FetchDescriptor<AssetItem>())) ?? [],
@@ -306,11 +307,24 @@ extension ContentView {
                                       loans: (try? modelContext.fetch(FetchDescriptor<Loan>())) ?? [])
             backToFreePending = plan.hasProContent
         }
-        guard backToFreePending, !showingBackToFree else { return }
-        showingBackToFree = true
+        guard backToFreePending, !showingBackToFree, !presentingBackToFree else { return }
+        presentingBackToFree = true
         Task {
+            await presentBackToFree()
+            presentingBackToFree = false
+        }
+    }
+
+    /// 弹出来（sheet 的 onAppear 清掉 pending）才算数。刚启动时首页还没进窗口，或者别的弹层开着，sheet 会出不来：
+    /// 收回开关，隔一会儿再试，最多三次；还不行就留着，下次回到前台再弹
+    private func presentBackToFree() async {
+        for attempt in 0..<3 {
+            try? await Task.sleep(for: .milliseconds(attempt == 0 ? 300 : 1_000))
+            guard backToFreePending, !showingBackToFree else { return }
+            showingBackToFree = true
             try? await Task.sleep(for: .seconds(1))
-            if backToFreePending { showingBackToFree = false }
+            guard backToFreePending else { return }
+            showingBackToFree = false
         }
     }
 
