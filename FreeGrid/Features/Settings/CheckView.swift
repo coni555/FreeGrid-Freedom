@@ -1,4 +1,4 @@
-// 自检页：最上面是 GAP 倒计时（离职目标），下面是里程碑清单，最后一行写记账天数够不够让日均变稳。
+// 自检页：一张里程碑卡，分记录、自由天数、现金流三组，每组可以收起；最下面是「我的目标」（GAP），不设就只有一行入口。
 
 import SwiftUI
 import SwiftData
@@ -17,7 +17,12 @@ struct CheckView: View {
     @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
     @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
     @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
+    /// 收起的组，逗号分隔；记住上次的选择
+    @AppStorage(Self.collapsedKey, store: AppPreferences.store) private var collapsedGroups = ""
     @State private var editingGoal = false
+    @State private var editingIncome = false
+
+    static let collapsedKey = "checkCollapsedGroups"
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
@@ -35,17 +40,8 @@ struct CheckView: View {
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
         let result = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
-                FreedomGoalCard(result: result) { editingGoal = true }
-                checklistCard(summary)
-                if let note = summary.dataNote {
-                    Text(note)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .padding(.horizontal, Spacing.xs)
-                }
-            }
-            .padding()
+            checklistCard(summary, goal: result)
+                .padding()
         }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
@@ -62,13 +58,16 @@ struct CheckView: View {
                 goalTargetDays = 0
             }
         }
+        .sheet(isPresented: $editingIncome) {
+            MonthlyIncomeSheet(enteredIncome: enteredIncome, recordedIncome: recorded) { enteredIncome = $0 }
+        }
     }
 
     // MARK: - 里程碑
 
-    private func checklistCard(_ summary: FreedomSummary) -> some View {
+    private func checklistCard(_ summary: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
         VaultCard(padding: 0) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     KickerLabel(text: String(localized: "Milestones · 里程碑"))
                     Spacer()
@@ -78,16 +77,78 @@ struct CheckView: View {
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.lg)
+
+                ForEach(FreedomCheckGroup.allCases) { group in
+                    groupSection(group, items: summary.items(in: group))
+                }
+
+                Hairline()
+                    .padding(.top, Spacing.sm)
+                FreedomGoalSection(result: goal) { editingGoal = true }
+                    .padding(.horizontal, Spacing.lg)
+            }
+            .padding(.bottom, Spacing.xs)
+        }
+    }
+
+    private func isCollapsed(_ group: FreedomCheckGroup) -> Bool {
+        collapsedGroups.split(separator: ",").contains(Substring(group.rawValue))
+    }
+
+    private func toggle(_ group: FreedomCheckGroup) {
+        var set = collapsedGroups.split(separator: ",").map(String.init).filter { $0 != group.rawValue }
+        if !isCollapsed(group) { set.append(group.rawValue) }
+        withAnimation(.snappy(duration: 0.32)) { collapsedGroups = set.joined(separator: ",") }
+    }
+
+    /// 一组：组头（小标签、达成几项、收起箭头）点了收起或展开；收起时只留组头
+    private func groupSection(_ group: FreedomCheckGroup, items: [FreedomCheckItem]) -> some View {
+        let collapsed = isCollapsed(group)
+        let done = items.filter(\.done).count
+        return VStack(alignment: .leading, spacing: 0) {
+            Button { toggle(group) } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    KickerLabel(text: group.kicker)
+                    Spacer()
+                    Text("\(done)/\(items.count)")
+                        .font(.system(.caption2, design: .monospaced).monospacedDigit())
+                        .foregroundStyle(done == items.count ? Color.skyDeep : Color.inkFaint)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Color.inkFaint)
+                        .rotationEffect(.degrees(collapsed ? 0 : 180))
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.lg)
                 .padding(.bottom, Spacing.sm)
-                ForEach(Array(summary.items.enumerated()), id: \.element.id) { idx, item in
-                    checklistRow(item: item)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("check-group-\(group.rawValue)")
+            .accessibilityValue(collapsed ? "已收起" : "已展开")
+
+            if !collapsed {
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                    row(item)
                         .padding(.horizontal, Spacing.lg)
-                    if idx < summary.items.count - 1 {
+                        .transition(.opacity)
+                    if idx < items.count - 1 {
                         Hairline().padding(.leading, Spacing.lg + 30)
                     }
                 }
             }
-            .padding(.bottom, Spacing.xs)
+        }
+    }
+
+    /// 「每月有结余」点了能填每月收入，其余各行只是显示
+    @ViewBuilder
+    private func row(_ item: FreedomCheckItem) -> some View {
+        if item.id == 4 {
+            Button { editingIncome = true } label: { checklistRow(item: item) }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("check-saving-row")
+        } else {
+            checklistRow(item: item)
         }
     }
 
@@ -112,23 +173,13 @@ struct CheckView: View {
                     .foregroundStyle(item.done ? Color.ink : Color.inkMuted)
 
                 if item.done {
-                    // 没有进度条的项（每月有结余）达成后仍写一句数字
-                    Text(item.progress == nil && !item.detail.isEmpty
-                         ? String(localized: "已达成 · \(item.detail)") : String(localized: "已达成"))
+                    Text(item.achievedNote.map { String(localized: "已达成 · \($0)") } ?? String(localized: "已达成"))
                         .font(.system(.caption2, design: .monospaced))
                         .tracking(0.5)
                         .foregroundStyle(Color.skyDeep)
                 } else {
                     if let p = item.progress {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.mist2)
-                                Capsule()
-                                    .fill(Color.skyDeep)
-                                    .frame(width: max(2, geo.size.width * p))
-                            }
-                        }
-                        .frame(height: 4)
+                        CheckProgressBar(progress: p)
                     }
                     if !item.detail.isEmpty {
                         Text(item.detail)
@@ -146,5 +197,23 @@ struct CheckView: View {
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+}
+
+/// 里程碑和 GAP 那一行共用的细进度条
+struct CheckProgressBar: View {
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.mist2)
+                Capsule()
+                    .fill(Color.skyDeep)
+                    .frame(width: max(2, geo.size.width * progress))
+            }
+        }
+        .frame(height: 4)
     }
 }

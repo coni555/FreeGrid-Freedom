@@ -137,11 +137,49 @@ struct FreedomGoalTests {
         #expect(try !savingItem(saving(perDay: -10, in: s)).done)
     }
 
-    @Test func checklistHasSixMilestonesAndADataNote() {
+    @Test func checklistHasNineMilestonesInThreeGroups() throws {
         let summary = FreedomChecklist.evaluate(snapshot: snapshot())
-        #expect(summary.total == 6)
-        #expect(summary.items.map(\.id) == [1, 2, 3, 4, 5, 6])
-        #expect(summary.dataNote == "再记录 80 天，日均趋势会更清晰")
-        #expect(FreedomChecklist.evaluate(snapshot: snapshot(expenses: [])).dataNote == "记下第一笔支出后开始判断")
+        #expect(summary.total == 9)
+        // 记录、自由天数、现金流；旧的编号不变，记账天数排在最前、编号 7–9
+        #expect(summary.items.map(\.id) == [7, 8, 9, 1, 2, 3, 4, 5, 6])
+        #expect(FreedomCheckGroup.allCases.map { summary.items(in: $0).count } == [3, 3, 3])
+        // 第一笔在 9 天前：记了 10 天
+        let thirty = try #require(summary.items.first { $0.id == 7 })
+        #expect(thirty.title == "记账满 30 天")
+        #expect(!thirty.done)
+        #expect(thirty.detail == "当前 10 / 30 天")
+        #expect(thirty.hint == "继续记下每天的花销")
+        // 记账天数没满不抢「下一站」：自由天数 300，下一站还是 365 天
+        #expect(summary.nextStopTitle == "自由天数 365 天")
+        #expect(summary.remainText == "还差 65 天")
+    }
+
+    @Test func recordMilestonesCountDaysSinceTheFirstExpense() throws {
+        // 89 天前第一笔：记满 90 天；中间不花钱的日子不断档
+        let s = snapshot(expenses: [Expense(amount: 9_000, category: "房租", date: day(-89)),
+                                    Expense(amount: 1_800, category: "午餐", date: day(-3))])
+        let summary = FreedomChecklist.evaluate(snapshot: s)
+        let record = summary.items(in: .record)
+        #expect(record.map(\.done) == [true, true, false])
+        #expect(record[1].achievedNote == "日均不再按大额摊开估算")
+        #expect(record[2].detail == "当前 90 / 365 天")
+
+        let empty = FreedomChecklist.evaluate(snapshot: snapshot(expenses: [])).items(in: .record)
+        #expect(empty.allSatisfy { !$0.done })
+        #expect(empty[0].detail == "当前 0 / 30 天")
+        #expect(empty[0].hint == "记下第一笔支出，从那天开始算")
+    }
+
+    @Test func savingRowAsksForIncomeWhenUnknown() throws {
+        let s = snapshot()
+        let unknown = try #require(FreedomChecklist.evaluate(snapshot: s, saving: nil).items.first { $0.id == 4 })
+        #expect(unknown.hint == "点这里填上每月到手收入")
+        let saves = try #require(FreedomChecklist.evaluate(snapshot: s, saving: saving(perDay: 100, in: s)).items.first { $0.id == 4 })
+        #expect(saves.achievedNote == "每月约存 ¥3,044")
+    }
+
+    @Test func goalRowTitleCarriesTheYearOnlyWhenItIsNotThisYear() {
+        #expect(FreedomGoalSection.leaveTitle(TestSupport.day("2026-06-20"), now: now) == "6月20日离开")
+        #expect(FreedomGoalSection.leaveTitle(TestSupport.day("2027-05-01"), now: now) == "2027年5月1日离开")
     }
 }

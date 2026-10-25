@@ -18,6 +18,10 @@ struct DashboardView: View {
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// GAP 长条：在自检或首页设了日期，这里跟着重算
+    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
+    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     /// 整本账的计算都在这里做：只有账本或口径变了才重算。
     /// 首页自己的弹层、撤销条变化时只重画 DashboardContent，不再扫一遍几千笔支出
@@ -37,12 +41,19 @@ struct DashboardView: View {
             now: snapshot.now
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
-        let statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
+        var statInputs = HomeStat.Inputs(snapshot: snapshot, expenses: expenses, loans: loansInEffect)
+        let recordedIncome = FreedomGoalMath.recordedMonthlyIncome(incomes)
+        if let goal = FreedomGoal(leaveDate: goalLeaveDate, targetDays: goalTargetDays) {
+            let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
+                                                recordedIncome: recordedIncome)
+            statInputs.gap = FreedomGoalMath.evaluate(goal: goal, snapshot: snapshot, saving: saving)
+        }
         return DashboardContent(
             snapshot: snapshot,
             history: history,
             statInputs: statInputs,
-            todaySpending: statInputs.todaySpending
+            todaySpending: statInputs.todaySpending,
+            recordedIncome: recordedIncome
         )
     }
 }
@@ -64,6 +75,8 @@ private struct DashboardContent: View {
     /// 底部三张数字小卡要的数，同样由 DashboardView 随账本算好
     let statInputs: HomeStat.Inputs
     let todaySpending: Double
+    /// GAP 面板里「不填就按记录」用的每月收入
+    let recordedIncome: Double?
 
     @Environment(\.modelContext) private var modelContext
     /// 讲解和起步引导要圈出这一页上的位置
@@ -86,6 +99,11 @@ private struct DashboardContent: View {
     @AppStorage("homeCardsExpanded", store: AppPreferences.store) private var cardsExpanded = true
     /// 编辑卡片：点任意一张卡或「编辑卡片」打开
     @State private var showingStatEditor = false
+    /// 点 GAP 长条打开 GAP 面板，和自检里「我的目标」是同一个
+    @State private var showingGap = false
+    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
+    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
+    @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -153,6 +171,17 @@ private struct DashboardContent: View {
             .sheet(isPresented: $showingStatEditor) {
                 HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
                                onReset: { storedStatSlots = "" })
+            }
+            .sheet(isPresented: $showingGap) {
+                FreedomGoalSheet(existing: statInputs.gap?.goal, enteredIncome: enteredIncome,
+                                 recordedIncome: recordedIncome, snapshot: snapshot) { newGoal, income in
+                    goalLeaveDate = newGoal.leaveDate.timeIntervalSince1970
+                    goalTargetDays = newGoal.targetDays ?? 0
+                    enteredIncome = income
+                } onClear: {
+                    goalLeaveDate = nil
+                    goalTargetDays = 0
+                }
             }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeSheet(onSaved: { inc in
@@ -345,6 +374,7 @@ private struct DashboardContent: View {
                 HomeCardsGrid(items: cardsExpanded || hiddenCount == 0 ? items : firstRow,
                               slots: statSlots, inputs: statInputs,
                               todayBar: AnyView(todaySection),
+                              onGap: { showingGap = true },
                               onEdit: { showingStatEditor = true },
                               onReorder: { storedStatSlots = HomeStat.encode($0) })
                 HStack(alignment: .center) {

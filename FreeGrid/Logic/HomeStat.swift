@@ -1,4 +1,4 @@
-// 首页底部的卡片：几张小卡和一条今日对比长条，放哪些、什么顺序由用户定（免费）。首页上按住拖动排序，
+// 首页底部的卡片：几张小卡、今日对比长条和 GAP 倒计时长条，放哪些、什么顺序由用户定（免费）。首页上按住拖动排序，
 // 点卡片或「编辑卡片」打开面板加、移除、恢复默认。这里决定有哪些卡、没改过时放哪些、怎么排成行，以及每张显示什么。
 
 import Foundation
@@ -8,9 +8,11 @@ enum HomeStat: String, CaseIterable, Identifiable {
     case daily, month, today, track, base, passive, next
     /// 今日对比长条：和小卡一样能拖、能移除，但总是占一整行
     case todayBar
+    /// GAP 倒计时长条：没改过时不在首页上，想天天看的人自己加；也占一整行
+    case gap
 
     /// 占一整行的长条
-    var isWide: Bool { self == .todayBar }
+    var isWide: Bool { self == .todayBar || self == .gap }
 
     var id: String { rawValue }
 
@@ -25,6 +27,7 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .passive: return "Passive"
         case .next: return "Next"
         case .todayBar: return "Today"
+        case .gap: return "GAP"
         }
     }
 
@@ -39,6 +42,7 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .passive: return String(localized: "被动收入覆盖率")
         case .next: return String(localized: "下次固定支出")
         case .todayBar: return String(localized: "今日对比长条")
+        case .gap: return String(localized: "GAP 倒计时")
         }
     }
 
@@ -140,6 +144,13 @@ enum HomeStat: String, CaseIterable, Identifiable {
         case .todayBar:
             // 首页上长条自己画；这里是编辑面板里那一行
             return Display(value: FinancialFormatting.wholeNumber(inputs.todaySpending), unit: String(localized: "占一整行 · 今天和日常比"))
+        case .gap:
+            // 首页上长条自己画；这里是编辑面板里那一行
+            guard let gap = inputs.gap else {
+                return Display(value: "—", unit: String(localized: "定一个离开的日子，倒数那天有多少天自由"))
+            }
+            if gap.daysUntil < 0 { return Display(value: "—", unit: String(localized: "这一天已经过了")) }
+            return Display(value: "\(gap.daysUntil)", unit: gap.freedomLine)
         }
     }
 
@@ -200,6 +211,8 @@ enum HomeStat: String, CaseIterable, Identifiable {
         let todaySpending: Double
         /// 最近一笔还没付的固定支出或月供
         let nextFixed: NextFixed?
+        /// 设了 GAP 时的倒数和那天的自由天数；首页另外算好填进来
+        var gap: FreedomGoalMath.Result?
 
         init(snapshot: FinancialSnapshot, monthSpent: Double, lastMonthSameSpan: Double?,
              todaySpending: Double, nextFixed: NextFixed?) {

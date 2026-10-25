@@ -177,7 +177,7 @@ extension FreedomGoalMath.Result {
         return String(localized: "离\(name)还差 \(short) 天")
     }
 
-    /// 设置页卡上那一行：几天后离开
+    /// 一句话的倒数：「GAP · 189 天后」，留给锁屏小组件这种只放得下一行的地方
     var countdownLine: String {
         if daysUntil > 0 { return String(localized: "GAP · \(daysUntil) 天后") }
         if daysUntil == 0 { return String(localized: "GAP · 就是今天") }

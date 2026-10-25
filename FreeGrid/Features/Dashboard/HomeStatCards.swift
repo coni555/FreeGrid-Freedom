@@ -1,4 +1,4 @@
-// 首页底部的卡片（几张小卡 + 今日对比长条）：首页上按住拖动排序，点一下打开编辑面板加、移除、恢复默认。
+// 首页底部的卡片（几张小卡 + 今日对比长条 + GAP 长条）：首页上按住拖动排序，点一下打开编辑面板加、移除、恢复默认。
 // 有哪些卡、每张显示什么在 Logic/HomeStat.swift。
 
 import SwiftUI
@@ -14,6 +14,8 @@ struct HomeCardsGrid: View {
     let inputs: HomeStat.Inputs
     /// 今日对比长条，首页自己画好传进来
     let todayBar: AnyView
+    /// GAP 长条点了打开 GAP 面板，不是编辑卡片
+    let onGap: () -> Void
     let onEdit: () -> Void
     let onReorder: ([HomeStat]) -> Void
 
@@ -22,8 +24,10 @@ struct HomeCardsGrid: View {
     var body: some View {
         StatRowsLayout(spacing: Spacing.md) {
             ForEach(items) { item in
-                Button(action: onEdit) {
-                    if item.isWide {
+                Button(action: item == .gap ? onGap : onEdit) {
+                    if item == .gap {
+                        HomeGapCard(result: inputs.gap)
+                    } else if item.isWide {
                         todayBar
                     } else {
                         HomeStatCard(stat: item, display: item.display(inputs))
@@ -40,7 +44,8 @@ struct HomeCardsGrid: View {
                 .onDrop(of: [UTType.text], delegate: CardDropDelegate(target: item, slots: slots,
                                                                        dragging: $dragging, onReorder: onReorder))
                 .accessibilityIdentifier("home-stat-\(item.rawValue)")
-                .accessibilityHint("按住拖动换位置，点一下编辑卡片")
+                .accessibilityHint(item == .gap ? String(localized: "按住拖动换位置，点一下改 GAP 的日期")
+                                                : String(localized: "按住拖动换位置，点一下编辑卡片"))
                 .accessibilityActions { moveActions(item) }
             }
         }

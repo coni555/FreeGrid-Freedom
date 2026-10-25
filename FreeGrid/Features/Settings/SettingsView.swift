@@ -49,9 +49,7 @@ struct SettingsView: View {
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategories = ""
     /// 在 Assets 页改了口径，自检卡跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    /// 设了 GAP 时，自检卡上写几天后离开、那天大约有多少天自由
-    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
-    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
+    /// 自己填的每月收入：自检卡的「每月有结余」要用
     @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
 
     private let icpNumber = "浙ICP备2026045014号-1A"
@@ -74,13 +72,11 @@ struct SettingsView: View {
         let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome,
                                             recordedIncome: FreedomGoalMath.recordedMonthlyIncome(incomes))
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
-        let goal = FreedomGoal(leaveDate: goalLeaveDate, targetDays: goalTargetDays)
-        let goalResult = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         return NavigationStack {
             ScrollView {
                 // 一叠卡：自检在最前，后面每张藏在上一张背后、只露出下沿
                 VStack(spacing: -SettingsDeck.tuck) {
-                    checkCard(summary, goal: goalResult)
+                    checkCard(summary)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coverHeight = $0 }
                         .guideTarget(.check, in: guide)
                         .zIndex(6)
@@ -164,12 +160,12 @@ struct SettingsView: View {
     }
 
     // MARK: - 第 1 张：自检（封面，点了 push 完整自检）
-    private func checkCard(_ summary: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
-        DeckCard(tucked: false) { checkRow(summary, goal: goal) }
+    private func checkCard(_ summary: FreedomSummary) -> some View {
+        DeckCard(tucked: false) { checkRow(summary) }
     }
 
-    /// 圆环始终是达成了几个里程碑。设了 GAP：下面写几天后离开、那天大约有多少天自由；没设：写下一站
-    private func checkRow(_ s: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
+    /// 圆环是达成了几个里程碑，下面写下一站。GAP 是自己的目标，不上这张卡（想天天看的人放到首页卡片）
+    private func checkRow(_ s: FreedomSummary) -> some View {
         NavigationLink {
             CheckView()
         } label: {
@@ -193,14 +189,7 @@ struct SettingsView: View {
                     Text("财富自由自检")
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    if let goal {
-                        Text(goal.countdownLine)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
-                        Text(goal.daysUntil >= 0 ? goal.freedomLine : String(localized: "点进去换一个日期"))
-                            .font(.system(.subheadline, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color.skyDeep)
-                    } else if let stop = s.nextStopTitle {
+                    if let stop = s.nextStopTitle {
                         Text("下一站 · \(stop)")
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(Color.inkMuted)

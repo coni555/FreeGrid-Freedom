@@ -65,7 +65,7 @@ final class AppGuide {
             ]
         case .settings:
             return [
-                Step(target: .check, text: String(localized: "GAP 倒计时和几个里程碑，看离财富自由走到了哪一步。\n点进去定离开的日期、看每一项。")),
+                Step(target: .check, text: String(localized: "九个里程碑，看你离财富自由走到了哪一步。\n点进去看每一项，也可以加一个自己的目标。")),
                 Step(target: .freedomCard, text: String(localized: "你的自由卡：30 天银卡，180 天香槟金，一年黑卡。\n点开看整张卡。")),
                 // 只有还没买 Pro 时才出现
                 Step(target: .pro, text: String(localized: "Pro 一次买断，不订阅，可以先免费体验 7 天。\n点「了解 Pro」，看免费版和 Pro 各有什么。")),

@@ -91,6 +91,6 @@ struct TransactionImpactTests {
         assets.cash = 36_500
         let summary = FreedomChecklist.evaluate(expenses: [Expense(amount: 100, category: "午餐")],
                                                 passiveSources: [], assets: assets)
-        #expect(summary.items[2].detail == "当前 365 / 365 天")
+        #expect(summary.items.first { $0.id == 3 }?.detail == "当前 365 / 365 天")
     }
 }
