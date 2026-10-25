@@ -33,7 +33,7 @@ struct FreedomGoalSection: View {
                 Text("加一个自己的目标")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.skyDeep)
-                Text("比如定一个离开的日子，倒数那天有多少天自由")
+                Text("比如想 GAP 一年：定个离开的日子，看那天的自由天数够不够")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .fixedSize(horizontal: false, vertical: true)

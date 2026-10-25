@@ -45,11 +45,11 @@ struct FreedomGoalTests {
         #expect(later.enough == true)
         #expect(later.targetLine == "够撑一年")
         #expect(later.countdownLine == "GAP · 100 天后")
-        // 50 天后：41,000 → 341.7 天，离一年还差 24 天
+        // 50 天后：41,000 → 341.7 天，想撑一年还差 24 天自由
         let sooner = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(50), targetDays: 365), snapshot: s, saving: perDay)
         #expect(sooner.enough == false)
         #expect(try abs(#require(sooner.progress) - 41_000.0 / 120 / 365) < 0.0001)
-        #expect(sooner.targetLine == "离一年还差 24 天")
+        #expect(sooner.targetLine == "想撑一年，还差 24 天自由")
         // 没设目标：没有进度条
         let noTarget = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: day(50)), snapshot: s, saving: perDay)
         #expect(noTarget.progress == nil)

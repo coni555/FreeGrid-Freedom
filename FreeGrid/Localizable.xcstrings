@@ -5684,6 +5684,22 @@
         }
       }
     },
+    "想撑%@，还差 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@ Freedom Days short of %1$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "想撑%1$@，还差 %2$@ 天自由"
+          }
+        }
+      }
+    },
     "想撑多久 · 可不选": {
       "localizations": {
         "en": {
@@ -7770,12 +7786,12 @@
         }
       }
     },
-    "比如定一个离开的日子，倒数那天有多少天自由": {
+    "比如想 GAP 一年：定个离开的日子，看那天的自由天数够不够": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Like a day to leave: count down and see your Freedom Days then"
+            "value": "Say you want a one-year gap: pick a day to leave and see if your Freedom Days will cover it"
           }
         }
       }
@@ -8600,22 +8616,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm Transfer"
-          }
-        }
-      }
-    },
-    "离%@还差 %@ 天": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%2$@ days short of %1$@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "离%1$@还差 %2$@ 天"
           }
         }
       }

@@ -167,14 +167,14 @@ extension FreedomGoalMath.Result {
         }
     }
 
-    /// 进度条旁边：够撑满目标，或者还差几天
+    /// 进度条旁边：够撑满目标，或者还差几天自由（是自由天数差多少，不是离那天还有几天）
     var targetLine: String? {
         guard let target = goal.targetDays, let enough else { return nil }
         let name = FreedomGoal.targetName(target)
         if enough { return String(localized: "够撑\(name)") }
         guard case .finite(let days) = freedom else { return nil }
         let short = FinancialFormatting.wholeNumber((Double(target) - days).rounded(.up))
-        return String(localized: "离\(name)还差 \(short) 天")
+        return String(localized: "想撑\(name)，还差 \(short) 天自由")
     }
 
     /// 一句话的倒数：「GAP · 189 天后」，留给锁屏小组件这种只放得下一行的地方
