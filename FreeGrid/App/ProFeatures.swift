@@ -4,7 +4,7 @@ import Foundation
 enum ProFeatures {
     /// 从哪个功能进的购买页：对照表上那一行淡淡地标出来
     enum Topic {
-        case categories, assets, cash, freedomSwitch, assetsView, loans, freedomCard
+        case categories, assets, cash, freedomSwitch, assetsView, loans, freedomCard, goals
     }
 
     /// 对照表一格：打勾、横杠（没有）、或者一个短词
@@ -51,6 +51,12 @@ enum ProFeatures {
                 String(localized: "即使肩负还款责任，也能更清楚地了解自己的财务状况，以及当下真正拥有多少自由。"),
             ])),
         Row(title: String(localized: "自由卡"), free: .text(String(localized: "查看")), pro: .text(String(localized: "导出分享")), topics: [.freedomCard]),
+        // 自检里「我的目标」和首页的目标卡（用户 2026-10-25 定为 Pro）
+        Row(title: String(localized: "自己的目标"), free: .no, pro: .text(String(localized: "最多三个")), topics: [.goals],
+            info: Info(title: String(localized: "给自由定个目标"), body: [
+                String(localized: "比如攒够半年的应急金，或者给 GAP 定个日子。"),
+                String(localized: "目标用自由天数表示：看还差多少天、按现在的速度每月能多几天；定了日子，再看那天够不够。"),
+            ])),
     ]
 
     /// 设置页 Pro 卡头下面那一行，用户 2026-10-17 定的原话。不写价格（价格只在购买页出现）
@@ -71,4 +77,6 @@ enum ProFeatures {
     static var canUseMoneyTimeAssets: Bool { ProStore.shared.isUnlocked }
     /// 把自由卡导出成图分享。看卡不要 Pro
     static var canShareFreedomCard: Bool { ProStore.shared.isUnlocked }
+    /// 加、改、删自己的目标，首页放目标卡。没有 Pro 时已经定的目标照常在自检里显示、不能改，首页的目标卡收起
+    static var canSetGoals: Bool { ProStore.shared.isUnlocked }
 }

@@ -1,4 +1,4 @@
-// 自检页：一张里程碑卡，分记录、自由天数、现金流三组，每组可以收起；最下面是「我的目标」（GAP），不设就只有一行入口。
+// 自检页：一张里程碑卡，分记录、自由天数、现金流三组，每组可以收起；最下面是「我的目标」（Pro，最多三个），没有时只有一行入口。
 
 import SwiftUI
 import SwiftData
@@ -14,13 +14,19 @@ struct CheckView: View {
     private var cashAccounts: [CashAccount]
     @Query private var loans: [Loan]
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    @AppStorage(FreedomGoal.leaveDateKey, store: AppPreferences.store) private var goalLeaveDate: Double?
-    @AppStorage(FreedomGoal.targetDaysKey, store: AppPreferences.store) private var goalTargetDays = 0
+    @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
     @AppStorage(FreedomGoal.incomeKey, store: AppPreferences.store) private var enteredIncome: Double?
     /// 收起的组，逗号分隔；记住上次的选择
     @AppStorage(Self.collapsedKey, store: AppPreferences.store) private var collapsedGroups = ""
-    @State private var editingGoal = false
+    /// 打开目标面板：新目标时 goal 是 nil
+    @State private var editingGoal: GoalEdit?
     @State private var editingIncome = false
+    @State private var showingPro = false
+
+    private struct GoalEdit: Identifiable {
+        let id = UUID()
+        let goal: FreedomGoal?
+    }
 
     static let collapsedKey = "checkCollapsedGroups"
 
@@ -30,7 +36,7 @@ struct CheckView: View {
                           countsAssets: countsAssets)
     }
 
-    private var goal: FreedomGoal? { FreedomGoal(leaveDate: goalLeaveDate, targetDays: goalTargetDays) }
+    private var goals: [FreedomGoal] { FreedomGoalStore.decode(storedGoals) }
 
     // 作为 Settings 顶部自检卡 push 进来的子页 — 不自带 NavigationStack(用父级的)
     var body: some View {
@@ -38,26 +44,25 @@ struct CheckView: View {
         let recorded = FreedomGoalMath.recordedMonthlyIncome(incomes)
         let saving = FreedomGoalMath.saving(snapshot: snapshot, enteredIncome: enteredIncome, recordedIncome: recorded)
         let summary = FreedomChecklist.evaluate(snapshot: snapshot, saving: saving)
-        let result = goal.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
+        let results = goals.map { FreedomGoalMath.evaluate(goal: $0, snapshot: snapshot, saving: saving) }
         ScrollView {
-            checklistCard(summary, goal: result)
+            checklistCard(summary, goals: results)
                 .padding()
         }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
         .navigationTitle("财富自由自检")
         .inlineNavTitle()
-        .sheet(isPresented: $editingGoal) {
-            FreedomGoalSheet(existing: goal, enteredIncome: enteredIncome, recordedIncome: recorded,
-                             snapshot: snapshot) { newGoal, income in
-                goalLeaveDate = newGoal.leaveDate.timeIntervalSince1970
-                goalTargetDays = newGoal.targetDays ?? 0
+        .sheet(item: $editingGoal) { edit in
+            FreedomGoalSheet(existing: edit.goal, enteredIncome: enteredIncome, recordedIncome: recorded,
+                             snapshot: snapshot) { saved, income in
+                storedGoals = FreedomGoalStore.encode(FreedomGoalStore.saving(saved, into: goals))
                 enteredIncome = income
-            } onClear: {
-                goalLeaveDate = nil
-                goalTargetDays = 0
+            } onDelete: {
+                storedGoals = FreedomGoalStore.encode(goals.filter { $0.id != edit.goal?.id })
             }
         }
+        .proPaywall(isPresented: $showingPro, topic: .goals)
         .sheet(isPresented: $editingIncome) {
             MonthlyIncomeSheet(enteredIncome: enteredIncome, recordedIncome: recorded) { enteredIncome = $0 }
         }
@@ -65,7 +70,7 @@ struct CheckView: View {
 
     // MARK: - 里程碑
 
-    private func checklistCard(_ summary: FreedomSummary, goal: FreedomGoalMath.Result?) -> some View {
+    private func checklistCard(_ summary: FreedomSummary, goals: [FreedomGoalMath.Result]) -> some View {
         VaultCard(padding: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
@@ -84,8 +89,14 @@ struct CheckView: View {
 
                 Hairline()
                     .padding(.top, Spacing.sm)
-                FreedomGoalSection(result: goal) { editingGoal = true }
-                    .padding(.horizontal, Spacing.lg)
+                // 目标是 Pro：没有 Pro 时点加号或已有的目标都去购买页，已有的照常显示
+                let unlocked = ProFeatures.canSetGoals
+                FreedomGoalSection(results: goals, unlocked: unlocked) {
+                    if unlocked { editingGoal = GoalEdit(goal: nil) } else { showingPro = true }
+                } onEdit: { goal in
+                    if unlocked { editingGoal = GoalEdit(goal: goal) } else { showingPro = true }
+                }
+                .padding(.horizontal, Spacing.lg)
             }
             .padding(.bottom, Spacing.xs)
         }

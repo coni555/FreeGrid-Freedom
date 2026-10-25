@@ -45,6 +45,44 @@
         }
       }
     },
+    "%@ · %lld 天后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · in %#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$lld 天后"
+          }
+        }
+      }
+    },
     "%@ · %lld 项待调整": {
       "localizations": {
         "en": {
@@ -125,6 +163,26 @@
         }
       }
     },
+    "%@ · 就是今天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · today"
+          }
+        }
+      }
+    },
+    "%@ · 想撑%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · to last %2$@"
+          }
+        }
+      }
+    },
     "%@ · 每月 ¥%@\n删除后被动覆盖率会下降。": {
       "localizations": {
         "en": {
@@ -137,6 +195,26 @@
           "stringUnit": {
             "state": "new",
             "value": "%1$@ · 每月 ¥%2$@\n删除后被动覆盖率会下降。"
+          }
+        }
+      }
+    },
+    "%@ · 这一天已经过了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · that day has passed"
+          }
+        }
+      }
+    },
+    "%@ · 这一天已经过了，点这里换一个日期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · that day has passed. Tap to pick a new date"
           }
         }
       }
@@ -295,16 +373,6 @@
         }
       }
     },
-    "%@离开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave %@"
-          }
-        }
-      }
-    },
     "%@计入自由天数": {
       "localizations": {
         "en": {
@@ -393,6 +461,16 @@
         }
       }
     },
+    "%@，够了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, enough"
+          }
+        }
+      }
+    },
     "%@，月度汇总": {
       "localizations": {
         "en": {
@@ -415,6 +493,16 @@
           "stringUnit": {
             "state": "new",
             "value": "%1$@，自由天数 %2$@ 天，持卡人 %3$@"
+          }
+        }
+      }
+    },
+    "%@，还差 %@ 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ to go"
           }
         }
       }
@@ -839,16 +927,6 @@
         }
       }
     },
-    "**GAP 倒计时长条**：没设时不在首页上，想天天看的从「还可以添加」加进来。左边是离开那天还有几天，右边是那天大约有多少天自由；点它改日期，和自检里「我的目标」是同一个。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "**Gap countdown bar**: not on the home screen until you add it from \"Add more\". The left shows how many days until you leave, the right roughly how many Freedom Days you'll have that day. Tap it to change the date; it's the same goal as \"My goal\" in Freedom Check."
-          }
-        }
-      }
-    },
     "**Pro** 有贷款时，还款日那一格中间打一个孔；最后那个淡色带孔的格子，是钱撑不到的下一次还款。": {
       "localizations": {
         "en": {
@@ -1129,6 +1207,16 @@
         }
       }
     },
+    "**目标长条**（Pro）：每个自己的目标都能放一条，没加时不在首页上，想天天看的从「还可以添加」加进来。有日子的，左边是还有几天，右边是那天大约有多少天自由；只定天数的，写现在多少、还差多少。点它改这个目标，和自检里「我的目标」是同一份。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Goal bars** (Pro): each of your goals can have a bar. They're not on the home screen until you add them from \"More Cards\". With a date, the left shows how many days are left and the right roughly how many Freedom Days you'll have then; with only a number of days, it shows where you are and how many you still need. Tap one to edit that goal; it's the same goal as in Freedom Check."
+          }
+        }
+      }
+    },
     "**算哪些钱，你来定**。房子、长期投资、暂时不动的储蓄，可以不计入自由天数，它们仍算在净值里。免费版按资产整体选；**Pro** 可以逐个资产项、逐个现金账户选。": {
       "localizations": {
         "en": {
@@ -1209,12 +1297,12 @@
         }
       }
     },
-    "**财富自由自检**：按你的账自动判断九个里程碑，分记录、自由天数、现金流三组，点组名可以收起。点进去看每一项还差多少；点「每月有结余」可以填每月到手收入，不填按近 90 天的收入记录。最下面可以加一个自己的目标（GAP）：定一个离开的日期，看还有几天、那天大约有多少天自由，它不算进里程碑。": {
+    "**财富自由自检**：按你的账自动判断九个里程碑，分记录、自由天数、现金流三组，点组名可以收起。点进去看每一项还差多少；点「每月有结余」可以填每月到手收入，不填按近 90 天的收入记录。最下面可以加自己的目标（Pro，最多三个）：想要多少天自由，再选一个截止日（可不选），比如攒够半年的应急金，或者给 GAP 定个日子。目标不算进里程碑。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Freedom Check**: nine milestones worked out from your ledger, in three groups (record, Freedom Days, cash flow); tap a group's name to collapse it. Tap in to see how far each one is. Tap \"Saving every month\" to add your monthly take-home pay; leave it blank to use your last 90 days of income. At the bottom you can add a goal of your own (a gap): pick the day you'd leave to see how many days are left and roughly how many Freedom Days you'll have then. It doesn't count toward the milestones."
+            "value": "**Freedom Check**: nine milestones worked out from your ledger, in three groups (record, Freedom Days, cash flow); tap a group's name to collapse it. Tap in to see how far each one is. Tap \"Saving every month\" to add your monthly take-home pay; leave it blank to use your last 90 days of income. At the bottom you can add goals of your own (Pro, up to three): how many Freedom Days you want, plus an optional date, like a six-month emergency fund or a date for your gap. Goals don't count toward the milestones."
           }
         }
       }
@@ -1449,58 +1537,6 @@
         }
       }
     },
-    "GAP · %lld 天后": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "GAP · in %lld day"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "GAP · in %lld days"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "GAP · 就是今天": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GAP · today"
-          }
-        }
-      }
-    },
-    "GAP · 这一天已经过了": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GAP · that day has passed"
-          }
-        }
-      }
-    },
-    "GAP 倒计时": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gap countdown"
-          }
-        }
-      }
-    },
     "HOLDER": {},
     "ICP 备案号": {
       "localizations": {
@@ -1547,7 +1583,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "My goal"
+            "value": "My goals"
           }
         }
       }
@@ -3266,6 +3302,16 @@
         }
       }
     },
+    "再加一个目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add another goal"
+          }
+        }
+      }
+    },
     "再记*一笔支出*": {
       "localizations": {
         "en": {
@@ -3700,6 +3746,16 @@
         }
       }
     },
+    "删除这个目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this goal"
+          }
+        }
+      }
+    },
     "删除这个被动收入": {
       "localizations": {
         "en": {
@@ -4050,6 +4106,16 @@
         }
       }
     },
+    "叫什么 · 可不填": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name · optional"
+          }
+        }
+      }
+    },
     "可以。在购买页点「免费体验 7 天」，Pro 全部打开。每个 Apple 账户一次，到期自动回到免费版，**不会自动扣费**。买断优惠价在开启体验后保留 14 天，之后恢复原价；没开启过体验的，直接买也是优惠价。": {
       "localizations": {
         "en": {
@@ -4066,6 +4132,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Can I try Pro first?"
+          }
+        }
+      }
+    },
+    "可以在自检里查看，修改需 Pro；首页的目标卡已收起。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Still visible in Freedom Check; editing needs Pro. Goal cards are removed from the home screen."
           }
         }
       }
@@ -4366,16 +4442,6 @@
         }
       }
     },
-    "哪天走": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave on"
-          }
-        }
-      }
-    },
     "回到本月": {
       "localizations": {
         "en": {
@@ -4594,6 +4660,16 @@
         }
       }
     },
+    "在哪天之前 · 可不选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By a date · optional"
+          }
+        }
+      }
+    },
     "在设置 → 外观 → 钱包页面，选「经典」或「钱与时间」。只是样子不同，账本一样。": {
       "localizations": {
         "en": {
@@ -4630,6 +4706,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "On Dashboard"
+          }
+        }
+      }
+    },
+    "填上每月收入，看每月能多几天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your monthly income to see how many days you gain each month"
           }
         }
       }
@@ -4880,6 +4966,26 @@
         }
       }
     },
+    "天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days"
+          }
+        }
+      }
+    },
+    "天数和日子至少选一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a number of days, a date, or both"
+          }
+        }
+      }
+    },
     "天记账": {
       "localizations": {
         "en": {
@@ -4960,22 +5066,12 @@
         }
       }
     },
-    "定一个日期": {
+    "定一个日子": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick a date"
-          }
-        }
-      }
-    },
-    "定一个离开的日子，倒数那天有多少天自由": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pick a day to leave and count down to your Freedom Days then"
+            "value": "Set a date"
           }
         }
       }
@@ -5466,6 +5562,16 @@
         }
       }
     },
+    "应急金": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emergency fund"
+          }
+        }
+      }
+    },
     "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点任意一张卡，或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
       "localizations": {
         "en": {
@@ -5664,16 +5770,6 @@
         }
       }
     },
-    "想哪天离开？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When do you want to leave?"
-          }
-        }
-      }
-    },
     "想回到一个总数，点「合并成一个总数」，金额不变。": {
       "localizations": {
         "en": {
@@ -5684,28 +5780,12 @@
         }
       }
     },
-    "想撑%@，还差 %@ 天自由": {
+    "想撑%@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%2$@ Freedom Days short of %1$@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "想撑%1$@，还差 %2$@ 天自由"
-          }
-        }
-      }
-    },
-    "想撑多久 · 可不选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Covered for how long · optional"
+            "value": "to last %@"
           }
         }
       }
@@ -5716,6 +5796,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Want your own categories? Try Pro free for %lld days."
+          }
+        }
+      }
+    },
+    "想要多少天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many Freedom Days"
           }
         }
       }
@@ -5746,6 +5836,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "I'm counting\nmy freedom with FreeGrid"
+          }
+        }
+      }
+    },
+    "我的目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My goal"
           }
         }
       }
@@ -6188,12 +6288,12 @@
         }
       }
     },
-    "按住拖动换位置，点一下改 GAP 的日期": {
+    "按住拖动换位置，点一下改这个目标": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Press and hold to move. Tap to change the gap date."
+            "value": "Press and hold to move. Tap to edit this goal."
           }
         }
       }
@@ -6284,6 +6384,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "At your current spending, your money lasts this many days.\nBelow is roughly the date it lasts until."
+          }
+        }
+      }
+    },
+    "按现在的速度，每月约多 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At this pace, about %@ more Freedom Days a month"
+          }
+        }
+      }
+    },
+    "按现在的速度，每月约少 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At this pace, about %@ fewer Freedom Days a month"
           }
         }
       }
@@ -6424,6 +6544,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo this entry?"
+          }
+        }
+      }
+    },
+    "攒够%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save up %@"
           }
         }
       }
@@ -6838,6 +6968,16 @@
         }
       }
     },
+    "新目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Goal"
+          }
+        }
+      }
+    },
     "无法估算": {
       "localizations": {
         "en": {
@@ -6914,6 +7054,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Daily average ¥%@"
+          }
+        }
+      }
+    },
+    "日子": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
           }
         }
       }
@@ -7120,6 +7270,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last payment: %@"
+          }
+        }
+      }
+    },
+    "最多三个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to three"
           }
         }
       }
@@ -7786,12 +7946,22 @@
         }
       }
     },
-    "比如想 GAP 一年：定个离开的日子，看那天的自由天数够不够": {
+    "比如攒够半年的应急金，或者给 GAP 定个日子": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Say you want a one-year gap: pick a day to leave and see if your Freedom Days will cover it"
+            "value": "Like a six-month emergency fund, or a date for your gap"
+          }
+        }
+      }
+    },
+    "比如攒够半年的应急金，或者给 GAP 定个日子。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save up a six-month emergency fund, or set a date for your gap."
           }
         }
       }
@@ -7852,6 +8022,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "¥%@ less than now"
+          }
+        }
+      }
+    },
+    "毕业旅行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graduation trip"
           }
         }
       }
@@ -8116,16 +8296,6 @@
         }
       }
     },
-    "清除 GAP": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Gap"
-          }
-        }
-      }
-    },
     "演示这笔点亮哪几格": {
       "localizations": {
         "en": {
@@ -8306,6 +8476,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version"
+          }
+        }
+      }
+    },
+    "现在 %@ / %lld 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now %1$@ / %#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "现在 %1$@ / %2$lld 天"
+          }
+        }
+      }
+    },
+    "现在 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Freedom Days now"
           }
         }
       }
@@ -8540,6 +8758,26 @@
         }
       }
     },
+    "目标 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goal · %@"
+          }
+        }
+      }
+    },
+    "目标用自由天数表示：看还差多少天、按现在的速度每月能多几天；定了日子，再看那天够不够。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goals are counted in Freedom Days: see how many you still need and how many you gain each month at this pace. Add a date to see whether you'll have enough by then."
+          }
+        }
+      }
+    },
     "相当于 %@ 天": {
       "localizations": {
         "en": {
@@ -8616,16 +8854,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm Transfer"
-          }
-        }
-      }
-    },
-    "离开的日期": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave date"
           }
         }
       }
@@ -8796,6 +9024,16 @@
         }
       }
     },
+    "给自由定个目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set a goal for your freedom"
+          }
+        }
+      }
+    },
     "统一计入": {
       "localizations": {
         "en": {
@@ -8846,16 +9084,6 @@
         }
       }
     },
-    "编辑 GAP": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit Gap"
-          }
-        }
-      }
-    },
     "编辑%@": {
       "localizations": {
         "en": {
@@ -8902,6 +9130,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit cash"
+          }
+        }
+      }
+    },
+    "编辑目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Goal"
           }
         }
       }
@@ -9002,6 +9240,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Custom expense categories are a Pro feature: add your own, give them icons, rename and reorder them. The nine existing categories stay available."
+          }
+        }
+      }
+    },
+    "自己填": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        }
+      }
+    },
+    "自己的目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goals of your own"
           }
         }
       }
@@ -9838,16 +10096,6 @@
         }
       }
     },
-    "设定 GAP": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Set a Gap"
-          }
-        }
-      }
-    },
     "设置": {
       "localizations": {
         "en": {
@@ -10486,6 +10734,16 @@
         }
       }
     },
+    "辞职": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit my job"
+          }
+        }
+      }
+    },
     "还剩几期": {
       "localizations": {
         "en": {
@@ -10502,6 +10760,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "More Cards"
+          }
+        }
+      }
+    },
+    "还差": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "to go"
+          }
+        }
+      }
+    },
+    "还差 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Freedom Days to go"
           }
         }
       }
@@ -10940,6 +11218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Freedom then"
+          }
+        }
+      }
+    },
+    "那天约 %@ 天自由": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %@ Freedom Days by then"
           }
         }
       }

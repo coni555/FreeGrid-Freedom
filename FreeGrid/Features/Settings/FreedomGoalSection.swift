@@ -1,23 +1,46 @@
-// 自检页里程碑卡最下面的「我的目标」：没设时一行「加一个自己的目标」；设了时和里程碑同样的一行，
-// 右边是还有几天，下面一句那天大约有多少天自由，定了「想撑多久」再加一根进度条。点了打开 GAP 面板。
-// GAP 不算进里程碑的达成数：那是大家共用的清单，目标只是自己的。
+// 自检页里程碑卡最下面的「我的目标」（Pro）：每个目标一行，和里程碑同样的排法；只定天数的是靶心，定了日子的是旗子，
+// 有日子的右边是超细的「189 天后」。少于三个时最下面一行「加一个自己的目标」，没有 Pro 时后面标个小 PRO。
+// 目标不算进里程碑的达成数：那是大家共用的清单，目标只是自己的。
 
 import SwiftUI
 
 struct FreedomGoalSection: View {
-    /// nil 表示还没设目标
-    let result: FreedomGoalMath.Result?
-    let onEdit: () -> Void
+    let results: [FreedomGoalMath.Result]
+    /// 没有 Pro 时点哪里都去购买页（由 CheckView 决定）
+    let unlocked: Bool
+    let onAdd: () -> Void
+    let onEdit: (FreedomGoal) -> Void
 
     var body: some View {
-        Button(action: onEdit) {
-            if let result { goalRow(result) } else { addRow }
+        VStack(alignment: .leading, spacing: 0) {
+            if !results.isEmpty {
+                HStack(alignment: .firstTextBaseline) {
+                    KickerLabel(text: String(localized: "Mine · 我的目标"))
+                    Spacer()
+                    Text("\(results.count)/\(FreedomGoalStore.limit)")
+                        .font(.system(.caption2, design: .monospaced).monospacedDigit())
+                        .foregroundStyle(Color.inkFaint)
+                }
+                .padding(.top, Spacing.lg)
+                .padding(.bottom, Spacing.xs)
+                ForEach(Array(results.enumerated()), id: \.element.goal.id) { index, result in
+                    Button { onEdit(result.goal) } label: { goalRow(result) }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("goal-row-\(index)")
+                    if index < results.count - 1 || results.count < FreedomGoalStore.limit {
+                        Hairline().padding(.leading, 30)
+                    }
+                }
+            }
+            if results.count < FreedomGoalStore.limit {
+                Button(action: onAdd) { addRow }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("goal-add")
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("gap-goal-row")
     }
 
-    /// 没设：虚线圆圈加号，一行字说能做什么
+    /// 虚线圆圈加号，一行字说能做什么；已经有目标时只留一行「再加一个目标」
     private var addRow: some View {
         HStack(alignment: .top, spacing: 12) {
             ZStack {
@@ -30,13 +53,23 @@ struct FreedomGoalSection: View {
             }
             .padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
-                Text("加一个自己的目标")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.skyDeep)
-                Text("比如想 GAP 一年：定个离开的日子，看那天的自由天数够不够")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text(results.isEmpty ? "加一个自己的目标" : "再加一个目标")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.skyDeep)
+                    if !unlocked {
+                        Text("PRO")
+                            .font(.system(.caption2, design: .monospaced))
+                            .tracking(2)
+                            .foregroundStyle(Color.skyDeep)
+                    }
+                }
+                if results.isEmpty {
+                    Text("比如攒够半年的应急金，或者给 GAP 定个日子")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -45,51 +78,44 @@ struct FreedomGoalSection: View {
         .contentShape(Rectangle())
     }
 
-    /// 设了：组头「我的目标 · 编辑」，下面一行和里程碑同样的排法，右边是超细的「189 天后」
+    /// 一行：图标、名字（右边有日子时是还有几天，没日子时是目标天数），日期，进度条，结论，小字
     private func goalRow(_ result: FreedomGoalMath.Result) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(alignment: .firstTextBaseline) {
-                KickerLabel(text: String(localized: "Mine · 我的目标"))
-                Spacer()
-                Text("编辑")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Color.skyDeep)
-            }
-            .padding(.top, Spacing.lg)
-
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.skyDeep, lineWidth: 1.2)
-                        .frame(width: 18, height: 18)
-                    Image(systemName: "flag")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(Color.skyDeep)
-                }
+        let goal = result.goal
+        return HStack(alignment: .top, spacing: 12) {
+            GoalIcon(dated: goal.deadline != nil, done: goal.deadline == nil && result.enough == true)
                 .padding(.top, 3)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(Self.leaveTitle(result.goal.leaveDate))
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        Spacer(minLength: Spacing.sm)
-                        if result.daysUntil > 0 {
-                            GapCountdownNumber(daysUntil: result.daysUntil, size: 30, unitFont: .caption)
-                        }
-                    }
-                    if result.daysUntil >= 0 {
-                        details(result)
-                    } else {
-                        Text("这一天已经过了，点这里换一个日期")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(Color.inkMuted)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(goal.displayName)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: Spacing.sm)
+                    if let daysUntil = result.daysUntil, daysUntil > 0 {
+                        GapCountdownNumber(daysUntil: daysUntil, size: 28, unitFont: .caption)
+                    } else if goal.deadline == nil, let target = goal.targetDays {
+                        Text(FreedomGoal.targetName(target))
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Color.inkFaint)
                     }
                 }
+                if let deadline = goal.deadline {
+                    Text(Self.dateLine(deadline, target: goal.targetDays))
+                        .font(.system(.caption2, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.inkFaint)
+                }
+                if let daysUntil = result.daysUntil, daysUntil < 0 {
+                    Text("这一天已经过了，点这里换一个日期")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                } else {
+                    details(result)
+                }
             }
-            .padding(.vertical, Spacing.xs)
         }
-        .padding(.bottom, Spacing.md)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
@@ -109,7 +135,6 @@ struct FreedomGoalSection: View {
                 Text(result.freedomLine)
                     .font(.system(.caption, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.inkMuted)
-                    .accessibilityIdentifier("gap-freedom-line")
                 Spacer(minLength: Spacing.sm)
                 if let line = result.targetLine {
                     Text(line)
@@ -117,10 +142,9 @@ struct FreedomGoalSection: View {
                         .foregroundStyle(result.enough == true ? Color.skyDeep : Color.inkMuted)
                         .lineLimit(1)
                         .fixedSize()
-                        .accessibilityIdentifier("gap-target-line")
                 }
             }
-            if let note = Self.footnote(result) {
+            if let note = result.footnote {
                 Text(note)
                     .font(.system(.caption, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.inkFaint)
@@ -129,18 +153,29 @@ struct FreedomGoalSection: View {
         }
     }
 
-    /// 「5 月 1 日离开」；不是今年的日子带上年份
-    static func leaveTitle(_ date: Date, now: Date = .now) -> String {
+    /// 「2027年5月2日 · 想撑两年」；不是今年的日子带上年份
+    static func dateLine(_ date: Date, target: Int?, now: Date = .now) -> String {
         let sameYear = Calendar.current.isDate(date, equalTo: now, toGranularity: .year)
         let day = AppLanguage.date(date, template: sameYear ? "MMMd" : "yyyyMMMd")
-        return String(localized: "\(day)离开")
+        guard let target else { return day }
+        return String(localized: "\(day) · 想撑\(FreedomGoal.targetName(target))")
     }
+}
 
-    /// 最下面一行小字：按每月存多少推算的；不知道收入时提示填上。首页的 GAP 卡也用
-    static func footnote(_ result: FreedomGoalMath.Result) -> String? {
-        if let saving = result.saving, result.projected { return FreedomGoalMath.savingText(saving) }
-        if case .finite = result.freedom, result.daysUntil > 0 { return String(localized: "填上每月收入，算到那天会有多少") }
-        return nil
+/// 目标的小图标：只定天数是靶心（达成了换成勾），定了日子是旗子
+struct GoalIcon: View {
+    let dated: Bool
+    let done: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.skyDeep, lineWidth: 1.2)
+                .frame(width: 18, height: 18)
+            Image(systemName: done ? "checkmark" : dated ? "flag" : "scope")
+                .font(.system(size: done ? 10 : 8, weight: .semibold))
+                .foregroundStyle(Color.skyDeep)
+        }
     }
 }
 
@@ -171,35 +206,6 @@ struct GapCountdownNumber: View {
                 .font(.system(.title3, design: .rounded))
                 .foregroundStyle(daysUntil == 0 ? Color.skyDeep : Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-/// 那天的自由天数占「想撑多久」多少：细进度条，右边写够不够
-struct GapTargetBar: View {
-    let progress: Double
-    let label: String?
-    let enough: Bool
-
-    var body: some View {
-        HStack(spacing: Spacing.md) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.mist2)
-                    Capsule()
-                        .fill(Color.skyDeep)
-                        .frame(width: max(2, geo.size.width * progress))
-                }
-            }
-            .frame(height: 4)
-            if let label {
-                Text(label)
-                    .font(.system(.caption, design: .rounded).monospacedDigit())
-                    .foregroundStyle(enough ? Color.skyDeep : Color.inkMuted)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .accessibilityIdentifier("gap-target-line")
-            }
         }
     }
 }

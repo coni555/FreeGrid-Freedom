@@ -51,9 +51,9 @@ struct LocalizationTests {
     }
 
     @Test func englishGapLinesUsePlural() throws {
-        let countdown = try englishBundle.localizedString(forKey: "GAP · %lld 天后", value: nil, table: nil)
-        #expect(String(format: countdown, locale: english, 1) == "GAP · in 1 day")
-        #expect(String(format: countdown, locale: english, 189) == "GAP · in 189 days")
+        let countdown = try englishBundle.localizedString(forKey: "%@ · %lld 天后", value: nil, table: nil)
+        #expect(String(format: countdown, locale: english, "GAP", 1) == "GAP · in 1 day")
+        #expect(String(format: countdown, locale: english, "GAP", 189) == "GAP · in 189 days")
         let milestone = try englishBundle.localizedString(forKey: "当前 %@ / %lld 天", value: nil, table: nil)
         #expect(String(format: milestone, locale: english, "116", 180) == "Now 116 / 180 days")
     }

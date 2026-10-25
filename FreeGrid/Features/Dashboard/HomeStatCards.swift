@@ -1,4 +1,4 @@
-// 首页底部的卡片（几张小卡 + 今日对比长条 + GAP 长条）：首页上按住拖动排序，点一下打开编辑面板加、移除、恢复默认。
+// 首页底部的卡片（几张小卡 + 今日对比长条 + 目标长条）：首页上按住拖动排序，点一下打开编辑面板加、移除、恢复默认。
 // 有哪些卡、每张显示什么在 Logic/HomeStat.swift。
 
 import SwiftUI
@@ -14,8 +14,8 @@ struct HomeCardsGrid: View {
     let inputs: HomeStat.Inputs
     /// 今日对比长条，首页自己画好传进来
     let todayBar: AnyView
-    /// GAP 长条点了打开 GAP 面板，不是编辑卡片
-    let onGap: () -> Void
+    /// 目标长条点了打开那个目标的面板，不是编辑卡片
+    let onGoal: (FreedomGoal) -> Void
     let onEdit: () -> Void
     let onReorder: ([HomeStat]) -> Void
 
@@ -24,9 +24,10 @@ struct HomeCardsGrid: View {
     var body: some View {
         StatRowsLayout(spacing: Spacing.md) {
             ForEach(items) { item in
-                Button(action: item == .gap ? onGap : onEdit) {
-                    if item == .gap {
-                        HomeGapCard(result: inputs.gap)
+                let goal = inputs.goal(for: item)
+                Button { if let goal { onGoal(goal.goal) } else { onEdit() } } label: {
+                    if let goal {
+                        HomeGoalCard(result: goal)
                     } else if item.isWide {
                         todayBar
                     } else {
@@ -44,7 +45,7 @@ struct HomeCardsGrid: View {
                 .onDrop(of: [UTType.text], delegate: CardDropDelegate(target: item, slots: slots,
                                                                        dragging: $dragging, onReorder: onReorder))
                 .accessibilityIdentifier("home-stat-\(item.rawValue)")
-                .accessibilityHint(item == .gap ? String(localized: "按住拖动换位置，点一下改 GAP 的日期")
+                .accessibilityHint(goal != nil ? String(localized: "按住拖动换位置，点一下改这个目标")
                                                 : String(localized: "按住拖动换位置，点一下编辑卡片"))
                 .accessibilityActions { moveActions(item) }
             }
@@ -200,7 +201,8 @@ struct HomeStatEditor: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    private var available: [HomeStat] { HomeStat.allCases.filter { !slots.contains($0) } }
+    /// 固定的几张加上现在能放的目标卡（没有 Pro 时没有目标卡）
+    private var available: [HomeStat] { (HomeStat.builtIn + inputs.goalStats).filter { !slots.contains($0) } }
 
     var body: some View {
         NavigationStack {
@@ -304,11 +306,11 @@ struct HomeStatEditor: View {
                     .foregroundStyle(added ? Color.flame : Color.skyDeep)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(added ? "移除\(stat.title)" : "添加\(stat.title)")
+            .accessibilityLabel(added ? "移除\(stat.title(in: inputs))" : "添加\(stat.title(in: inputs))")
             .accessibilityIdentifier(added ? "remove-stat-\(stat.rawValue)" : "add-stat-\(stat.rawValue)")
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(stat.title)
+                Text(stat.title(in: inputs))
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.ink)
                 Text(display.unit)

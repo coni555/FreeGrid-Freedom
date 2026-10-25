@@ -106,21 +106,28 @@ struct HomeStatTests {
         #expect(HomeStat.next.display(inputs(expenses: expenses)) == .init(value: "—", unit: "没有固定支出"))
     }
 
-    @Test func gapIsAWideCardThatIsOffUntilAdded() throws {
-        #expect(!HomeStat.slots(stored: "", hasPassive: true).contains(.gap))
-        #expect(HomeStat.gap.isWide)
-        #expect(HomeStat.rows([.daily, .gap, .month, .today]) == [[.daily], [.gap], [.month, .today]])
-        #expect(HomeStat.slots(stored: "gap,daily", hasPassive: false) == [.gap, .daily])
+    @Test func eachGoalIsAWideCardThatIsOffUntilAdded() throws {
+        let goal = FreedomGoal(name: "GAP", targetDays: 730, deadline: try #require(Calendar.current.date(byAdding: .day, value: 30, to: now)))
+        let stat = HomeStat.goal(goal.id)
+        #expect(HomeStat(rawValue: stat.rawValue) == stat)
+        #expect(stat.isWide)
+        #expect(!HomeStat.slots(stored: "", hasPassive: true).contains(stat))
+        #expect(HomeStat.slots(stored: "\(stat.rawValue),daily,goal-nope", hasPassive: false) == [stat, .daily])
+        #expect(HomeStat.rows([.daily, stat, .month, .today]) == [[.daily], [stat], [.month, .today]])
 
-        let expenses = [Expense(amount: 1_000, category: "午餐", date: at("2026-10-15"))]
-        var withoutGoal = inputs(expenses: expenses)
-        #expect(HomeStat.gap.display(withoutGoal) == .init(value: "—", unit: "定一个离开的日子，倒数那天有多少天自由"))
         // 日均 100、现金 10,000；不知道收入时写现在的自由天数
-        let goal = FreedomGoal(leaveDate: try #require(Calendar.current.date(byAdding: .day, value: 30, to: now)))
-        withoutGoal.gap = FreedomGoalMath.evaluate(goal: goal, snapshot: withoutGoal.snapshot, saving: nil)
-        #expect(HomeStat.gap.display(withoutGoal) == .init(value: "30", unit: "现在有 100 天自由"))
-        withoutGoal.gap = FreedomGoalMath.evaluate(goal: FreedomGoal(leaveDate: at("2026-10-01")),
-                                                   snapshot: withoutGoal.snapshot, saving: nil)
-        #expect(HomeStat.gap.display(withoutGoal) == .init(value: "—", unit: "这一天已经过了"))
+        let expenses = [Expense(amount: 1_000, category: "午餐", date: at("2026-10-15"))]
+        var withGoal = inputs(expenses: expenses)
+        #expect(withGoal.goalStats.isEmpty)
+        withGoal.goals = [FreedomGoalMath.evaluate(goal: goal, snapshot: withGoal.snapshot, saving: nil)]
+        #expect(withGoal.goalStats == [stat])
+        #expect(stat.title(in: withGoal) == "目标 · GAP")
+        #expect(stat.display(withGoal) == .init(value: "30", unit: "现在有 100 天自由"))
+        // 只定天数：写现在的自由天数和还差多少
+        let fund = FreedomGoal(name: "应急金", targetDays: 183)
+        withGoal.goals = [FreedomGoalMath.evaluate(goal: fund, snapshot: withGoal.snapshot, saving: nil)]
+        #expect(HomeStat.goal(fund.id).display(withGoal) == .init(value: "100", unit: "还差 83 天自由"))
+        // 删掉了的目标：显示不出来
+        #expect(stat.display(withGoal) == .init(value: "—", unit: ""))
     }
 }
