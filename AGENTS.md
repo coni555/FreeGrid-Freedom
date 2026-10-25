@@ -41,7 +41,7 @@
 - 界面按功能放在 `Features/`；`Models/` 保存事实；`Logic/` 计算结果；`Data/` 管理持久化和导入导出；`UI/` 提供共用显示；`App/` 装配入口。
 - 先用已有类型划分文件；简单页面不要求额外 ViewModel、Repository 或协议。
 - 不新增第三方依赖，不改变 iOS/macOS 支持范围。
-- 桌面小组件是单独的扩展 `FreeGridWidgets`（只 iOS）。改版本号时 App 和扩展的 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` 一起改，不一致会被 App Store 拒。小组件不读账本，只读 App 写进 App Group（`group.cn.conilab.FreeGrid`）的 `WidgetSnapshot`；改它的字段要加 `currentVersion`。
+- 桌面小组件是单独的扩展 `FreeGridWidgets`（只 iOS）。改版本号时 App 和扩展的 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` 一起改，不一致会被 App Store 拒。小组件不读账本，只读 App 写进 App Group（`group.cn.conilab.FreeGrid`）的 `WidgetSnapshot`；改它的字段要加 `currentVersion`。账本的 `ModelConfiguration` 必须带 `groupContainer: .none`（`StoreBootstrap.configuration`，有测试守着）：有 App Group 后 SwiftData 默认会把账本复制进共享容器、改开那一份。
 - 改 SwiftData 模型字段或备份格式时，必须保留旧备份兼容和旧数据迁移：1.5 的账本和备份要能直接升到 2.0 及以后的版本。
 - 保留数据校验、事务回滚、恢复页与旧备份兼容。临时探针与合成测试数据放 `_local/`。
 - 核心阶段完成更新 `HANDOFF.md`；代码结构改变时同步 `CODE_GUIDE.md`。
