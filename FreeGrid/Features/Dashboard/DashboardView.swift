@@ -650,7 +650,7 @@ private struct DashboardContent: View {
         case .invalidData: return String(localized: "有一笔金额不对，去明细找找特别大或负数的")
         // 该先做什么上面的大数字卡已经说了, 这里只解释格子是什么
         case .insufficientData: return String(localized: "每一格是一天自由，有了数据后在这里点亮")
-        case .finite, .covered: return String(localized: "当前净值还没有可点亮的自由格")
+        case .finite, .covered: return String(localized: "当前可动用资产还没有可点亮的自由格")
         }
     }
 

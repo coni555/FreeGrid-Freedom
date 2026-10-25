@@ -176,7 +176,7 @@ struct ClassicAssetsView: View {
                 if showingExplain {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Hairline()
-                        Text("净值是你记下的资产加现金，自动算出来，没有扣掉还没还完的贷款。资产（金色）是不打算马上花的钱，比如定期、股票；现金（蓝色）是随时能花的钱。记收入进现金，记支出从现金扣；两者之间挪钱用「调拨」。")
+                        Text("净值是你记下的资产加现金，自动算出来，没有扣掉还没还完的贷款。其中计入自由天数的部分叫可动用资产，自由天数按它算。资产（金色）是不打算马上花的钱，比如定期、股票；现金（蓝色）是随时能花的钱。记收入进现金，记支出从现金扣；两者之间挪钱用「调拨」。")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                             .fixedSize(horizontal: false, vertical: true)

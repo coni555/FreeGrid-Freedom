@@ -1229,12 +1229,12 @@
         }
       }
     },
-    "**算哪些钱，你来定**。房子、长期投资、暂时不动的储蓄，可以不计入自由天数，它们仍算在净值里。免费版按资产整体选；**Pro** 可以逐个资产项、逐个现金账户选。": {
+    "**算哪些钱，你来定**。房子、长期投资、暂时不动的储蓄，可以不计入自由天数：它们仍算在净值里，但不算进可动用资产。免费版按资产整体选；**Pro** 可以逐个资产项、逐个现金账户选。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**You decide which money counts.** A home, long-term investments or savings you won't touch can be left out of Freedom Days; they still count toward net worth. The free version decides for assets as a whole; **Pro** decides per asset item and per cash account."
+            "value": "**You decide which money counts.** A home, long-term investments or savings you won't touch can be left out of Freedom Days: they still count toward net worth, but not toward available funds. The free version decides for assets as a whole; **Pro** decides per asset item and per cash account."
           }
         }
       }
@@ -3506,12 +3506,12 @@
         }
       }
     },
-    "净值是你记下的资产加现金，自动算出来，没有扣掉还没还完的贷款。资产（金色）是不打算马上花的钱，比如定期、股票；现金（蓝色）是随时能花的钱。记收入进现金，记支出从现金扣；两者之间挪钱用「调拨」。": {
+    "净值是你记下的资产加现金，自动算出来，没有扣掉还没还完的贷款。其中计入自由天数的部分叫可动用资产，自由天数按它算。资产（金色）是不打算马上花的钱，比如定期、股票；现金（蓝色）是随时能花的钱。记收入进现金，记支出从现金扣；两者之间挪钱用「调拨」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Net worth is the assets plus cash you've recorded, calculated for you, without subtracting loans you still owe. Assets (gold) are money you won't spend soon, like deposits and stocks; cash (blue) is money you can spend any time. Income goes into cash and expenses come out of it; use “Transfer” to move money between the two."
+            "value": "Net worth is the assets plus cash you've recorded, calculated for you, without subtracting loans you still owe. The part you count toward Freedom Days is your available funds, and Freedom Days are worked out from it. Assets (gold) are money you won't spend soon, like deposits and stocks; cash (blue) is money you can spend any time. Income goes into cash and expenses come out of it; use “Transfer” to move money between the two."
           }
         }
       }
@@ -5098,12 +5098,12 @@
         }
       }
     },
-    "它不是「净值 ÷ 月开销」。日均是记账以来的平均，不满 90 天时大额支出会摊开；被动收入从每天的消耗里减掉；固定支出和贷款按日历扣；不计入的钱不算。": {
+    "它不是「可动用资产 ÷ 月开销」。日均是记账以来的平均，不满 90 天时大额支出会摊开；被动收入从每天的消耗里减掉；固定支出和贷款按日历扣；不计入的钱不算。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It isn't “net worth ÷ monthly spending”. The daily average covers everything since you started, with big purchases spread out in the first 90 days; passive income is subtracted from daily spending; fixed expenses and loans come out on their dates; and money you've excluded isn't counted."
+            "value": "It isn't “available funds ÷ monthly spending”. The daily average covers everything since you started, with big purchases spread out in the first 90 days; passive income is subtracted from daily spending; fixed expenses and loans come out on their dates; and money you've excluded isn't counted."
           }
         }
       }
@@ -5702,12 +5702,12 @@
         }
       }
     },
-    "当前净值还没有可点亮的自由格": {
+    "当前可动用资产还没有可点亮的自由格": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your net worth doesn't light up any cells yet"
+            "value": "Your available funds don't light up any cells yet"
           }
         }
       }
@@ -9496,12 +9496,12 @@
         }
       }
     },
-    "自由天数 ≈ 计入的钱 ÷（日常日均 − 被动收入日均）": {
+    "自由天数 ≈ 可动用资产 ÷（日常日均 − 被动收入日均）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Freedom Days ≈ counted money ÷ (everyday daily average − daily passive income)"
+            "value": "Freedom Days ≈ available funds ÷ (everyday daily average − daily passive income)"
           }
         }
       }
