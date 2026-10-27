@@ -1,50 +1,27 @@
-# 本轮验证记录
+# 2.1 规划更新验证记录
 
-交付日期：2026-10-23。扫描基线见 [baseline.json](baseline.json)。没有读取真实账本，没有改动两端 App 业务源码，也未安装/启动模拟器或真机。
+日期：2026-10-27。本轮仅更新蒸馏规格、合成案例和交接；未读真实账本、未修改两端业务代码、未启动或新建模拟器。源码基线见 [baseline.json](baseline.json)。
 
 ## 已执行
 
-### 1. iOS 当前纯计算与导入校验
+1. 对照旧 iOS `b1ed54b` 与当前 `393868c`，核查语言、首页卡片、自检/目标、结余、小组件、性能和备份相关生产实现及测试。Android HEAD 更新到 `bcd8248` 是交接文档提交；`lib/` 来源文件及四文件补丁 SHA-256 与旧基线相同。
+2. 使用 `swiftc` 编译当前实际生产源码及隔离驱动，重跑 [原27组案例](fixtures/calculation-cases.json)：**27/27通过**。实际 `ImportValidator.validate` 通过合成当前备份，schema 4 仍被拒绝。没有把旧探针结果直接冒充本次执行。
+3. 另编译当前 `FinancialSnapshot`、`FreedomGoal`、`MonthlySaving`、`HomeStat`、`FreedomChecklist` 及必要依赖，运行 [新增20组案例](fixtures/v2.1-cases.json)：**20/20通过**。覆盖目标差距/完成/未知/截止日、收入60天边界、80天窗口、明确0优先、首页默认/全移除/去重、行布局及九项自检。
+4. 更新18组 P 规则、8组 D 契约、49项 G 差距、80条 A 验收。核对 JSON 解析、ID 连续且唯一、Markdown 内链和完整源码路径；生成当前来源哈希并运行 `git diff --check`。原始基线及实测结果归档到 [history/2.0](history/2.0/verification.md)。
 
-使用 `swiftc` 直接编译以下生产源码及隔离探针，没有另写一份替代算法：LedgerModels、FreedomMath、DailyBurn、LoanSchedule、FinancialFormatting、ImportValidation、BackupSchema。模型使用当前 SwiftData 声明，但探针没有创建持久化数据库。
+实际机器输出见 [observed-results.json](fixtures/observed-results.json)。旧27例文件中的 `specified_not_run_in_apps` 仍然成立：这里运行的是隔离源码，不是完整 App；本轮执行状态以 observed-results 为准。
 
-- 读取 [27 组计算案例](fixtures/calculation-cases.json)，逐项比较状态、天数、日均、大额标记、扣款偏移、到期日期与自然日计数：**27/27 通过**。
-- 用实际 `ImportValidator.validate` 校验 [合成备份](fixtures/current-backup.json)：通过，包括账户合计、关联字段和贷款字段。
-- 将同一份合成备份的 schema 改为 4：实际返回 `unsupportedSchema(4)`，确认当前格式边界。
-- 单独编译当前 BackupEnvelope，验证编码/解码保留 sampled 的计划、账户、计入标记和周期字段：通过。
+隔离驱动和原始输出保存在 `_local/android-parity-20261027/`，合成数据无用户信息。原27例驱动沿用 `_local/android-parity-20261022/core_probe.swift`。新驱动 `v21_probe.swift`，用 `TZ=Asia/Taipei` 执行；编译依赖 LedgerModels、FreedomMath、DailyBurn、LoanSchedule、FinancialFormatting、AppLanguage、AppPreferences、ImportValidation、BackupSchema，以及上面五个新增/更新核心文件。没有调用 AppLanguage.install/select、没有创建 SwiftData 容器，没有读写真实偏好或账本；临时二进制验证后删除。
 
-这些是独立运行核心源码的结果，不是完整 App 的 XCTest、SwiftData 磁盘迁移或 UI 验收结果。
+## 延续的 Android 证据
 
-### 2. Android 当前 codec 与数学
-
-直接由 Dart 导入工作区当前 `backup_codec.dart` 和 `freedom_math.dart`，使用同一份合成输入，没有进入 UI 或真实 SharedPreferences。
-
-| 探针 | 实际结果 | 结论 |
-|---|---|---|
-| 当前 iOS 备份解码→再编码 | 顶层 asset_items、cash_accounts、loans、expense_categories 消失 | 不能承诺当前备份完整往返 |
-| 自动扣款记录往返 | loan_id、counts_in_burn、cash_account_id 消失 | 会丢失扣款来源、日均排除与现金账户语义 |
-| 被动周期往返 | interval_months 消失 | 月均仍可保留，但原到账周期丢失 |
-| 首周6000元电脑 | 917.142857…，目标126.666666… | 大额规则缺失被复现 |
-| 另外5组日均输入 | 与目标数值吻合 | 仅这5个样例一致，不证明完整算法等价 |
-| 洛杉矶3/8→3/9跨夏令时 | 记录天数1，目标2；偏移−8→−7 | 自然日计算差异被复现 |
-
-完整机器输出见 [observed-results.json](fixtures/observed-results.json)。这些差异是已发现缺口，不把它们“修正期望”成旧安卓版行为。
-
-普通新增支出遗漏 fixedExpenses、加载坏数据回落种子账本、先显示再保存等结论来自源码检查；本轮没有通过 UI 故障注入复现这些路径。
-
-### 3. 文档与基线核对
-
-- 核对25个文档内部链接、JSON 解析、案例 ID 唯一性、27组案例引用的文件与符号存在，全部通过。
-- 用 SHA-256 固定177个来源文件；复查两端业务源码未在本轮变化，Android 四文件预存补丁哈希未变。
-- 运行 `git diff --check`；规格文档提交前检查新增文件的空白问题。
-- 更新两端 HANDOFF 的规格入口和当前范围，保留原有其他任务信息。
-
-隔离探针脚本及输出保存在 iOS `_local/android-parity-20261022/`，只含合成输入；临时可执行文件验证后删除。可追踪的规格、样例及结果位于 `docs/android-parity/`。
+10-23 的实际 Dart 探针复现：账户/贷款/分类及交易标记丢失、首周大额日均917.14而目标126.67、夏令时跨日少算一天。详见 [旧验证](history/2.0/verification.md)。本次未重复跑 Dart，把“旧实测＋当前源码哈希未变”和“本次运行”明确分开。普通保存遗漏扩展字段、损坏回落演示账本等仍属于源码证据，没有新做UI故障注入。
 
 ## 本轮没有执行
 
-- 完整 iOS XCTest/UI 测试、macOS App 构建、Flutter analyze/test、Android APK 构建。
-- 旧用户磁盘库升级、旧APK覆盖安装、保存失败故障注入、性能和无障碍验收。
-- 两端新截图、真机视觉体验、支付/恢复购买、上架或发布。
+- 完整 iOS XCTest / UI测试、macOS App构建、Flutter analyze/test 或 APK构建。
+- 新语言实际切换、拖动/折叠、Pro到期、桌面小组件时间线、主账本容器迁移和刷新调度的运行验收；这些来自生产源码和现有测试阅读，列在 A53–A80 待 Android 实现后执行。
+- 真实购买/恢复、渠道接入、旧APK覆盖安装、旧磁盘库迁移、故障注入、性能/无障碍/真机与截图验收。
+- 新增2.2/2.3功能实现、任何上传/上架/发布。
 
-本轮交付是可用于开发的规格包；后续实现仍需按 [验收案例](acceptance.md) 和 [开发顺序](implementation.md) 完成上述验证。不能把27个核心样例通过写成“安卓版已追齐”。
+47组核心案例通过只支持这些输入下的计算与存储编码规则，不代表80条验收全部通过，更不代表 Android 已追齐。后续按 [开发顺序](implementation.md) 实施，相关模块完成后补真实执行证据。

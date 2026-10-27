@@ -1,0 +1,306 @@
+{
+  "ios_isolated_core": {
+    "calculation_cases": [
+      {
+        "actual": {
+          "daily_burn": 126.66666666666667,
+          "spread_lumps": 6000,
+          "track_days": 7
+        },
+        "id": "B01",
+        "passed": true
+      },
+      {
+        "actual": {
+          "daily_burn": 126.66666666666667,
+          "spread_lumps": 0,
+          "track_days": 90
+        },
+        "id": "B02",
+        "passed": true
+      },
+      {
+        "actual": {
+          "daily_burn": 6000,
+          "spread_lumps": 0,
+          "track_days": 1
+        },
+        "id": "B03",
+        "passed": true
+      },
+      {
+        "actual": {
+          "daily_burn": 10.1,
+          "spread_lumps": 0,
+          "track_days": 10
+        },
+        "id": "B04",
+        "passed": true
+      },
+      {
+        "actual": {
+          "daily_burn": 116.12903225806451,
+          "spread_lumps": 0,
+          "track_days": 31
+        },
+        "id": "B05",
+        "passed": true
+      },
+      {
+        "actual": {
+          "daily_burn": 202.85714285714286,
+          "spread_lumps": 0,
+          "track_days": 7
+        },
+        "id": "B06",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 200,
+          "state": "finite"
+        },
+        "id": "F01",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 400,
+          "state": "finite"
+        },
+        "id": "F02",
+        "passed": true
+      },
+      {
+        "actual": {
+          "state": "covered"
+        },
+        "id": "F03",
+        "passed": true
+      },
+      {
+        "actual": {
+          "display": "—",
+          "state": "insufficientData"
+        },
+        "id": "F04",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 110,
+          "payment_days": [
+            30,
+            60,
+            91
+          ],
+          "state": "finite"
+        },
+        "id": "L01",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 92,
+          "state": "finite"
+        },
+        "id": "L02",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 140,
+          "state": "finite"
+        },
+        "id": "L03",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 107,
+          "state": "finite"
+        },
+        "id": "L04",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 149,
+          "state": "finite"
+        },
+        "id": "L05",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 210,
+          "state": "finite"
+        },
+        "id": "L06",
+        "passed": true
+      },
+      {
+        "actual": {
+          "state": "covered"
+        },
+        "id": "L07",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 0,
+          "state": "finite"
+        },
+        "id": "L08",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 150,
+          "state": "finite"
+        },
+        "id": "L09",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 110,
+          "state": "finite"
+        },
+        "id": "L10",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 112,
+          "payment_days": [],
+          "state": "finite"
+        },
+        "id": "R01",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 150,
+          "payment_days": [],
+          "state": "finite"
+        },
+        "id": "R02",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 171,
+          "payment_days": [],
+          "state": "finite"
+        },
+        "id": "R03",
+        "passed": true
+      },
+      {
+        "actual": {
+          "days": 262,
+          "payment_days": [],
+          "state": "finite"
+        },
+        "id": "R04",
+        "passed": true
+      },
+      {
+        "actual": {
+          "dates": [
+            "2026-10-31",
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-31",
+            "2027-02-28"
+          ]
+        },
+        "id": "D01",
+        "passed": true
+      },
+      {
+        "actual": {
+          "dates": [
+            "2026-11-05",
+            "2027-02-05",
+            "2027-05-05",
+            "2027-08-05"
+          ]
+        },
+        "id": "D02",
+        "passed": true
+      },
+      {
+        "actual": {
+          "track_days": 2
+        },
+        "id": "D03",
+        "passed": true
+      }
+    ],
+    "current_backup_validator": "passed",
+    "schema_4": "rejected_as_expected",
+    "scope": "Actual iOS core sources compiled standalone; no SwiftData store or UI execution"
+  },
+  "android_isolated_core": {
+    "scope": "Actual Android pure codec and math; no UI, storage or production data",
+    "missing_top_level_fields": [
+      "asset_items",
+      "cash_accounts",
+      "loans",
+      "expense_categories"
+    ],
+    "lost_payment_semantics": [
+      "loan_id",
+      "counts_in_burn",
+      "cash_account_id"
+    ],
+    "lost_passive_interval": true,
+    "burn_cases": [
+      {
+        "id": "B01",
+        "android_actual": 917.1428571428571,
+        "target_expected": 126.66666666666667,
+        "matches": false
+      },
+      {
+        "id": "B02",
+        "android_actual": 126.66666666666667,
+        "target_expected": 126.66666666666667,
+        "matches": true
+      },
+      {
+        "id": "B03",
+        "android_actual": 6000.0,
+        "target_expected": 6000.0,
+        "matches": true
+      },
+      {
+        "id": "B04",
+        "android_actual": 10.1,
+        "target_expected": 10.1,
+        "matches": true
+      },
+      {
+        "id": "B05",
+        "android_actual": 116.12903225806451,
+        "target_expected": 116.12903225806451,
+        "matches": true
+      },
+      {
+        "id": "B06",
+        "android_actual": 202.85714285714286,
+        "target_expected": 202.85714285714286,
+        "matches": true
+      }
+    ],
+    "dst": {
+      "timezone": "PDT",
+      "march_8_offset_hours": -8,
+      "march_9_offset_hours": -7,
+      "track_days_actual": 1,
+      "expected": 2
+    }
+  }
+}

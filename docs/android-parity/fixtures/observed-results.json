@@ -1,4 +1,6 @@
 {
+  "verification_date": "2026-10-27",
+  "ios_source_commit": "393868ca2917fe3124fc3bdc7fe126be146d883e",
   "ios_isolated_core": {
     "calculation_cases": [
       {
@@ -243,64 +245,218 @@
     "schema_4": "rejected_as_expected",
     "scope": "Actual iOS core sources compiled standalone; no SwiftData store or UI execution"
   },
-  "android_isolated_core": {
-    "scope": "Actual Android pure codec and math; no UI, storage or production data",
-    "missing_top_level_fields": [
-      "asset_items",
-      "cash_accounts",
-      "loans",
-      "expense_categories"
-    ],
-    "lost_payment_semantics": [
-      "loan_id",
-      "counts_in_burn",
-      "cash_account_id"
-    ],
-    "lost_passive_interval": true,
-    "burn_cases": [
+  "ios_v2_1_isolated_core": {
+    "scope": "Actual production Foundation/SwiftData model and logic sources compiled standalone. No store created; no UI, widget or entitlement integration executed.",
+    "cases": [
       {
-        "id": "B01",
-        "android_actual": 917.1428571428571,
-        "target_expected": 126.66666666666667,
-        "matches": false
+        "actual": {
+          "days_until": 10,
+          "enough": false,
+          "progress": 0.821917808219178,
+          "short": "65"
+        },
+        "id": "V01",
+        "passed": true
       },
       {
-        "id": "B02",
-        "android_actual": 126.66666666666667,
-        "target_expected": 126.66666666666667,
-        "matches": true
+        "actual": {
+          "days_until": 0,
+          "enough": false,
+          "progress": 0.410958904109589,
+          "short": "430"
+        },
+        "id": "V02",
+        "passed": true
       },
       {
-        "id": "B03",
-        "android_actual": 6000.0,
-        "target_expected": 6000.0,
-        "matches": true
+        "actual": {
+          "days_until": -1,
+          "enough": true,
+          "progress": 1,
+          "short": null
+        },
+        "id": "V03",
+        "passed": true
       },
       {
-        "id": "B04",
-        "android_actual": 10.1,
-        "target_expected": 10.1,
-        "matches": true
+        "actual": {
+          "days_until": null,
+          "enough": false,
+          "progress": 0.821917808219178,
+          "short": "65"
+        },
+        "id": "V04",
+        "passed": true
       },
       {
-        "id": "B05",
-        "android_actual": 116.12903225806451,
-        "target_expected": 116.12903225806451,
-        "matches": true
+        "actual": {
+          "days_until": null,
+          "enough": null,
+          "progress": null,
+          "short": null
+        },
+        "id": "V05",
+        "passed": true
       },
       {
-        "id": "B06",
-        "android_actual": 202.85714285714286,
-        "target_expected": 202.85714285714286,
-        "matches": true
+        "actual": {
+          "days_until": null,
+          "enough": true,
+          "progress": 1,
+          "short": null
+        },
+        "id": "V06",
+        "passed": true
+      },
+      {
+        "actual": {
+          "monthly": 10273.5
+        },
+        "id": "V07",
+        "passed": true
+      },
+      {
+        "actual": {
+          "monthly": null
+        },
+        "id": "V08",
+        "passed": true
+      },
+      {
+        "actual": {
+          "monthly": 3044
+        },
+        "id": "V09",
+        "passed": true
+      },
+      {
+        "actual": {
+          "basis": "entered",
+          "income": 0,
+          "per_month": -3652.8
+        },
+        "id": "V10",
+        "passed": true
+      },
+      {
+        "actual": {
+          "saving": null
+        },
+        "id": "V11",
+        "passed": true
+      },
+      {
+        "actual": {
+          "slots": [
+            "daily",
+            "month",
+            "track",
+            "todayBar"
+          ]
+        },
+        "id": "V12",
+        "passed": true
+      },
+      {
+        "actual": {
+          "slots": [
+            "daily",
+            "passive",
+            "track",
+            "todayBar"
+          ]
+        },
+        "id": "V13",
+        "passed": true
+      },
+      {
+        "actual": {
+          "slots": []
+        },
+        "id": "V14",
+        "passed": true
+      },
+      {
+        "actual": {
+          "slots": [
+            "today",
+            "daily"
+          ]
+        },
+        "id": "V15",
+        "passed": true
+      },
+      {
+        "actual": {
+          "rows": [
+            2,
+            2
+          ]
+        },
+        "id": "V16",
+        "passed": true
+      },
+      {
+        "actual": {
+          "rows": [
+            3,
+            2
+          ]
+        },
+        "id": "V17",
+        "passed": true
+      },
+      {
+        "actual": {
+          "rows": [
+            3,
+            2,
+            2
+          ]
+        },
+        "id": "V18",
+        "passed": true
+      },
+      {
+        "actual": {
+          "ids": [
+            7,
+            8,
+            9,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "record_done": [
+            true,
+            true,
+            false
+          ],
+          "total": 9,
+          "track_days": 90
+        },
+        "id": "V19",
+        "passed": true
+      },
+      {
+        "actual": {
+          "edited_count": 8,
+          "edited_target": 730,
+          "invalid_zero": false,
+          "valid_count": 8
+        },
+        "id": "V20",
+        "passed": true
       }
-    ],
-    "dst": {
-      "timezone": "PDT",
-      "march_8_offset_hours": -8,
-      "march_9_offset_hours": -7,
-      "track_days_actual": 1,
-      "expected": 2
-    }
+    ]
+  },
+  "android_historical_probe": {
+    "verification_date": "2026-10-23",
+    "rerun_this_update": false,
+    "reason": "Android lib source hashes and existing patch hash unchanged; findings retained as historical runtime evidence plus current source verification.",
+    "evidence": "history/2.0/observed-results.json"
   }
 }

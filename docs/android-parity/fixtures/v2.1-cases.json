@@ -1,0 +1,332 @@
+{
+  "version": "2.1",
+  "now": "2026-10-24T12:00:00+08:00",
+  "timezone": "Asia/Taipei",
+  "calendar": "gregorian",
+  "scope": "Synthetic isolated core cases; not UI, persistence, entitlement or widget integration tests",
+  "sources": [
+    "FreeGrid/Logic/FreedomGoal.swift",
+    "FreeGrid/Logic/MonthlySaving.swift",
+    "FreeGrid/Logic/HomeStat.swift",
+    "FreeGrid/Logic/FreedomChecklist.swift"
+  ],
+  "cases": [
+    {
+      "id": "V01",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 365,
+        "deadline_offset": 10
+      },
+      "expected": {
+        "progress": 0.821917808219178,
+        "enough": false,
+        "short": "65",
+        "days_until": 10
+      }
+    },
+    {
+      "id": "V02",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 730,
+        "deadline_offset": 0
+      },
+      "expected": {
+        "progress": 0.410958904109589,
+        "enough": false,
+        "short": "430",
+        "days_until": 0
+      }
+    },
+    {
+      "id": "V03",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 183,
+        "deadline_offset": -1
+      },
+      "expected": {
+        "progress": 1,
+        "enough": true,
+        "short": null,
+        "days_until": -1
+      }
+    },
+    {
+      "id": "V04",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 365,
+        "deadline_offset": null
+      },
+      "expected": {
+        "progress": 0.821917808219178,
+        "enough": false,
+        "short": "65",
+        "days_until": null
+      }
+    },
+    {
+      "id": "V05",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 365,
+        "deadline_offset": null,
+        "empty": true
+      },
+      "expected": {
+        "progress": null,
+        "enough": null,
+        "short": null,
+        "days_until": null
+      }
+    },
+    {
+      "id": "V06",
+      "operation": "goal",
+      "input": {
+        "cash": 36000,
+        "daily": 120,
+        "target": 365,
+        "deadline_offset": null,
+        "passive_monthly": 6000
+      },
+      "expected": {
+        "progress": 1,
+        "enough": true,
+        "short": null,
+        "days_until": null
+      }
+    },
+    {
+      "id": "V07",
+      "operation": "recorded_income",
+      "input": {
+        "entries": [
+          {
+            "days_ago": 80,
+            "amount": 9000
+          },
+          {
+            "days_ago": 50,
+            "amount": 9000
+          },
+          {
+            "days_ago": 20,
+            "amount": 9000
+          },
+          {
+            "days_ago": 10,
+            "amount": 500,
+            "passive": true
+          }
+        ]
+      },
+      "expected": {
+        "monthly": 10273.5
+      }
+    },
+    {
+      "id": "V08",
+      "operation": "recorded_income",
+      "input": {
+        "entries": [
+          {
+            "days_ago": 59,
+            "amount": 6000
+          }
+        ]
+      },
+      "expected": {
+        "monthly": null
+      }
+    },
+    {
+      "id": "V09",
+      "operation": "recorded_income",
+      "input": {
+        "entries": [
+          {
+            "days_ago": 60,
+            "amount": 6000
+          }
+        ]
+      },
+      "expected": {
+        "monthly": 3044
+      }
+    },
+    {
+      "id": "V10",
+      "operation": "saving",
+      "input": {
+        "entered": 0,
+        "recorded": 9000
+      },
+      "expected": {
+        "income": 0,
+        "per_month": -3652.8,
+        "basis": "entered"
+      }
+    },
+    {
+      "id": "V11",
+      "operation": "saving",
+      "input": {
+        "entered": null,
+        "recorded": null
+      },
+      "expected": {
+        "saving": null
+      }
+    },
+    {
+      "id": "V12",
+      "operation": "slots",
+      "input": {
+        "stored": "",
+        "has_passive": false
+      },
+      "expected": {
+        "slots": [
+          "daily",
+          "month",
+          "track",
+          "todayBar"
+        ]
+      }
+    },
+    {
+      "id": "V13",
+      "operation": "slots",
+      "input": {
+        "stored": "",
+        "has_passive": true
+      },
+      "expected": {
+        "slots": [
+          "daily",
+          "passive",
+          "track",
+          "todayBar"
+        ]
+      }
+    },
+    {
+      "id": "V14",
+      "operation": "slots",
+      "input": {
+        "stored": "none",
+        "has_passive": false
+      },
+      "expected": {
+        "slots": []
+      }
+    },
+    {
+      "id": "V15",
+      "operation": "slots",
+      "input": {
+        "stored": "today,daily,today,obsolete",
+        "has_passive": false
+      },
+      "expected": {
+        "slots": [
+          "today",
+          "daily"
+        ]
+      }
+    },
+    {
+      "id": "V16",
+      "operation": "rows",
+      "input": {
+        "count": 4
+      },
+      "expected": {
+        "rows": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "V17",
+      "operation": "rows",
+      "input": {
+        "count": 5
+      },
+      "expected": {
+        "rows": [
+          3,
+          2
+        ]
+      }
+    },
+    {
+      "id": "V18",
+      "operation": "rows",
+      "input": {
+        "count": 7
+      },
+      "expected": {
+        "rows": [
+          3,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "V19",
+      "operation": "check",
+      "input": {
+        "first_days_ago": 89
+      },
+      "expected": {
+        "track_days": 90,
+        "total": 9,
+        "ids": [
+          7,
+          8,
+          9,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "record_done": [
+          true,
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "id": "V20",
+      "operation": "goal_store",
+      "input": {
+        "count": 8
+      },
+      "expected": {
+        "valid_count": 8,
+        "edited_count": 8,
+        "edited_target": 730,
+        "invalid_zero": false
+      }
+    }
+  ]
+}

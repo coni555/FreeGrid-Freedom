@@ -1,0 +1,906 @@
+{
+  "scan_started": "2026-10-22",
+  "scope": "source scan; no production ledger or secret files",
+  "ios": {
+    "root": "/Users/coni/Desktop/FreeGrid",
+    "commit": "b1ed54b2b7e72ed7934fd22fce62443b0c69da66"
+  },
+  "android": {
+    "root": "/Users/coni/Projects/FreeGrid-Android",
+    "commit": "f1eb37286ffce57f63745d723380c01c8fced4ca",
+    "preexisting_modified_files": [
+      "lib/core/data/backup_codec.dart",
+      "lib/core/data/data_importer.dart",
+      "lib/core/domain/models.dart",
+      "lib/features/dashboard/dashboard_shell.dart"
+    ],
+    "patch_sha256": "4bb8df0393137804415f035ab204b4dabf0e812300041cba2ae1ed0b47d39af7"
+  },
+  "sources": [
+    {
+      "repository": "ios",
+      "path": "FreeGrid/App/ContentView.swift",
+      "sha256": "3c6863975110e6a1c3df22b0541624600ed75f47d200bbddb621ded41d144e3f"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/App/FreeGridApp.swift",
+      "sha256": "124f3d9f767191943a6868d8b091c249a17ff4d55b63ca13e707e2843643755b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/App/Platform.swift",
+      "sha256": "d1e5d4be16efc181a8af05ce24fe6e88ca05b46505d34951e97f5817a8bbe140"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/App/ProFeatures.swift",
+      "sha256": "90222398cd4134b9c74f1911ae7417b15679ffaed982b54bc32b6d6ba3f99ab5"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/App/StoreRecoveryView.swift",
+      "sha256": "33cd90fa0dfc09fbe6619e669aaf8152b19e82376ad16745f462986715aa6beb"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/AppPreferences.swift",
+      "sha256": "2511699d06ea59441f7b5016375a9116d686d9b00d2707ac58766aa450b903df"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/AssetItemStore.swift",
+      "sha256": "048caf8f1deb05be9d1afad2cec1815e2a40306acd2e9d0caa3afda5b9b5c75c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/BackupSchema.swift",
+      "sha256": "cdff4eac50481b8ae8e014cdad2cae2df33e8c95645b5a821492bba636044554"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/CashAccountStore.swift",
+      "sha256": "1afbe908a246fb0444f1b00953511e7f1323d552a247a6b765ca7348d3e8849b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/DataIO.swift",
+      "sha256": "3092872051e44f985a7c6ea791e6b814777a227b94937aa2389b1bd4cce54e05"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/ExpenseCategoryStorage.swift",
+      "sha256": "7a75637546e98226f8a8d48fb733c09fdb39652e29a4871ddf80c70c3d0ebe44"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/ImportLedgerSnapshot.swift",
+      "sha256": "d39644725342d9724a80b1c6cb37813c6ab67105bf71288caf07f38dbc61aa6c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/ImportValidation.swift",
+      "sha256": "a1dc2eff773fe3cfa685001eff6b4b5e00b700d6aeeb6e786984647859d49409"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/LedgerStore.swift",
+      "sha256": "956c4acd35df44908fd821b00a678e252baf5e05675507abac1034ccf2c5baae"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/LoanStore.swift",
+      "sha256": "5805193843274511b95375f481768deece136740c3840463c69be2b9b760a0e1"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/ProStore.swift",
+      "sha256": "b6b7270f952155c9abca89c4847bea6414d3ff7efbe8196fa34d5ce96d74f8a0"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/ReviewInvitationStore.swift",
+      "sha256": "fe9042690f1d278e77e7b0a77cbe62c053be7e75f28bfc44ed743f13a3e65ca0"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/StoreBootstrap.swift",
+      "sha256": "e5c8f5707422fa6349d5e76fb8acd4b55fe91e38b61a05787c3873e536860870"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Data/TransferStore.swift",
+      "sha256": "7c2c579fdd44f2341529fd600ddec6bb854bef618bc315b9157beb4e535b3120"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/AccountDrawers.swift",
+      "sha256": "5c1f81a90eada5a1b9b250d30ec2fd42da4157ceb6b7f4e610c7ab8ea23a74d3"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/AssetItemSheet.swift",
+      "sha256": "005f45fe9d8c4a2960d9d242f4ba06656615ab7d769c33f47de1a0b6bf60a662"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/AssetsView.swift",
+      "sha256": "b3b14d6f35b6b1eea8c30ed565167f3aa94f5797a2644faaa80d27a6c3723368"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/CashAccountSheet.swift",
+      "sha256": "7954e188d01ebccad6c5e114a7be1e16374770c87400e6e8078317a017a2e897"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/ClassicAssetsView.swift",
+      "sha256": "81ff2c92a959a7eecea8c93f3a5248df5b39c2ef20253d29f98e29ff4cc45372"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/EditBucketSheet.swift",
+      "sha256": "616364f9230d489a094fcd30551e3eb45cc15c72ff353f6a8f4a451cbb107518"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/ImportReviewSheet.swift",
+      "sha256": "ff5299353bedb9bd1837af5063ceb08ec5b058d3bb8f6ad1f31719b9322b269d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/LoanDrawer.swift",
+      "sha256": "32caad58cbbdccf643a64fffce251ff6ea639396d73dad2669da4fcf565a162c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/LoanSheet.swift",
+      "sha256": "30f42d3c9c8fcef4c4e96dc5ca4d6735214d4f642201e22d90b2079614035ca5"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/MoneySourcePicker.swift",
+      "sha256": "08e04e2d8b630d8513211a3ca5e60045b0cf67e93a6807519955fb9006a2018f"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/MoneyTimeAssetsView.swift",
+      "sha256": "37012efda530d51a85f101cdbe8c087abad28d3c73eea33ec807b651a05c66d8"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/PassiveSourceSheet.swift",
+      "sha256": "c0b64883709479bf96bcb9051ecc031f4275082fbd052a2589879437937e1c2a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Assets/TransferSheet.swift",
+      "sha256": "e1bff8818d32cae820319980fb06012762892ca4d9298bd41bfb0da325e09357"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Dashboard/DashboardHero.swift",
+      "sha256": "0bce6cc328806fb72efad68592bbe4154a31c76326928aa9fbd79c484453e872"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Dashboard/DashboardView.swift",
+      "sha256": "fac28e597f236737cf8f5239653c57ff6e430dcffc9c09bc576738d41c62f07a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Dashboard/FirstWeekRecapCard.swift",
+      "sha256": "c8bc7746de3e6618577288ecb3a083d73b518bd42121dc933a8b44578627563c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Dashboard/LifeGrid.swift",
+      "sha256": "39ff6b079a8c4f7e81731471dd525860095ab4542aa4edb40fdbe06909064ee7"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Dashboard/MeteorLayer.swift",
+      "sha256": "3c145dc7d0eb15b6d8b459cef763624252b4ac5b29e25308d00aa9bb9f92b341"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/FreedomCard/FreedomCardSheet.swift",
+      "sha256": "e9447cb80f063fced80ba960f2f39cc61e1c362a4c7c20aa992c680e08c95638"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/FreedomCard/FreedomCardView.swift",
+      "sha256": "a3853dbffaadb2d7e7aa2dfb20cf9f1136d6c55644d2583b72b420825bf2aba4"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Guide/AppGuide.swift",
+      "sha256": "2b5c885f01fd4bc5294bd51c18e92c76c34284328c5fc30c3fe22794a9767142"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistorySearchBar.swift",
+      "sha256": "18d672e11953ba41a1138cf039ab160b9f5e6601c3632b65a46b49d2178b9f7e"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistorySearchDataSource.swift",
+      "sha256": "660382d8de9473fa57a6e606318d28178e8310d2372c77fd60af1c3afc3afe4b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistorySearchMetrics.swift",
+      "sha256": "67904ad9ec9dbcc83ccd4b777fca15dba1985b8bfeed25334fdff1b557a1aa30"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistorySearchState.swift",
+      "sha256": "83b79a03420c6eaf7600cd519a60c70517737191b751d925a2bdb49a40d5b32c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistoryTransactionRow.swift",
+      "sha256": "c38261d4c14eeea2d06f80b9f03c1d2de22923b9de24c223995827256cd78285"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/HistoryView.swift",
+      "sha256": "44a5ce1b19595c0f96c1d5636bf26a2befb11e492b19369c203d19849eb6e94e"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/History/MonthlySummaryView.swift",
+      "sha256": "42d06f7f5391869e54ddddb19d148e69b95114c9baec8daf3dcc3c7177cd6338"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Pro/BackToFreeSheet.swift",
+      "sha256": "def7d215adaeb9eeab93b3f6862c950af22cabe9985c39325765af6ba648393d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Pro/IntroCardLayer.swift",
+      "sha256": "638bc3952393d7db57487dc7158cb4caeabf468a2b7c33a3513e4b13c236a529"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Pro/ProIntroCard.swift",
+      "sha256": "aa7e53a12a959af12b59f1593b89931e5243b338bb14cce8b02d56ea61f380c1"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Pro/ProPaywallView.swift",
+      "sha256": "5e07f539a7a35c22e3edaa719b11902c05fa44fe9479b9badf46cf78ca0a4a34"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/CheckView.swift",
+      "sha256": "9fb1a9009c6a67ad808d828e6a5e8defc3a822bd6ca43e474138c2bd1032c879"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/DataManagementView.swift",
+      "sha256": "474ad71bb4b035a025db9d90628154d185499bbc465b0bcf19c153f4e4448897"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/ExpenseCategoriesView.swift",
+      "sha256": "a4287915141b1b6664f7998f29e32f4a63439875f268e1da8b381eb34282946c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/ExpenseCategorySheet.swift",
+      "sha256": "daae57aca9ff27aaae3f2e4f6de99ac4031add9588753699fa623af55926d826"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/SettingsDeck.swift",
+      "sha256": "e161b650b85b8db1e4a40e5609456e25ac8cb1ec72f668bac5711eb2c9ca3e5d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/SettingsView.swift",
+      "sha256": "e448afaa4332927640b2c9ff0a5399e1f86122dfa03e36e02d481455ebd5f6d0"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Settings/UserManualView.swift",
+      "sha256": "f608db74a7baa71ee62627236c8407fe4b8c0ebad12a4d227545a35b11d5418b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Simulation/SimDemoGrid.swift",
+      "sha256": "05857d288388d2fbad35d855263e511e4d907c0ab1dfb329a0ccb9eea736687d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Simulation/SimulateSheet.swift",
+      "sha256": "d0c714ecb6b204a7b19a3f92f3d3c688676b83f28c4ba543d4d11dbb411d9bc8"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Transactions/AddExpenseSheet.swift",
+      "sha256": "28b03aab7e8019bec6af7fc95d1b0859a0e0069dc06f837922da2a65c05cb3b5"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Transactions/AddIncomeSheet.swift",
+      "sha256": "7413f41a1d7d0e468a0fcdf6cafd723309d39969fae00e4ec0c9514e4e911aa2"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Transactions/CashAccountSection.swift",
+      "sha256": "cb71bc91ab62a5731f24fd96af5420350b8f057fff5d4fc290b2f5b0207cb3bc"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Transactions/EditTransactionSheet.swift",
+      "sha256": "9e4302198ab9f3b2dbee42cba07f8dca7371ceea3eb7912480820b7d9300abff"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Features/Transactions/TransactionDateRow.swift",
+      "sha256": "26ab26a06f33f2a046bc2dd6bd5f518065191f677a43b3503b59824b5b806a7b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/BackToFree.swift",
+      "sha256": "44ea44ceb7dd93ef11488e8891b336b9e1a43fd558116a89970784ad2333c3d4"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/DailyBurn.swift",
+      "sha256": "9874460a6b7690d097c838b499337bb87eb0630ced73a543f3b84ca39a413588"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ExpenseCategory.swift",
+      "sha256": "91ed4bd7c6d5f411183775ea676b5f6d8bdbc12626a6085ded0f551e62916880"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ExpenseCategoryIcons.swift",
+      "sha256": "080102480568968f837be4716611bf718014034a418dd772c4c7fea0001bb8a5"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ExpenseCategoryOptions.swift",
+      "sha256": "836abe8c7e0354736d1dfe9c73a19350aa95edeb86e2f7f4fc2f6c24e447fbad"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FinancialSnapshot.swift",
+      "sha256": "d77cc3f90d8ef81eeb452b109e13d48d6f83202cad0154eae19fd9e8e4538d4b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FirstWeekRecap.swift",
+      "sha256": "b92da7fdad39e9ebe6eb03d275abcc6d81924fc7bcbc10b8b1540aa6063290cd"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FreedomCard.swift",
+      "sha256": "468328f1db6429b8a8bcb1a590bfbb247bd07a0ab9c883a9fb0327b4a8b2f831"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FreedomChecklist.swift",
+      "sha256": "2dc42c2e5093ead73cd613f3caa065cf7001431dff43a0e0e8527fd22ab9e81f"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FreedomHistory.swift",
+      "sha256": "d87228b5d4fa079db90fcd58b2500263dd0ed2f87a231a38677d5437340c26ae"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/FreedomMath.swift",
+      "sha256": "54f7ad86d79c1267f0c14776f05090ff3605ec60e2bb6d5c7e4288506436df60"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/HistoryLedger.swift",
+      "sha256": "85cc7f8a6493490978e64ca0af38613234a3a6ee3aecfc754286d10e6ab82c1a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/HistorySearch.swift",
+      "sha256": "c42873fc3ae3934ca36c8199d5147964c62863b1ea7728eac571632a44bda24f"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/LedgerTransaction.swift",
+      "sha256": "281063192476a45aec1ee51cd6940a407a3efb0706196e2c6c6ab6bdb3b1f3c3"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/LoanSchedule.swift",
+      "sha256": "fc770f5fb79b28d6ee742d2db5aab0d962d51a7f2f164563b00cbf862db214e4"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ProIntro.swift",
+      "sha256": "366c8b7be418cf9bfbc72412031cbb41779a41bec874619e1b73b6e42edaea8a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ProOffer.swift",
+      "sha256": "d4d7f106d2f39343bf67406fb53a78878d348c1bed0a78b5f456959e88adc102"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/ReviewInvitation.swift",
+      "sha256": "7c7798b72f2c5f79abc1cbce224e1cd452a61edee9aceb528c78e5470c0e9b47"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Logic/TransactionImpact.swift",
+      "sha256": "65ae1675b6376b7d8a8b0d0ba8d9da90e64c5b0c738e1d593193dc2917642651"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/Models/LedgerModels.swift",
+      "sha256": "a718720d825808f828a298e19e8e872f6b89cecaa8e00285ebf260b20dee1ca7"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/DesignSystem.swift",
+      "sha256": "4d62931e17be6784429ad495c6935683af42bcc75fe4bd15e8975aecfb13647c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/FinancialFormatting.swift",
+      "sha256": "b586e5847b9c515b82198efe7dabc94b758b2bd8e17fce7063e090daecf56410"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/NavigationBackground.swift",
+      "sha256": "c800394b9bf48fc067879b2ef6c6ad3806ae77f9ab12945be2c42f34b48f5483"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/SaveErrorAlert.swift",
+      "sha256": "9139f82ec052dee6f7d616e87e780b24fb24d35f4597315fd7e93351caec0b10"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/ShareSheet.swift",
+      "sha256": "f6ba5558468ab5b81eceed0f1f4728237e227ef2a3396b5f3af5fa3f81330b0a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGrid/UI/TransactionImpactView.swift",
+      "sha256": "99ff39f5008a3a5ad4596b709ea7253ecb9e6166b0471b374d0bf6eab51c7401"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/AssetItemTests.swift",
+      "sha256": "3767d21ef53b8261e2ab2800802d95d81a7f54374085fea23102a2d299adc48b"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/BackToFreeTests.swift",
+      "sha256": "7f1842834ab59fe2cab17ff0351d24292ecfaa0a4210a296236e389cd0ab4ac2"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/BackupRoundTripTests.swift",
+      "sha256": "6b9eefa079316d02c8dd7b8e62ee8758d756c9fed590b08226b31854f52ad121"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/BalanceBoundaryTests.swift",
+      "sha256": "bf6d0022f91f5ea9bb5af5ab12f3e91597edccd0aa050f201fb21a43d4c89560"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/CashAccountTests.swift",
+      "sha256": "83f4708d1de5e7a8c584fa5063775504350ec1345d6f7deec93f01095417920d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/DiskRollbackTests.swift",
+      "sha256": "5379e8007a369dc1dc3b8c42467ab318392a281db84a242e4f94ac4b424ca834"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ExpenseCategoryTests.swift",
+      "sha256": "2c843f688b3bfc3ba0c544872b732beb4c6a70bb86957c08af32a2f35d113d77"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FirstWeekRecapTests.swift",
+      "sha256": "b00b0ab952b52e70488d0f1ca489fb43093ecb524f51764bda1d5039b4290dd1"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FixedExpenseTests.swift",
+      "sha256": "6352f51baf9906162d12ff3c6f8b2e70492faa1ffc67d0984f73d0048d6ef468"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FreeGridTests.swift",
+      "sha256": "77f8d700559e1059d7ad18eb48ee1e20525474533b3b752cfc2fb44b2a34d390"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FreedomAssetSwitchTests.swift",
+      "sha256": "58c0283fab407c684edfc7f7cab90df6be4a6dfa7a456ab1ed3eb0a8e0bb8a4d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FreedomCardTests.swift",
+      "sha256": "4fa6e03702fc424622bcc3c10de086600ea03b99cb5f81c4c5366848ba89fcb1"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FreedomHistoryTests.swift",
+      "sha256": "71700c9426bae4fbfaa65feb888dd9dc46a95e33e4b1610ce9bfb2094ab27604"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/FreedomMathTests.swift",
+      "sha256": "a6037d2421232c2448b370fbd712c2bbd514674cd590bbb6ae7cc4248007e3b0"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/HistoryLedgerTests.swift",
+      "sha256": "7fc479b10e9c1c47d4826ccdb8a0f8b37a87bff2fda74c244e1f3920a6752ece"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/HistorySearchPerformanceTests.swift",
+      "sha256": "cb69dde08e725745647ff1952af30a61d567fdf4c66be74c34e341cc838d6636"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/HistorySearchTests.swift",
+      "sha256": "449699056c01fa768167021c3ac9d1f91e45261bc818566e2cb89602c1264b29"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ImportCommitTests.swift",
+      "sha256": "977c1bf1495b2f4683fb756a30a0ec4c31978fc9096c8766368ae24975368078"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ImportFingerprintTests.swift",
+      "sha256": "031345f0c3846be8c7bd66400b76d873f5b39776d253fd7ad3ee2db3b28ac791"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ImportFreshnessTests.swift",
+      "sha256": "ee3eaa716441183a015c271ea36b0d9ae741e98793d5f11b3ee9f2ce111031aa"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ImportValidationTests.swift",
+      "sha256": "2b7dd79aa5d0ab7f1fe90afbcd188238088303085119bf09c0ff15690a0228c3"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/LargeBackupRestoreTests.swift",
+      "sha256": "2cfcdcb609936a66c338d1e1d64bf78839e280be2800c43ad00281a842799ebb"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/LedgerStoreTests.swift",
+      "sha256": "3285245b57b7ebe5a8c8d2b1242f7b772563cdb2efc7ab6f7d4fa872f38d3781"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/LegacyImportIdentityTests.swift",
+      "sha256": "cc340f4d302b7b6c7d4622cc99a58470fdd1d0da1e78ca796b675ce5c854000a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/LoanTests.swift",
+      "sha256": "950f0c721349bbc61f409677b2901ce086801c3b942bedbf22ca165c44e543bc"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/MigrationTests.swift",
+      "sha256": "2cfdac2db8852ae26203d5bbf95aa33f134cc4118e78fb46e7b6da7512c2f6cf"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/PassiveIntervalTests.swift",
+      "sha256": "cf0f0cf3c81e7d28327ea166fb75682af903a176fae0b30eb5518348580e7a39"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ProIntroTests.swift",
+      "sha256": "48aae5d5037d6a8b486dc1c82ec0a156e866dc4cb4cc628417300417b07c2796"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ProOfferTests.swift",
+      "sha256": "7560eba1b9f222d53346ae2b4f54ee3e8ad4c0a2c02962ad98387cbc150a8e61"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ProStoreTests.swift",
+      "sha256": "8113e637f4ba9cbb0a690b95112b881a97b9f04cfb161ce1c53e0124849f5a4d"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/ReviewInvitationTests.swift",
+      "sha256": "dd183b7dd12eae8a0f39de28886612f80a004b92278495764f865a67270a8415"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/StoreBootstrapTests.swift",
+      "sha256": "722ce4312870634a0c45f4605bb9c01e35c4847b7c51b53b9b1c3267445729ea"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/TestSupport.swift",
+      "sha256": "e0e47931da20cbbdf5a2ceba4309705bac20d12b570178b46e4854e7a12c980a"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridTests/TransactionImpactTests.swift",
+      "sha256": "b213e101a03bfdc402329910321182ec3a594578554d9bf5defd25dc0322ac51"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/FreeGridUITests.swift",
+      "sha256": "6f779bdfff668b15f46ee590415fb88af0f7106f413ba28baa885d3d855020e6"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/FreeGridUITestsLaunchTests.swift",
+      "sha256": "8b7f016655c24c4b67959041854731e088d5aa6df27138262bd7185cd0521890"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/HistorySearchPerformanceUITests.swift",
+      "sha256": "ecfc07054369df384bf74c0830d87e6466fa399081a24c24bbae5dba9f25586c"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/HistorySearchRegressionUITests.swift",
+      "sha256": "6ce9ffeecd7a739f1d98b878de83331fb01d0071bbe792acbde2862fb047e9e5"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/HistorySearchScrollUITests.swift",
+      "sha256": "f64dbf798fc384fc13d2bd30ec95a42fb8ab605644bf43e29d5bbf3f15200d63"
+    },
+    {
+      "repository": "ios",
+      "path": "FreeGridUITests/ReviewInvitationUITests.swift",
+      "sha256": "f29747ee0f45b9b0ddf603487ca77864a71e9737e901728d3813841c94c8d10e"
+    },
+    {
+      "repository": "ios",
+      "path": "AGENTS.md",
+      "sha256": "e34df940a2cd67703c734955a4535762ffbfc03ee4b11bddb3ea0962af36816d"
+    },
+    {
+      "repository": "android",
+      "path": "lib/app/freegrid_app.dart",
+      "sha256": "9985735085088e91163f1985eff2bfead30731e1ef508924d8714e514d17f860"
+    },
+    {
+      "repository": "android",
+      "path": "lib/app/platform/freegrid_platform.dart",
+      "sha256": "bd3f3c56a05c865856c0d0a1f8edbc24635b326051fad8df1d78342db3d66271"
+    },
+    {
+      "repository": "android",
+      "path": "lib/app/theme/freegrid_theme.dart",
+      "sha256": "3f026aaea06be67fc1b51bc0eed4275ffb6364d1bbed50909ff4ff4e5ad62bff"
+    },
+    {
+      "repository": "android",
+      "path": "lib/app/widgets/freegrid_hero_number.dart",
+      "sha256": "7de2e3e883a78b7cb7aedbc2c091b4b6fdafa32938708a5084f397998df21b07"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/data/backup_codec.dart",
+      "sha256": "4a09ba1c7a37eb6099f9f16c982c3cb65558a10c855ec4e31582779a949a3494"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/data/data_importer.dart",
+      "sha256": "708876d263242d45137719743cc79c5ed3d6db51ceff63b2ae863fb0db295c4e"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/data/data_io.dart",
+      "sha256": "4b80960b2202f51232d931cb1bf239c3f4e9d974f77827e3570a14a79e9a60ac"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/data/local_freegrid_store.dart",
+      "sha256": "7a0e2309a5b5a674ae6c9040aa603b39b36716584a22c9e8f88df0e772732a81"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/domain/expense_category.dart",
+      "sha256": "6af6bb6f5369dfda1a2cb4d44ff273a43afaae61b47a138d355785681e092931"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/domain/freedom_math.dart",
+      "sha256": "d2e90d2aecd6eb5ab2d3790953fc9d01db4570592b85c690f760a921ca395ace"
+    },
+    {
+      "repository": "android",
+      "path": "lib/core/domain/models.dart",
+      "sha256": "29d64bfe1c611a9e569a6210049f85d4f1f1d775f98ac2a8691ca805b41febb1"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/dashboard_shell.dart",
+      "sha256": "c7f970d50a8c153391649ba8c73f978b3f2ef35dea99b377c4e7f24fb3ec7e96"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/first_record_date_resolver.dart",
+      "sha256": "d7b4bd0b63a3fdc8fdb77781464d29b80d2460808f073279a424248c1d17e001"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/about_page.dart",
+      "sha256": "ef270ea1ec6c635a66e44f2487a6e9ec5b20393efd62bee2dc07c4af8ecc3260"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/bookkeeping_impact_preview.dart",
+      "sha256": "16677c4248201210eddc04679e38cacbf2d3d762907448d82b09066fdc048fcf"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/dashboard_sparkline.dart",
+      "sha256": "a22ab8ab0f0feb229711f10328f22bd48b66a656d031f159e704b87d1e072416"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/dashboard_top_bar.dart",
+      "sha256": "fc7fdd11e37c95b77aade751d8da3ca64a2f18f2e858f3eb999522bd4abb919e"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/data_management_card.dart",
+      "sha256": "5b50009e71d1e6e54a6f3548c0edf792a8ecb0b36f2de643b833a5d198e628a4"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/freedom_hero_presentation.dart",
+      "sha256": "e0a95a72a28028298a50bce67bdd1c87dc33e8a622523e6333d84a494920ce56"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/history_category_strip.dart",
+      "sha256": "a15b04fc78ad006afdd9f6f16bbd972405f594894df553d2af58276a218cc743"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/import_review_sheet.dart",
+      "sha256": "9d4847f69f926d5592dbfaf83d8999c9938a0bb8bcf826451d758eacbe260b12"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/life_grid.dart",
+      "sha256": "11ecf289c9ae9355f58daac2d4c5110143a269f1f313530fb71081f8917fe75f"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/meteor_layer.dart",
+      "sha256": "bccef01970059ce83f85a6412e616ebd5d70da6457fe3346ef624e9d52a7acd0"
+    },
+    {
+      "repository": "android",
+      "path": "lib/features/dashboard/widgets/simulation_grid_demo.dart",
+      "sha256": "a6c7736d88351b7dc4fe4bad54974f2d1736bca074f20ebb8380b925f3425da6"
+    },
+    {
+      "repository": "android",
+      "path": "lib/main.dart",
+      "sha256": "3b9988d3f6c2da64d977a8ace966780da9955f45e54154978eaccd9ed7aed2f6"
+    },
+    {
+      "repository": "android",
+      "path": "test/about_page_test.dart",
+      "sha256": "02256835e059182d4df80a20b68e0f1580e53e848769de397b5b2c04f24e02de"
+    },
+    {
+      "repository": "android",
+      "path": "test/backup_codec_test.dart",
+      "sha256": "67c3d4858aa0cd1aa6cc1b223b2e1d75356628e5f606937d8a9653c94f18d3eb"
+    },
+    {
+      "repository": "android",
+      "path": "test/bookkeeping_impact_preview_test.dart",
+      "sha256": "5290a60824a7b5407e45e38976c74779700a31ee04802a7cfef0a2daad94017d"
+    },
+    {
+      "repository": "android",
+      "path": "test/dashboard_detail_widgets_test.dart",
+      "sha256": "663763b85f9d8f696856638293a88cc78e472107d7743839e2423180e6923576"
+    },
+    {
+      "repository": "android",
+      "path": "test/dashboard_navigation_occlusion_test.dart",
+      "sha256": "317556f0bd9566a5d85b47e2461077baf188d8994a43cf734f9c2f2875db3a02"
+    },
+    {
+      "repository": "android",
+      "path": "test/data_importer_test.dart",
+      "sha256": "5c0118a2bb8906bb9899a4c557d9e077e7ae526954e48959e0896f96aab46ae9"
+    },
+    {
+      "repository": "android",
+      "path": "test/data_io_test.dart",
+      "sha256": "063ac067bd9d7e32d4ca34488e68d31f9122a1a61e5432d0df7f1151e280851d"
+    },
+    {
+      "repository": "android",
+      "path": "test/data_management_card_test.dart",
+      "sha256": "91bb5ff025fe28460e24ee499bd30e4484debcc399a99b3f2bf8d3b1913916b9"
+    },
+    {
+      "repository": "android",
+      "path": "test/expense_category_test.dart",
+      "sha256": "7464231f5907904c76496f789834d893ab389786d05f25ba8a3b90d90267bcad"
+    },
+    {
+      "repository": "android",
+      "path": "test/first_record_date_resolver_test.dart",
+      "sha256": "b7e3438cf8c401c254e3918164b85a6fd66dbd7b78323df8fbfcde19dd4c31dd"
+    },
+    {
+      "repository": "android",
+      "path": "test/freedom_hero_presentation_test.dart",
+      "sha256": "9eca7c75ccd2b7914e515c42e4027bb4d3d8903aeb11f3cd6d54c7e0e297a021"
+    },
+    {
+      "repository": "android",
+      "path": "test/freedom_math_test.dart",
+      "sha256": "817dec72c5ca6956990c14f6ae0c3f892584164567c4ab0d518d599d5acee2db"
+    },
+    {
+      "repository": "android",
+      "path": "test/freegrid_theme_test.dart",
+      "sha256": "2023dc20e92b7bc1d7421a3ca431206888fa57a8b67745da21f32794c2fb97d4"
+    },
+    {
+      "repository": "android",
+      "path": "test/history_category_strip_test.dart",
+      "sha256": "fe1024e72f24a211182086e19226f721dc8ebaf7155b0b87112bbf3aad659bc1"
+    },
+    {
+      "repository": "android",
+      "path": "test/import_review_sheet_test.dart",
+      "sha256": "b51381678670d22768bbe5f4341ad710ab369e043ccff1872b5b0bc53fcf7a7e"
+    },
+    {
+      "repository": "android",
+      "path": "test/life_grid_test.dart",
+      "sha256": "8fb47c7f7d5dcaccb211d439fa4acf40873f841728b7f37a2780c40a447c95d0"
+    },
+    {
+      "repository": "android",
+      "path": "test/meteor_layer_test.dart",
+      "sha256": "c37ca62f71ae9ebed1092c729bbf993bbf37e631decb78af1d61ea443b7aa838"
+    },
+    {
+      "repository": "android",
+      "path": "test/simulation_grid_demo_test.dart",
+      "sha256": "d7d66d4ef5b265d94eaea9e481cf8e5713bfd9de89a2eebf754ed4809d3b1ce6"
+    },
+    {
+      "repository": "android",
+      "path": "pubspec.yaml",
+      "sha256": "5c23bd1d489f00ba5dc7bcd4433bbc3b9eb673409f155fc259a2d86e37952310"
+    },
+    {
+      "repository": "android",
+      "path": "AGENTS.md",
+      "sha256": "329ebcef9936ce574f953a8942435d82b256ca9adde5bc600acee9a1956a3922"
+    }
+  ]
+}
