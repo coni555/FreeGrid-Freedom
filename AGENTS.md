@@ -33,6 +33,7 @@
 
 - 分支上的改动只装到该分支自己的模拟器给用户看，用户满意后再合入 main。新功能即使自动化验收通过，也必须等用户实际体验并明确同意合并；不得提前合入（用户 2026-10-21 再次强调，优先于全局自动合并约定）。**FG-Main 只装 main 的版本**；main 的测试和预览用 FG-UI，Pro 分支用 FG-Pro。
 - 合入 main 之后要把 FG-Main 装上新版，装 **Release** 构建（`-configuration Release`）：用户要看真实用户看到的样子，没有调试卡。
+- 装到模拟器给用户看用 `Tools/install-sim.sh --sim <模拟器>`（Release 预览加 `--release`）：先存账本快照，再构建、安装、启动。装 FG-Main 时它只接受源码已提交的 main，并自动用 Release；hook 会拦下直接往 FG-Main 执行的 `simctl install`。新建、克隆、抹掉模拟器的命令会被 hook 拦下，要先问用户。
 - 新建、克隆或抹掉模拟器会触发 Apple 系统资源下载（每台约 0.6–0.9 GB），没有用户同意不做。
 
 ## 代码
@@ -50,6 +51,7 @@
 
 - 改业务规则配具体输入输出测试；整理后跑 iOS 测试、macOS 构建与 `git diff --check`。
 - 标准动作（用户 2026-10-12 定，机器是 16G 内存的 MacBook Air）：直接在该分支自己的模拟器上跑，不新建临时模拟器；`xcodebuild` 加 `-parallel-testing-enabled NO`，否则它会自己再克隆一台；`-derivedDataPath` 固定用 `_local/derived/<分支简称>` 并保留，不要每轮删；测试和出图合在一次构建里。
+- 这些参数已经固定在 `Tools/verify.sh` 里，跑测试就用它：`Tools/verify.sh --sim <分支的模拟器> --only FreeGridTests/<套件>`，只跑这次改动相关的；合并 main、提审前用 `--full --mac`；不带测试参数时只编译。脚本会拒绝 FG-Main 跑非 main、拒绝正被别的 xcodebuild 占用的模拟器，测试前自动存账本快照到 `_local/snapshots/auto/`，最后给出通过/失败数、macOS 构建和 `git diff --check` 的结论。分支 worktree 里还没有这个脚本时，用主仓的绝对路径 `~/Desktop/FreeGrid/Tools/verify.sh` 调用。Claude Code 和 Codex 的 PreToolUse hook（`~/cc-personal/scripts/sim-guard.py`）会拦下 FreeGrid 里没带这两个参数的裸 `xcodebuild test`。
 - UI 测试都带 `-UseInMemoryStore`，不写真实账本。
 
 ## 视觉（用户已定；想改先问用户）
