@@ -186,7 +186,8 @@ struct HistoryView: View {
             monthRange = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
             // 只在按月查看时折算成天，全部时间用不到
             if case .month = scope {
-                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses)).dailyBurn
+                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses),
+                                                       monthlyEstimate: EverydayEstimate.monthly).dailyBurn
             } else {
                 dailyBurn = 0
             }

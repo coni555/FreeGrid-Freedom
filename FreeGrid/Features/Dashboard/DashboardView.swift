@@ -18,6 +18,8 @@ struct DashboardView: View {
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 每月日常估算：改了要马上重算（0 = 没填）
+    @AppStorage(EverydayEstimate.key, store: AppPreferences.store) private var monthlyEstimate = 0.0
     /// 目标长条：在自检或首页改了目标，这里跟着重算
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
 
@@ -36,7 +38,7 @@ struct DashboardView: View {
         let loansInEffect = ProFeatures.loansInEffect(loans)
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect,
-                                         countsAssets: countsAssets)
+                                         countsAssets: countsAssets, monthlyEstimate: monthlyEstimate)
         let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
@@ -45,6 +47,7 @@ struct DashboardView: View {
             dailyPassive: snapshot.dailyPassive,
             loans: loansInEffect,
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
+            monthlyEstimate: snapshot.monthlyEstimate,
             now: snapshot.now
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算

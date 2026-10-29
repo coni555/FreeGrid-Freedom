@@ -150,11 +150,8 @@ enum HomeStat: Hashable, Identifiable {
         switch self {
         case .daily:
             // 日均含固定支出折成的每天；有固定支出时小字拆开写，和只比日常的今日对得上
-            return Display(
-                value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
-                unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-                    ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
-                    : String(localized: "元/天"))
+            return Display(value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
+                           unit: Self.dailyNote(snapshot))
         case .month:
             return Display(value: FinancialFormatting.wholeNumber(inputs.monthSpent),
                            unit: Self.monthComparison(spent: inputs.monthSpent, lastMonth: inputs.lastMonthSameSpan))
@@ -188,6 +185,25 @@ enum HomeStat: Hashable, Identifiable {
             return Display(value: result.freedomDaysText ?? (result.enough == true ? "∞" : "—"),
                            unit: result.targetLine ?? result.freedomLine)
         }
+    }
+
+    /// 日均卡的小字。按估算、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
+    static func dailyNote(_ snapshot: FinancialSnapshot) -> String {
+        let fixed = snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
+        if snapshot.burnBasis == .estimate {
+            return fixed
+                ? String(localized: "估算 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
+                : String(localized: "按每月估算")
+        }
+        if snapshot.burnGapDays > 0 {
+            let quiet = snapshot.burnGapDays + FreedomMath.burnGraceDays
+            return snapshot.burnBasis == .recordsAndEstimate
+                ? String(localized: "\(quiet) 天没记 · 空档按估算")
+                : String(localized: "\(quiet) 天没记 · 日均先停住")
+        }
+        return fixed
+            ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
+            : String(localized: "元/天")
     }
 
     /// 本月到今天花的和上个月同一段（1 号到同一天）比。上个月这段没有记录时只写「本月已花」

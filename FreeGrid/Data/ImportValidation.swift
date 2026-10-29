@@ -287,6 +287,8 @@ nonisolated struct ValidatedImport: Sendable {
     /// nil 表示备份里没有分类设置
     var expenseCategories: [ExpenseCategoryRecord]? = nil
     var cashAccounts: [CashAccountRecord] = []
+    /// 每月日常估算；备份里没有或不是有效金额时为 nil
+    var monthlyEverydayEstimate: Double? = nil
 }
 
 nonisolated enum ImportValidator {
@@ -649,7 +651,11 @@ nonisolated enum ImportValidator {
             assetItems: assetItems,
             loans: loans,
             expenseCategories: expenseCategories,
-            cashAccounts: cashAccounts
+            cashAccounts: cashAccounts,
+            // 只是一个偏好数字，不对就当没有，不拦整份备份
+            monthlyEverydayEstimate: envelope.monthlyEverydayEstimate.flatMap {
+                $0.isFinite && $0 > 0 && $0 <= FinancialLimits.maximumAmount ? $0 : nil
+            }
         )
     }
 

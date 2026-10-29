@@ -339,7 +339,9 @@ struct LoanTests {
     @Test func markingOldRepaymentsTakesThemOutOfDailyBurn() throws {
         let context = try context(cash: 20_000)
         let first = Calendar.current.date(byAdding: .day, value: -149, to: now)!
-        context.insert(Expense(amount: 12_000, category: "其他", date: first))
+        // 日常一共 12000，今天也记了一笔：只剩 149 天前一笔的话，最后那段算断档，日均不再是 80
+        context.insert(Expense(amount: 11_940, category: "其他", date: first))
+        context.insert(Expense(amount: 60, category: "午餐", date: now))
         for month in 0..<6 {
             context.insert(Expense(amount: 3000, category: "其他", note: "房贷",
                                    date: Calendar.current.date(byAdding: .day, value: -25 * month, to: now)!))
@@ -360,7 +362,7 @@ struct LoanTests {
         #expect(after.dailyBurn == 80)
         #expect(after.trackDays == 150)
         // 记录本身还在
-        #expect(try context.fetch(FetchDescriptor<Expense>()).count == 7)
+        #expect(try context.fetch(FetchDescriptor<Expense>()).count == 8)
     }
 
     // MARK: - 备份

@@ -133,6 +133,13 @@ struct DashboardHero: View {
             : String(localized: "按目前的记账估算，被动收入已覆盖开销")
     }
 
+    /// 有限天数下面那行小字：能撑到哪天；还没记过日常支出、全按每月估算时写在前面
+    private func finiteCaption(deplete: Date?) -> String? {
+        let date = deplete.map { String(localized: "大约撑到 \(FreedomMath.depleteDateText($0))") }
+        guard snapshot.burnBasis == .estimate else { return date }
+        return date.map { String(localized: "按每月估算 · \($0)") } ?? String(localized: "按每月估算")
+    }
+
     /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
     /// 副标 18pt 拆 2 行 (card 内副标可用宽 ~121pt, 22pt 7 字会强行 break)
     @ViewBuilder
@@ -154,7 +161,7 @@ struct DashboardHero: View {
                     }
                     Text(needsSavings
                          ? "资产或现金都算，记完再记一笔支出"
-                         : "再记一笔支出，就能算出自由天数")
+                         : "记一笔支出，或在钱包里填每月大约花多少")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 4)
@@ -169,8 +176,8 @@ struct DashboardHero: View {
                     Text(heroSubUnit)
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    if let d = deplete {
-                        Text("大约撑到 \(FreedomMath.depleteDateText(d))")
+                    if let caption = finiteCaption(deplete: deplete) {
+                        Text(caption)
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .padding(.top, 4)
@@ -218,7 +225,7 @@ struct DashboardHero: View {
                 }
                 Text(needsSavings
                      ? "资产或现金都算，记完再记一笔支出"
-                     : "再记一笔支出，就能算出自由天数")
+                     : "记一笔支出，或在钱包里填每月大约花多少")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .padding(.top, 2)
@@ -230,8 +237,8 @@ struct DashboardHero: View {
                     .padding(.top, 2)
             case .finite:
                 emphasized(heroSentence, size: 18)
-                if let d = deplete {
-                    Text("大约撑到 \(FreedomMath.depleteDateText(d))")
+                if let caption = finiteCaption(deplete: deplete) {
+                    Text(caption)
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 2)

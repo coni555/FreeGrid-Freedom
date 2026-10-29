@@ -20,6 +20,8 @@ struct MoneyTimeAssetsView: View {
     @Environment(AppGuide.self) private var guide
 
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 每月日常估算：改了要马上重算（0 = 没填）
+    @AppStorage(EverydayEstimate.key, store: AppPreferences.store) private var monthlyEstimate = 0.0
     /// 「money」或「days」，本机偏好
     @AppStorage("assetsUnit", store: AppPreferences.store) private var unitKey = "money"
     @AppStorage("assetsTab", store: AppPreferences.store) private var tabKey = Tab.assets.rawValue
@@ -34,7 +36,8 @@ struct MoneyTimeAssetsView: View {
 
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets)
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets,
+                          monthlyEstimate: monthlyEstimate)
     }
 
     private var lockedAssets: Double { assetsArr.first?.lockedAssets ?? 0 }
@@ -65,6 +68,8 @@ struct MoneyTimeAssetsView: View {
                             .padding(.top, 34)
                         monthly(snapshot, unit: unit, loanSummary: loanSummary)
                             .padding(.top, 36)
+                        EverydayEstimateRow()
+                            .padding(.top, Spacing.md)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, Spacing.sm)

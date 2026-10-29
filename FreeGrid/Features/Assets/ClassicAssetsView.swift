@@ -73,6 +73,7 @@ struct ClassicAssetsView: View {
                     LoanDrawer()
                         .guideTarget(.loans, in: guide)
                         .id(AppGuide.Target.loans)
+                    EverydayEstimateRow()
                     passiveCard(snapshot)
                         .guideTarget(.passive, in: guide)
                         .id(AppGuide.Target.passive)

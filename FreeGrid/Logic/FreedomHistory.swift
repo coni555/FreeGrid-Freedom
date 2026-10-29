@@ -32,6 +32,8 @@ extension FreedomMath {
         dailyPassive: Double = 0,
         loans: [Loan] = [],
         uncountedAccounts: Set<UUID> = [],
+        /// 每月日常估算：断档那几天按它补，和首页的日均同一个口径
+        monthlyEstimate: Double? = nil,
         weeks: Int = 12,
         now: Date = .now,
         calendar: Calendar = .current
@@ -97,7 +99,7 @@ extension FreedomMath {
             let entries = isCurrent ? burnEntries : burnEntries.filter { $0.date < boundaries[index] }
             let netWorth = isCurrent ? currentNetWorth
                 : currentNetWorth + expensesAfter[index] - incomesAfter[index]
-            let burn = burnEstimate(entries, now: dates[index], calendar: calendar).dailyBurn
+            let burn = burnEstimate(entries, monthlyEstimate: monthlyEstimate, now: dates[index], calendar: calendar).dailyBurn
             let plan = loans.isEmpty ? LoanSchedule.Plan() : LoanSchedule.plan(
                 loans: loans,
                 payments: payments.filter { $0.date < boundaries[index] },

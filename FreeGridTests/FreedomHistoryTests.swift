@@ -7,7 +7,8 @@ struct FreedomHistoryTests {
     @Test func noonBaselineMatchesCurrentSnapshotAndIncludesTodaysIncome() throws {
         let now = TestSupport.day("2026-10-05").addingTimeInterval(18 * 3600)
         let first = Calendar.current.date(byAdding: .day, value: -30, to: Calendar.current.startOfDay(for: now))!.addingTimeInterval(12 * 3600)
-        let expenses = [Expense(amount: 3100, category: "午餐", date: first)]
+        // 今天也记了一笔：只有 30 天前一笔的话，最后 16 天算断档（见 EverydayEstimateTests）
+        let expenses = [Expense(amount: 3000, category: "午餐", date: first), Expense(amount: 100, category: "午餐", date: now)]
         let income = Income(amount: 1000, source: "工资", date: now)
         let assets = UserAssets(); assets.cash = 10000
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets, now: now)
@@ -37,7 +38,8 @@ struct FreedomHistoryTests {
     @Test func coveredStateNeverBecomes1825OrANegativeDelta() {
         let now = TestSupport.day("2026-10-05")
         let first = Calendar.current.date(byAdding: .day, value: -28, to: now)!
-        let history = FreedomMath.freedomDaysHistory(expenses: [Expense(amount: 4200, category: "购物", date: first)], incomes: [], currentNetWorth: 10_000_000, firstRecordDate: first, dailyPassive: 150, now: now)
+        let expenses = [Expense(amount: 4100, category: "购物", date: first), Expense(amount: 100, category: "购物", date: now)]
+        let history = FreedomMath.freedomDaysHistory(expenses: expenses, incomes: [], currentNetWorth: 10_000_000, firstRecordDate: first, dailyPassive: 150, now: now)
         #expect(history.count == 5)
         #expect(history.last?.state == .covered)
         #expect(history.last?.description == "已覆盖")
@@ -78,11 +80,12 @@ struct FreedomHistoryTests {
         formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"
         let now = try #require(formatter.date(from: nowText))
         let first = calendar.date(byAdding: .day, value: -28, to: now)!.addingTimeInterval(12 * 3600)
-        let expenses = [Expense(amount: 2900, category: "购物", date: first)]
+        let expenses = [Expense(amount: 2800, category: "购物", date: first), Expense(amount: 100, category: "购物", date: now)]
         let history = FreedomMath.freedomDaysHistory(expenses: expenses, incomes: [], currentNetWorth: 10000, firstRecordDate: first, now: now, calendar: calendar)
         #expect(history.count == 5)
         #expect(history.last?.state == .finite(days: 100))
-        #expect(history.first?.state == .finite(days: 10000.0 / 2900))
+        // 往回推现金时今天那 100 加回去
+        #expect(history.first?.state == .finite(days: 10100.0 / 2800))
     }
 
     @Test func weeklyAggregationMatchesAReferenceWithRefundsAndIntradayTransactions() {

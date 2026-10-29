@@ -44,7 +44,16 @@ struct FinancialSnapshot {
     /// 算日均的那些支出。记一笔的预览要在它上面加一笔重新估日均
     let burnEntries: [FreedomMath.BurnEntry]
     let dailyPassive: Double
+    /// 日均算得出来：记过日常支出，或者填了每月估算。自由天数看它
     let hasExpenses: Bool
+    /// 真的记过日常支出。记账天数、自检里的记账里程碑看它
+    let hasRecords: Bool
+    /// 自己填的每月日常估算；记一笔的预览重新估日均时要带上
+    let monthlyEstimate: Double?
+    /// 日均是按记录、按估算，还是记录加断档补的估算
+    let burnBasis: FreedomMath.BurnBasis
+    /// 最后一笔之后超过 14 天的那几天；没有断档时是 0
+    let burnGapDays: Int
     /// 固定支出和贷款：今天之后要扣的钱。没有时为空，自由天数和以前一分不差
     let loanPlan: LoanSchedule.Plan
     /// 固定支出和还没还清的贷款折成每天多少。按日历上一个月的平均天数折（约 30.44），和推演扣房租的节奏一致：
@@ -113,21 +122,26 @@ struct FinancialSnapshot {
     /// 日均消费只算 `countsInBurn` 的支出：自动扣的房租、月供和确认过的旧记录扣了现金，但不算日常开销。
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
          assetItems: [AssetItem] = [], cashAccounts: [CashAccount] = [], loans: [Loan] = [], now: Date = .now,
-         countsAssets: Bool = FreedomSettings.countsAssets) {
+         countsAssets: Bool = FreedomSettings.countsAssets,
+         monthlyEstimate: Double? = EverydayEstimate.monthly) {
         self.countsAssets = assetItems.isEmpty ? countsAssets : true
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0
         excludedCash = FreedomSettings.excludedCash(of: cashAccounts)
         burnEntries = FreedomMath.burnEntries(expenses)
-        let burn = FreedomMath.burnEstimate(burnEntries, now: now)
+        self.monthlyEstimate = EverydayEstimate.valid(monthlyEstimate)
+        let burn = FreedomMath.burnEstimate(burnEntries, monthlyEstimate: self.monthlyEstimate, now: now)
         totalExpenses = burn.total
         firstExpenseDate = burn.firstDate
         trackDays = burn.trackDays
         dailyBurn = burn.dailyBurn
         spreadLumps = burn.spreadLumps
         dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
-        hasExpenses = !burnEntries.isEmpty
+        hasRecords = !burnEntries.isEmpty
+        hasExpenses = hasRecords || self.monthlyEstimate != nil
+        burnBasis = burn.basis
+        burnGapDays = burn.gapDays
         loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
         dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now)
             / FreedomMath.GridUnit.month.daysPerCell
