@@ -35,7 +35,7 @@ struct LedgerStoreTests {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let configuration = ModelConfiguration(schema: StoreBootstrap.schema, url: folder.appendingPathComponent("ledger.store"))
+        let configuration = ModelConfiguration(schema: StoreBootstrap.schema, url: folder.appendingPathComponent("ledger.store"), cloudKitDatabase: .none)
         let context = ModelContext(try ModelContainer(for: StoreBootstrap.schema, configurations: [configuration]))
         let march = Expense(amount: 30, category: "午餐", date: TestSupport.day("2026-03-01"))
         let april = Expense(amount: 40, category: "午餐", date: TestSupport.day("2026-04-01"))

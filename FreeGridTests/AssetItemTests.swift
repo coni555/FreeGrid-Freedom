@@ -595,7 +595,7 @@ struct AssetItemTests {
         // 1.5 的库：只有五个模型
         let oldSchema = Schema([Expense.self, Income.self, Device.self, PassiveSource.self, UserAssets.self])
         do {
-            let container = try ModelContainer(for: oldSchema, configurations: [ModelConfiguration(schema: oldSchema, url: url)])
+            let container = try ModelContainer(for: oldSchema, configurations: [ModelConfiguration(schema: oldSchema, url: url, cloudKitDatabase: .none)])
             let context = ModelContext(container)
             let assets = UserAssets(total: 0)
             assets.lockedAssets = 22_000
@@ -609,7 +609,7 @@ struct AssetItemTests {
 
         let newSchema = StoreBootstrap.schema
         let bootstrap = StoreBootstrap(factory: {
-            try ModelContainer(for: newSchema, configurations: [ModelConfiguration(schema: newSchema, url: url)])
+            try ModelContainer(for: newSchema, configurations: [ModelConfiguration(schema: newSchema, url: url, cloudKitDatabase: .none)])
         })
         guard case .ready(let container) = bootstrap.state else {
             Issue.record("升级后进了恢复页")
@@ -638,7 +638,7 @@ struct AssetItemTests {
         // 阶段 2 数据库：有资产项，升级到阶段 3
         let schema = StoreBootstrap.schema
         do {
-            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)])
             let context = ModelContext(container)
             let assets = UserAssets(total: 0)
             assets.lockedAssets = 135_000
@@ -650,7 +650,7 @@ struct AssetItemTests {
         }
 
         let bootstrap = StoreBootstrap(factory: {
-            try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+            try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)])
         })
         guard case .ready(let container) = bootstrap.state else {
             Issue.record("阶段 2 数据库升级后进了恢复页")
