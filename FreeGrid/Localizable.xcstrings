@@ -13027,6 +13027,166 @@
           }
         }
       }
+    },
+    "**iCloud 自动备份**：打开后，离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**iCloud Auto Backup**: when it's on, leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices."
+          }
+        }
+      }
+    },
+    "iCloud · 自动备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud · Auto Backup"
+          }
+        }
+      }
+    },
+    "iCloud 云盘不可用：在 iOS 设置里登录 iCloud，并给 FreeGrid 打开 iCloud 云盘。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud Drive isn't available. Sign in to iCloud in iOS Settings and turn on iCloud Drive for FreeGrid."
+          }
+        }
+      }
+    },
+    "上次 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup %@"
+          }
+        }
+      }
+    },
+    "从 %@ 的备份恢复？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore from the %@ backup?"
+          }
+        }
+      }
+    },
+    "写入前会先给你看一遍预览，和从 JSON 导入一样。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll see a preview before anything is written, just like importing JSON."
+          }
+        }
+      }
+    },
+    "取不回这份备份：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't fetch this backup: %@"
+          }
+        }
+      }
+    },
+    "备份失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup failed: %@"
+          }
+        }
+      }
+    },
+    "已备份到 iCloud 云盘": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backed up to iCloud Drive"
+          }
+        }
+      }
+    },
+    "恢复": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "正在从 iCloud 取回备份…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching the backup from iCloud…"
+          }
+        }
+      }
+    },
+    "正在备份…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backing up…"
+          }
+        }
+      }
+    },
+    "现在备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Up Now"
+          }
+        }
+      }
+    },
+    "离开 App 时每天最多存一份，留最近 %lld 份。%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves at most once a day when you leave the app and keeps the latest %lld. %@"
+          }
+        }
+      }
+    },
+    "自动备份到 iCloud 云盘": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Up to iCloud Drive"
+          }
+        }
+      }
+    },
+    "还没备份过": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backups yet"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

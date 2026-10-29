@@ -90,9 +90,12 @@ final class StoreBootstrap {
     }
 
     /// 账本固定放在 App 自己的容器里。App 有了 App Group（给小组件用）以后，SwiftData 默认会把账本搬进共享容器、
-    /// 改开那一份（2026-10-25 真机上遇到）；小组件不读账本，不让它搬，升级前后打开的始终是同一个文件
+    /// 改开那一份（2026-10-25 真机上遇到）；小组件不读账本，不让它搬，升级前后打开的始终是同一个文件。
+    /// 账本也不进 CloudKit：2.2 为 iCloud 自动备份加了 iCloud 容器，SwiftData 默认看到容器就给账本开 CloudKit 同步
+    /// （模拟器上启动就崩在 CloudKit 初始化，2026-10-29）。备份只往 iCloud 云盘写 JSON，见 `ICloudBackup`
     nonisolated static func configuration(isStoredInMemoryOnly: Bool = false) -> ModelConfiguration {
-        ModelConfiguration(schema: schema, isStoredInMemoryOnly: isStoredInMemoryOnly, groupContainer: .none)
+        ModelConfiguration(schema: schema, isStoredInMemoryOnly: isStoredInMemoryOnly, groupContainer: .none,
+                           cloudKitDatabase: .none)
     }
 
     private static func makeProductionContainer() throws -> ModelContainer {

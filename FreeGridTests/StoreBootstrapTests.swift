@@ -65,6 +65,12 @@ struct StoreBootstrapTests {
         #expect(url.lastPathComponent == "default.store")
     }
 
+    /// 有了 iCloud 容器（自动备份用）以后账本也不能被 SwiftData 自动接上 CloudKit 同步
+    @Test func ledgerNeverSyncsThroughCloudKit() {
+        #expect(StoreBootstrap.configuration().cloudKitContainerIdentifier == nil)
+        #expect(StoreBootstrap.configuration(isStoredInMemoryOnly: true).cloudKitContainerIdentifier == nil)
+    }
+
     @Test func forcedFailureUsesStableSafeCode() {
         let failure = StoreBootstrap.Failure.make(
             from: StoreBootstrap.BootstrapError.forcedFailure
