@@ -662,21 +662,9 @@
     "%lld 天没记 · 日均先停住": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld day unrecorded · average on hold"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld days unrecorded · average on hold"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-day gap · on hold"
           }
         }
       }
@@ -684,21 +672,9 @@
     "%lld 天没记 · 空档按估算": {
       "localizations": {
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld day unrecorded · gap uses estimate"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld days unrecorded · gap uses estimate"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-day gap · estimated"
           }
         }
       }
