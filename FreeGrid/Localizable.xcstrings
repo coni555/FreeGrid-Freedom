@@ -3474,28 +3474,6 @@
         }
       }
     },
-    "其余 %lld 类": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld more"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld more"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "再加一个目标": {
       "localizations": {
         "en": {

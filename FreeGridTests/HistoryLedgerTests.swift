@@ -72,35 +72,27 @@ struct HistoryLedgerTests {
         #expect(try index.search("月付", filter: .category("午餐")).summary.count == 0)
     }
 
-    /// 月度汇总的图：固定支出按金额排进去，退款多过支出的类不画，多了就把后面的合成一份
-    @Test func chartSharesSortFixedInDropRefundsAndMergeTheTail() {
+    /// 月度汇总的图：固定支出按金额排进去，退款多过支出的类不画，其余每一类都画
+    @Test func chartSharesSortFixedInAndDropRefunds() {
         let breakdown = HistoryLedger.Breakdown(fixed: 300, categories: [
             .init(category: "午餐", total: 500), .init(category: "交通", total: 200),
             .init(category: "娱乐", total: 80), .init(category: "早餐", total: 20), .init(category: "购物", total: -30),
         ])
         #expect(HistoryLedger.shares(breakdown).map(\.kind) == [.category("午餐"), .fixed, .category("交通"), .category("娱乐"), .category("早餐")])
-        let merged = HistoryLedger.shares(breakdown, limit: 4)
-        #expect(merged.map(\.kind) == [.category("午餐"), .fixed, .category("交通"), .rest(2)])
-        #expect(merged.last?.total == 100)
-        #expect(HistoryLedger.shares(breakdown, limit: 5).count == 5)
     }
 
-    /// 扇形图配色：同一分类跟着它在分类列表里的位置走，同一环里撞色就顺延，「其余」不占颜色
-    @Test func pieColorsFollowTheCategoryAndNeverRepeatInOneRing() {
+    /// 扇形图配色：出现过的份按分类列表排好依次取色，跟月份里的排名无关，所以同一分类每个月同色
+    @Test func pieColorsFollowTheCategoryListNotTheMonthRanking() {
         let order = ["早餐", "午餐", "晚餐", "交通", "购物"]
-        let shares: [HistoryLedger.Share] = [
-            .init(kind: .category("购物"), total: 500), .init(kind: .category("午餐"), total: 300),
-            .init(kind: .fixed, total: 200), .init(kind: .rest(2), total: 50),
-        ]
-        let slots = HistoryLedger.colorSlots(shares, order: order, paletteCount: 4)
-        #expect(slots[.category("购物")] == 0)   // 第 5 个 % 4
-        #expect(slots[.category("午餐")] == 1)
-        #expect(slots[.fixed] == 2)              // 本该是 5 % 4 = 1，被午餐占了，顺延
-        #expect(slots[.rest(2)] == nil)
-        // 换个月，购物还是同一个颜色
-        let other = HistoryLedger.colorSlots([.init(kind: .category("交通"), total: 90), .init(kind: .category("购物"), total: 80)],
-                                             order: order, paletteCount: 4)
-        #expect(other[.category("购物")] == 0)
+        let kinds: Set<HistoryLedger.Share.Kind> = [.category("购物"), .category("午餐"), .fixed, .category("交通"), .category("旧名字")]
+        let slots = HistoryLedger.colorSlots(kinds, order: order, paletteCount: 10)
+        #expect(slots[.category("午餐")] == 0)
+        #expect(slots[.category("交通")] == 1)
+        #expect(slots[.category("购物")] == 2)
+        #expect(slots[.category("旧名字")] == 3)   // 列表里没有的排在后面
+        #expect(slots[.fixed] == 4)
+        // 颜色不够时才循环
+        #expect(HistoryLedger.colorSlots(kinds, order: order, paletteCount: 4)[.fixed] == 0)
     }
 
     @Test func categoryDaysUseOneDecimalBelowTenAndFlagTinyAmounts() {

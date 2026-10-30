@@ -27,6 +27,7 @@ struct MonthlySummaryView: View {
 
     var body: some View {
         let months = monthlyStats
+        let colors = pieColors(months)
         ScrollView {
             if months.isEmpty {
                 VStack(spacing: Spacing.sm) {
@@ -45,7 +46,7 @@ struct MonthlySummaryView: View {
                         GhostButton(title: String(localized: "查看全部时间的明细")) { select(.allTime) }
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    ForEach(months) { monthCard($0, expandedByDefault: $0.id == months.first?.id) }
+                    ForEach(months) { monthCard($0, expandedByDefault: $0.id == months.first?.id, colors: colors) }
                 }
                 .padding()
             }
@@ -55,7 +56,14 @@ struct MonthlySummaryView: View {
         .inlineNavTitle()
     }
 
-    private func monthCard(_ stat: MonthlyStat, expandedByDefault: Bool) -> some View {
+    /// 扇形图配色在所有月份之间统一分，同一分类每个月同色
+    private func pieColors(_ months: [MonthlyStat]) -> [HistoryLedger.Share.Kind: Int] {
+        let kinds = Set(months.flatMap { HistoryLedger.shares($0.breakdown).map(\.kind) })
+        return HistoryLedger.colorSlots(kinds, order: ExpenseCategoryStorage.decode(encodedCategoryOptions).allNames,
+                                        paletteCount: MonthCategoryChart.palette.count)
+    }
+
+    private func monthCard(_ stat: MonthlyStat, expandedByDefault: Bool, colors: [HistoryLedger.Share.Kind: Int]) -> some View {
         let isExpanded = toggled.contains(stat.id) != expandedByDefault
         let hasChart = !HistoryLedger.shares(stat.breakdown).isEmpty
         return VaultCard {
@@ -95,8 +103,7 @@ struct MonthlySummaryView: View {
 
                 if isExpanded && hasChart {
                     Hairline(color: .hairlineSoft)
-                    MonthCategoryChart(breakdown: stat.breakdown,
-                                       categoryOrder: ExpenseCategoryStorage.decode(encodedCategoryOptions).allNames)
+                    MonthCategoryChart(breakdown: stat.breakdown, colorSlots: colors)
                 }
 
                 if onSelect != nil {

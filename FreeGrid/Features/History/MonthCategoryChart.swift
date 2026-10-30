@@ -10,18 +10,17 @@ struct MonthCategoryChart: View {
     }
 
     let breakdown: HistoryLedger.Breakdown
-    /// 分类列表里的名字顺序：扇形图按它给每个分类固定一个颜色
-    var categoryOrder: [String] = []
+    /// 扇形图里每一份的颜色（调色板的第几个）：由月度汇总按所有月份统一分好，同一分类每个月同色
+    var colorSlots: [HistoryLedger.Share.Kind: Int] = [:]
 
     @AppStorage("monthlyChartStyle", store: AppPreferences.store) private var style = Style.bars
     /// 扇形图上点中的一份；再点一下取消
     @State private var selected: HistoryLedger.Share.Kind?
     @State private var angle: Double?
 
-    /// 扇形图最多画几份，其余合成「其余 N 类」
-    private static let pieLimit = 5
-    /// 扇形图的调色板：和现金蓝、资产金同样的明度和饱和度，深色模式各提亮一点；「其余 N 类」画灰
-    private static let palette: [Color] = [
+    /// 扇形图的调色板：和现金蓝、资产金同样的明度和饱和度，深色模式各提亮一点。
+    /// 十个颜色，默认九类加固定支出都不撞色；相邻两个色相拉开，列表里挨着的分类不会像
+    static let palette: [Color] = [
         .cashBlue,
         .dyn(lightRGB: (0.91, 0.53, 0.45), darkRGB: (0.96, 0.63, 0.55)),  // 珊瑚
         .dyn(lightRGB: (0.90, 0.68, 0.28), darkRGB: (0.93, 0.80, 0.47)),  // 金
@@ -29,10 +28,13 @@ struct MonthCategoryChart: View {
         .dyn(lightRGB: (0.58, 0.50, 0.86), darkRGB: (0.71, 0.64, 0.95)),  // 紫
         .dyn(lightRGB: (0.86, 0.49, 0.68), darkRGB: (0.93, 0.63, 0.79)),  // 玫瑰
         .dyn(lightRGB: (0.55, 0.72, 0.38), darkRGB: (0.69, 0.84, 0.53)),  // 草绿
+        .dyn(lightRGB: (0.38, 0.47, 0.80), darkRGB: (0.55, 0.63, 0.93)),  // 靛蓝
+        .dyn(lightRGB: (0.78, 0.62, 0.47), darkRGB: (0.86, 0.73, 0.59)),  // 沙
+        .dyn(lightRGB: (0.66, 0.42, 0.62), darkRGB: (0.80, 0.58, 0.77)),  // 梅
     ]
 
     var body: some View {
-        let shares = HistoryLedger.shares(breakdown, limit: style == .pie ? Self.pieLimit : nil)
+        let shares = HistoryLedger.shares(breakdown)
         let total = shares.reduce(0) { $0 + $1.total }
         if !shares.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.md) {
@@ -121,12 +123,11 @@ struct MonthCategoryChart: View {
 
     private func pie(_ shares: [HistoryLedger.Share], total: Double) -> some View {
         let focus = shares.first { $0.kind == selected }
-        let slots = HistoryLedger.colorSlots(shares, order: categoryOrder, paletteCount: Self.palette.count)
         return HStack(alignment: .center, spacing: Spacing.lg) {
             Chart(shares) { share in
                 SectorMark(angle: .value("金额", share.total), innerRadius: .ratio(0.8), angularInset: 1.5)
                     .cornerRadius(1.5)
-                    .foregroundStyle(color(share.kind, slots: slots))
+                    .foregroundStyle(color(share.kind))
             }
             .chartLegend(.hidden)
             .chartAngleSelection(value: $angle)
@@ -154,7 +155,7 @@ struct MonthCategoryChart: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(shares) { share in
-                    legendRow(share, color: color(share.kind, slots: slots), total: total)
+                    legendRow(share, color: color(share.kind), total: total)
                 }
             }
         }
@@ -192,8 +193,8 @@ struct MonthCategoryChart: View {
     }
 
     /// 点中一份时，其余几份退到很淡
-    private func color(_ kind: HistoryLedger.Share.Kind, slots: [HistoryLedger.Share.Kind: Int]) -> Color {
-        let base = slots[kind].map { Self.palette[$0] } ?? Color.inkFaint.opacity(0.5)
+    private func color(_ kind: HistoryLedger.Share.Kind) -> Color {
+        let base = Self.palette[colorSlots[kind] ?? 0]
         guard let selected, selected != kind else { return base }
         return base.opacity(0.22)
     }
@@ -212,7 +213,6 @@ struct MonthCategoryChart: View {
         switch kind {
         case .fixed: return String(localized: "固定支出")
         case .category(let category): return ExpenseCategory.displayName(category)
-        case .rest(let count): return String(localized: "其余 \(count) 类")
         }
     }
 

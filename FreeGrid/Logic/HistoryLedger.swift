@@ -205,55 +205,35 @@ enum HistoryLedger {
         return result
     }
 
-    /// 月度汇总里图上的一份：固定支出、一个分类，或者排在后面合起来的几类
+    /// 月度汇总里图上的一份：固定支出或一个分类
     struct Share: Equatable, Identifiable {
         enum Kind: Hashable {
             case fixed
             case category(String)
-            /// 合进来的有几类
-            case rest(Int)
         }
         let kind: Kind
         let total: Double
         var id: Kind { kind }
     }
 
-    /// 图上画哪几份：固定支出和各分类放在一起从多到少，退款多过支出的类不画；
-    /// 多于 limit 份时留前 limit − 1 份，其余合成一份（扇形图切太碎就看不清）
-    static func shares(_ breakdown: Breakdown, limit: Int? = nil) -> [Share] {
+    /// 图上画哪几份：固定支出和各分类放在一起从多到少，退款多过支出的类不画。每一类都画，不合并
+    static func shares(_ breakdown: Breakdown) -> [Share] {
         var all = breakdown.categories.filter { $0.total > 0 }.map { Share(kind: .category($0.category), total: $0.total) }
         if breakdown.fixed > 0 { all.append(Share(kind: .fixed, total: breakdown.fixed)) }
-        all.sort { $0.total > $1.total }
-        guard let limit, all.count > limit else { return all }
-        let kept = all.prefix(limit - 1)
-        let rest = all.dropFirst(limit - 1)
-        return kept + [Share(kind: .rest(rest.count), total: rest.reduce(0) { $0 + $1.total })]
+        return all.sorted { $0.total > $1.total }
     }
 
-    /// 扇形图上每一份用调色板的第几个颜色：同一个分类每个月尽量同色（按它在分类列表里的位置），
-    /// 同一个环里撞色时顺延到没用过的颜色；「其余 N 类」不占颜色（画灰）。
-    /// `order` 是分类列表里的名字顺序，固定支出排在所有分类后面
-    static func colorSlots(_ shares: [Share], order: [String], paletteCount: Int) -> [Share.Kind: Int] {
-        var result: [Share.Kind: Int] = [:]
-        var used = Set<Int>()
-        for share in shares {
-            let preferred: Int
-            switch share.kind {
-            case .rest: continue
-            case .fixed: preferred = order.count
-            case .category(let name):
-                // 不在列表里的（旧账里的名字）按字取一个固定位置
-                preferred = order.firstIndex(of: name) ?? name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+    /// 扇形图配色：把所有月份里出现过的份按分类列表的顺序排好（列表里没有的旧名字按名字排在后面，
+    /// 固定支出最后），依次取调色板的颜色。所以同一个分类每个月同色；出现过的不超过颜色数时谁也不撞色
+    static func colorSlots(_ kinds: Set<Share.Kind>, order: [String], paletteCount: Int) -> [Share.Kind: Int] {
+        func rank(_ kind: Share.Kind) -> (Int, Int, String) {
+            switch kind {
+            case .category(let name): order.firstIndex(of: name).map { (0, $0, "") } ?? (1, 0, name)
+            case .fixed: (2, 0, "")
             }
-            var slot = preferred % paletteCount
-            for step in 0..<paletteCount where !used.contains((preferred + step) % paletteCount) {
-                slot = (preferred + step) % paletteCount
-                break
-            }
-            used.insert(slot)
-            result[share.kind] = slot
         }
-        return result
+        let sorted = kinds.sorted { rank($0) < rank($1) }
+        return Dictionary(uniqueKeysWithValues: sorted.enumerated().map { ($1, $0 % paletteCount) })
     }
 
     /// 分类后面的「≈ N 天」：不足 0.1 天写「< 0.1 天」，不足 10 天留一位小数，其余取整。
