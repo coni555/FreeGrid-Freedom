@@ -59,6 +59,17 @@ struct MonthlySpendingTests {
         #expect(abs(previous - 60) < 1e-9)
     }
 
+    @Test func aLoneEntryFromAMonthAgoDoesNotHalveTheEstimate() {
+        // 第 1 天记一笔 20 就没再记，第 31 天填每天 100 的估算：(20 + 30 × 100) / 31，中间的空天不算一分没花
+        let burn = FreedomMath.burnEstimate(entries([(1, 20)]), everydayEstimate: 3044, now: dayNumber(31))
+        #expect(abs(burn.dailyBurn - (20.0 + 30 * 100) / 31) < 1e-9)
+        #expect(burn.basis == .recordsAndEstimate)
+        #expect(burn.gapDays == 16)
+        // 第 10 天看也一样：还没记到的 29 天都按估算
+        let early = FreedomMath.burnEstimate(entries([(1, 20)]), everydayEstimate: 3044, now: dayNumber(10))
+        #expect(abs(early.dailyBurn - (20.0 + 29 * 100) / 30) < 1e-9)
+    }
+
     @Test func withoutAnEstimateRecordsWorkAsBefore() {
         let burn = FreedomMath.burnEstimate(entries(daily(10)), now: dayNumber(10))
         #expect(burn.dailyBurn == 60)

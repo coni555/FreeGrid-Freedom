@@ -16,6 +16,7 @@ struct SettingsView: View {
     /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
     @AppStorage(AssetsLayout.key, store: AppPreferences.store) private var assetsLayout = AssetsLayout.moneyTime
+    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
 
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -568,10 +569,11 @@ struct SettingsView: View {
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
-    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置
+    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置；只填每月花销、不记账的人也有数字可圈
     @ViewBuilder
     private var guideRow: some View {
-        if expenses.isEmpty && incomes.isEmpty {
+        let hasRecords = !expenses.isEmpty || !incomes.isEmpty
+        if !hasRecords && MonthlySpending.valid(monthlySpending) == nil {
             DeckRow(title: String(localized: "使用指引"), titleColor: .inkFaint, chevron: nil) {
                 Text("记一笔后可看")
                     .font(.system(size: 13, design: .rounded))
@@ -580,7 +582,7 @@ struct SettingsView: View {
         } else {
             NavigationLink {
                 // 选了一个讲解：记下重放请求，ContentView 看到后切到对应页面
-                GuideListPage(onReplay: { guide.requestReplay($0) })
+                GuideListPage(hasRecords: hasRecords, onReplay: { guide.requestReplay($0) })
             } label: {
                 DeckRow(title: String(localized: "使用指引")) { EmptyView() }
             }
@@ -723,10 +725,16 @@ struct SettingsView: View {
 /// 单独成一个视图是为了拿到这一页自己的 dismiss：先退回 Settings 首页再开始讲，
 /// 否则「Settings 怎么用」要圈的东西被这一页盖着。
 private struct GuideListPage: View {
+    /// 明细的讲解要圈一行记录，没有记录时不列
+    let hasRecords: Bool
     let onReplay: (AppGuide.Tour) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    private let items: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] = [
+    private var items: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] {
+        allItems.filter { hasRecords || $0.tour != .history }
+    }
+
+    private let allItems: [(tour: AppGuide.Tour, icon: String, title: String, id: String)] = [
         (.dashboard, "chart.line.uptrend.xyaxis", String(localized: "认识首页"), "replay-dashboard-guide"),
         (.assets, "banknote", String(localized: "钱包怎么用"), "replay-assets-guide"),
         (.history, "clock.arrow.circlepath", String(localized: "明细怎么用"), "replay-history-guide"),

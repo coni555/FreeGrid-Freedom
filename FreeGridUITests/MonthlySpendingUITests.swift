@@ -32,6 +32,25 @@ final class MonthlySpendingUITests: XCTestCase {
         attach(app, "按月估算-首页")
     }
 
+    /// 只填每月花销、不记账的人也能重看讲解；明细要有记录才讲，所以不列
+    @MainActor
+    func testGuideListOpensWithOnlyMonthlySpending() {
+        let app = XCUIApplication()
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                                           "-monthlySpendingEstimate", "3000", "-UseInMemoryStore", "-proPreview", "NO"]
+        app.launch()
+        app.tabBars.buttons["设置"].tap()
+        app.tapSettingsRow("guide-list", inCard: "settings-card-about")
+        XCTAssertTrue(app.buttons["replay-dashboard-guide"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["replay-history-guide"].exists)
+        attach(app, "按月估算-使用指引")
+        app.buttons["replay-dashboard-guide"].tap()
+        let next = app.buttons["guide-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["首页"].exists || app.tabBars.buttons["首页"].isSelected)
+        attach(app, "按月估算-重看首页讲解")
+    }
+
     @MainActor
     func testTheHomeEntryFillsItInPlace() {
         let app = XCUIApplication()

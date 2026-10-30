@@ -97,6 +97,8 @@ extension FreedomMath {
     /// 过渡：填了每月花销的人记第一笔时，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
     /// 所以记账不满 30 天时，分母按 30 天算，还没记到的那些天按每月花销补；记满 30 天正好全按记录，中间没有跳变。
     /// 断档也走这一条：补的天数 = 总天数（至少 30）− 记录段的天数。
+    /// 记账还没跨满 30 天时，记录段只到最后一笔，后面的空天也按每月花销补：
+    /// 下载那天记了一笔 20 元就没再记，一个月后填 3000，日均该接近 98，不能把中间 14 天当成一分没花。
     static func burnEstimate(_ entries: [BurnEntry], everydayEstimate: Double? = nil, now: Date = .now,
                              calendar: Calendar = .current) -> BurnEstimate {
         let estimateDaily = everydayEstimate.flatMap { $0.isFinite && $0 >= 0 ? $0 / GridUnit.month.daysPerCell : nil }
@@ -112,9 +114,11 @@ extension FreedomMath {
         let sinceLast = calendar.dateComponents([.day], from: calendar.startOfDay(for: lastDate),
                                                 to: calendar.startOfDay(for: now)).day ?? 0
         let gap = min(max(0, sinceLast - burnGraceDays), max(0, days - 1))
+        let loggedDays = (calendar.dateComponents([.day], from: calendar.startOfDay(for: firstDate ?? lastDate),
+                                                  to: calendar.startOfDay(for: lastDate)).day ?? 0) + 1
         // 记录天数照日历算（记账天数卡、自检里程碑用它），只有日均的分母去掉断档
-        let recorded = recordedBurn(entries, days: days - gap, firstDate: firstDate, calendar: calendar)
-        let recordedDays = days - gap
+        let recordedDays = estimateDaily != nil && loggedDays < estimateBlendDays ? min(loggedDays, days - gap) : days - gap
+        let recorded = recordedBurn(entries, days: recordedDays, firstDate: firstDate, calendar: calendar)
         let span = max(days, estimateBlendDays)
         guard span > recordedDays, let estimateDaily, recorded.dailyBurn.isFinite else {
             return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
