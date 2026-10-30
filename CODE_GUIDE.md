@@ -176,12 +176,12 @@ flowchart TD
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
 | 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
-| 历史页按月取数、分类筛选、按天分组的规则 | `Logic/HistoryLedger.swift` |
+| 历史页按月取数、月份卡片里的支出构成（分类、固定支出）和点选筛选、按天分组的规则 | `Logic/HistoryLedger.swift` |
 | 搜索快照、日期归并、预处理文本与金额、后台匹配和月度汇总 | `Logic/HistorySearch.swift` |
 | 搜索输入、防抖、取消、缓存更新与结果展示 | `Features/History/HistorySearchBar.swift`、`HistorySearchState.swift`、`HistorySearchDataSource.swift`、`HistoryTransactionRow.swift` |
 | 指引（压暗、圈出位置、逐步说明）：首页和 History 的讲解，以及带新用户记下第一笔钱和第一笔支出的起步引导 | `Features/Guide/AppGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由各页用 `guideTarget` 上报；重放入口是 `SettingsView` 的「使用指引」列表 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
-| 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
+| 月度汇总（每月收支和净）、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
 | 预览后账本改变，拒绝旧计划 | `Data/ImportLedgerSnapshot.swift` → `DataIO.commitImport` |
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
@@ -273,7 +273,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [HistorySearchTests](FreeGridTests/HistorySearchTests.swift)：与旧搜索逐项对照、中文与多关键词、退款和金额格式、筛选、同日排序、预处理缓存、取消与乱序完成、编辑删除和备份恢复。
 - [HistorySearchPerformanceTests](FreeGridTests/HistorySearchPerformanceTests.swift)：100 / 1000 / 5000 / 10000 条合成记录，对比旧管线与预处理后的查询；分别记录主 actor 提取快照和后台计算耗时。
 - `HistorySearchRegressionUITests` 验证搜索结果编辑、撤销、建议词、跨月、筛选、快速删除与滚回输入框不弹键盘；`HistorySearchPerformanceUITests` 在指定 `HISTORY_PERF_DIR` 和 `HISTORY_PERF_PHASE` 时执行四档交互验收；`HistorySearchScrollUITests` 使用同样的参数执行 10000 条记录的冷/暖打开与快速往返滚动验收。
-- [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
+- [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、月供扣款合成固定支出、每类折合天数写法、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
