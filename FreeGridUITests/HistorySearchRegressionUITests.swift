@@ -103,8 +103,11 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         let shopping = app.buttons["history-breakdown-购物"]
         XCTAssertFalse(shopping.exists)
+        // 展开、收起点的是同一处：开关不随列表变长挪到下面去
+        let top = toggle.frame.minY
         toggle.tap()
         XCTAssertTrue(shopping.waitForExistence(timeout: 3))
+        XCTAssertEqual(toggle.frame.minY, top, accuracy: 1)
         XCTAssertTrue(app.buttons["history-breakdown-交通"].exists)
         XCTAssertFalse(app.buttons["history-breakdown-income"].exists)
         shopping.tap()

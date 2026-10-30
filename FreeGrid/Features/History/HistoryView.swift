@@ -556,19 +556,43 @@ struct HistoryView: View {
                     }
                 }
 
-                HStack(spacing: Spacing.lg) {
-                    if summary.income != 0 {
-                        scopeStat(String(localized: "收入"), FinancialFormatting.yuan(summary.income))
-                        scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
-                    } else if let average = dailyAverage(summary) {
-                        // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
-                        scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
+                let canExpand = ledger.breakdown.fixed != 0 || !ledger.breakdown.categories.isEmpty
+                // 这一行同时是各类支出的开关：箭头一直在这一行的右端，展开、收起都点同一处
+                Button {
+                    guard canExpand else { return }
+                    withAnimation(.snappy(duration: 0.32)) { breakdownExpanded.toggle() }
+                } label: {
+                    HStack(spacing: Spacing.lg) {
+                        if summary.income != 0 {
+                            scopeStat(String(localized: "收入"), FinancialFormatting.yuan(summary.income))
+                            scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
+                        } else if let average = dailyAverage(summary) {
+                            // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
+                            scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
+                        }
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Text("\(summary.count) 笔")
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(Color.inkFaint)
+                            if canExpand {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(Color.inkMuted)
+                                    .rotationEffect(.degrees(breakdownExpanded ? 180 : 0))
+                            }
+                        }
                     }
-                    Spacer()
-                    Text("\(summary.count) 笔")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Color.inkFaint)
+                    // 点击区 36pt，视觉上仍按一行小字排
+                    .frame(minHeight: 36)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .padding(.vertical, -9)
+                .accessibilityIdentifier("history-breakdown-toggle")
+                .accessibilityRemoveTraits(canExpand ? [] : .isButton)
+                .accessibilityValue(canExpand ? (breakdownExpanded ? "已展开" : "已收起") : "")
+                .accessibilityHint(canExpand ? (breakdownExpanded ? String(localized: "收起各类支出") : String(localized: "展开各类支出")) : "")
 
                 breakdown(ledger, active: active, options: options)
             }
@@ -674,7 +698,7 @@ struct HistoryView: View {
         var id: Selection { filter }
     }
 
-    /// 默认收起，只留一行「展开 N 类」。展开后支出从多到少，每类后面写折合首页日均的几天、
+    /// 默认收起，点上面「N 笔」那一行展开。展开后支出从多到少，每类后面写折合首页日均的几天、
     /// 下面一道细条和最多的那类比长短；收入单列在最后。点一行流水就只留这一类，再点一下回到全部
     @ViewBuilder
     private func breakdown(_ ledger: ScopedLedger, active: Selection, options: ExpenseCategoryOptions) -> some View {
@@ -704,28 +728,6 @@ struct HistoryView: View {
                                      active: active, share: nil, days: nil)
                     }
                 }
-                // 和首页卡片的收起 / 展开同一个样子
-                Button {
-                    withAnimation(.snappy(duration: 0.32)) { breakdownExpanded.toggle() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(breakdownExpanded ? "收起" : "展开 \(expenseRows.count) 类")
-                            .font(.system(.caption2, design: .rounded))
-                            .contentTransition(.opacity)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .medium))
-                            .rotationEffect(.degrees(breakdownExpanded ? 180 : 0))
-                    }
-                    .foregroundStyle(Color.inkFaint)
-                    .padding(.top, breakdownExpanded ? Spacing.xs : 2)
-                    .padding(.bottom, 2)
-                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("history-breakdown-toggle")
-                .accessibilityLabel(breakdownExpanded ? String(localized: "收起各类支出") : String(localized: "展开各类支出"))
-                .accessibilityValue(breakdownExpanded ? "已展开" : "已收起")
             }
         }
     }
