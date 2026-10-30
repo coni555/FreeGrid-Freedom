@@ -18,7 +18,7 @@ final class AppGuide {
         // History
         case month, row, tools
         // 首页
-        case number, grid, repaymentDays, simulate, trend
+        case number, grid, repaymentDays, simulate, trend, cards
         // Assets
         case netWorth, unitSwitch, transfer, buckets, passive, loans
         // Settings
@@ -39,11 +39,14 @@ final class AppGuide {
         case .dashboard:
             return [
                 Step(target: .number, text: String(localized: "按现在的花法，你的财富还能撑这么多天。\n下面写着大约能撑到哪一天。")),
+                // 顺序跟屏幕从上到下走：大数字、它下面的趋势行、格子、模拟、小卡
+                Step(target: .trend, text: String(localized: "点这一行，展开或收起最近几周的变化。")),
                 Step(target: .grid, text: String(localized: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。")),
                 // 只有填了贷款、格子上有孔时才出现
                 Step(target: .repaymentDays, text: String(localized: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。")),
                 Step(target: .simulate, text: String(localized: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。")),
-                Step(target: .trend, text: String(localized: "点这一行，展开或收起最近几周的变化。")),
+                // 记过一笔支出才有小卡
+                Step(target: .cards, text: String(localized: "下面的小卡放哪些、什么顺序由你定。\n按住一张拖动换位置，点「编辑卡片」增减。")),
             ]
         case .assets:
             return [

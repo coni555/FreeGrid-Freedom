@@ -64,6 +64,7 @@ struct DashboardView: View {
 
 extension DashboardContent {
     fileprivate static let topID = "dashboard-top"
+    fileprivate static let cardsID = "dashboard-cards"
 }
 
 /// 一次「打开记支出表单」的请求
@@ -149,6 +150,11 @@ private struct DashboardContent: View {
                 guard !Task.isCancelled, expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
             }
+            // 讲到小卡时滚下去，往回翻再滚回顶上
+            .guideScroll(guide, tour: .dashboard, scroller: scroller, anchors: [
+                .number: (Self.topID, .top), .grid: (Self.topID, .top), .repaymentDays: (Self.topID, .top),
+                .simulate: (Self.topID, .top), .trend: (Self.topID, .top), .cards: (Self.cardsID, .center),
+            ])
             }
             .scrollContentBackground(.hidden)
             // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
@@ -216,7 +222,12 @@ private struct DashboardContent: View {
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入
                     simulateRow      // 模拟决策
-                    bottomCards      // 小卡和今日对比长条，放哪些、什么顺序由用户定
+                    if snapshot.hasExpenses {
+                        // 包一层，讲解圈的是小卡加下面「编辑卡片」那一行
+                        VStack(spacing: Spacing.lg) { bottomCards }   // 小卡和今日对比长条，放哪些、什么顺序由用户定
+                            .guideTarget(.cards, in: guide)
+                            .id(Self.cardsID)
+                    }
     }
 
     // ============================================================================

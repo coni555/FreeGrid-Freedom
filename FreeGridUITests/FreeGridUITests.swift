@@ -836,11 +836,11 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("50")
         app.buttons["保存"].tap()
-        // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共三步
+        // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共四步（大数字、格子、模拟、小卡）
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
         XCTAssertFalse(app.staticTexts["setup-guide-text"].exists)
-        for _ in 0..<2 { next.tap() }
+        for _ in 0..<3 { next.tap() }
         expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
         waitForExpectations(timeout: 3)
         Thread.sleep(forTimeInterval: 0.4)

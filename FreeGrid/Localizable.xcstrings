@@ -2232,6 +2232,16 @@
         }
       }
     },
+    "下面的小卡放哪些、什么顺序由你定。\n按住一张拖动换位置，点「编辑卡片」增减。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You choose which cards sit down here and in what order.\nPress and hold a card to drag it; tap “Edit Cards” to add or remove."
+          }
+        }
+      }
+    },
     "不会。账本只存在本机，没有账号、没有埋点。只有购买和恢复 Pro 时经过 Apple。": {
       "localizations": {
         "en": {
