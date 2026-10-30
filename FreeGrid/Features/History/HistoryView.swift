@@ -1,4 +1,5 @@
-// 历史记录：按月查看、按天分组，分类条筛选，支持搜索与撤销。搜索结果里的支出可以一起移到别的分类（Pro）。
+// 历史记录：按月查看、按天分组，月份卡片里列出钱花在哪几类、点一类就只看它，支持搜索与撤销。
+// 搜索结果里的支出可以一起移到别的分类（Pro）。
 
 import SwiftUI
 import SwiftData
@@ -7,8 +8,6 @@ struct HistoryView: View {
 
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
-    /// 筛选条上认出月供扣款（它的「分类」是贷款名）
-    @Query private var loans: [Loan]
 
     @Environment(\.modelContext) private var modelContext
 
@@ -16,11 +15,10 @@ struct HistoryView: View {
 
     /// 当前查看的时间范围，默认本月
     @State private var scope: HistoryScope = .month(HistoryMonth(containing: .now))
-    /// 分类条默认收起，点右上角筛选图标才出现；收起时一并清掉筛选，避免列表被看不见的条件过滤
-    @State private var showingFilters = false
-
-    /// 分类条上选中的一项。换月后该项没有记录时自动视为「全部」。
+    /// 月份卡片里点中的一类（或收入、固定支出），流水只留它；再点一下取消。换月后该项没有记录时自动视为「全部」。
     @State private var selection: Selection = .all
+    /// 分类多时只列前几类，其余收起；展开过就一直展开
+    @AppStorage("historyBreakdownExpanded", store: AppPreferences.store) private var breakdownExpanded = false
 
     /// 搜索时跨全部月份，不受当前月份限制
     @State private var isSearching = false
@@ -52,13 +50,13 @@ struct HistoryView: View {
 
     /// 首次进入时的逐步指引；遮罩本身挂在 ContentView，这里只负责上报位置和触发
     @Environment(AppGuide.self) private var guide
-    /// 搜索和筛选两个图标的位置，合起来作为指引的一个目标
+    /// 搜索图标的位置，作为指引的一个目标
     @State private var toolFrames = HistoryToolFrames()
     @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var guideCompleted = false
     /// 重放指引前让列表回到顶部，每次加一
     @State private var scrollToTop = 0
 
-    /// 分类条把「只看收入」和各支出分类放在同一排，一次只选一项
+    /// 收入、固定支出和各支出分类一次只选一项
     private typealias Selection = HistorySearch.Filter
 
     @Environment(\.tabActivity) private var tabActivity
@@ -98,29 +96,20 @@ struct HistoryView: View {
                         if isSearching {
                             searchFocused = true
                         } else {
-                            search.begin(filter: showingFilters ? selection : .all)
+                            // 点中了一类就在这一类里搜：比如在「其他」里搜「咖啡」，再一起移走
+                            search.begin(filter: ledger?.active(selection) ?? .all)
                             isSearching = true
                         }
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report(0, frame: $0, guide: guide) }
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report($0, guide: guide) }
                     }
                     .accessibilityLabel("搜索")
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showingFilters.toggle()
-                            if !showingFilters { selection = .all }
-                        }
-                    } label: {
-                        Image(systemName: showingFilters
-                              ? "line.3.horizontal.decrease.circle.fill"
-                              : "line.3.horizontal.decrease.circle")
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report(1, frame: $0, guide: guide) }
-                    }
-                    .accessibilityLabel(showingFilters ? "收起筛选" : "按分类筛选")
                 }
             }
-            .onChange(of: showingFilters ? selection : .all) { _, value in search.setFilter(value) }
+            // 搜索栏上的筛选标签点叉清掉时
+            .onChange(of: selection) { _, value in if isSearching { search.setFilter(value) } }
+            .onReceive(NotificationCenter.default.publisher(for: .showThisMonthInHistory)) { _ in showThisMonth() }
             .onChange(of: search.appliedQuery) { monthExpansion = [:] }
             .task(id: isEmpty) {
                 // 账本里有记录才指引；等列表排好位置再开始
@@ -164,34 +153,52 @@ struct HistoryView: View {
     }
 
     private func resetForGuide() {
+        showThisMonth()
+        scrollToTop += 1
+    }
+
+    /// 回到本月、收起搜索和筛选：重放指引前，和从首页「本月花销」点进来时
+    private func showThisMonth() {
         showingMonths = false
         isSearching = false
         search.end()
         searchFocused = false
-        showingFilters = false
         selection = .all
         scope = .month(HistoryMonth(containing: .now))
-        scrollToTop += 1
     }
 
     // ============================================================================
     // MARK: - 列表
     // ============================================================================
 
-    /// 当前范围里的账，和范围卡上要的月份范围、日均。在 page 顶层算好再交给列表
+    /// 当前范围里的账，和范围卡上要的合计、支出构成、月份范围、日均。在 page 顶层算好再交给列表
     private struct ScopedLedger {
         let transactions: [LedgerTransaction]
+        let summary: HistorySummary
+        let breakdown: HistoryLedger.Breakdown
         let monthRange: ClosedRange<HistoryMonth>
         let dailyBurn: Double
 
         init(expenses: [Expense], incomes: [Income], scope: HistoryScope) {
             transactions = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: scope)
+            summary = HistoryLedger.summary(transactions)
+            breakdown = HistoryLedger.breakdown(transactions)
             monthRange = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
             // 只在按月查看时折算成天，全部时间用不到
             if case .month = scope {
                 dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses)).dailyBurn
             } else {
                 dailyBurn = 0
+            }
+        }
+
+        /// 选中的项在这个范围里已经没有记录时，退回「全部」
+        func active(_ selection: Selection) -> Selection {
+            switch selection {
+            case .all: return .all
+            case .income: return summary.income != 0 ? .income : .all
+            case .fixed: return breakdown.fixed != 0 ? .fixed : .all
+            case .category(let name): return breakdown.categories.contains { $0.category == name } ? selection : .all
             }
         }
     }
@@ -208,21 +215,17 @@ struct HistoryView: View {
     }
 
     private func ledgerSections(_ ledger: ScopedLedger) -> some View {
-        let scoped = ledger.transactions
-        let summary = HistoryLedger.summary(scoped)
-        let categories = HistoryLedger.categoryTotals(scoped)
-        let active = showingFilters ? activeSelection(categories: categories, income: summary.income) : .all
-        let visible = filtered(scoped, by: active)
+        let active = ledger.active(selection)
+        let visible = HistoryLedger.filter(ledger.transactions, by: active)
         let days = HistoryLedger.days(visible)
 
         let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
         return Group {
             Section {
-                scopeCard(summary, ledger: ledger)
+                scopeCard(ledger, active: active, options: options)
                     .id(Self.topID)
-                if showingFilters && (!categories.isEmpty || summary.income != 0) {
-                    chipRow(categories, income: summary.income, active: active)
-                        .listRowInsets(EdgeInsets(top: Spacing.sm, leading: 0, bottom: Spacing.sm, trailing: 0))
+                if active != .all {
+                    filterLine(active, count: visible.count)
                 }
 
                 if days.isEmpty {
@@ -271,7 +274,7 @@ struct HistoryView: View {
 
     /// 空搜索只展示已经准备好的推荐；匹配、格式化和分组不在 body 中执行。
     private var searchSections: some View {
-        let filter: Selection = showingFilters ? selection : .all
+        let filter = selection
         let groups = search.months
         let fewMatches = (search.result?.summary.count ?? 0) <= Self.searchExpandAllLimit
         let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
@@ -293,7 +296,7 @@ struct HistoryView: View {
                                 $0.contains(result.query)
                                     || ExpenseCategory.displayName($0).localizedCaseInsensitiveContains(result.query)
                             }
-                                ? String(localized: "没有匹配的记录\n想按分类看，用右上角的筛选")
+                                ? String(localized: "没有匹配的记录\n想按分类看，点月份卡片里的分类")
                                 : String(localized: "没有匹配的记录")
                         )
                         .multilineTextAlignment(.center)
@@ -488,30 +491,12 @@ struct HistoryView: View {
 
     private static let topID = "history-top"
 
-    /// 选中的项在当前范围里已经没有记录时，退回「全部」
-    private func activeSelection(
-        categories: [(category: String, total: Double)], income: Double
-    ) -> Selection {
-        switch selection {
-        case .all: return .all
-        case .income: return income != 0 ? .income : .all
-        case .category(let name): return categories.contains { $0.category == name } ? selection : .all
-        }
-    }
-
-    private func filtered(_ transactions: [LedgerTransaction], by selection: Selection) -> [LedgerTransaction] {
-        switch selection {
-        case .all: return transactions
-        case .income: return HistoryLedger.filter(transactions, kind: .income, category: nil)
-        case .category(let name): return HistoryLedger.filter(transactions, kind: .expense, category: name)
-        }
-    }
-
     // ============================================================================
     // MARK: - 时间范围卡片
     // ============================================================================
 
-    private func scopeCard(_ summary: HistorySummary, ledger: ScopedLedger) -> some View {
+    private func scopeCard(_ ledger: ScopedLedger, active: Selection, options: ExpenseCategoryOptions) -> some View {
+        let summary = ledger.summary
         let range = ledger.monthRange
         return VaultCard(padding: Spacing.lg) {
             VStack(alignment: .leading, spacing: 6) {
@@ -572,18 +557,20 @@ struct HistoryView: View {
                 }
 
                 HStack(spacing: Spacing.lg) {
-                    if summary.income != 0 {
-                        scopeStat(String(localized: "收入"), FinancialFormatting.yuan(summary.income))
-                        scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
-                    } else if let average = dailyAverage(summary) {
-                        // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
+                    if let average = dailyAverage(summary) {
                         scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
+                    }
+                    // 收入在下面单列一行；没有收入时「净 = −支出」只是复述上面的数字
+                    if summary.income != 0 {
+                        scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
                     }
                     Spacer()
                     Text("\(summary.count) 笔")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Color.inkFaint)
                 }
+
+                breakdown(ledger, active: active, options: options)
             }
         }
         .listRowInsets(EdgeInsets(top: Spacing.xs, leading: Spacing.lg, bottom: Spacing.xs, trailing: Spacing.lg))
@@ -642,6 +629,7 @@ struct HistoryView: View {
         switch filter {
         case .all: return nil
         case .income: return String(localized: "收入")
+        case .fixed: return String(localized: "固定支出")
         case .category(let name): return ExpenseCategory.displayName(name)
         }
     }
@@ -674,85 +662,158 @@ struct HistoryView: View {
     }
 
     // ============================================================================
-    // MARK: - 分类汇总条
+    // MARK: - 钱花在哪
     // ============================================================================
 
-    /// 横滑 chip 列表: 「全部」+「收入」+ 当前范围内各支出分类; 总数已在卡片上, 「全部」不再重复金额
-    private func chipRow(
-        _ categories: [(category: String, total: Double)], income: Double, active: Selection
-    ) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                chip(label: String(localized: "全部"), amount: nil, selected: active == .all) {
-                    selection = .all
+    /// 卡片里的一行：一个支出分类、合起来的固定支出，或收入
+    private struct BreakdownRow: Identifiable {
+        let filter: Selection
+        let title: String
+        let icon: String
+        let total: Double
+        var id: Selection { filter }
+    }
+
+    /// 分类多于这么多时，只列前几类，其余收起
+    private static let breakdownShownLimit = 5
+    private static let breakdownCollapsedCount = 4
+
+    /// 支出从多到少，每类后面写折合首页日均的几天、下面一道细条和最多的那类比长短；收入单列在最后。
+    /// 点一行流水就只留这一类，再点一下回到全部
+    @ViewBuilder
+    private func breakdown(_ ledger: ScopedLedger, active: Selection, options: ExpenseCategoryOptions) -> some View {
+        let fixed = ledger.breakdown.fixed != 0
+            ? [BreakdownRow(filter: .fixed, title: String(localized: "固定支出"), icon: "calendar", total: ledger.breakdown.fixed)]
+            : []
+        let expenseRows = (fixed + ledger.breakdown.categories.map {
+            BreakdownRow(filter: .category($0.category), title: ExpenseCategory.displayName($0.category),
+                         icon: options.icon(for: $0.category), total: $0.total)
+        }).sorted { $0.total > $1.total }
+        let collapses = expenseRows.count > Self.breakdownShownLimit
+        let hiddenCount = collapses ? expenseRows.count - Self.breakdownCollapsedCount : 0
+        // 收起时，点中的那一类排在后面也留着
+        let shown = !collapses || breakdownExpanded ? expenseRows : expenseRows.enumerated()
+            .filter { $0.offset < Self.breakdownCollapsedCount || $0.element.filter == active }
+            .map(\.element)
+        let income = ledger.summary.income
+        // 条长以最多的一类为满格，读起来是一排长短对比；占整月多少看后面的天数
+        let largest = expenseRows.first?.total ?? 0
+
+        if !expenseRows.isEmpty || income != 0 {
+            VStack(alignment: .leading, spacing: 0) {
+                Hairline(color: .hairlineSoft)
+                    .padding(.top, Spacing.sm)
+                    .padding(.bottom, Spacing.xs)
+                ForEach(shown) { row in
+                    breakdownRow(row, active: active, share: largest > 0 ? row.total / largest : 0,
+                                 days: HistoryLedger.equivalentDays(expense: row.total, dailyBurn: ledger.dailyBurn))
+                }
+                if collapses {
+                    Button {
+                        withAnimation(.snappy(duration: 0.32)) { breakdownExpanded.toggle() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(breakdownExpanded ? "收起" : "展开其余 \(hiddenCount) 类")
+                                .font(.system(.caption2, design: .rounded))
+                                .contentTransition(.opacity)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .medium))
+                                .rotationEffect(.degrees(breakdownExpanded ? 180 : 0))
+                        }
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.vertical, Spacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("history-breakdown-toggle")
+                    .accessibilityValue(breakdownExpanded ? "已展开" : "已收起")
                 }
                 if income != 0 {
-                    chip(label: String(localized: "收入"), amount: income, selected: active == .income) {
-                        selection = (active == .income) ? .all : .income
-                    }
-                }
-                ForEach(categories, id: \.category) { item in
-                    let this = Selection.category(item.category)
-                    chip(label: ExpenseCategory.displayName(item.category), amount: item.total, selected: active == this,
-                         icon: chipIcon(for: item.category)) {
-                        // 二次点击同一 chip = 取消选中
-                        selection = (active == this) ? .all : this
-                    }
+                    breakdownRow(BreakdownRow(filter: .income, title: String(localized: "收入"), icon: "arrow.down.left", total: income),
+                                 active: active, share: nil, days: nil)
                 }
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, Spacing.lg)
         }
     }
 
-    /// 筛选条上的分类图标；月供扣款的「分类」是贷款名，用日历
-    private func chipIcon(for category: String) -> String {
-        let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
-        if !options.allNames.contains(category), loans.contains(where: { $0.name == category }) { return "calendar" }
-        return options.icon(for: category)
-    }
-
-    private func chip(label: String, amount: Double?, selected: Bool, icon: String? = nil,
-                      onTap: @escaping () -> Void) -> some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 2) {
-                if let amount {
-                    HStack(spacing: 4) {
-                        if let icon {
-                            Image(systemName: icon)
-                                .font(.system(size: 10, weight: .light))
-                                .accessibilityHidden(true)
-                        }
-                        Text(label)
-                            .font(.system(.caption2, design: .monospaced))
-                            .tracking(0.5)
+    private func breakdownRow(_ row: BreakdownRow, active: Selection, share: Double?, days: Double?) -> some View {
+        let selected = active == row.filter
+        // 点中一类时，其余的退到淡色
+        let dimmed = active != .all && !selected
+        let isIncome = row.filter == .income
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { selection = selected ? .all : row.filter }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                    Image(systemName: row.icon)
+                        .font(.system(size: 12, weight: .light))
+                        .frame(width: 18)
+                        .foregroundStyle(dimmed ? Color.inkGhost : selected ? Color.skyDeep : Color.inkMuted)
+                    Text(row.title)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(dimmed ? Color.inkFaint : Color.ink)
+                        .lineLimit(1)
+                    if let days, row.total > 0 {
+                        Text(HistoryLedger.daysLabel(days))
+                            .font(.system(.caption2, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkFaint)
+                            .lineLimit(1)
                     }
-                    .foregroundStyle(selected ? Color.ink : Color.inkFaint)
-                    Text(FinancialFormatting.yuan(amount))
-                        .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
-                        .foregroundStyle(selected ? Color.ink : Color.inkMuted)
-                } else {
-                    Text(label)
-                        .font(.system(.callout, design: .rounded).weight(.medium))
-                        .foregroundStyle(selected ? Color.ink : Color.inkMuted)
+                    Spacer(minLength: Spacing.sm)
+                    Text(FinancialFormatting.yuan(row.total))
+                        .font(.system(.subheadline, design: .rounded).monospacedDigit())
+                        .foregroundStyle(dimmed ? Color.inkFaint : isIncome ? Color.skyDeep : Color.ink)
+                        .lineLimit(1)
+                }
+                if let share {
+                    // 退款多过支出的类没有条
+                    Capsule()
+                        .fill(selected ? Color.skyDeep : dimmed ? Color.hairlineSoft : Color.hairline)
+                        .frame(height: 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .scaleEffect(x: max(0, min(1, share)), anchor: .leading)
+                        .padding(.leading, 18 + Spacing.sm)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.mist)
-            )
-            // 选中只加深描边和文字，不填实心块
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(selected ? Color.ink : Color.hairlineSoft, lineWidth: 1)
-            )
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("history-filter-" + label)
+        .accessibilityHint(selected ? String(localized: "再点一下看全部") : String(localized: "只看这一类"))
+        .accessibilityIdentifier(Self.breakdownID(row.filter))
+    }
+
+    private static func breakdownID(_ filter: Selection) -> String {
+        switch filter {
+        case .all: return "history-breakdown-all"
+        case .income: return "history-breakdown-income"
+        case .fixed: return "history-breakdown-fixed"
+        case .category(let name): return "history-breakdown-" + name
+        }
+    }
+
+    /// 点中一类后，紧贴流水上方写着现在只看哪一类、几笔，随时能回到全部
+    private func filterLine(_ active: Selection, count: Int) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Text("只看「\(filterName(active) ?? "")」 · \(count) 笔")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+                .lineLimit(1)
+            Spacer()
+            Button("看全部") {
+                withAnimation(.easeInOut(duration: 0.2)) { selection = .all }
+            }
+            .font(.system(.caption, design: .rounded))
+            .foregroundStyle(Color.skyDeep)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("history-filter-clear")
+        }
+        .padding(.top, Spacing.sm)
+        .listRowInsets(EdgeInsets(top: 0, leading: Spacing.lg, bottom: 0, trailing: Spacing.lg))
     }
 
     // ============================================================================
@@ -838,15 +899,19 @@ private extension View {
     }
 }
 
+extension Notification.Name {
+    /// 首页点「本月花销」卡：切到明细、回到本月。Tab 之间不传闭包（见 ContentView 的 StableTab），用通知
+    static let showThisMonthInHistory = Notification.Name("FreeGrid.showThisMonthInHistory")
+}
+
 /// 导航栏收放时坐标每帧都可能改变；记录坐标不应使整个账本列表重新计算。
 @MainActor
 private final class HistoryToolFrames {
-    private var frames: [Int: CGRect] = [:]
+    private var frame: CGRect?
 
-    func report(_ index: Int, frame: CGRect, guide: AppGuide) {
-        guard frames[index] != frame else { return }
-        frames[index] = frame
-        guard let first = frames[0], let second = frames[1] else { return }
-        guide.report(.tools, first.union(second).insetBy(dx: -6, dy: -6))
+    func report(_ frame: CGRect, guide: AppGuide) {
+        guard self.frame != frame else { return }
+        self.frame = frame
+        guide.report(.tools, frame.insetBy(dx: -10, dy: -10))
     }
 }

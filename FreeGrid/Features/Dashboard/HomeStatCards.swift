@@ -4,7 +4,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 首页上的卡片：小卡一行最多三张，长条占一整行。点一下打开编辑面板；按住浮起后拖到别的卡上，它们就让位。
+/// 首页上的卡片：小卡一行最多三张，长条占一整行。点一下打开编辑面板（「本月花销」去明细看这个月）；按住浮起后拖到别的卡上，它们就让位。
 /// 拖放用系统的（和滚动、点按不打架），拖动中每经过一张卡就存一次新顺序
 struct HomeCardsGrid: View {
     /// 首页上要画的（今日对比没有可比的数时不在里面）
@@ -16,6 +16,8 @@ struct HomeCardsGrid: View {
     let todayBar: AnyView
     /// 目标长条点了打开那个目标的面板，不是编辑卡片
     let onGoal: (FreedomGoal) -> Void
+    /// 「本月花销」点了去明细看这个月
+    let onMonth: () -> Void
     let onEdit: () -> Void
     let onReorder: ([HomeStat]) -> Void
 
@@ -25,7 +27,9 @@ struct HomeCardsGrid: View {
         StatRowsLayout(spacing: Spacing.md) {
             ForEach(items) { item in
                 let goal = inputs.goal(for: item)
-                Button { if let goal { onGoal(goal.goal) } else { onEdit() } } label: {
+                Button {
+                    if let goal { onGoal(goal.goal) } else if item == .month { onMonth() } else { onEdit() }
+                } label: {
                     if let goal {
                         HomeGoalCard(result: goal)
                     } else if item.isWide {
@@ -46,7 +50,8 @@ struct HomeCardsGrid: View {
                                                                        dragging: $dragging, onReorder: onReorder))
                 .accessibilityIdentifier("home-stat-\(item.rawValue)")
                 .accessibilityHint(goal != nil ? String(localized: "按住拖动换位置，点一下改这个目标")
-                                                : String(localized: "按住拖动换位置，点一下编辑卡片"))
+                                   : item == .month ? String(localized: "按住拖动换位置，点一下看这个月的明细")
+                                   : String(localized: "按住拖动换位置，点一下编辑卡片"))
                 .accessibilityActions { moveActions(item) }
             }
         }

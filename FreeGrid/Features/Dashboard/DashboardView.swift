@@ -371,6 +371,7 @@ private struct DashboardContent: View {
                               slots: statSlots, inputs: statInputs,
                               todayBar: AnyView(todaySection),
                               onGoal: { editingGoal = $0 },
+                              onMonth: { NotificationCenter.default.post(name: .showThisMonthInHistory, object: nil) },
                               onEdit: { showingStatEditor = true },
                               onReorder: { storedStatSlots = HomeStat.encode($0) })
                 HStack(alignment: .center) {

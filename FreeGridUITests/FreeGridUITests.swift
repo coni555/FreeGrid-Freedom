@@ -278,13 +278,12 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.buttons["category-row-餐饮"].exists)
     }
 
-    /// Pro 拆分：明细筛「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
+    /// Pro 拆分：明细卡里点「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
     @MainActor
     func testMoveSearchResultsSplitsACategory() throws {
         let app = try launchWithMoveLedger()
         app.tabBars.buttons["明细"].tap()
-        app.buttons["按分类筛选"].tap()
-        let other = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '其他'")).firstMatch
+        let other = app.buttons["history-breakdown-其他"]
         XCTAssertTrue(other.waitForExistence(timeout: 3))
         other.tap()
         app.buttons["搜索"].tap()
@@ -397,7 +396,8 @@ final class FreeGridUITests: XCTestCase {
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         finishGuide(next)
-        let row = app.staticTexts["早餐"].firstMatch
+        // 卡片里也有一行「早餐」（点了是筛选），这里点的是下面那笔记录
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "history-transaction-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         let note = app.textFields["edit-note"]
@@ -1537,9 +1537,7 @@ final class FreeGridUITests: XCTestCase {
             try shoot("\(mode)-2-编辑分类")
             app.buttons["取消"].tap()
             app.tabBars.buttons["明细"].tap()
-            try shoot("\(mode)-3-History图标")
-            app.buttons["按分类筛选"].firstMatch.tap()
-            try shoot("\(mode)-4-分类筛选条")
+            try shoot("\(mode)-3-History分类构成")
             app.tabBars.buttons["首页"].tap()
             app.buttons["记支出"].tap()
             let picker = app.buttons["expense-category-picker"]

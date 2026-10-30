@@ -94,11 +94,43 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
     }
 
+    /// 月份卡片里的支出构成：点一类流水只留它，再点或「看全部」回来；收入单列一行；首页「本月花销」回到本月的明细
+    @MainActor
+    func testBreakdownRowsFilterTheFlowAndHomeMonthCardOpensThisMonth() throws {
+        let app = try launch()
+        let shopping = app.buttons["history-breakdown-购物"]
+        XCTAssertTrue(shopping.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["history-breakdown-交通"].exists)
+        XCTAssertFalse(app.buttons["history-breakdown-income"].exists)
+        shopping.tap()
+        XCTAssertTrue(app.staticTexts["只看「购物」 · 1 笔"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "history-transaction-", "退款")).firstMatch.exists)
+        shopping.tap()
+        XCTAssertTrue(app.staticTexts["只看「购物」 · 1 笔"].waitForNonExistence(timeout: 3))
+
+        app.buttons["上个月"].tap()
+        let income = app.buttons["history-breakdown-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 3))
+        income.tap()
+        XCTAssertTrue(app.staticTexts["只看「收入」 · 1 笔"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["首页"].tap()
+        let month = app.buttons["home-stat-month"]
+        XCTAssertTrue(month.waitForExistence(timeout: 5))
+        month.tap()
+        let title = app.buttons["history-scope-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let label = Calendar.current.dateComponents([.year, .month], from: .now)
+        XCTAssertTrue(title.label.hasPrefix("\(label.year!)年\(label.month!)月"), title.label)
+        XCTAssertFalse(app.staticTexts["只看「收入」 · 1 笔"].exists)
+        XCTAssertTrue(app.buttons["history-breakdown-购物"].exists)
+    }
+
     @MainActor
     func testFilterCrossMonthSearchSuggestionsAndLatestInput() throws {
         let app = try launch()
-        app.buttons["按分类筛选"].tap()
-        app.buttons["history-filter-购物"].tap()
+        // 月份卡片里点中「购物」，再搜索就在这一类里搜
+        app.buttons["history-breakdown-购物"].tap()
         app.buttons["搜索"].tap()
         let field = app.textFields["history-search-field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))

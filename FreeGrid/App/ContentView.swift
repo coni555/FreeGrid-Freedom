@@ -266,6 +266,8 @@ extension ContentView {
             // 偏好（资产计不计入、目标、首页卡片、深浅色……）、Pro 状态、系统深浅色变了：后台页面切回来时重算
             .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
                 .receive(on: RunLoop.main)) { _ in dataClock.tick() }
+            // 首页点「本月花销」：明细页自己回到本月，这里切过去
+            .onReceive(NotificationCenter.default.publisher(for: .showThisMonthInHistory)) { _ in selectedTab = .history }
             .onChange(of: ProStore.shared.isUnlocked) { dataClock.tick() }
             .onChange(of: colorScheme) { dataClock.tick() }
     }

@@ -129,13 +129,8 @@ struct HistorySearchTests {
         let (expenses, incomes) = HistorySearchPerformanceTests.ledger(count: 1000)
         let prepared = try index(expenses, incomes)
         let transactions = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .allTime)
-        for filter: HistorySearch.Filter in [.all, .income, .category("购物"), .category("交通"), .category("不存在")] {
-            let pool: [LedgerTransaction]
-            switch filter {
-            case .all: pool = transactions
-            case .income: pool = HistoryLedger.filter(transactions, kind: .income, category: nil)
-            case .category(let name): pool = HistoryLedger.filter(transactions, kind: .all, category: name)
-            }
+        for filter: HistorySearch.Filter in [.all, .income, .fixed, .category("购物"), .category("交通"), .category("不存在")] {
+            let pool = HistoryLedger.filter(transactions, by: filter)
             #expect(try prepared.frequentNotes(filter: filter) == HistoryLedger.frequentNotes(pool))
             for query in HistorySearchPerformanceTests.queries + ["购物", "交通", "coffee 4", "   ", "  咖啡  COFFEE  "] {
                 let expected = query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? [] : HistoryLedger.search(pool, query: query)

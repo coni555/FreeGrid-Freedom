@@ -78,7 +78,7 @@ final class AppGuide {
                 Step(target: .month, text: String(localized: "点月份，跳到任意一个月。\n旁边的箭头可以前后翻月。")),
                 Step(target: .row, text: String(localized: "点一行，修改金额、分类、日期或备注。")),
                 Step(target: .row, text: String(localized: "向左滑一行，撤销这笔。"), showsSwipe: true),
-                Step(target: .tools, text: String(localized: "这里搜索全部记录，\n或者按分类筛选。")),
+                Step(target: .tools, text: String(localized: "这里搜索全部记录。\n想只看某一类，点月份卡片里的分类。")),
             ]
         }
     }

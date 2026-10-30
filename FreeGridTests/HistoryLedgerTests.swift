@@ -41,13 +41,42 @@ struct HistoryLedgerTests {
 
     @Test func categoryFilterDropsIncomeAndTotalsFollowTheScope() {
         let month = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .month(october))
-        let lunch = HistoryLedger.filter(month, kind: .all, category: "午餐")
+        let lunch = HistoryLedger.filter(month, by: .category("午餐"))
         #expect(lunch.map(\.cashChange) == [-15.5, -13])
-        #expect(HistoryLedger.filter(month, kind: .income, category: nil).map(\.title) == ["工资"])
-        #expect(HistoryLedger.filter(month, kind: .expense, category: nil).count == 4)
-        let totals = HistoryLedger.categoryTotals(month)
-        #expect(totals.map(\.category) == ["午餐", "购物"])
-        #expect(totals.map(\.total) == [28.5, 22.8 - 30])
+        #expect(HistoryLedger.filter(month, by: .income).map(\.title) == ["工资"])
+        #expect(HistoryLedger.filter(month, by: .all).count == 5)
+        let breakdown = HistoryLedger.breakdown(month)
+        #expect(breakdown.categories.map(\.category) == ["午餐", "购物"])
+        #expect(breakdown.categories.map(\.total) == [28.5, 22.8 - 30])
+        #expect(breakdown.fixed == 0)
+    }
+
+    /// 月供扣款的「分类」是贷款名：明细卡里合成「固定支出」一行，不和同名的日常分类混在一起
+    @Test func loanPaymentsGroupAsFixedAndStayOutOfCategories() throws {
+        let rent = Expense(amount: 3000, category: "午餐", note: "月付", date: TestSupport.day("2026-10-05"))
+        rent.loanID = UUID()
+        let mortgage = Expense(amount: 1200, category: "房贷", note: "月付", date: TestSupport.day("2026-10-15"))
+        mortgage.loanID = UUID()
+        let month = HistoryLedger.transactions(expenses: expenses + [rent, mortgage], incomes: incomes, scope: .month(october))
+        let breakdown = HistoryLedger.breakdown(month)
+        #expect(breakdown.fixed == 4200)
+        #expect(breakdown.categories.map(\.category) == ["午餐", "购物"])
+        #expect(breakdown.categories.first?.total == 28.5)
+        #expect(HistoryLedger.filter(month, by: .fixed).map(\.cashChange) == [-1200, -3000])
+        #expect(HistoryLedger.filter(month, by: .category("午餐")).count == 2)
+
+        // 搜索里带着同样的筛选
+        let index = try HistorySearch.Index(
+            expenses: month.filter { $0.kind == .expense }.map(\.searchRecord), incomes: [])
+        #expect(try index.search("月付", filter: .fixed).summary.count == 2)
+        #expect(try index.search("月付", filter: .category("午餐")).summary.count == 0)
+    }
+
+    @Test func categoryDaysUseOneDecimalBelowTenAndFlagTinyAmounts() {
+        #expect(HistoryLedger.daysLabel(0.02) == "< 0.1 天")
+        #expect(HistoryLedger.daysLabel(2.64) == "≈ 2.6 天")
+        #expect(HistoryLedger.daysLabel(1) == "≈ 1 天")
+        #expect(HistoryLedger.daysLabel(12.4) == "≈ 12 天")
     }
 
     @Test func searchMatchesNoteIncomeSourceAndAmountButNotExpenseCategory() {

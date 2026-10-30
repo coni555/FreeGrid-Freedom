@@ -1207,32 +1207,32 @@
         }
       }
     },
-    "**本月花销**：本月 1 号到今天花了多少，和上个月同一段比。自动扣的房租、月供也算在内。": {
+    "**本月花销**：本月 1 号到今天花了多少，和上个月同一段比。自动扣的房租、月供也算在内。点它去明细，看这个月钱花在哪。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Month**: what you've spent from the 1st to today, compared with the same days last month. Automatic rent and loan payments are included."
+            "value": "**Month**: what you've spent from the 1st to today, compared with the same days last month. Automatic rent and loan payments are included. Tap it to open History and see where this month's money went."
           }
         }
       }
     },
-    "**查找**：右上角搜索金额或备注，旁边的按钮按分类筛选。**Pro**：搜到的支出可以一起移到别的分类，比如在「其他」里搜「咖啡」，把它们移到新建的「咖啡」。": {
+    "**查找**：右上角搜索金额或备注。先在卡片里点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Find**: search amounts or notes at the top right; the button next to it filters by category. **Pro**: move the expenses you find to another category together, for example search “coffee” in Other and move them to a new Coffee category."
+            "value": "**Find**: search amounts or notes at the top right. Tap a category in the card first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
           }
         }
       }
     },
-    "**浏览**：按月看，按天分组。点月份打开月度汇总，可以跳到任意一个月；旁边的箭头前后翻月。": {
+    "**浏览**：按月看，按天分组。点月份打开月度汇总，可以跳到任意一个月；旁边的箭头前后翻月。首页点「本月花销」也会来到这个月。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary and jump to any month; the arrows go back and forward."
+            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary and jump to any month; the arrows go back and forward. Tapping the Month card on the Dashboard also brings you here."
           }
         }
       }
@@ -1427,6 +1427,16 @@
         }
       }
     },
+    "**钱花在哪**：月份卡片里按金额从多到少列出各类支出，后面写着相当于平时几天的开销。自动扣的房租、月供合成「固定支出」一行，收入单列在最后。点一类，下面只留这一类的记录；再点一下，或点「看全部」，回到全部。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Where it went**: the month card lists your spending by category, largest first, with how many days of your usual spending each one equals. Automatic rent and loan payments share one Fixed Expenses row, and income comes last. Tap a category to see only its entries; tap it again, or tap “Show all”, to go back."
+          }
+        }
+      }
+    },
     "/%lld": {},
     "/月": {
       "localizations": {
@@ -1467,6 +1477,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "30 days"
+          }
+        }
+      }
+    },
+    "< 0.1 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "< 0.1 days"
           }
         }
       }
@@ -1804,6 +1824,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "∞ Card"
+          }
+        }
+      }
+    },
+    "≈ %@ 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %@ days"
+          }
+        }
+      }
+    },
+    "≈ 1 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ 1 day"
           }
         }
       }
@@ -3444,6 +3484,16 @@
         }
       }
     },
+    "再点一下看全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap again to show all"
+          }
+        }
+      }
+    },
     "再记*一笔支出*": {
       "localizations": {
         "en": {
@@ -4224,6 +4274,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "It has assets or cash but not both"
+          }
+        }
+      }
+    },
+    "只看「%@」 · %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only “%1$@” · %#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "只看「%1$@」 · %2$lld 笔"
+          }
+        }
+      }
+    },
+    "只看这一类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show only this"
           }
         }
       }
@@ -5430,6 +5528,16 @@
         }
       }
     },
+    "展开其余 %lld 类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show %lld more"
+          }
+        }
+      }
+    },
     "展开折线": {
       "localizations": {
         "en": {
@@ -5744,12 +5852,12 @@
         }
       }
     },
-    "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点任意一张卡，或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
+    "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点一张卡（「本月花销」除外），或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You choose which cards sit at the bottom and in what order. On the Dashboard, press and hold a card until it lifts, then drag it where you want it. Tap any card, or “Edit Cards” below them, to open the editor: the cards on your Dashboard are at the top; tap the minus on the left to remove one, or drag the handle on the right to reorder. Removed cards move down to “More Cards”; tap the plus to add one back, or tap “Add All”. If things get messy, tap “Reset to Default”. When the cards take more than one row, “Show less / Show N more” appears at the bottom left; collapsed, only the first row stays, so drag your favorites there. The cards you can choose from:"
+            "value": "You choose which cards sit at the bottom and in what order. On the Dashboard, press and hold a card until it lifts, then drag it where you want it. Tap a card (except Month), or “Edit Cards” below them, to open the editor: the cards on your Dashboard are at the top; tap the minus on the left to remove one, or drag the handle on the right to reorder. Removed cards move down to “More Cards”; tap the plus to add one back, or tap “Add All”. If things get messy, tap “Reset to Default”. When the cards take more than one row, “Show less / Show N more” appears at the bottom left; collapsed, only the first row stays, so drag your favorites there. The cards you can choose from:"
           }
         }
       }
@@ -6514,22 +6622,22 @@
         }
       }
     },
+    "按住拖动换位置，点一下看这个月的明细": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press and hold to move. Tap to see this month's entries."
+          }
+        }
+      }
+    },
     "按住拖动换位置，点一下编辑卡片": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Press and hold to move. Tap to edit cards."
-          }
-        }
-      }
-    },
-    "按分类筛选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filter by category"
           }
         }
       }
@@ -7014,16 +7122,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hide trend"
-          }
-        }
-      }
-    },
-    "收起筛选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide filters"
           }
         }
       }
@@ -8334,12 +8432,12 @@
         }
       }
     },
-    "没有匹配的记录\n想按分类看，用右上角的筛选": {
+    "没有匹配的记录\n想按分类看，点月份卡片里的分类": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No matching entries\nTo browse by category, use the filter at the top right"
+            "value": "No matching entries\nTo browse by category, tap one in the month card"
           }
         }
       }
@@ -9092,6 +9190,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "about %@"
+          }
+        }
+      }
+    },
+    "看全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all"
           }
         }
       }
@@ -11652,12 +11760,12 @@
         }
       }
     },
-    "这里搜索全部记录，\n或者按分类筛选。": {
+    "这里搜索全部记录。\n想只看某一类，点月份卡片里的分类。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search all records here,\nor filter by category."
+            "value": "Search all records here.\nTo see just one category, tap it in the month card."
           }
         }
       }

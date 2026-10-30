@@ -47,13 +47,6 @@ enum HistoryScope: Equatable {
     case allTime
 }
 
-enum HistoryKindFilter: String, CaseIterable, Identifiable {
-    case all = "全部"
-    case expense = "支出"
-    case income = "收入"
-    var id: String { rawValue }
-}
-
 /// 同一自然日的记录，新的在上。
 struct HistoryDay: Identifiable {
     /// 当天零点
@@ -103,21 +96,15 @@ enum HistoryLedger {
         return scoped.sorted { $0.date > $1.date }
     }
 
-    /// 选了分类时只留该分类的支出；收入没有分类，不会出现在结果里。
-    static func filter(
-        _ transactions: [LedgerTransaction],
-        kind: HistoryKindFilter,
-        category: String?
-    ) -> [LedgerTransaction] {
-        transactions.filter { transaction in
-            if let category {
-                guard case .expense(let expense) = transaction else { return false }
-                return expense.category == category
-            }
-            switch kind {
-            case .all: return true
-            case .expense: return transaction.kind == .expense
-            case .income: return transaction.kind == .income
+    /// 明细卡里点了哪一行，流水就只留那一类；分类不含月供扣款，固定支出只含到期自动扣的。
+    static func filter(_ transactions: [LedgerTransaction], by filter: HistorySearch.Filter) -> [LedgerTransaction] {
+        if filter == .all { return transactions }
+        return transactions.filter { transaction in
+            switch (filter, transaction) {
+            case (.income, .income): return true
+            case (.fixed, .expense(let expense)): return expense.loanID != nil
+            case (.category(let name), .expense(let expense)): return expense.loanID == nil && expense.category == name
+            default: return false
             }
         }
     }
@@ -193,15 +180,37 @@ enum HistoryLedger {
         return summary
     }
 
-    /// 各支出分类合计，金额高的在前；同额按名称排，顺序稳定。
-    static func categoryTotals(_ transactions: [LedgerTransaction]) -> [(category: String, total: Double)] {
+    /// 明细卡里的支出构成：日常支出按分类合计（从多到少），到期自动扣的固定支出（房租、月供）合成一行。
+    /// 月供扣款的「分类」是贷款名，不和日常分类混在一起排。
+    struct Breakdown: Equatable {
+        struct Line: Equatable, Identifiable {
+            let category: String
+            let total: Double
+            var id: String { category }
+        }
+        var fixed: Double = 0
+        var categories: [Line] = []
+    }
+
+    static func breakdown(_ transactions: [LedgerTransaction]) -> Breakdown {
+        var result = Breakdown()
         var totals: [String: Double] = [:]
         for case .expense(let expense) in transactions {
-            totals[expense.category, default: 0] += expense.amount
+            if expense.loanID != nil { result.fixed += expense.amount }
+            else { totals[expense.category, default: 0] += expense.amount }
         }
-        return totals
-            .map { (category: $0.key, total: $0.value) }
+        result.categories = totals
+            .map { Breakdown.Line(category: $0.key, total: $0.value) }
             .sorted { ($0.total, $1.category) > ($1.total, $0.category) }
+        return result
+    }
+
+    /// 分类后面的「≈ N 天」：不足 0.1 天写「< 0.1 天」，不足 10 天留一位小数，其余取整。
+    static func daysLabel(_ days: Double) -> String {
+        if days < 0.05 { return String(localized: "< 0.1 天") }
+        let digits = days < 10 ? 0...1 : 0...0
+        let number = days.formatted(.number.precision(.fractionLength(digits)))
+        return number == "1" ? String(localized: "≈ 1 天") : String(localized: "≈ \(number) 天")
     }
 
     /// 可切换的月份范围：最早一笔记录所在月，到本月与最晚记录所在月中较晚的一个。
