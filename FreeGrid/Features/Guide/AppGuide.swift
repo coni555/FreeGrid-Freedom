@@ -339,6 +339,8 @@ struct SetupGuideOverlay: View {
     let guide: AppGuide
     let onGoAssets: () -> Void
     let onGoDashboard: () -> Void
+    /// 第 3 步不想记账的人：改填每月花销，填完引导也就结束了
+    let onFillMonthlySpending: () -> Void
     let onSkip: () -> Void
 
     private var target: AppGuide.Target? {
@@ -432,6 +434,21 @@ struct SetupGuideOverlay: View {
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("setup-guide-text")
+                if step == .expense {
+                    Button(action: onFillMonthlySpending) {
+                        HStack(spacing: Spacing.xs) {
+                            Text("不想每天记账？填每月大约花多少")
+                                .font(.system(.caption, design: .rounded))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundStyle(Color.skyDeep)
+                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("setup-guide-monthly-spending")
+                }
                 HStack {
                     Text("\(step.number) / 3")
                         .font(.kicker)
@@ -473,7 +490,7 @@ struct SetupGuideOverlay: View {
     /// 说明放在目标下方；目标在屏幕下半部时放到上方；没有目标时放在屏幕中间
     private func bubbleCenter(hole: CGRect?, in size: CGSize) -> CGPoint {
         guard let hole else { return CGPoint(x: size.width / 2, y: size.height / 2) }
-        let half: CGFloat = 70
+        let half: CGFloat = step == .expense ? 92 : 70
         let below = hole.maxY + Spacing.lg + half
         let y = hole.midY < size.height / 2 ? below : hole.minY - Spacing.lg - half
         return CGPoint(x: size.width / 2, y: min(max(y, half + 60), size.height - half - 60))

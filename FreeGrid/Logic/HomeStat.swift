@@ -160,10 +160,11 @@ enum HomeStat: Hashable, Identifiable {
                            unit: Self.todayComparison(today: inputs.todaySpending, dailyBurn: snapshot.dailyBurn,
                                                       routine: snapshot.dailyFixed > 0))
         case .track:
-            // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）
+            // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）。
+            // 不记账、只填了每月花销的人不催他记账
             let days = snapshot.trackDays
             return Display(value: "\(days)",
-                           unit: days < FreedomMath.lumpSpreadDays
+                           unit: snapshot.hasRecords && days < FreedomMath.lumpSpreadDays
                                ? String(localized: "再记录 \(FreedomMath.lumpSpreadDays - days) 天，日均趋势会更清晰")
                                : String(localized: "天记账"))
         case .base:
@@ -190,11 +191,7 @@ enum HomeStat: Hashable, Identifiable {
     /// 日均卡的小字。按估算、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
     static func dailyNote(_ snapshot: FinancialSnapshot) -> String {
         let fixed = snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-        if snapshot.burnBasis == .estimate {
-            return fixed
-                ? String(localized: "估算 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
-                : String(localized: "按每月估算")
-        }
+        if snapshot.burnBasis == .estimate { return String(localized: "按每月估算") }
         if snapshot.burnGapDays > 0 {
             let quiet = snapshot.burnGapDays + FreedomMath.burnGraceDays
             return snapshot.burnBasis == .recordsAndEstimate

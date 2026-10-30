@@ -12,6 +12,8 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
+    /// 还算不出自由天数时，点「填每月大约花多少」
+    var onFillMonthlySpending: () -> Void = {}
     @State private var longPressed = 0
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
@@ -64,6 +66,24 @@ struct DashboardHero: View {
                 }
                 .sensoryFeedback(.impact(weight: .light), trigger: longPressed)
                 .accessibilityAction(named: "打开自由卡") { onOpenCard() }
+
+            // 不想记账的人：填一个每月花销就够了
+            if case .insufficientData = snapshot.freedom, !needsSavings {
+                Hairline().padding(.top, Spacing.xs)
+                Button(action: onFillMonthlySpending) {
+                    HStack(spacing: Spacing.xs) {
+                        Text("不想每天记账？填每月大约花多少")
+                            .font(.system(.caption, design: .rounded))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(Color.skyDeep)
+                    .frame(maxWidth: .infinity, minHeight: 28, alignment: heroLayout == "vertical" ? .center : .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("hero-monthly-spending")
+            }
 
             if let cardPrompt {
                 Button(action: onOpenCard) {
@@ -161,7 +181,7 @@ struct DashboardHero: View {
                     }
                     Text(needsSavings
                          ? "资产或现金都算，记完再记一笔支出"
-                         : "记一笔支出，或在钱包里填每月大约花多少")
+                         : "再记一笔支出，就能算出自由天数")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 4)
@@ -225,7 +245,7 @@ struct DashboardHero: View {
                 }
                 Text(needsSavings
                      ? "资产或现金都算，记完再记一笔支出"
-                     : "记一笔支出，或在钱包里填每月大约花多少")
+                     : "再记一笔支出，就能算出自由天数")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .padding(.top, 2)

@@ -1,14 +1,15 @@
 // 日均消费怎么估：总支出 ÷ 记录天数，多两条——记账不满 90 天时，单笔大额支出按 90 天摊；
-// 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均（填了每月估算就按估算补）。
-// 没记过日常支出、但填了每月估算时，日均就是估算折成的每天（2.2，用户 2026-10-29 定）。
+// 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均（填了每月花销就按它补）。
+// 没记过日常支出、但填了每月花销时，日均就是它扣掉固定支出后折成的每天（2.2，用户 2026-10-30 定）。
 // 首页、记一笔的影响预览、趋势、History 都从这里拿日均，口径只有一个。
 
 import Foundation
 
-/// 自己填的「每月日常大约花多少」。不记账的人靠它算自由天数，断档时用它补空档。
-/// 存在本机偏好里，JSON 备份会带上（见 `BackupEnvelope.monthlyEverydayEstimate`）。
-enum EverydayEstimate {
-    static let key = "monthlyEverydayEstimate"
+/// 自己填的「每月大约花多少」，是全部花销：房租、订阅这些固定支出也算在里面（用户 2026-10-30 定）。
+/// 不记账的人填完这一个数就够了；记账的人断档时也用它补空档。
+/// 存在本机偏好里，JSON 备份会带上（见 `BackupEnvelope.monthlySpending`）。
+enum MonthlySpending {
+    static let key = "monthlySpendingEstimate"
 
     /// 没填、填 0 或不是有效数字时为 nil
     static func monthly(in defaults: UserDefaults) -> Double? {
@@ -21,6 +22,17 @@ enum EverydayEstimate {
         guard let value, value.isFinite, value > 0, value <= FinancialLimits.maximumAmount else { return nil }
         return value
     }
+
+    /// 日常的部分：每月花销扣掉固定支出。固定支出按日历另扣，不扣掉就算了两遍；
+    /// 固定支出比填的数还多时是 0，自由天数只按日历扣固定支出（见 `FreedomMath.freedomRun`）
+    static func everyday(monthly: Double?, fixedMonthly: Double) -> Double? {
+        monthly.map { max(0, $0 - fixedMonthly) }
+    }
+
+    /// 钱包里这一行什么时候出现：不记账的人、已经填过的人、断档的人。天天记账的人用不上，不打扰
+    static func showsRow(monthly: Double?, hasRecords: Bool, gapDays: Int) -> Bool {
+        monthly != nil || !hasRecords || gapDays > 0
+    }
 }
 
 extension FreedomMath {
@@ -31,13 +43,13 @@ extension FreedomMath {
     /// 最后一笔之后这么多天内照常摊；再往后算断档，不再让日均往下掉
     static let burnGraceDays = 14
 
-    /// 日均是从哪来的；界面上「按估算」的标记看它
+    /// 日均是从哪来的；界面上「按每月估算」的标记看它
     enum BurnBasis: Equatable {
         /// 全按记下的支出
         case records
-        /// 没记过日常支出，全按每月估算
+        /// 没记过日常支出，全按每月花销
         case estimate
-        /// 记下的支出加上断档那几天按估算补
+        /// 记下的支出加上断档那几天按每月花销补
         case recordsAndEstimate
     }
 
@@ -72,12 +84,12 @@ extension FreedomMath {
     /// 不摊平日的小钱：前 90 天的日常开销照实算，新用户的日均不会被压低。
     ///
     /// 断档：最后一笔之后的头 14 天照常摊（一周、一个月记一次总账的人，中间几天本来就空着），
-    /// 再往后的天不算进记录的分母，日均停住不再往下掉；填了 `monthlyEstimate` 就把这些天按估算补进去。
+    /// 再往后的天不算进记录的分母，日均停住不再往下掉；填了每月花销就把这些天按它补进去（`everydayEstimate` 是它扣掉固定支出后的日常部分）。
     /// 停在第 14 天而不是退回最后一笔那天：日均是慢慢停下，不会在第 15 天突然跳一截。
     /// 只看最后一笔之后的空档；中间断过又接着记的，那段照常算（记总账的人中间也是空的）。
-    static func burnEstimate(_ entries: [BurnEntry], monthlyEstimate: Double? = nil, now: Date = .now,
+    static func burnEstimate(_ entries: [BurnEntry], everydayEstimate: Double? = nil, now: Date = .now,
                              calendar: Calendar = .current) -> BurnEstimate {
-        let estimateDaily = EverydayEstimate.valid(monthlyEstimate).map { $0 / GridUnit.month.daysPerCell }
+        let estimateDaily = everydayEstimate.flatMap { $0.isFinite && $0 >= 0 ? $0 / GridUnit.month.daysPerCell : nil }
         guard let lastDate = entries.map(\.date).max() else {
             if let estimateDaily {
                 return BurnEstimate(total: 0, firstDate: nil, trackDays: 0, dailyBurn: estimateDaily,

@@ -261,10 +261,14 @@ extension FreedomMath {
     /// - 钱在两个到期日之间花完：停在花完的那一刻（可以带小数）。
     /// - 每天净消耗 ≤ 0、所有扣款都付得起：已覆盖（∞）。有固定支出时，长期每天的净消耗要把它们也算上；
     ///   算上以后仍 ≤ 0，推过贷款最后一期再两年都付得起就是已覆盖；> 0 就一直推，100 年后还有钱也算已覆盖。
+    ///
+    /// `burnMayBeZero`：填的每月花销全被固定支出占了时，日常是 0，不算数据有问题，只按日历扣固定支出。
     static func freedomRun(netWorth: Double, dailyBurn: Double, dailyPassive: Double = 0,
-                           hasExpenses: Bool, loans: LoanSchedule.Plan) -> FreedomRun {
-        let plain = freedomState(netWorth: netWorth, dailyBurn: dailyBurn,
-                                 dailyPassive: dailyPassive, hasExpenses: hasExpenses)
+                           hasExpenses: Bool, loans: LoanSchedule.Plan, burnMayBeZero: Bool = false) -> FreedomRun {
+        let plain = burnMayBeZero && dailyBurn == 0 && !loans.isEmpty && netWorth.isFinite && dailyPassive.isFinite
+            ? FreedomState.covered
+            : freedomState(netWorth: netWorth, dailyBurn: dailyBurn,
+                           dailyPassive: dailyPassive, hasExpenses: hasExpenses)
         switch plain {
         case .insufficientData, .invalidData:
             return FreedomRun(state: plain, paymentDays: [])

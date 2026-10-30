@@ -8,6 +8,8 @@ struct HistoryView: View {
 
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    /// 「≈ N 天」和首页同一个日均：每月花销要先扣掉固定支出
+    @Query private var loans: [Loan]
 
     @Environment(\.modelContext) private var modelContext
 
@@ -72,7 +74,7 @@ struct HistoryView: View {
     private var page: some View {
         // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
         let isEmpty = expenses.isEmpty && incomes.isEmpty
-        let ledger = isEmpty || isSearching ? nil : ScopedLedger(expenses: expenses, incomes: incomes, scope: scope)
+        let ledger = isEmpty || isSearching ? nil : ScopedLedger(expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans), scope: scope)
         NavigationStack {
             Group {
                 if isEmpty {
@@ -179,15 +181,16 @@ struct HistoryView: View {
         let monthRange: ClosedRange<HistoryMonth>
         let dailyBurn: Double
 
-        init(expenses: [Expense], incomes: [Income], scope: HistoryScope) {
+        init(expenses: [Expense], incomes: [Income], loans: [Loan], scope: HistoryScope) {
             transactions = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: scope)
             summary = HistoryLedger.summary(transactions)
             breakdown = HistoryLedger.breakdown(transactions)
             monthRange = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
             // 只在按月查看时折算成天，全部时间用不到
             if case .month = scope {
-                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses),
-                                                       monthlyEstimate: EverydayEstimate.monthly).dailyBurn
+                let everyday = MonthlySpending.everyday(monthly: MonthlySpending.monthly,
+                                                        fixedMonthly: LoanSchedule.monthlyTotal(loans: loans, payments: expenses))
+                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses), everydayEstimate: everyday).dailyBurn
             } else {
                 dailyBurn = 0
             }

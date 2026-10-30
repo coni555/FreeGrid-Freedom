@@ -20,8 +20,8 @@ struct MoneyTimeAssetsView: View {
     @Environment(AppGuide.self) private var guide
 
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    /// 每月日常估算：改了要马上重算（0 = 没填）
-    @AppStorage(EverydayEstimate.key, store: AppPreferences.store) private var monthlyEstimate = 0.0
+    /// 每月花销：改了要马上重算（0 = 没填）
+    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
     /// 「money」或「days」，本机偏好
     @AppStorage("assetsUnit", store: AppPreferences.store) private var unitKey = "money"
     @AppStorage("assetsTab", store: AppPreferences.store) private var tabKey = Tab.assets.rawValue
@@ -37,7 +37,7 @@ struct MoneyTimeAssetsView: View {
     private var snapshot: FinancialSnapshot {
         FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                           assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans), countsAssets: countsAssets,
-                          monthlyEstimate: monthlyEstimate)
+                          monthlySpending: monthlySpending)
     }
 
     private var lockedAssets: Double { assetsArr.first?.lockedAssets ?? 0 }
@@ -66,10 +66,13 @@ struct MoneyTimeAssetsView: View {
                             .id(Self.topID)
                         vault(snapshot)
                             .padding(.top, 34)
+                        if MonthlySpending.showsRow(monthly: snapshot.monthlySpending, hasRecords: snapshot.hasRecords,
+                                                    gapDays: snapshot.burnGapDays) {
+                            MonthlySpendingRow(gapDays: snapshot.burnGapDays)
+                                .padding(.top, Spacing.lg)
+                        }
                         monthly(snapshot, unit: unit, loanSummary: loanSummary)
                             .padding(.top, 36)
-                        EverydayEstimateRow()
-                            .padding(.top, Spacing.md)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, Spacing.sm)
@@ -277,7 +280,10 @@ struct MoneyTimeAssetsView: View {
 
     private func legendNote(_ snapshot: FinancialSnapshot) -> String {
         if isDays {
-            guard snapshot.dailyBurn > 0 else { return String(localized: "记几天账就能换算") }
+            guard snapshot.dailyBurn > 0 else {
+                // 每月花销全被固定支出占了时日常是 0，这时候不该再叫人去记账
+                return snapshot.monthlySpending == nil ? String(localized: "记几天账就能换算") : String(localized: "每月花销都是固定支出")
+            }
             // 换算成天用的是日常开销，固定支出另算在「留出 N 天」里
             let perDay = String(localized: "日常开销 ¥\(FinancialFormatting.wholeNumber(snapshot.dailyBurn))/天")
             if let reserved = reservedDays(snapshot) { return String(localized: "固定支出留出 \(reserved) 天 · \(perDay)") }

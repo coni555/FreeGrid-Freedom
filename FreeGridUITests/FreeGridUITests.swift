@@ -901,7 +901,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
-        finishGuide(next, steps: 3)
+        finishGuide(next, steps: 4)
 
         let paywall = app.descendants(matching: .any)["pro-header"]
         let intro = app.descendants(matching: .any)["pro-intro-returning"]

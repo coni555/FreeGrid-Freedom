@@ -18,8 +18,8 @@ struct DashboardView: View {
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
-    /// 每月日常估算：改了要马上重算（0 = 没填）
-    @AppStorage(EverydayEstimate.key, store: AppPreferences.store) private var monthlyEstimate = 0.0
+    /// 每月花销：改了要马上重算（0 = 没填）
+    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
     /// 目标长条：在自检或首页改了目标，这里跟着重算
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
 
@@ -38,7 +38,7 @@ struct DashboardView: View {
         let loansInEffect = ProFeatures.loansInEffect(loans)
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect,
-                                         countsAssets: countsAssets, monthlyEstimate: monthlyEstimate)
+                                         countsAssets: countsAssets, monthlySpending: monthlySpending)
         let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
@@ -47,7 +47,7 @@ struct DashboardView: View {
             dailyPassive: snapshot.dailyPassive,
             loans: loansInEffect,
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
-            monthlyEstimate: snapshot.monthlyEstimate,
+            everydayEstimate: snapshot.everydayEstimate,
             now: snapshot.now
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
@@ -108,6 +108,8 @@ private struct DashboardContent: View {
     /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
     @State private var editingGoal: FreedomGoal?
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
+    /// 首页没记账时点「填每月大约花多少」
+    @State private var showingMonthlySpending = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -177,6 +179,7 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sheet(isPresented: $showingMonthlySpending) { MonthlySpendingSheet() }
             .sheet(isPresented: $showingStatEditor) {
                 HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
                                onReset: { storedStatSlots = "" })
@@ -220,7 +223,8 @@ private struct DashboardContent: View {
                         .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
-                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true },
+                                  onFillMonthlySpending: { showingMonthlySpending = true })
                     gridSection      // 按天、月或年显示自由网格
                         .guideTarget(.grid, in: guide)
                     actionRow        // 支出 + 收入

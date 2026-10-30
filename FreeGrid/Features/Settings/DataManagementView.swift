@@ -10,7 +10,7 @@ struct DataManagementView: View {
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
-    @AppStorage(EverydayEstimate.key, store: AppPreferences.store) private var everydayEstimate = 0.0
+    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
@@ -182,7 +182,7 @@ struct DataManagementView: View {
                 data = try DataIO.exportJSON(
                     context: modelContext,
                     categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions),
-                    everydayEstimate: EverydayEstimate.valid(everydayEstimate))
+                    monthlySpending: MonthlySpending.valid(monthlySpending))
                 name = String(localized: "FreeGrid-备份-\(timestamp)-\(nonce).json")
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -254,9 +254,9 @@ struct DataManagementView: View {
             ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
             encodedCategoryOptions = merged
         }
-        // 每月日常估算：整份恢复时以备份为准，其他方式只在本机还没填时补上
-        if let backup = preview.everydayEstimate, strategy == .replace || EverydayEstimate.valid(everydayEstimate) == nil {
-            everydayEstimate = backup
+        // 每月花销：整份恢复时以备份为准，其他方式只在本机还没填时补上
+        if let backup = preview.monthlySpending, strategy == .replace || MonthlySpending.valid(monthlySpending) == nil {
+            monthlySpending = backup
         }
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }

@@ -233,8 +233,8 @@ nonisolated struct BackupEnvelope: Codable {
     let loans: [LoanJSON]?
     let expenseCategories: [ExpenseCategoryJSON]?
     let cashAccounts: [CashAccountJSON]?
-    /// 2.2：自己填的每月日常估算。可选：没填时不写
-    let monthlyEverydayEstimate: Double?
+    /// 2.2：自己填的每月花销。可选：没填时不写
+    let monthlySpending: Double?
 
     init(
         schemaVersion: Int? = nil,
@@ -248,7 +248,7 @@ nonisolated struct BackupEnvelope: Codable {
         loans: [LoanJSON]? = nil,
         expenseCategories: [ExpenseCategoryJSON]? = nil,
         cashAccounts: [CashAccountJSON]? = nil,
-        monthlyEverydayEstimate: Double? = nil
+        monthlySpending: Double? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -261,6 +261,6 @@ nonisolated struct BackupEnvelope: Codable {
         self.loans = loans
         self.expenseCategories = expenseCategories
         self.cashAccounts = cashAccounts
-        self.monthlyEverydayEstimate = monthlyEverydayEstimate
+        self.monthlySpending = monthlySpending
     }
 }

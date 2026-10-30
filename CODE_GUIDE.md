@@ -80,9 +80,11 @@ flowchart TD
 
 日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。界面上写的「日均消费」是 `FinancialSnapshot.dailyCost`：这个日常日均再加上固定支出和月供折成的每天（`dailyFixed`）；自由天数的推演只用日常日均，固定支出按日历在到期日另扣，不算两遍。
 
+每月花销（`MonthlySpending`，2.2）是用户自己填的每月大约花多少，含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 每月花销 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）。没记过日常支出时日均就是日常部分 ÷ 30.44；断档超过 14 天时用它补空档。入口在首页（还算不出自由天数时）、钱包（`MonthlySpendingRow`，只给不记账、已填过、断档的人看）和起步引导第 3 步，都打开同一张 `MonthlySpendingSheet`。
+
 自由状态有四种，代码用 `FreedomState` 区分：
 
-- `insufficientData`：还没有支出，无法估计日均消费。
+- `insufficientData`：还没有支出、也没填每月花销，无法估计日均消费。
 - `finite(days:)`：可以算出具体天数；净值小于零时按零天显示。
 - `covered`：已有有效消费数据，被动收入足以覆盖日均消费。
 - `invalidData`：已有数据无法正常计算，例如金额不是有限数字或日均消费不大于零。

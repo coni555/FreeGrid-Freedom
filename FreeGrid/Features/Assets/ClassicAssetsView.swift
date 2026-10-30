@@ -38,6 +38,8 @@ struct ClassicAssetsView: View {
     @State private var pendingDeletePassive: PassiveSource? = nil
 
     // --- 自由天数口径 ---
+    /// 每月花销：改了要马上重算（0 = 没填），钱包那一行出不出现看它
+    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
 
     // --- 说明与调拨默认收起 ---
     @State private var showingExplain = false
@@ -57,7 +59,8 @@ struct ClassicAssetsView: View {
         // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
                                          assets: assetsArr.first, assetItems: assetItems,
-                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
+                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
+                                         monthlySpending: monthlySpending)
         NavigationStack {
             ScrollViewReader { scroller in
             ScrollView {
@@ -70,10 +73,13 @@ struct ClassicAssetsView: View {
                     }
                     .guideTarget(.buckets, in: guide)
                     .id(AppGuide.Target.buckets)
+                    if MonthlySpending.showsRow(monthly: snapshot.monthlySpending, hasRecords: snapshot.hasRecords,
+                                                gapDays: snapshot.burnGapDays) {
+                        MonthlySpendingRow(gapDays: snapshot.burnGapDays)
+                    }
                     LoanDrawer()
                         .guideTarget(.loans, in: guide)
                         .id(AppGuide.Target.loans)
-                    EverydayEstimateRow()
                     passiveCard(snapshot)
                         .guideTarget(.passive, in: guide)
                         .id(AppGuide.Target.passive)

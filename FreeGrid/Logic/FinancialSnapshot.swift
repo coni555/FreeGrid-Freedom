@@ -44,12 +44,14 @@ struct FinancialSnapshot {
     /// 算日均的那些支出。记一笔的预览要在它上面加一笔重新估日均
     let burnEntries: [FreedomMath.BurnEntry]
     let dailyPassive: Double
-    /// 日均算得出来：记过日常支出，或者填了每月估算。自由天数看它
+    /// 日均算得出来：记过日常支出，或者填了每月花销。自由天数看它
     let hasExpenses: Bool
     /// 真的记过日常支出。记账天数、自检里的记账里程碑看它
     let hasRecords: Bool
-    /// 自己填的每月日常估算；记一笔的预览重新估日均时要带上
-    let monthlyEstimate: Double?
+    /// 自己填的每月花销，含固定支出；没填时是 nil
+    let monthlySpending: Double?
+    /// 每月花销扣掉固定支出后日常的部分；记一笔的预览、趋势重新估日均时要带上
+    let everydayEstimate: Double?
     /// 日均是按记录、按估算，还是记录加断档补的估算
     let burnBasis: FreedomMath.BurnBasis
     /// 最后一笔之后超过 14 天的那几天；没有断档时是 0
@@ -123,15 +125,17 @@ struct FinancialSnapshot {
     init(expenses: [Expense], passiveSources: [PassiveSource], assets: UserAssets?,
          assetItems: [AssetItem] = [], cashAccounts: [CashAccount] = [], loans: [Loan] = [], now: Date = .now,
          countsAssets: Bool = FreedomSettings.countsAssets,
-         monthlyEstimate: Double? = EverydayEstimate.monthly) {
+         monthlySpending: Double? = MonthlySpending.monthly) {
         self.countsAssets = assetItems.isEmpty ? countsAssets : true
         lockedAssets = assets?.lockedAssets ?? 0
         excludedItemAssets = FreedomSettings.excludedAmount(of: assetItems)
         cash = assets?.cash ?? 0
         excludedCash = FreedomSettings.excludedCash(of: cashAccounts)
         burnEntries = FreedomMath.burnEntries(expenses)
-        self.monthlyEstimate = EverydayEstimate.valid(monthlyEstimate)
-        let burn = FreedomMath.burnEstimate(burnEntries, monthlyEstimate: self.monthlyEstimate, now: now)
+        let fixedMonthly = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now)
+        self.monthlySpending = MonthlySpending.valid(monthlySpending)
+        everydayEstimate = MonthlySpending.everyday(monthly: self.monthlySpending, fixedMonthly: fixedMonthly)
+        let burn = FreedomMath.burnEstimate(burnEntries, everydayEstimate: everydayEstimate, now: now)
         totalExpenses = burn.total
         firstExpenseDate = burn.firstDate
         trackDays = burn.trackDays
@@ -139,17 +143,17 @@ struct FinancialSnapshot {
         spreadLumps = burn.spreadLumps
         dailyPassive = FreedomMath.dailyPassive(sources: passiveSources)
         hasRecords = !burnEntries.isEmpty
-        hasExpenses = hasRecords || self.monthlyEstimate != nil
+        hasExpenses = hasRecords || self.monthlySpending != nil
         burnBasis = burn.basis
         burnGapDays = burn.gapDays
         loanPlan = LoanSchedule.plan(loans: loans, payments: expenses, now: now)
-        dailyFixed = LoanSchedule.monthlyTotal(loans: loans, payments: expenses, now: now)
-            / FreedomMath.GridUnit.month.daysPerCell
+        dailyFixed = fixedMonthly / FreedomMath.GridUnit.month.daysPerCell
         self.now = now
         freedomRun = FreedomMath.freedomRun(
             netWorth: Self.freedomBase(countsAssets: self.countsAssets, lockedAssets: lockedAssets,
                                        excludedItemAssets: excludedItemAssets, cash: cash, excludedCash: excludedCash),
-            dailyBurn: dailyBurn, dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan
+            dailyBurn: dailyBurn, dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan,
+            burnMayBeZero: burnBasis == .estimate
         )
     }
 }

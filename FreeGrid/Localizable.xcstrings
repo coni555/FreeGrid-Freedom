@@ -679,6 +679,16 @@
         }
       }
     },
+    "%lld 天没记了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days unlogged"
+          }
+        }
+      }
+    },
     "%lld 年": {
       "localizations": {
         "en": {
@@ -1027,12 +1037,12 @@
         }
       }
     },
-    "**不想天天记账，填个日常估算**。在钱包的「日常估算」填每月日常大约花多少（吃饭、购物、交通，不含房租这类固定支出）。还没记过日常支出时，日均按它算；记了账就按实际记录。最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊：填了估算就按估算补，没填就先停住。": {
+    "**不想天天记账，填个每月花销**。首页或钱包里填每月大约花多少，房租、吃饭、购物、订阅全部算上，自由天数马上算出来。记了日常支出就按实际记录。最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊：填了每月花销就按它补，没填就先停住。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Don't want to log every day? Add an everyday estimate.** In Wallet, Everyday Estimate takes roughly what you spend each month on everyday things (food, shopping, transport — not fixed costs like rent). Until you record everyday expenses, your daily average uses it; once you do, it follows your records. If more than 14 days pass after your last entry, the extra days stop pulling the average down: they use your estimate if you set one, or the average simply holds."
+            "value": "**Don't want to log every day? Enter your monthly spending.** On Home or in Wallet, enter roughly what you spend per month, counting rent, food, shopping and subscriptions, and your Freedom Days appear right away. Once you record everyday expenses, it follows your records. If more than 14 days pass after your last entry, the extra days stop pulling the average down: they use your monthly spending if you set it, or the average simply holds."
           }
         }
       }
@@ -2322,6 +2332,16 @@
         }
       }
     },
+    "不想每天记账？填每月大约花多少": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not logging daily? Enter monthly spending"
+          }
+        }
+      }
+    },
     "不打算马上花的钱：定期、股票、基金、房子": {
       "localizations": {
         "en": {
@@ -2402,12 +2422,12 @@
         }
       }
     },
-    "不记账也能算自由天数": {
+    "不记账也能算": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Freedom Days without daily logging"
+            "value": "No logging needed"
           }
         }
       }
@@ -2878,16 +2898,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "This creates a new category, “%@”."
-          }
-        }
-      }
-    },
-    "估算 %@ · 固定 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimate %@ · Fixed %@"
           }
         }
       }
@@ -3560,6 +3570,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Now add *an expense*"
+          }
+        }
+      }
+    },
+    "再记一笔支出，就能算出自由天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add one expense to see your Freedom Days"
           }
         }
       }
@@ -4484,16 +4504,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Switch to the clock at the top right and every amount becomes “days of everyday spending”."
-          }
-        }
-      }
-    },
-    "吃饭、购物、交通这些日常。房租、订阅放在固定支出里，这里不用算。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Everyday spending like food, shopping and transport. Rent and subscriptions belong in fixed expenses, so leave them out here."
           }
         }
       }
@@ -6266,6 +6276,16 @@
         }
       }
     },
+    "房租、吃饭、购物、订阅，全部算上。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rent, food, shopping, subscriptions: count it all."
+          }
+        }
+      }
+    },
     "房租、宠物、咖啡…": {
       "localizations": {
         "en": {
@@ -7570,16 +7590,6 @@
         }
       }
     },
-    "日常估算": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Everyday Estimate"
-          }
-        }
-      }
-    },
     "日常开销": {
       "localizations": {
         "en": {
@@ -8280,22 +8290,22 @@
         }
       }
     },
+    "每月大约花多少": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roughly how much per month"
+          }
+        }
+      }
+    },
     "每月收入": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Monthly income"
-          }
-        }
-      }
-    },
-    "每月日常大约花多少": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Everyday spending per month"
           }
         }
       }
@@ -8326,6 +8336,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saving about ¥%@ a month"
+          }
+        }
+      }
+    },
+    "每月花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly Spending"
+          }
+        }
+      }
+    },
+    "每月花销都是固定支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly spending is all fixed costs"
           }
         }
       }
@@ -10318,12 +10348,12 @@
         }
       }
     },
-    "要两样都有：钱包里填了钱，并且记过至少一笔支出（或者在钱包填了日常估算）。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
+    "要两样都有：钱包里填了钱，并且记过至少一笔支出（或者填了每月花销）。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It needs both: money entered in Wallet and at least one expense (or an everyday estimate in Wallet). If it says an amount looks wrong, look in History for an unusually large or negative entry."
+            "value": "It needs both: money entered in Wallet and at least one expense (or your monthly spending). If it says an amount looks wrong, look in History for an unusually large or negative entry."
           }
         }
       }
@@ -10444,16 +10474,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Expense"
-          }
-        }
-      }
-    },
-    "记一笔支出，或在钱包里填每月大约花多少": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record an expense, or add a monthly estimate in Wallet"
           }
         }
       }
@@ -11660,16 +11680,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "No entries yet"
-          }
-        }
-      }
-    },
-    "还没记过日常支出时，日均按这个数算；记了账就按实际记录。超过 14 天没记，空着的那些天按它补上。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Until you record everyday expenses, your daily average uses this number; once you do, it follows your records. If you go more than 14 days without recording, those days are filled in with it."
           }
         }
       }
