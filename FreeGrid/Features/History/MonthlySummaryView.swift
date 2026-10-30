@@ -1,4 +1,4 @@
-// 按月汇总收入、支出和净；从明细页进入时可选一个月回去看明细。钱花在哪几类看明细页的月份卡片，这里不再重复。
+// 按月汇总收入、支出和净；点开一个月，在卡片里看支出构成（柱状图 / 扇形图）。从明细页进入时可选一个月回去看明细。
 
 import SwiftUI
 import SwiftData
@@ -6,6 +6,8 @@ import SwiftData
 struct MonthlySummaryView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    /// 手动点开或收起过的月份；没点过时最近的那个月是展开的
+    @State private var toggled: Set<String> = []
     @Environment(\.dismiss) private var dismiss
 
     /// 选定时间范围后回到历史页; nil 时不显示跳转入口
@@ -18,6 +20,7 @@ struct MonthlySummaryView: View {
         let totalExpense: Double
         let totalIncome: Double
         var net: Double { totalIncome - totalExpense }
+        let breakdown: HistoryLedger.Breakdown
     }
 
     var body: some View {
@@ -40,7 +43,7 @@ struct MonthlySummaryView: View {
                         GhostButton(title: String(localized: "查看全部时间的明细")) { select(.allTime) }
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    ForEach(months) { monthCard($0) }
+                    ForEach(months) { monthCard($0, expandedByDefault: $0.id == months.first?.id) }
                 }
                 .padding()
             }
@@ -50,23 +53,47 @@ struct MonthlySummaryView: View {
         .inlineNavTitle()
     }
 
-    private func monthCard(_ stat: MonthlyStat) -> some View {
-        VaultCard {
+    private func monthCard(_ stat: MonthlyStat, expandedByDefault: Bool) -> some View {
+        let isExpanded = toggled.contains(stat.id) != expandedByDefault
+        let hasChart = !HistoryLedger.shares(stat.breakdown).isEmpty
+        return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack {
-                        Text(stat.label)
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundStyle(Color.ink)
-                        Spacer()
-                        Text("净 \(FinancialFormatting.signedYuan(stat.net))")
-                            .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
-                            .foregroundStyle(stat.net >= 0 ? Color.mossGreen : Color.flame)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if toggled.contains(stat.id) { toggled.remove(stat.id) } else { toggled.insert(stat.id) }
                     }
-                    HStack(spacing: Spacing.xl) {
-                        amountStat(String(localized: "支出"), stat.totalExpense, Color.ink)
-                        amountStat(String(localized: "收入"), stat.totalIncome, Color.skyDeep)
+                } label: {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        HStack {
+                            Text(stat.label)
+                                .font(.system(.headline, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                            Spacer()
+                            Text("净 \(FinancialFormatting.signedYuan(stat.net))")
+                                .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
+                                .foregroundStyle(stat.net >= 0 ? Color.mossGreen : Color.flame)
+                            if hasChart {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            }
+                        }
+                        HStack(spacing: Spacing.xl) {
+                            amountStat(String(localized: "支出"), stat.totalExpense, Color.ink)
+                            amountStat(String(localized: "收入"), stat.totalIncome, Color.skyDeep)
+                        }
                     }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasChart)
+                .accessibilityIdentifier("month-card-\(stat.id)")
+                .accessibilityValue(hasChart ? (isExpanded ? "已展开" : "已收起") : "")
+
+                if isExpanded && hasChart {
+                    Hairline(color: .hairlineSoft)
+                    MonthCategoryChart(breakdown: stat.breakdown)
                 }
 
                 if onSelect != nil {
@@ -93,7 +120,7 @@ struct MonthlySummaryView: View {
         }
     }
 
-    /// 按 年-月 分组聚合。最近的月在前。
+    /// 按 年-月 分组聚合，月内支出再按分类合计。最近的月在前。
     private var monthlyStats: [MonthlyStat] {
         let cal = Calendar.current
         func key(_ d: Date) -> String {
@@ -112,7 +139,8 @@ struct MonthlySummaryView: View {
             return MonthlyStat(
                 id: k, month: HistoryMonth(year: Int(parts[0]) ?? 0, month: Int(parts[1]) ?? 1),
                 totalExpense: exps.reduce(0) { $0 + $1.amount },
-                totalIncome: incByMonth[k] ?? 0
+                totalIncome: incByMonth[k] ?? 0,
+                breakdown: HistoryLedger.breakdown(exps.map(LedgerTransaction.expense))
             )
         }
     }

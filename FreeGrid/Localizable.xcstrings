@@ -1227,12 +1227,12 @@
         }
       }
     },
-    "**浏览**：按月看，按天分组。点月份打开月度汇总，可以跳到任意一个月；旁边的箭头前后翻月。首页点「本月花销」也会来到这个月。": {
+    "**浏览**：按月看，按天分组。点月份打开月度汇总：每个月的收入、支出、净，点开一个月看支出构成，柱状图和扇形图可以切换；从这里可以跳到任意一个月；旁边的箭头前后翻月。首页点「本月花销」也会来到这个月。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary and jump to any month; the arrows go back and forward. Tapping the Month card on the Dashboard also brings you here."
+            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary: income, spending and net for every month; open a month to see its spending by category as a bar or pie chart, and jump to any month from there; the arrows go back and forward. Tapping the Month card on the Dashboard also brings you here."
           }
         }
       }
@@ -3470,6 +3470,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Other features"
+          }
+        }
+      }
+    },
+    "其余 %lld 类": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more"
+                }
+              }
+            }
           }
         }
       }
@@ -6288,6 +6310,16 @@
         }
       }
     },
+    "扇形图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pie chart"
+          }
+        }
+      }
+    },
     "手动跳过": {
       "localizations": {
         "en": {
@@ -6988,6 +7020,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Expense date"
+          }
+        }
+      }
+    },
+    "支出构成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending by category"
           }
         }
       }
@@ -7850,6 +7892,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "View This Month"
+          }
+        }
+      }
+    },
+    "柱状图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bar chart"
           }
         }
       }

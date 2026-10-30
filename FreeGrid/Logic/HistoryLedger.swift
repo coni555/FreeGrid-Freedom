@@ -205,6 +205,31 @@ enum HistoryLedger {
         return result
     }
 
+    /// 月度汇总里图上的一份：固定支出、一个分类，或者排在后面合起来的几类
+    struct Share: Equatable, Identifiable {
+        enum Kind: Hashable {
+            case fixed
+            case category(String)
+            /// 合进来的有几类
+            case rest(Int)
+        }
+        let kind: Kind
+        let total: Double
+        var id: Kind { kind }
+    }
+
+    /// 图上画哪几份：固定支出和各分类放在一起从多到少，退款多过支出的类不画；
+    /// 多于 limit 份时留前 limit − 1 份，其余合成一份（扇形图切太碎就看不清）
+    static func shares(_ breakdown: Breakdown, limit: Int? = nil) -> [Share] {
+        var all = breakdown.categories.filter { $0.total > 0 }.map { Share(kind: .category($0.category), total: $0.total) }
+        if breakdown.fixed > 0 { all.append(Share(kind: .fixed, total: breakdown.fixed)) }
+        all.sort { $0.total > $1.total }
+        guard let limit, all.count > limit else { return all }
+        let kept = all.prefix(limit - 1)
+        let rest = all.dropFirst(limit - 1)
+        return kept + [Share(kind: .rest(rest.count), total: rest.reduce(0) { $0 + $1.total })]
+    }
+
     /// 分类后面的「≈ N 天」：不足 0.1 天写「< 0.1 天」，不足 10 天留一位小数，其余取整。
     static func daysLabel(_ days: Double) -> String {
         if days < 0.05 { return String(localized: "< 0.1 天") }

@@ -131,6 +131,25 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["history-breakdown-购物"].exists)
     }
 
+    /// 月度汇总：最近的月默认展开，支出构成在柱状图和扇形图之间切换，切换后别的月份也跟着换
+    @MainActor
+    func testMonthlySummaryShowsTheBreakdownAsBarsOrPie() throws {
+        let app = try launch()
+        app.buttons["history-scope-title"].tap()
+        let pie = app.buttons["month-chart-pie"]
+        XCTAssertTrue(pie.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["month-chart-bars"].isSelected)
+        pie.tap()
+        XCTAssertTrue(pie.isSelected)
+        let first = app.buttons["month-chart-pie"].firstMatch
+        XCTAssertTrue(first.exists)
+        // 点开上个月：同样是扇形图
+        let previous = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "month-card-")).element(boundBy: 1)
+        previous.tap()
+        XCTAssertEqual(app.buttons.matching(identifier: "month-chart-pie").count, 2)
+        XCTAssertTrue(app.buttons.matching(identifier: "month-chart-pie").element(boundBy: 1).isSelected)
+    }
+
     @MainActor
     func testFilterCrossMonthSearchSuggestionsAndLatestInput() throws {
         let app = try launch()

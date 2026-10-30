@@ -72,6 +72,19 @@ struct HistoryLedgerTests {
         #expect(try index.search("月付", filter: .category("午餐")).summary.count == 0)
     }
 
+    /// 月度汇总的图：固定支出按金额排进去，退款多过支出的类不画，多了就把后面的合成一份
+    @Test func chartSharesSortFixedInDropRefundsAndMergeTheTail() {
+        let breakdown = HistoryLedger.Breakdown(fixed: 300, categories: [
+            .init(category: "午餐", total: 500), .init(category: "交通", total: 200),
+            .init(category: "娱乐", total: 80), .init(category: "早餐", total: 20), .init(category: "购物", total: -30),
+        ])
+        #expect(HistoryLedger.shares(breakdown).map(\.kind) == [.category("午餐"), .fixed, .category("交通"), .category("娱乐"), .category("早餐")])
+        let merged = HistoryLedger.shares(breakdown, limit: 4)
+        #expect(merged.map(\.kind) == [.category("午餐"), .fixed, .category("交通"), .rest(2)])
+        #expect(merged.last?.total == 100)
+        #expect(HistoryLedger.shares(breakdown, limit: 5).count == 5)
+    }
+
     @Test func categoryDaysUseOneDecimalBelowTenAndFlagTinyAmounts() {
         #expect(HistoryLedger.daysLabel(0.02) == "< 0.1 天")
         #expect(HistoryLedger.daysLabel(2.64) == "≈ 2.6 天")

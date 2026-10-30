@@ -1,0 +1,213 @@
+// 月度汇总里点开一个月看到的支出构成：柱状图和扇形图二选一。选哪种记在偏好里，所有月份一起换。
+// 分几份、怎么合并在 Logic/HistoryLedger.swift 的 shares。
+
+import SwiftUI
+import Charts
+
+struct MonthCategoryChart: View {
+    enum Style: String {
+        case bars, pie
+    }
+
+    let breakdown: HistoryLedger.Breakdown
+
+    @AppStorage("monthlyChartStyle", store: AppPreferences.store) private var style = Style.bars
+    /// 扇形图上点中的一份；再点一下取消
+    @State private var selected: HistoryLedger.Share.Kind?
+    @State private var angle: Double?
+
+    /// 扇形图最多画几份，其余合成「其余 N 类」
+    private static let pieLimit = 5
+    /// 扇形由深到浅，同一个蓝，和原来柱状图的颜色一样
+    private static let pieOpacities: [Double] = [1, 0.72, 0.52, 0.38, 0.28]
+
+    var body: some View {
+        let shares = HistoryLedger.shares(breakdown, limit: style == .pie ? Self.pieLimit : nil)
+        let total = shares.reduce(0) { $0 + $1.total }
+        if !shares.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack {
+                    KickerLabel(text: String(localized: "支出构成"))
+                    Spacer()
+                    styleSwitch
+                }
+                switch style {
+                case .bars: bars(shares, total: total)
+                case .pie: pie(shares, total: total)
+                }
+            }
+        }
+    }
+
+    // MARK: - 切换
+
+    private var styleSwitch: some View {
+        HStack(spacing: 0) {
+            switchButton(.bars, icon: "chart.bar", label: String(localized: "柱状图"))
+            switchButton(.pie, icon: "chart.pie", label: String(localized: "扇形图"))
+        }
+        .overlay(Capsule().stroke(Color.hairline, lineWidth: 1))
+    }
+
+    private func switchButton(_ value: Style, icon: String, label: String) -> some View {
+        let on = style == value
+        return Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                style = value
+                selected = nil
+            }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: on ? .regular : .light))
+                .foregroundStyle(on ? Color.ink : Color.inkFaint)
+                .frame(width: 34, height: 26)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .accessibilityIdentifier("month-chart-\(value.rawValue)")
+    }
+
+    // MARK: - 柱状图
+
+    private func bars(_ shares: [HistoryLedger.Share], total: Double) -> some View {
+        let largest = shares.first?.total ?? 1
+        return VStack(spacing: Spacing.sm) {
+            ForEach(shares) { share in
+                HStack(spacing: Spacing.sm) {
+                    Text(name(share.kind))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .lineLimit(1)
+                        // 英文分类名更长（Breakfast、Shopping），给宽一点
+                        .frame(width: AppLanguage.isChinese ? 56 : 80, alignment: .leading)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.mist)
+                            Capsule().fill(Color.cashBlue)
+                                .frame(width: max(4, geo.size.width * share.total / largest))
+                        }
+                    }
+                    .frame(height: 8)
+                    Text(FinancialFormatting.yuan(share.total))
+                        .font(.system(.caption, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .frame(minWidth: 56, alignment: .trailing)
+                    Text(percent(share.total, of: total))
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.inkFaint)
+                        .frame(width: 34, alignment: .trailing)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .transition(.opacity)
+    }
+
+    // MARK: - 扇形图
+
+    private func pie(_ shares: [HistoryLedger.Share], total: Double) -> some View {
+        let focus = shares.first { $0.kind == selected }
+        return HStack(alignment: .center, spacing: Spacing.lg) {
+            Chart(Array(shares.enumerated()), id: \.element.id) { index, share in
+                SectorMark(angle: .value("金额", share.total), innerRadius: .ratio(0.8), angularInset: 1.5)
+                    .cornerRadius(1.5)
+                    .foregroundStyle(Color.cashBlue.opacity(opacity(index, kind: share.kind)))
+            }
+            .chartLegend(.hidden)
+            .chartAngleSelection(value: $angle)
+            .frame(width: 116, height: 116)
+            .overlay {
+                // 中间：没点时是这个月支出，点了一份就换成那一份
+                VStack(spacing: 2) {
+                    Text(focus.map { percent($0.total, of: total) } ?? FinancialFormatting.yuan(total, precision: 0))
+                        .font(.system(size: 20, weight: .ultraLight, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(focus.map { name($0.kind) } ?? String(localized: "支出"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .lineLimit(1)
+                }
+                .frame(width: 80)
+                .allowsHitTesting(false)
+            }
+            .onChange(of: angle) { _, value in
+                guard let value, let kind = kind(at: value, in: shares) else { return }
+                withAnimation(.easeInOut(duration: 0.2)) { selected = selected == kind ? nil : kind }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(shares.enumerated()), id: \.element.id) { index, share in
+                    legendRow(share, index: index, total: total)
+                }
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private func legendRow(_ share: HistoryLedger.Share, index: Int, total: Double) -> some View {
+        let dimmed = selected != nil && selected != share.kind
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { selected = selected == share.kind ? nil : share.kind }
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Circle()
+                    .fill(Color.cashBlue.opacity(opacity(index, kind: share.kind)))
+                    .frame(width: 7, height: 7)
+                Text(name(share.kind))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(dimmed ? Color.inkFaint : Color.ink)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.xs)
+                Text(FinancialFormatting.yuan(share.total, precision: 0))
+                    .font(.system(.caption, design: .rounded).monospacedDigit())
+                    .foregroundStyle(dimmed ? Color.inkFaint : Color.inkMuted)
+                    .lineLimit(1)
+                Text(percent(share.total, of: total))
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(width: 32, alignment: .trailing)
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected == share.kind ? .isSelected : [])
+    }
+
+    /// 点中的一份用最深的蓝，其余几份退到很淡
+    private func opacity(_ index: Int, kind: HistoryLedger.Share.Kind) -> Double {
+        let base = Self.pieOpacities[min(index, Self.pieOpacities.count - 1)]
+        guard let selected else { return base }
+        return selected == kind ? 1 : base * 0.3
+    }
+
+    /// 扇形图上点到的位置落在哪一份：按金额从起点累加
+    private func kind(at value: Double, in shares: [HistoryLedger.Share]) -> HistoryLedger.Share.Kind? {
+        var running = 0.0
+        for share in shares {
+            running += share.total
+            if value <= running { return share.kind }
+        }
+        return shares.last?.kind
+    }
+
+    private func name(_ kind: HistoryLedger.Share.Kind) -> String {
+        switch kind {
+        case .fixed: return String(localized: "固定支出")
+        case .category(let category): return ExpenseCategory.displayName(category)
+        case .rest(let count): return String(localized: "其余 \(count) 类")
+        }
+    }
+
+    private func percent(_ value: Double, of total: Double) -> String {
+        guard total > 0 else { return "" }
+        let share = value / total
+        return share < 0.01 ? "<1%" : share.formatted(.percent.precision(.fractionLength(0)))
+    }
+}
