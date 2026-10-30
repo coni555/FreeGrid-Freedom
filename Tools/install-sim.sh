@@ -56,7 +56,9 @@ xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
 xcrun simctl install "$SIM_UDID" "$APP"
 echo "✓ 已装到 $SIM_NAME"
 if [ "$LAUNCH" = 1 ]; then
-  open -a Simulator --args -CurrentDeviceUDID "$SIM_UDID"
+  # Xcode 27 起模拟器窗口在 DeviceHub 里，没有 Simulator.app 了；打不开窗口也照样启动
+  open -a Simulator --args -CurrentDeviceUDID "$SIM_UDID" 2>/dev/null \
+    || open -a "$(xcode-select -p)/../Applications/DeviceHub.app" 2>/dev/null || true
   xcrun simctl launch "$SIM_UDID" "$BUNDLE_ID" > /dev/null
   echo "✓ 已启动"
 fi
