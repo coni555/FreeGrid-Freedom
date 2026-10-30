@@ -1,43 +1,10 @@
 // 日均消费怎么估：总支出 ÷ 记录天数，多两条——记账不满 90 天时，单笔大额支出按 90 天摊；
-// 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均（填了每月花销就按它补）。
-// 填了每月花销再开始记账，日均在 30 天里慢慢从它过渡到记录，不一下子跳（用户 2026-10-30 定）。
-// 没记过日常支出、但填了每月花销时，日均就是它扣掉固定支出后折成的每天（2.2，用户 2026-10-30 定）。
+// 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均。
+// 用「每月一个数」时日均只看写下的数（见 `MonthlyTracking`），那段时间不算进记录；
+// 改回逐笔记账时，日均用 30 天从写下的数过渡到记录，不一下子跳（用户 2026-10-30 定）。
 // 首页、记一笔的影响预览、趋势、History 都从这里拿日均，口径只有一个。
 
 import Foundation
-
-/// 自己填的「这个月一共花了多少」，是全部花销：房租、订阅这些固定支出也算在里面（用户 2026-10-30 定）。
-/// 不记账的人填完这一个数就够了；记账的人断档时也用它补空档。
-/// 存在本机偏好里，JSON 备份会带上（见 `BackupEnvelope.monthlySpending`）。
-enum MonthlySpending {
-    static let key = "monthlySpendingEstimate"
-
-    /// 没填、填 0 或不是有效数字时为 nil
-    static func monthly(in defaults: UserDefaults) -> Double? {
-        valid(defaults.double(forKey: key))
-    }
-
-    /// 单元测试不读这台设备上填过的数：模拟器账本是拿来试用的，填过以后不该让别的测试变结果
-    static var monthly: Double? {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ? nil : monthly(in: AppPreferences.store)
-    }
-
-    static func valid(_ value: Double?) -> Double? {
-        guard let value, value.isFinite, value > 0, value <= FinancialLimits.maximumAmount else { return nil }
-        return value
-    }
-
-    /// 日常的部分：每月花销扣掉固定支出。固定支出按日历另扣，不扣掉就算了两遍；
-    /// 固定支出比填的数还多时是 0，自由天数只按日历扣固定支出（见 `FreedomMath.freedomRun`）
-    static func everyday(monthly: Double?, fixedMonthly: Double) -> Double? {
-        monthly.map { max(0, $0 - fixedMonthly) }
-    }
-
-    /// 钱包里这一行什么时候出现：不记账的人、已经填过的人、断档的人。天天记账的人用不上，不打扰
-    static func showsRow(monthly: Double?, hasRecords: Bool, gapDays: Int) -> Bool {
-        monthly != nil || !hasRecords || gapDays > 0
-    }
-}
 
 extension FreedomMath {
     /// 记账不满这么多天时，大额支出按这么多天摊；记满以后就是「总支出 ÷ 天数」，一分不差
@@ -46,17 +13,23 @@ extension FreedomMath {
     static let lumpMultiple = 30.0
     /// 最后一笔之后这么多天内照常摊；再往后算断档，不再让日均往下掉
     static let burnGraceDays = 14
-    /// 填了每月花销的人，记账不满这么多天时，还没记到的那些天按每月花销算
+    /// 改回逐笔记账后，用这么多天从写下的数过渡到记录；记账没跨满这么多天又断档的，不给大数字
     static let estimateBlendDays = 30
 
-    /// 日均是从哪来的；界面上「按每月估算」的标记看它
+    /// 日均是从哪来的
     enum BurnBasis: Equatable {
         /// 全按记下的支出
         case records
-        /// 没记过日常支出，全按每月花销
+        /// 全按每月写下的数
         case estimate
-        /// 记下的支出加上每月花销补的那些天：刚开始记账不满 30 天，或者断档
+        /// 刚改回逐笔记账，还在从写下的数过渡到记录
         case recordsAndEstimate
+    }
+
+    /// 改回逐笔记账时的过渡：`everyday` 是写下的数扣掉固定支出后的日常部分，从 `from` 这天起过渡
+    struct EstimateBlend: Equatable {
+        let everyday: Double
+        let from: Date
     }
 
     /// 一笔算日均的支出，只留日期和金额：记一笔的预览要把还没保存的那笔也算进去
@@ -69,12 +42,14 @@ extension FreedomMath {
         let total: Double
         let firstDate: Date?
         let trackDays: Int
-        let dailyBurn: Double
+        var dailyBurn: Double
         /// 这次被摊开算的大额支出加起来是多少；没有摊开时是 0
-        let spreadLumps: Double
+        var spreadLumps: Double
         var basis: BurnBasis = .records
         /// 断档里没算进记录的天数（最后一笔之后第 15 天起）；没有断档时是 0
         var gapDays = 0
+        /// 记账没跨满 30 天就断档了：这点记录算不准，首页不给大数字
+        var recordsTooFew = false
     }
 
     /// 为什么要摊：头几周交一次电脑钱，原来的算法把它当成每天都在花，日均能翻十倍，
@@ -90,18 +65,20 @@ extension FreedomMath {
     /// 不摊平日的小钱：前 90 天的日常开销照实算，新用户的日均不会被压低。
     ///
     /// 断档：最后一笔之后的头 14 天照常摊（一周、一个月记一次总账的人，中间几天本来就空着），
-    /// 再往后的天不算进记录的分母，日均停住不再往下掉；填了每月花销就把这些天按它补进去（`everydayEstimate` 是它扣掉固定支出后的日常部分）。
+    /// 再往后的天不算进记录的分母，日均停住不再往下掉。
     /// 停在第 14 天而不是退回最后一笔那天：日均是慢慢停下，不会在第 15 天突然跳一截。
     /// 只看最后一笔之后的空档；中间断过又接着记的，那段照常算（记总账的人中间也是空的）。
     ///
-    /// 过渡：填了每月花销的人记第一笔时，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
-    /// 所以记账不满 30 天时，分母按 30 天算，还没记到的那些天按每月花销补；记满 30 天正好全按记录，中间没有跳变。
-    /// 断档也走这一条：补的天数 = 总天数（至少 30）− 记录段的天数。
-    /// 记账还没跨满 30 天时，记录段只到最后一笔，后面的空天也按每月花销补：
-    /// 下载那天记了一笔 20 元就没再记，一个月后填 3000，日均该接近 98，不能把中间 14 天当成一分没花。
-    static func burnEstimate(_ entries: [BurnEntry], everydayEstimate: Double? = nil, now: Date = .now,
-                             calendar: Calendar = .current) -> BurnEstimate {
-        let estimateDaily = everydayEstimate.flatMap { $0.isFinite && $0 >= 0 ? $0 / GridUnit.month.daysPerCell : nil }
+    /// `pauses`：用每月一个数的那些天既不算记账，也不算花了 0 元，从天数里去掉。
+    ///
+    /// `blend`：改回逐笔记账后，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
+    /// 从改回那天（那之后才记第一笔的，从第一笔那天）起算第 n 天，记录占 n/30，写下的数占其余；满 30 天全按记录。
+    static func burnEstimate(_ entries: [BurnEntry], pauses: [MonthlyTracking.Pause] = [], blend: EstimateBlend? = nil,
+                             now: Date = .now, calendar: Calendar = .current) -> BurnEstimate {
+        // 趋势往回算时，改回之前的日子不过渡
+        let blend = blend.flatMap { $0.everyday.isFinite && $0.everyday >= 0
+            && calendar.startOfDay(for: now) >= calendar.startOfDay(for: $0.from) ? $0 : nil }
+        let estimateDaily = blend.map { $0.everyday / GridUnit.month.daysPerCell }
         guard let lastDate = entries.map(\.date).max() else {
             if let estimateDaily {
                 return BurnEstimate(total: 0, firstDate: nil, trackDays: 0, dailyBurn: estimateDaily,
@@ -109,24 +86,63 @@ extension FreedomMath {
             }
             return recordedBurn(entries, days: 0, firstDate: nil)
         }
-        let firstDate = entries.map(\.date).min()
-        let days = trackDays(firstRecordDate: firstDate, now: now, calendar: calendar)
-        let sinceLast = calendar.dateComponents([.day], from: calendar.startOfDay(for: lastDate),
-                                                to: calendar.startOfDay(for: now)).day ?? 0
+        let firstDate = entries.map(\.date).min() ?? lastDate
+        let days = max(1, trackDays(firstRecordDate: firstDate, now: now, calendar: calendar)
+            - pausedDays(pauses, from: firstDate, to: now, calendar: calendar))
+        let sinceLast = dayCount(from: lastDate, to: now, calendar: calendar)
+            - pausedDays(pauses, from: lastDate, to: now, calendar: calendar)
         let gap = min(max(0, sinceLast - burnGraceDays), max(0, days - 1))
-        let loggedDays = (calendar.dateComponents([.day], from: calendar.startOfDay(for: firstDate ?? lastDate),
-                                                  to: calendar.startOfDay(for: lastDate)).day ?? 0) + 1
+        let loggedDays = dayCount(from: firstDate, to: lastDate, calendar: calendar)
+            - pausedDays(pauses, from: firstDate, to: lastDate, calendar: calendar) + 1
         // 记录天数照日历算（记账天数卡、自检里程碑用它），只有日均的分母去掉断档
-        let recordedDays = estimateDaily != nil && loggedDays < estimateBlendDays ? min(loggedDays, days - gap) : days - gap
-        let recorded = recordedBurn(entries, days: recordedDays, firstDate: firstDate, calendar: calendar)
-        let span = max(days, estimateBlendDays)
-        guard span > recordedDays, let estimateDaily, recorded.dailyBurn.isFinite else {
-            return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
-                                dailyBurn: recorded.dailyBurn, spreadLumps: recorded.spreadLumps, gapDays: gap)
+        let recorded = recordedBurn(entries, days: days - gap, firstDate: firstDate, calendar: calendar)
+        if let blend, let estimateDaily, recorded.dailyBurn.isFinite {
+            let start = max(calendar.startOfDay(for: blend.from), calendar.startOfDay(for: firstDate))
+            let elapsed = max(1, dayCount(from: start, to: now, calendar: calendar) + 1)
+            if elapsed < estimateBlendDays {
+                let share = Double(elapsed) / Double(estimateBlendDays)
+                return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
+                                    dailyBurn: recorded.dailyBurn * share + estimateDaily * (1 - share),
+                                    spreadLumps: recorded.spreadLumps, basis: .recordsAndEstimate, gapDays: gap)
+            }
         }
-        let mixed = (recorded.dailyBurn * Double(recordedDays) + estimateDaily * Double(span - recordedDays)) / Double(span)
-        return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days, dailyBurn: mixed,
-                            spreadLumps: recorded.spreadLumps, basis: .recordsAndEstimate, gapDays: gap)
+        return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
+                            dailyBurn: recorded.dailyBurn, spreadLumps: recorded.spreadLumps, gapDays: gap,
+                            recordsTooFew: gap > 0 && loggedDays < estimateBlendDays)
+    }
+
+    /// 按记账方式算日均。每月一个数时日均只看写下的数，记录那边的天数和总额留着（记账里程碑暂停在原处）
+    static func burnEstimate(_ entries: [BurnEntry], tracking: MonthlyTracking, fixedMonthly: Double, now: Date = .now,
+                             calendar: Calendar = .current) -> BurnEstimate {
+        let everyday = tracking.everyday(fixedMonthly: fixedMonthly)
+        var blend: EstimateBlend?
+        if !tracking.isMonthly, let everyday, let from = tracking.switchedBackAt {
+            blend = EstimateBlend(everyday: everyday, from: from)
+        }
+        var burn = burnEstimate(entries, pauses: tracking.pauses, blend: blend, now: now, calendar: calendar)
+        if tracking.isMonthly {
+            burn.dailyBurn = everyday.map { $0 / GridUnit.month.daysPerCell } ?? .nan
+            burn.basis = .estimate
+            burn.spreadLumps = 0
+            burn.gapDays = 0
+            burn.recordsTooFew = false
+        }
+        return burn
+    }
+
+    private static func dayCount(from: Date, to: Date, calendar: Calendar) -> Int {
+        calendar.dateComponents([.day], from: calendar.startOfDay(for: from), to: calendar.startOfDay(for: to)).day ?? 0
+    }
+
+    /// `from`…`to` 之间有多少天落在这些暂停里。切换的当天还算记账：切过去那天和切回来那天都不去掉
+    private static func pausedDays(_ pauses: [MonthlyTracking.Pause], from: Date, to: Date, calendar: Calendar) -> Int {
+        pauses.reduce(0) { total, pause in
+            let start = max(pause.start, from)
+            if let end = pause.end, end <= to {
+                return start < end ? total + max(0, dayCount(from: start, to: end, calendar: calendar) - 1) : total
+            }
+            return start < to ? total + max(0, dayCount(from: start, to: to, calendar: calendar)) : total
+        }
     }
 
     /// 只看记下的支出：总支出 ÷ `days`，不满 90 天时大额按 90 天摊

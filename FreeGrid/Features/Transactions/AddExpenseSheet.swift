@@ -83,12 +83,6 @@ private struct ExpenseForm: View {
                         .font(.system(.body, design: .rounded).monospacedDigit())
                 } header: {
                     Text("金额（元）")
-                } footer: {
-                    // 放在金额下面：下面的预览被键盘挡着，这句要在记之前看得到
-                    if snapshot.burnBasis == .estimate {
-                        Text("开始记账后，日均会慢慢改按记账算。")
-                            .font(.system(.caption2, design: .rounded))
-                    }
                 }
                 // 分类这组不加小标题: 行里已经写了「分类」, 上面再写一遍是重复。
                 // 管理分类的入口收在菜单最后一项：只在用户找分类时出现，平时表单里没有任何推销

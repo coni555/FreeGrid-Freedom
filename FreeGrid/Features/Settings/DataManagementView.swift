@@ -10,7 +10,7 @@ struct DataManagementView: View {
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
-    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
@@ -182,7 +182,7 @@ struct DataManagementView: View {
                 data = try DataIO.exportJSON(
                     context: modelContext,
                     categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions),
-                    monthlySpending: MonthlySpending.valid(monthlySpending))
+                    monthlyTracking: { let tracking = MonthlyTracking.decode(storedTracking); return tracking.isUntouched ? nil : tracking }())
                 name = String(localized: "FreeGrid-备份-\(timestamp)-\(nonce).json")
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -254,9 +254,9 @@ struct DataManagementView: View {
             ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
             encodedCategoryOptions = merged
         }
-        // 每月花销：整份恢复时以备份为准，其他方式只在本机还没填时补上
-        if let backup = preview.monthlySpending, strategy == .replace || MonthlySpending.valid(monthlySpending) == nil {
-            monthlySpending = backup
+        // 记账方式和每月写下的数：整份恢复时以备份为准，其他方式只在本机没用过时补上
+        if let backup = preview.monthlyTracking, strategy == .replace || MonthlyTracking.decode(storedTracking).isUntouched {
+            storedTracking = backup.encoded
         }
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
@@ -291,7 +291,7 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
-            monthlySpending = 0
+            storedTracking = ""
             importStatus = String(localized: "已清空记账数据")
         } catch {
             importStatus = String(localized: "清空失败：\(error.localizedDescription)")

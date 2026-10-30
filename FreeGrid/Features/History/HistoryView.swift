@@ -27,6 +27,9 @@ struct HistoryView: View {
     @State private var search = HistorySearchState()
     @FocusState private var searchFocused: Bool
     @State private var showingMonths = false
+    /// 每月一个数：写过的月份，点了改；记账方式改了要马上重算
+    @State private var editingMonth: YearMonth?
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     /// 搜索结果里手动展开或收起过的月份；换搜索词时清空，回到默认
     @State private var monthExpansion: [HistoryMonth: Bool] = [:]
 
@@ -74,13 +77,24 @@ struct HistoryView: View {
     private var page: some View {
         // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
         let isEmpty = expenses.isEmpty && incomes.isEmpty
+        let tracking = MonthlyTracking.decode(storedTracking)
         let ledger = isEmpty || isSearching ? nil : ScopedLedger(expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans), scope: scope)
         NavigationStack {
             Group {
                 if isEmpty {
-                    emptyState
+                    if tracking.hasNumber && tracking.isMonthly {
+                        ScrollView {
+                            monthsCard(tracking)
+                                .padding(.horizontal, Spacing.lg)
+                                .padding(.top, Spacing.sm)
+                        }
+                    } else if tracking.isMonthly {
+                        monthlyEmptyState
+                    } else {
+                        emptyState
+                    }
                 } else {
-                    historyList(ledger)
+                    historyList(ledger, tracking: tracking)
                 }
             }
             .background(Color.paper)
@@ -91,6 +105,7 @@ struct HistoryView: View {
             .navigationDestination(isPresented: $showingMonths) {
                 MonthlySummaryView { scope = $0 }
             }
+            .sheet(item: $editingMonth) { MonthlySpendingSheet(month: $0) }
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
@@ -188,9 +203,8 @@ struct HistoryView: View {
             monthRange = HistoryLedger.monthRange(expenses: expenses, incomes: incomes)
             // 只在按月查看时折算成天，全部时间用不到
             if case .month = scope {
-                let everyday = MonthlySpending.everyday(monthly: MonthlySpending.monthly,
-                                                        fixedMonthly: LoanSchedule.monthlyTotal(loans: loans, payments: expenses))
-                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses), everydayEstimate: everyday).dailyBurn
+                dailyBurn = FreedomMath.burnEstimate(FreedomMath.burnEntries(expenses), tracking: .current,
+                                                     fixedMonthly: LoanSchedule.monthlyTotal(loans: loans, payments: expenses)).dailyBurn
             } else {
                 dailyBurn = 0
             }
@@ -207,11 +221,21 @@ struct HistoryView: View {
         }
     }
 
-    private func historyList(_ ledger: ScopedLedger?) -> some View {
+    private func historyList(_ ledger: ScopedLedger?, tracking: MonthlyTracking) -> some View {
         ScrollViewReader { proxy in
             List {
-                if isSearching { searchSections }
-                else if let ledger { ledgerSections(ledger) }
+                if isSearching {
+                    searchSections
+                } else {
+                    if tracking.isMonthly && tracking.hasNumber {
+                        Section {
+                            monthsCard(tracking)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.paper)
+                    }
+                    if let ledger { ledgerSections(ledger) }
+                }
             }
             .ledgerListStyle()
             .onChange(of: scrollToTop) { proxy.scrollTo(Self.topID, anchor: .top) }
@@ -854,6 +878,63 @@ struct HistoryView: View {
     }
 
     /// 空状态:silverline 风简洁提示
+    /// 每月一个数写过的月份，点了能改；记错一个月不改掉，会一直算在平均里
+    private func monthsCard(_ tracking: MonthlyTracking) -> some View {
+        let written = tracking.writtenMonths
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            VStack(spacing: 0) {
+                ForEach(Array(written.enumerated()), id: \.element.month) { index, item in
+                    if index > 0 { Hairline() }
+                    Button { editingMonth = item.month } label: {
+                        HStack(spacing: Spacing.sm) {
+                            Text(item.month.name())
+                                .font(.system(.body, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                            Spacer(minLength: Spacing.sm)
+                            Text("¥\(FinancialFormatting.wholeNumber(item.amount))")
+                                .font(.system(.body, design: .rounded).weight(.light).monospacedDigit())
+                                .foregroundStyle(Color.ink)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(Color.inkFaint)
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, Spacing.lg)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("monthly-spending-\(item.month.key)")
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.mist))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+            if written.count > 1 {
+                Text("日均按这 \(written.count) 个月平均。")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.horizontal, Spacing.xs)
+            }
+        }
+    }
+
+    private var monthlyEmptyState: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 40, weight: .ultraLight))
+                .foregroundStyle(Color.inkFaint)
+            Text("每月一个数不用记明细")
+                .font(.system(.title3, design: .rounded).weight(.thin))
+                .foregroundStyle(Color.ink)
+            Text("想逐笔记，去 设置 → 账本 → 记账方式")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.paper)
+    }
+
     private var emptyState: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: "clock.arrow.circlepath")

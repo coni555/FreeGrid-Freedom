@@ -28,8 +28,8 @@ struct ContentView: View {
     @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var historyGuideCompleted = false
     /// 起步引导点了「跳过引导」后不再出现
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
-    /// 起步引导第 3 步可以改填每月花销，填完和记完第一笔一样，引导结束
-    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
+    /// 起步引导第 3 步可以改用每月一个数，选了和记完第一笔一样，引导结束
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @State private var showingMonthlySpending = false
 
     /// 2.0 的 Pro 介绍：老用户打开时在首页弹一次卡片，新用户不弹（规则在 ProIntro）。
@@ -123,12 +123,12 @@ struct ContentView: View {
                     step: step, guide: guide,
                     onGoAssets: { selectedTab = .assets },
                     onGoDashboard: { selectedTab = .dashboard },
-                    onFillMonthlySpending: { showingMonthlySpending = true },
+                    onChooseMonthly: { showingMonthlySpending = true },
                     onSkip: { withAnimation(.easeInOut(duration: 0.25)) { setupGuideCompleted = true } }
                 )
             }
         }
-        .sheet(isPresented: $showingMonthlySpending) { MonthlySpendingSheet() }
+        .sheet(isPresented: $showingMonthlySpending) { MonthlySpendingSheet(month: YearMonth(.now), adopting: true) }
         // 设置 → 使用指引里选了一个讲解：切到它讲的那一页
         .onChange(of: guide.replayRequests) { old, new in
             dataClock.tick()
@@ -136,11 +136,13 @@ struct ContentView: View {
                 selectedTab = tab(for: tour)
             }
         }
-        // 新用户记完第一笔支出（或填完每月花销）、起步引导结束后, 接着讲一遍首页
+        // 新用户记完第一笔支出（或写下每月花销）、起步引导结束后, 接着讲一遍首页。
+        // 点「月底再记」的人还没有数字可讲，到这里就结束
         .onChange(of: setupStep) { old, new in
             guard old == .expense, new == nil, !setupGuideCompleted else { return }
             setupGuideCompleted = true
-            guide.requestReplay(.dashboard)
+            let tracking = MonthlyTracking.decode(storedTracking)
+            if !tracking.isMonthly || tracking.hasNumber { guide.requestReplay(.dashboard) }
         }
         .onChange(of: reviewPresentationAllowed, initial: true) { _, allowed in
             ReviewInvitationStore.shared.presentationAllowed = allowed
@@ -452,10 +454,10 @@ extension ContentView {
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
-    /// 只给一笔支出都没有、也没填每月花销的新账本；在 History 和 Settings 里不拦着用户。
+    /// 只给一笔支出都没有、也没选每月一个数的新账本；在 History 和 Settings 里不拦着用户。
     private var setupStep: SetupGuideStep? {
         guard !setupGuideCompleted, guide.tour == nil, firstExpenses.isEmpty,
-              MonthlySpending.valid(monthlySpending) == nil else { return nil }
+              !MonthlyTracking.decode(storedTracking).isMonthly else { return nil }
         let assets = assetsArr.first
         let hasMoney = ((assets?.cash ?? 0) + (assets?.lockedAssets ?? 0)) > 0
         switch (selectedTab, hasMoney) {

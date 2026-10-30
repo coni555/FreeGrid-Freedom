@@ -16,7 +16,8 @@ struct SettingsView: View {
     /// 首页大数字的布局, 和 Dashboard 共享同一 key: "leading" 文字左数字右, "vertical" 居中堆叠
     @AppStorage("heroLayout") private var heroLayout: String = "leading"
     @AppStorage(AssetsLayout.key, store: AppPreferences.store) private var assetsLayout = AssetsLayout.moneyTime
-    @AppStorage(MonthlySpending.key, store: AppPreferences.store) private var monthlySpending = 0.0
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
+    @State private var showingTrackingSwitch = false
 
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
@@ -133,6 +134,7 @@ struct SettingsView: View {
             .navigationDestination(isPresented: $showingCategories) { ExpenseCategoriesView() }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
             .sheet(isPresented: $showingBackToFree) { BackToFreeSheet() }
+            .sheet(isPresented: $showingTrackingSwitch) { TrackingSwitchSheet() }
             .sensoryFeedback(.selection, trigger: themeChoice)
             .sensoryFeedback(.selection, trigger: heroLayout)
             .sensoryFeedback(.selection, trigger: assetsLayout)
@@ -429,6 +431,16 @@ struct SettingsView: View {
                 if isOpen {
                     VStack(spacing: 0) {
                         DeckDivider()
+                        Button { showingTrackingSwitch = true } label: {
+                            DeckRow(title: String(localized: "记账方式")) {
+                                Text(MonthlyTracking.decode(storedTracking).isMonthly ? "每月一个数" : "逐笔记账")
+                                    .font(.system(size: 13, design: .rounded))
+                                    .foregroundStyle(Color.inkFaint)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-tracking-method")
+                        DeckDivider()
                         Button {
                             // 体验期间改过分类的人还能进去看；从没改过的直接看 Pro 介绍
                             if ProStore.shared.isUnlocked || ExpenseCategoryStorage.isCustomized(encodedCategories) {
@@ -569,13 +581,14 @@ struct SettingsView: View {
     }
 
     // MARK: - 关于子页 (版本 / 隐私政策 / ICP) — 从「关于」push 进入
-    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置；只填每月花销、不记账的人也有数字可圈
+    /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置；写了每月花销、不记账的人也有数字可圈
     @ViewBuilder
     private var guideRow: some View {
         let hasRecords = !expenses.isEmpty || !incomes.isEmpty
-        if !hasRecords && MonthlySpending.valid(monthlySpending) == nil {
+        let tracking = MonthlyTracking.decode(storedTracking)
+        if !hasRecords && !tracking.hasNumber {
             DeckRow(title: String(localized: "使用指引"), titleColor: .inkFaint, chevron: nil) {
-                Text("记一笔后可看")
+                Text(tracking.isMonthly ? "写下花销后可看" : "记一笔后可看")
                     .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
             }

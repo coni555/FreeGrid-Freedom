@@ -200,6 +200,8 @@ struct HomeStatEmptySlot: View {
 struct HomeStatEditor: View {
     let slots: [HomeStat]
     let inputs: HomeStat.Inputs
+    /// 每月一个数：看每一笔记录的那几张不列出来
+    var hidesRecordCards = false
     let onChange: ([HomeStat]) -> Void
     /// 恢复成没改过的样子
     let onReset: () -> Void
@@ -207,7 +209,9 @@ struct HomeStatEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     /// 固定的几张加上现在能放的目标卡（没有 Pro 时没有目标卡）
-    private var available: [HomeStat] { (HomeStat.builtIn + inputs.goalStats).filter { !slots.contains($0) } }
+    private var available: [HomeStat] {
+        (HomeStat.builtIn + inputs.goalStats).filter { !slots.contains($0) && !(hidesRecordCards && $0.needsRecords) }
+    }
 
     var body: some View {
         NavigationStack {

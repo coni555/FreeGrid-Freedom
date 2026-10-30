@@ -45,10 +45,10 @@ struct TransactionImpact {
 
         if kind == .expense {
             let entry = FreedomMath.BurnEntry(date: date ?? snapshot.now, amount: amount)
-            let burn = FreedomMath.burnEstimate(snapshot.burnEntries + [entry], everydayEstimate: snapshot.everydayEstimate,
-                                                 now: snapshot.now)
+            let burn = FreedomMath.burnEstimate(snapshot.burnEntries + [entry], tracking: snapshot.tracking,
+                                                fixedMonthly: snapshot.fixedMonthly, now: snapshot.now)
             newDailyBurn = burn.dailyBurn
-            changesTrackingStart = snapshot.hasRecords && burn.trackDays != snapshot.trackDays
+            changesTrackingStart = !snapshot.tracking.isMonthly && snapshot.hasRecords && burn.trackDays != snapshot.trackDays
         } else {
             newDailyBurn = snapshot.dailyBurn
             changesTrackingStart = false
@@ -56,7 +56,8 @@ struct TransactionImpact {
         newFreedom = FreedomMath.freedomRun(
             netWorth: newFreedomBase, dailyBurn: newDailyBurn,
             dailyPassive: snapshot.dailyPassive,
-            hasExpenses: snapshot.hasExpenses || kind == .expense,
+            // 每月一个数只看写下的数：模拟一笔不会让日均从无到有
+            hasExpenses: snapshot.hasExpenses || (kind == .expense && !snapshot.tracking.isMonthly),
             loans: snapshot.loanPlan,
             burnMayBeZero: snapshot.burnBasis == .estimate
         ).state

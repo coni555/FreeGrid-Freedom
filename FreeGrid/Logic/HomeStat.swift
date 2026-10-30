@@ -92,8 +92,16 @@ enum HomeStat: Hashable, Identifiable {
 
     /// 没改过（空串）时和 2.0 一样：日均、被动覆盖、记账天数，下面是今日对比长条；没有被动收入的人 2.0 里那张是藏起来的，这里补成本月花销。
     /// 改过的按存的顺序，认不出的（比如已经拿掉的「本月结余率」）和重复的跳过
-    static func slots(stored: String, hasPassive: Bool) -> [HomeStat] {
-        if stored.isEmpty { return [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
+    /// 每月一个数时这几张没有可显示的：它们看的是每一笔记录
+    var needsRecords: Bool {
+        switch self {
+        case .month, .today, .track, .todayBar: return true
+        default: return false
+        }
+    }
+
+    static func slots(stored: String, hasPassive: Bool, monthly: Bool = false) -> [HomeStat] {
+        if stored.isEmpty { return monthly ? [.daily, hasPassive ? .passive : .base] : [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
         if stored == noneValue { return [] }
         var result: [HomeStat] = []
         for raw in stored.split(separator: ",") {
@@ -161,7 +169,6 @@ enum HomeStat: Hashable, Identifiable {
                                                       routine: snapshot.dailyFixed > 0))
         case .track:
             // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）。
-            // 不记账、只填了每月花销的人不催他记账
             let days = snapshot.trackDays
             return Display(value: "\(days)",
                            unit: snapshot.hasRecords && days < FreedomMath.lumpSpreadDays
@@ -188,18 +195,13 @@ enum HomeStat: Hashable, Identifiable {
         }
     }
 
-    /// 日均卡的小字。按估算、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
+    /// 日均卡的小字。每月一个数、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
     static func dailyNote(_ snapshot: FinancialSnapshot) -> String {
         let fixed = snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-        if snapshot.burnBasis == .estimate { return String(localized: "按每月估算") }
+        if snapshot.tracking.isMonthly || snapshot.burnBasis == .estimate { return snapshot.tracking.burnNote(now: snapshot.now) }
         if snapshot.burnGapDays > 0 {
-            let quiet = snapshot.burnGapDays + FreedomMath.burnGraceDays
-            return snapshot.burnBasis == .recordsAndEstimate
-                ? String(localized: "\(quiet) 天没记 · 空档按估算")
-                : String(localized: "\(quiet) 天没记 · 日均先停住")
+            return String(localized: "\(snapshot.burnGapDays + FreedomMath.burnGraceDays) 天没记 · 日均先停住")
         }
-        // 刚开始记账，还在从每月花销往记录过渡
-        if snapshot.burnBasis == .recordsAndEstimate { return String(localized: "按估算和记账") }
         return fixed
             ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
             : String(localized: "元/天")

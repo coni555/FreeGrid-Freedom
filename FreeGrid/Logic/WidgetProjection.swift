@@ -79,7 +79,9 @@ enum WidgetProjection {
             state = .pending
             kicker = "Freedom Pending"
             caption = snapshot.netWorth == 0 ? plain(String(localized: "先记下*你有多少钱*"))
-                                             : plain(String(localized: "再记*一笔支出*"))
+                : snapshot.tracking.isMonthly ? plain(String(localized: "写下*每月花销*"))
+                : snapshot.recordsTooFew ? plain(String(localized: "暂时*算不准*自由天数"))
+                : plain(String(localized: "再记*一笔支出*"))
         case .invalidData:
             state = .invalid
             kicker = "Data Check"

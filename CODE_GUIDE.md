@@ -80,11 +80,11 @@ flowchart TD
 
 日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。界面上写的「日均消费」是 `FinancialSnapshot.dailyCost`：这个日常日均再加上固定支出和月供折成的每天（`dailyFixed`）；自由天数的推演只用日常日均，固定支出按日历在到期日另扣，不算两遍。
 
-每月花销（`MonthlySpending`，2.2）是用户自己填的这个月一共花了多少，含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 每月花销 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）。没记过日常支出时日均就是日常部分 ÷ 30.44；开始记账不满 30 天时，还没记到的天（含最后一笔之后的空天）按日常部分补，记满 30 天正好全按记录，日均不跳；断档超过 14 天时也用它补空档。入口在首页（还算不出自由天数时）、钱包（`MonthlySpendingRow`，只给不记账、已填过、断档的人看）和起步引导第 3 步，都打开同一张 `MonthlySpendingSheet`。
+记账方式（`MonthlyTracking`，2.2，[Logic/MonthlyTracking.swift](FreeGrid/Logic/MonthlyTracking.swift)）分逐笔记账和每月一个数，存在偏好 `monthlyTracking` 里，JSON 备份带 `monthly_tracking`（从没用过就不写）。每月一个数：每个月写一个总花销（键是 `YearMonth.key`），含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 写过的月份的平均 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）；日均 = 日常部分 ÷ 30.44，旧记录不计入，现金不动（`burnEstimate(_:tracking:fixedMonthly:…)`）。问哪个月看 `prompt`。用每月一个数的时段记在 `pauses`，切回后不算进记账天数和日均分母；切回当天记进 `switchedBackAt`，日均 30 天从写下的数过渡到记录（`EstimateBlend`）。逐笔记账时记账没跨满 30 天又断档超过 14 天，`recordsTooFew` 让 `hasExpenses` 为假，首页不给大数字。入口：引导第 3 步、首页断档时的蓝字、设置 → 账本 → 记账方式；首页胶囊和明细的月份列表改数。面板都在 `Features/Transactions/MonthlySpendingSheets.swift`。
 
 自由状态有四种，代码用 `FreedomState` 区分：
 
-- `insufficientData`：还没有支出、也没填每月花销，无法估计日均消费。
+- `insufficientData`：还没有支出、也没写每月花销，或者记账没跨满 30 天又断档了，无法估计日均消费。
 - `finite(days:)`：可以算出具体天数；净值小于零时按零天显示。
 - `covered`：已有有效消费数据，被动收入足以覆盖日均消费。
 - `invalidData`：已有数据无法正常计算，例如金额不是有限数字或日均消费不大于零。
@@ -172,6 +172,7 @@ flowchart TD
 | 自由卡（Pro 分享）：卡面、竖版海报、卡片页，三个入口 | `Features/FreedomCard/FreedomCardView.swift`（材质 `FreedomCardMaterial`、卡面、海报）、`FreedomCardSheet.swift`（晃手机的光、等级、昵称、`ImageRenderer` 导出分享）；等级、卡面数据、首页只提示一次的规则在 `Logic/FreedomCard.swift`。入口：设置页那叠卡的第二张、首页大数字下的升级提示、长按首页大数字 |
 | 到期日、还了几期、按日历推演自由天数 | `Logic/LoanSchedule.swift`（`LoanSchedule.status`、`plan`、`FreedomMath.freedomRun`） |
 | 日均消费怎么估（大额摊开） | `Logic/DailyBurn.swift`（`FreedomMath.burnEstimate`） |
+| 两种记账方式：写每月花销、切换、首页胶囊 | `Logic/MonthlyTracking.swift`、`Features/Transactions/MonthlySpendingSheets.swift`（胶囊、填数面板、切换面板）；明细的月份列表在 `Features/History/HistoryView.swift`；设置入口 `Features/Settings/SettingsView.swift` |
 | 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
@@ -282,6 +283,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
 - [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
+- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：每月一个数的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回的 30 天过渡和暂停不摊薄、断档不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
 - [PassiveIntervalTests](FreeGridTests/PassiveIntervalTests.swift)：被动收入一年一次 6,000 按每月 500 算、周期校验、备份带上周期而旧备份按每月读、导入拒绝未知周期。
