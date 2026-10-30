@@ -10,6 +10,8 @@ struct MonthCategoryChart: View {
     }
 
     let breakdown: HistoryLedger.Breakdown
+    /// 分类列表里的名字顺序：扇形图按它给每个分类固定一个颜色
+    var categoryOrder: [String] = []
 
     @AppStorage("monthlyChartStyle", store: AppPreferences.store) private var style = Style.bars
     /// 扇形图上点中的一份；再点一下取消
@@ -18,8 +20,16 @@ struct MonthCategoryChart: View {
 
     /// 扇形图最多画几份，其余合成「其余 N 类」
     private static let pieLimit = 5
-    /// 扇形由深到浅，同一个蓝，和原来柱状图的颜色一样
-    private static let pieOpacities: [Double] = [1, 0.72, 0.52, 0.38, 0.28]
+    /// 扇形图的调色板：和现金蓝、资产金同样的明度和饱和度，深色模式各提亮一点；「其余 N 类」画灰
+    private static let palette: [Color] = [
+        .cashBlue,
+        .dyn(lightRGB: (0.91, 0.53, 0.45), darkRGB: (0.96, 0.63, 0.55)),  // 珊瑚
+        .dyn(lightRGB: (0.90, 0.68, 0.28), darkRGB: (0.93, 0.80, 0.47)),  // 金
+        .dyn(lightRGB: (0.33, 0.70, 0.62), darkRGB: (0.47, 0.82, 0.73)),  // 青
+        .dyn(lightRGB: (0.58, 0.50, 0.86), darkRGB: (0.71, 0.64, 0.95)),  // 紫
+        .dyn(lightRGB: (0.86, 0.49, 0.68), darkRGB: (0.93, 0.63, 0.79)),  // 玫瑰
+        .dyn(lightRGB: (0.55, 0.72, 0.38), darkRGB: (0.69, 0.84, 0.53)),  // 草绿
+    ]
 
     var body: some View {
         let shares = HistoryLedger.shares(breakdown, limit: style == .pie ? Self.pieLimit : nil)
@@ -111,11 +121,12 @@ struct MonthCategoryChart: View {
 
     private func pie(_ shares: [HistoryLedger.Share], total: Double) -> some View {
         let focus = shares.first { $0.kind == selected }
+        let slots = HistoryLedger.colorSlots(shares, order: categoryOrder, paletteCount: Self.palette.count)
         return HStack(alignment: .center, spacing: Spacing.lg) {
-            Chart(Array(shares.enumerated()), id: \.element.id) { index, share in
+            Chart(shares) { share in
                 SectorMark(angle: .value("金额", share.total), innerRadius: .ratio(0.8), angularInset: 1.5)
                     .cornerRadius(1.5)
-                    .foregroundStyle(Color.cashBlue.opacity(opacity(index, kind: share.kind)))
+                    .foregroundStyle(color(share.kind, slots: slots))
             }
             .chartLegend(.hidden)
             .chartAngleSelection(value: $angle)
@@ -142,22 +153,22 @@ struct MonthCategoryChart: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(shares.enumerated()), id: \.element.id) { index, share in
-                    legendRow(share, index: index, total: total)
+                ForEach(shares) { share in
+                    legendRow(share, color: color(share.kind, slots: slots), total: total)
                 }
             }
         }
         .transition(.opacity)
     }
 
-    private func legendRow(_ share: HistoryLedger.Share, index: Int, total: Double) -> some View {
+    private func legendRow(_ share: HistoryLedger.Share, color: Color, total: Double) -> some View {
         let dimmed = selected != nil && selected != share.kind
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) { selected = selected == share.kind ? nil : share.kind }
         } label: {
             HStack(spacing: Spacing.sm) {
                 Circle()
-                    .fill(Color.cashBlue.opacity(opacity(index, kind: share.kind)))
+                    .fill(color)
                     .frame(width: 7, height: 7)
                 Text(name(share.kind))
                     .font(.system(.caption, design: .rounded))
@@ -180,11 +191,11 @@ struct MonthCategoryChart: View {
         .accessibilityAddTraits(selected == share.kind ? .isSelected : [])
     }
 
-    /// 点中的一份用最深的蓝，其余几份退到很淡
-    private func opacity(_ index: Int, kind: HistoryLedger.Share.Kind) -> Double {
-        let base = Self.pieOpacities[min(index, Self.pieOpacities.count - 1)]
-        guard let selected else { return base }
-        return selected == kind ? 1 : base * 0.3
+    /// 点中一份时，其余几份退到很淡
+    private func color(_ kind: HistoryLedger.Share.Kind, slots: [HistoryLedger.Share.Kind: Int]) -> Color {
+        let base = slots[kind].map { Self.palette[$0] } ?? Color.inkFaint.opacity(0.5)
+        guard let selected, selected != kind else { return base }
+        return base.opacity(0.22)
     }
 
     /// 扇形图上点到的位置落在哪一份：按金额从起点累加

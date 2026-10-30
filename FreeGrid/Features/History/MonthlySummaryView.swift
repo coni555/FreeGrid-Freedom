@@ -6,6 +6,8 @@ import SwiftData
 struct MonthlySummaryView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    /// 扇形图按分类列表的顺序给每类固定一个颜色
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
     /// 手动点开或收起过的月份；没点过时最近的那个月是展开的
     @State private var toggled: Set<String> = []
     @Environment(\.dismiss) private var dismiss
@@ -93,7 +95,8 @@ struct MonthlySummaryView: View {
 
                 if isExpanded && hasChart {
                     Hairline(color: .hairlineSoft)
-                    MonthCategoryChart(breakdown: stat.breakdown)
+                    MonthCategoryChart(breakdown: stat.breakdown,
+                                       categoryOrder: ExpenseCategoryStorage.decode(encodedCategoryOptions).allNames)
                 }
 
                 if onSelect != nil {

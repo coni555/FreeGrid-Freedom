@@ -85,6 +85,24 @@ struct HistoryLedgerTests {
         #expect(HistoryLedger.shares(breakdown, limit: 5).count == 5)
     }
 
+    /// 扇形图配色：同一分类跟着它在分类列表里的位置走，同一环里撞色就顺延，「其余」不占颜色
+    @Test func pieColorsFollowTheCategoryAndNeverRepeatInOneRing() {
+        let order = ["早餐", "午餐", "晚餐", "交通", "购物"]
+        let shares: [HistoryLedger.Share] = [
+            .init(kind: .category("购物"), total: 500), .init(kind: .category("午餐"), total: 300),
+            .init(kind: .fixed, total: 200), .init(kind: .rest(2), total: 50),
+        ]
+        let slots = HistoryLedger.colorSlots(shares, order: order, paletteCount: 4)
+        #expect(slots[.category("购物")] == 0)   // 第 5 个 % 4
+        #expect(slots[.category("午餐")] == 1)
+        #expect(slots[.fixed] == 2)              // 本该是 5 % 4 = 1，被午餐占了，顺延
+        #expect(slots[.rest(2)] == nil)
+        // 换个月，购物还是同一个颜色
+        let other = HistoryLedger.colorSlots([.init(kind: .category("交通"), total: 90), .init(kind: .category("购物"), total: 80)],
+                                             order: order, paletteCount: 4)
+        #expect(other[.category("购物")] == 0)
+    }
+
     @Test func categoryDaysUseOneDecimalBelowTenAndFlagTinyAmounts() {
         #expect(HistoryLedger.daysLabel(0.02) == "< 0.1 天")
         #expect(HistoryLedger.daysLabel(2.64) == "≈ 2.6 天")

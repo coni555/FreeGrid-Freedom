@@ -230,6 +230,32 @@ enum HistoryLedger {
         return kept + [Share(kind: .rest(rest.count), total: rest.reduce(0) { $0 + $1.total })]
     }
 
+    /// 扇形图上每一份用调色板的第几个颜色：同一个分类每个月尽量同色（按它在分类列表里的位置），
+    /// 同一个环里撞色时顺延到没用过的颜色；「其余 N 类」不占颜色（画灰）。
+    /// `order` 是分类列表里的名字顺序，固定支出排在所有分类后面
+    static func colorSlots(_ shares: [Share], order: [String], paletteCount: Int) -> [Share.Kind: Int] {
+        var result: [Share.Kind: Int] = [:]
+        var used = Set<Int>()
+        for share in shares {
+            let preferred: Int
+            switch share.kind {
+            case .rest: continue
+            case .fixed: preferred = order.count
+            case .category(let name):
+                // 不在列表里的（旧账里的名字）按字取一个固定位置
+                preferred = order.firstIndex(of: name) ?? name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+            }
+            var slot = preferred % paletteCount
+            for step in 0..<paletteCount where !used.contains((preferred + step) % paletteCount) {
+                slot = (preferred + step) % paletteCount
+                break
+            }
+            used.insert(slot)
+            result[share.kind] = slot
+        }
+        return result
+    }
+
     /// 分类后面的「≈ N 天」：不足 0.1 天写「< 0.1 天」，不足 10 天留一位小数，其余取整。
     static func daysLabel(_ days: Double) -> String {
         if days < 0.05 { return String(localized: "< 0.1 天") }

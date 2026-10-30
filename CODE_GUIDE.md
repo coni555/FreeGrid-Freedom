@@ -182,7 +182,7 @@ flowchart TD
 | 指引（压暗、圈出位置、逐步说明）：首页和 History 的讲解，以及带新用户记下第一笔钱和第一笔支出的起步引导 | `Features/Guide/AppGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由各页用 `guideTarget` 上报；重放入口是 `SettingsView` 的「使用指引」列表 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
 | 月度汇总（每月收支和净）、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
-| 月度汇总卡片里的支出构成（柱状图 / 扇形图切换） | `Features/History/MonthCategoryChart.swift` |
+| 月度汇总卡片里的支出构成（柱状图 / 扇形图切换；扇形图每个分类固定一个颜色，规则在 `HistoryLedger.colorSlots`） | `Features/History/MonthCategoryChart.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
 | 预览后账本改变，拒绝旧计划 | `Data/ImportLedgerSnapshot.swift` → `DataIO.commitImport` |
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
