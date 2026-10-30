@@ -1217,12 +1217,12 @@
         }
       }
     },
-    "**查找**：右上角搜索金额或备注。先在卡片里点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
+    "**查找**：右上角搜索金额或备注。先在卡片里展开、点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Find**: search amounts or notes at the top right. Tap a category in the card first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
+            "value": "**Find**: search amounts or notes at the top right. Expand the card and tap a category first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
           }
         }
       }
@@ -1427,12 +1427,12 @@
         }
       }
     },
-    "**钱花在哪**：月份卡片里按金额从多到少列出各类支出，后面写着相当于平时几天的开销。自动扣的房租、月供合成「固定支出」一行，收入单列在最后。点一类，下面只留这一类的记录；再点一下，或点「看全部」，回到全部。": {
+    "**钱花在哪**：点月份卡片下面的「展开 N 类」，按金额从多到少列出各类支出，后面写着相当于平时几天的开销。自动扣的房租、月供合成「固定支出」一行，收入单列在最后。点一类，下面只留这一类的记录；再点一下，或点「看全部」，回到全部。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Where it went**: the month card lists your spending by category, largest first, with how many days of your usual spending each one equals. Automatic rent and loan payments share one Fixed Expenses row, and income comes last. Tap a category to see only its entries; tap it again, or tap “Show all”, to go back."
+            "value": "**Where it went**: tap “Show N categories” at the bottom of the month card to list your spending by category, largest first, with how many days of your usual spending each one equals. Automatic rent and loan payments share one Fixed Expenses row, and income comes last. Tap a category to see only its entries; tap it again, or tap “Show all”, to go back."
           }
         }
       }
@@ -5496,6 +5496,28 @@
         }
       }
     },
+    "展开 %lld 类": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show %lld category"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Show %lld categories"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "展开其余 %lld 张": {
       "localizations": {
         "en": {
@@ -5528,12 +5550,12 @@
         }
       }
     },
-    "展开其余 %lld 类": {
+    "展开各类支出": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Show %lld more"
+            "value": "Show spending by category"
           }
         }
       }
@@ -7112,6 +7134,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Collapse cards to the first row"
+          }
+        }
+      }
+    },
+    "收起各类支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide spending by category"
           }
         }
       }
@@ -11760,12 +11792,12 @@
         }
       }
     },
-    "这里搜索全部记录。\n想只看某一类，点月份卡片里的分类。": {
+    "这里搜索全部记录。\n想只看某一类，展开月份卡片点那一类。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search all records here.\nTo see just one category, tap it in the month card."
+            "value": "Search all records here.\nTo see just one category, expand the month card and tap it."
           }
         }
       }

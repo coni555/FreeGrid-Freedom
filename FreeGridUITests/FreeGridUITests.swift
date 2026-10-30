@@ -278,11 +278,14 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.buttons["category-row-餐饮"].exists)
     }
 
-    /// Pro 拆分：明细卡里点「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
+    /// Pro 拆分：展开明细卡点「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
     @MainActor
     func testMoveSearchResultsSplitsACategory() throws {
         let app = try launchWithMoveLedger()
         app.tabBars.buttons["明细"].tap()
+        let toggle = app.buttons["history-breakdown-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.tap()
         let other = app.buttons["history-breakdown-其他"]
         XCTAssertTrue(other.waitForExistence(timeout: 3))
         other.tap()

@@ -17,7 +17,7 @@ struct HistoryView: View {
     @State private var scope: HistoryScope = .month(HistoryMonth(containing: .now))
     /// 月份卡片里点中的一类（或收入、固定支出），流水只留它；再点一下取消。换月后该项没有记录时自动视为「全部」。
     @State private var selection: Selection = .all
-    /// 分类多时只列前几类，其余收起；展开过就一直展开
+    /// 月份卡片里的各类支出默认收起，卡片和原来一样；展开过就一直展开
     @AppStorage("historyBreakdownExpanded", store: AppPreferences.store) private var breakdownExpanded = false
 
     /// 搜索时跨全部月份，不受当前月份限制
@@ -557,12 +557,12 @@ struct HistoryView: View {
                 }
 
                 HStack(spacing: Spacing.lg) {
-                    if let average = dailyAverage(summary) {
-                        scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
-                    }
-                    // 收入在下面单列一行；没有收入时「净 = −支出」只是复述上面的数字
                     if summary.income != 0 {
+                        scopeStat(String(localized: "收入"), FinancialFormatting.yuan(summary.income))
                         scopeStat(String(localized: "净"), FinancialFormatting.signedYuan(summary.net))
+                    } else if let average = dailyAverage(summary) {
+                        // 没有收入时「收入 ¥0、净 = −支出」只是复述上面的数字
+                        scopeStat(String(localized: "日均"), FinancialFormatting.yuan(average))
                     }
                     Spacer()
                     Text("\(summary.count) 笔")
@@ -674,12 +674,8 @@ struct HistoryView: View {
         var id: Selection { filter }
     }
 
-    /// 分类多于这么多时，只列前几类，其余收起
-    private static let breakdownShownLimit = 5
-    private static let breakdownCollapsedCount = 4
-
-    /// 支出从多到少，每类后面写折合首页日均的几天、下面一道细条和最多的那类比长短；收入单列在最后。
-    /// 点一行流水就只留这一类，再点一下回到全部
+    /// 默认收起，只留一行「展开 N 类」。展开后支出从多到少，每类后面写折合首页日均的几天、
+    /// 下面一道细条和最多的那类比长短；收入单列在最后。点一行流水就只留这一类，再点一下回到全部
     @ViewBuilder
     private func breakdown(_ ledger: ScopedLedger, active: Selection, options: ExpenseCategoryOptions) -> some View {
         let fixed = ledger.breakdown.fixed != 0
@@ -689,50 +685,47 @@ struct HistoryView: View {
             BreakdownRow(filter: .category($0.category), title: ExpenseCategory.displayName($0.category),
                          icon: options.icon(for: $0.category), total: $0.total)
         }).sorted { $0.total > $1.total }
-        let collapses = expenseRows.count > Self.breakdownShownLimit
-        let hiddenCount = collapses ? expenseRows.count - Self.breakdownCollapsedCount : 0
-        // 收起时，点中的那一类排在后面也留着
-        let shown = !collapses || breakdownExpanded ? expenseRows : expenseRows.enumerated()
-            .filter { $0.offset < Self.breakdownCollapsedCount || $0.element.filter == active }
-            .map(\.element)
         let income = ledger.summary.income
         // 条长以最多的一类为满格，读起来是一排长短对比；占整月多少看后面的天数
         let largest = expenseRows.first?.total ?? 0
 
-        if !expenseRows.isEmpty || income != 0 {
+        if !expenseRows.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Hairline(color: .hairlineSoft)
-                    .padding(.top, Spacing.sm)
-                    .padding(.bottom, Spacing.xs)
-                ForEach(shown) { row in
-                    breakdownRow(row, active: active, share: largest > 0 ? row.total / largest : 0,
-                                 days: HistoryLedger.equivalentDays(expense: row.total, dailyBurn: ledger.dailyBurn))
-                }
-                if collapses {
-                    Button {
-                        withAnimation(.snappy(duration: 0.32)) { breakdownExpanded.toggle() }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(breakdownExpanded ? "收起" : "展开其余 \(hiddenCount) 类")
-                                .font(.system(.caption2, design: .rounded))
-                                .contentTransition(.opacity)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 9, weight: .medium))
-                                .rotationEffect(.degrees(breakdownExpanded ? 180 : 0))
-                        }
-                        .foregroundStyle(Color.inkFaint)
-                        .padding(.vertical, Spacing.sm)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+                if breakdownExpanded {
+                    Hairline(color: .hairlineSoft)
+                        .padding(.top, Spacing.sm)
+                        .padding(.bottom, Spacing.xs)
+                    ForEach(expenseRows) { row in
+                        breakdownRow(row, active: active, share: largest > 0 ? row.total / largest : 0,
+                                     days: HistoryLedger.equivalentDays(expense: row.total, dailyBurn: ledger.dailyBurn))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("history-breakdown-toggle")
-                    .accessibilityValue(breakdownExpanded ? "已展开" : "已收起")
+                    if income != 0 {
+                        breakdownRow(BreakdownRow(filter: .income, title: String(localized: "收入"), icon: "arrow.down.left", total: income),
+                                     active: active, share: nil, days: nil)
+                    }
                 }
-                if income != 0 {
-                    breakdownRow(BreakdownRow(filter: .income, title: String(localized: "收入"), icon: "arrow.down.left", total: income),
-                                 active: active, share: nil, days: nil)
+                // 和首页卡片的收起 / 展开同一个样子
+                Button {
+                    withAnimation(.snappy(duration: 0.32)) { breakdownExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(breakdownExpanded ? "收起" : "展开 \(expenseRows.count) 类")
+                            .font(.system(.caption2, design: .rounded))
+                            .contentTransition(.opacity)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .medium))
+                            .rotationEffect(.degrees(breakdownExpanded ? 180 : 0))
+                    }
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.top, breakdownExpanded ? Spacing.xs : 2)
+                    .padding(.bottom, 2)
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("history-breakdown-toggle")
+                .accessibilityLabel(breakdownExpanded ? String(localized: "收起各类支出") : String(localized: "展开各类支出"))
+                .accessibilityValue(breakdownExpanded ? "已展开" : "已收起")
             }
         }
     }

@@ -94,12 +94,17 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
     }
 
-    /// 月份卡片里的支出构成：点一类流水只留它，再点或「看全部」回来；收入单列一行；首页「本月花销」回到本月的明细
+    /// 月份卡片里的支出构成：默认收起，展开后点一类流水只留它，再点或「看全部」回来；收入单列一行；
+    /// 首页「本月花销」回到本月的明细
     @MainActor
     func testBreakdownRowsFilterTheFlowAndHomeMonthCardOpensThisMonth() throws {
         let app = try launch()
+        let toggle = app.buttons["history-breakdown-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         let shopping = app.buttons["history-breakdown-购物"]
-        XCTAssertTrue(shopping.waitForExistence(timeout: 5))
+        XCTAssertFalse(shopping.exists)
+        toggle.tap()
+        XCTAssertTrue(shopping.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["history-breakdown-交通"].exists)
         XCTAssertFalse(app.buttons["history-breakdown-income"].exists)
         shopping.tap()
@@ -129,7 +134,8 @@ final class HistorySearchRegressionUITests: XCTestCase {
     @MainActor
     func testFilterCrossMonthSearchSuggestionsAndLatestInput() throws {
         let app = try launch()
-        // 月份卡片里点中「购物」，再搜索就在这一类里搜
+        // 展开月份卡片、点中「购物」，再搜索就在这一类里搜
+        app.buttons["history-breakdown-toggle"].tap()
         app.buttons["history-breakdown-购物"].tap()
         app.buttons["搜索"].tap()
         let field = app.textFields["history-search-field"]
