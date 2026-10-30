@@ -1,4 +1,4 @@
-// Pro：新增或编辑一个支出分类——名字和细线图标。编辑时可以改名（旧账一起改）和删除。
+// Pro：新增或编辑一个支出分类——名字和细线图标。编辑时可以改名（旧账一起改）、把账全部移到别的分类（合并）和删除。
 
 import SwiftUI
 
@@ -16,6 +16,10 @@ struct ExpenseCategorySheet: View {
     /// 名字和用户选的图标（没选过为 nil，按名字给默认图标）
     let onSave: (String, String?) throws -> Void
     var onDelete: (() throws -> Void)? = nil
+    /// 「全部 N 笔移到…」要列出的分类
+    var moveOptions: ExpenseCategoryOptions? = nil
+    /// 移到哪、移完删不删这个分类
+    var onMoveAll: ((CategoryMoveTarget, Bool) throws -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -23,6 +27,9 @@ struct ExpenseCategorySheet: View {
     @State private var saveError: String?
     @State private var confirmingDelete = false
     @State private var confirmingMerge = false
+    @State private var movingAll = false
+    /// 移动成功后，收起移动表时连这张一起收起
+    @State private var moved = false
     @FocusState private var nameFocused: Bool
 
     private var isEditing: Bool { existingName != nil }
@@ -74,6 +81,24 @@ struct ExpenseCategorySheet: View {
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Color.inkMuted)
                         }
+                    }
+
+                    // 合并的入口放在图标上面：半屏时不用往下滚就看得到
+                    if isEditing, recordCount > 0, moveOptions != nil, onMoveAll != nil {
+                        Button {
+                            nameFocused = false
+                            movingAll = true
+                        } label: {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: "arrow.turn.down.right")
+                                    .font(.system(size: 14, weight: .light))
+                                Text("全部 \(recordCount) 笔移到…")
+                                    .font(.system(.subheadline, design: .rounded))
+                            }
+                            .foregroundStyle(Color.skyDeep)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("move-all-expenses")
                     }
 
                     // 合并时留下的是那个分类自己的图标，这里选了也不生效，先收起来
@@ -139,7 +164,17 @@ struct ExpenseCategorySheet: View {
                 }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("记支出时不再出现这个选项。已有的记录不变；想找回，重新添加同名分类。")
+                Text(recordCount > 0
+                     ? "记支出时不再出现这个选项。已有的 \(recordCount) 笔保留原名，之后在分类页最下面还能移走或放回。"
+                     : "记支出时不再出现这个选项。想找回，重新添加同名分类。")
+            }
+            .sheet(isPresented: $movingAll, onDismiss: { if moved { dismiss() } }) {
+                if let moveOptions, let existingName, let onMoveAll {
+                    MoveExpensesSheet(options: moveOptions, source: existingName, sourceCount: recordCount) { target, _, removes in
+                        try onMoveAll(target, removes)
+                        moved = true
+                    }
+                }
             }
             .onAppear {
                 name = shown(existingName)

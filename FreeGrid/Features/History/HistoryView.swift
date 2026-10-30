@@ -1,4 +1,4 @@
-// 历史记录：按月查看、按天分组，分类条筛选，支持搜索与撤销。
+// 历史记录：按月查看、按天分组，分类条筛选，支持搜索与撤销。搜索结果里的支出可以一起移到别的分类（Pro）。
 
 import SwiftUI
 import SwiftData
@@ -35,6 +35,17 @@ struct HistoryView: View {
 
     /// 点一行打开修改表单
     @State private var editing: LedgerTransaction? = nil
+
+    /// 搜索结果「把这 N 笔移到…」：打开移动表，移完给撤销条
+    @State private var moveBatch: MoveBatch?
+    @State private var undoMove: CategoryMoveUndo?
+    @State private var showingPro = false
+
+    private struct MoveBatch: Identifiable {
+        let id = UUID()
+        let options: ExpenseCategoryOptions
+        let records: [MoveExpensesSheet.Record]
+    }
 
     /// 行首的分类图标（Pro 里可以换）
     @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
@@ -128,6 +139,13 @@ struct HistoryView: View {
             }
             .saveErrorAlert($saveError)
             .sheet(item: $editing) { EditTransactionSheet(transaction: $0) }
+            .sheet(item: $moveBatch) { batch in
+                MoveExpensesSheet(options: batch.options, records: batch.records) { target, ids, _ in
+                    try moveExpenses(ids, to: target, options: batch.options)
+                }
+            }
+            .proPaywall(isPresented: $showingPro, topic: .categories)
+            .categoryMoveUndoBar($undoMove) { undo($0) }
             .alert(
                 "撤销这笔记录？",
                 isPresented: Binding(
@@ -281,6 +299,7 @@ struct HistoryView: View {
                         .multilineTextAlignment(.center)
                     } else {
                         searchSummary(result)
+                        moveButton(result)
                     }
                 }
             }
@@ -307,6 +326,85 @@ struct HistoryView: View {
                 }
             }
         }
+    }
+
+    /// 搜索结果里能换分类的支出：收入和月供扣款不算
+    private static func movableKeys(_ result: HistorySearch.Result) -> [HistorySearch.Key] {
+        result.months.flatMap(\.rows).map(\.record)
+            .filter { !$0.key.isIncome && !$0.isLoanPayment }
+            .map(\.key)
+    }
+
+    /// 拆分杂项：比如筛「其他」、搜「咖啡」，把搜到的一起移到新的「咖啡」
+    @ViewBuilder
+    private func moveButton(_ result: HistorySearch.Result) -> some View {
+        let count = Self.movableKeys(result).count
+        if count > 0 {
+            Button {
+                startMove(result)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 13, weight: .light))
+                    Text(count == result.summary.count
+                         ? String(localized: "把这 \(count) 笔移到其他分类…")
+                         : String(localized: "把其中 \(count) 笔支出移到其他分类…"))
+                    if !ProFeatures.canCustomizeExpenseCategories {
+                        Text("PRO")
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .tracking(1)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .overlay(Capsule().stroke(Color.skyDeep, lineWidth: 0.8))
+                    }
+                }
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.skyDeep)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("move-search-results")
+        }
+    }
+
+    private func startMove(_ result: HistorySearch.Result) {
+        guard ProFeatures.canCustomizeExpenseCategories else {
+            showingPro = true
+            return
+        }
+        let records: [MoveExpensesSheet.Record] = Self.movableKeys(result).compactMap { key in
+            guard case .expense(let expense) = search.transaction(for: key) else { return nil }
+            return MoveExpensesSheet.Record(id: expense.id, date: expense.date, amount: expense.amount,
+                                            category: expense.category, note: expense.note)
+        }
+        guard !records.isEmpty else { return }
+        searchFocused = false
+        // 和分类管理页同一份：存下的设置，加上账本里用过的名字
+        let options = ExpenseCategoryStorage.decode(encodedCategoryOptions)
+            .including(expenses.filter { $0.loanID == nil }.map(\.category))
+        moveBatch = MoveBatch(options: options, records: records)
+    }
+
+    /// 先改账再存偏好（只有新建了分类才要存）；偏好在改账前就编码好，改完账不会再失败
+    private func moveExpenses(_ ids: Set<UUID>, to target: CategoryMoveTarget, options: ExpenseCategoryOptions) throws {
+        let before = encodedCategoryOptions
+        var next = options
+        let name = target.isNew ? try next.add(target.name) : target.name
+        let encoded = try ExpenseCategoryStorage.encode(next)
+        let previous = try LedgerStore.moveExpenses(ids, to: name, in: modelContext)
+        if target.isNew { encodedCategoryOptions = encoded }
+        withAnimation(.spring(duration: 0.3)) {
+            undoMove = CategoryMoveUndo(
+                message: String(localized: "\(previous.count) 笔已移到「\(ExpenseCategory.displayName(name))」"),
+                previous: previous, encodedOptions: before)
+        }
+    }
+
+    private func undo(_ move: CategoryMoveUndo) {
+        do {
+            try LedgerStore.restoreCategories(move.previous, in: modelContext)
+            encodedCategoryOptions = move.encodedOptions
+        } catch { saveError = error.localizedDescription }
     }
 
     /// 结果不超过这么多笔时，各月默认都展开

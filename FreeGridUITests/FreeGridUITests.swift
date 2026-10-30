@@ -220,6 +220,102 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["早餐"].exists)
     }
 
+    /// 移到其他分类用的小账本：早餐两笔，「其他」里两笔咖啡、一笔咖啡豆、一笔打印
+    private func launchWithMoveLedger() throws -> XCUIApplication {
+        let today = Date.now.formatted(.iso8601.year().month().day())
+        let rows = [("早餐", "", 12), ("早餐", "", 15), ("其他", "咖啡", 18), ("其他", "咖啡", 22),
+                    ("其他", "咖啡豆", 80), ("其他", "打印", 5)]
+        let expenses = rows.map { "{\"amount\": \($0.2), \"category\": \"\($0.0)\", \"note\": \"\($0.1)\", \"date\": \"\(today)\"}" }
+        let json = "{\"schema_version\": 2, \"assets\": {\"total\": 10000, \"locked_assets\": 0, \"cash\": 10000}, \"expenses\": [\(expenses.joined(separator: ", "))]}"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("move-ledger-\(UUID().uuidString).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        let app = XCUIApplication()
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES", "-SeedBackupJSON", url.path]
+        app.launch()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+        return app
+    }
+
+    private func attachShot(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// Pro 合并：「早餐」→「全部 2 笔移到…」→ 新建「餐饮」，默认移完删掉早餐；撤销后都回来。
+    @MainActor
+    func testMoveAllEntriesOfACategoryIntoANewOne() throws {
+        let app = try launchWithMoveLedger()
+        app.tabBars.buttons["设置"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
+        let breakfast = app.buttons["category-row-早餐"]
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 5))
+        breakfast.tap()
+        let moveAll = app.buttons["move-all-expenses"]
+        XCTAssertTrue(moveAll.waitForExistence(timeout: 3))
+        attachShot(app, "合并-1-编辑分类")
+        moveAll.tap()
+        let picker = app.buttons["move-target-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        picker.tap()
+        app.buttons["新建分类…"].firstMatch.tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("餐饮")
+        app.alerts.buttons["好"].tap()
+        attachShot(app, "合并-2-移到新建的餐饮")
+        app.buttons["confirm-move-expenses"].tap()
+
+        let dining = app.buttons["category-row-餐饮"]
+        XCTAssertTrue(dining.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["category-row-早餐"].exists)
+        XCTAssertTrue(app.buttons["undo-category-move"].waitForExistence(timeout: 3))
+        attachShot(app, "合并-3-移完和撤销条")
+        app.buttons["undo-category-move"].tap()
+        XCTAssertTrue(app.buttons["category-row-早餐"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["category-row-餐饮"].exists)
+    }
+
+    /// Pro 拆分：明细筛「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
+    @MainActor
+    func testMoveSearchResultsSplitsACategory() throws {
+        let app = try launchWithMoveLedger()
+        app.tabBars.buttons["明细"].tap()
+        app.buttons["按分类筛选"].tap()
+        let other = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '其他'")).firstMatch
+        XCTAssertTrue(other.waitForExistence(timeout: 3))
+        other.tap()
+        app.buttons["搜索"].tap()
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.typeText("咖啡")
+        let move = app.buttons["move-search-results"]
+        XCTAssertTrue(move.waitForExistence(timeout: 5))
+        XCTAssertEqual(move.label, "把这 3 笔移到其他分类…")
+        attachShot(app, "拆分-1-搜索结果")
+        move.tap()
+
+        let beans = app.buttons.matching(NSPredicate(format: "label CONTAINS '咖啡豆'")).firstMatch
+        XCTAssertTrue(beans.waitForExistence(timeout: 3))
+        beans.tap()
+        app.buttons["move-target-picker"].tap()
+        app.buttons["新建分类…"].firstMatch.tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("咖啡")
+        app.alerts.buttons["好"].tap()
+        attachShot(app, "拆分-2-去掉咖啡豆")
+        app.buttons["confirm-move-expenses"].tap()
+
+        XCTAssertTrue(app.buttons["undo-category-move"].waitForExistence(timeout: 5))
+        // 筛选还是「其他」：剩下咖啡豆一笔
+        XCTAssertTrue(app.buttons["move-search-results"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["move-search-results"].label, "把这 1 笔移到其他分类…")
+        attachShot(app, "拆分-3-移完")
+    }
+
     /// 记支出表单里没有常驻的 Pro 入口：它在分类菜单的最后一项。没有 Pro 打开购买页，有 Pro 进管理页。
     @MainActor
     func testCategoryMenuEndsWithManageOrProEntry() {

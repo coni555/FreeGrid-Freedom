@@ -795,6 +795,44 @@
         }
       }
     },
+    "%lld 笔已移到「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved %#@count@ to “%2$@”"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld 笔已移到「%2$@」"
+          }
+        }
+      }
+    },
     "%lld 笔记录会改到「%@」名下，合并后不能自动拆回。": {
       "localizations": {
         "en": {
@@ -1179,12 +1217,12 @@
         }
       }
     },
-    "**查找**：右上角搜索金额或备注，旁边的按钮按分类筛选。": {
+    "**查找**：右上角搜索金额或备注，旁边的按钮按分类筛选。**Pro**：搜到的支出可以一起移到别的分类，比如在「其他」里搜「咖啡」，把它们移到新建的「咖啡」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Find**: search amounts or notes at the top right; the button next to it filters by category."
+            "value": "**Find**: search amounts or notes at the top right; the button next to it filters by category. **Pro**: move the expenses you find to another category together, for example search “coffee” in Other and move them to a new Coffee category."
           }
         }
       }
@@ -1339,12 +1377,12 @@
         }
       }
     },
-    "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序、合并。": {
+    "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序；点一个分类 →「全部 N 笔移到…」，把它的账并进另一个分类。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Ledger**: expense categories, backup and restore. The free version has the nine defaults; **Pro** lets you add, give icons to, rename, reorder and merge categories."
+            "value": "**Ledger**: expense categories, backup and restore. The free version has the nine defaults; **Pro** lets you add, give icons to, rename and reorder categories. Tap a category → “Move All N Entries To…” to merge its entries into another one."
           }
         }
       }
@@ -2744,6 +2782,16 @@
         }
       }
     },
+    "会新建「%@」这个分类。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This creates a new category, “%@”."
+          }
+        }
+      }
+    },
     "体验中 · 还剩 %lld 天": {
       "localizations": {
         "en": {
@@ -3224,6 +3272,16 @@
         }
       }
     },
+    "全不选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deselect All"
+          }
+        }
+      }
+    },
     "全是现金": {
       "localizations": {
         "en": {
@@ -3244,12 +3302,44 @@
         }
       }
     },
+    "全选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select All"
+          }
+        }
+      }
+    },
     "全部": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "All"
+          }
+        }
+      }
+    },
+    "全部 %lld 笔移到…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld Entry To…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move All %lld Entries To…"
+                }
+              }
+            }
           }
         }
       }
@@ -4474,6 +4564,16 @@
         }
       }
     },
+    "咖啡、宠物、房租…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coffee, pets, rent…"
+          }
+        }
+      }
+    },
     "哪些钱计入自由天数": {
       "localizations": {
         "en": {
@@ -5400,6 +5500,16 @@
         }
       }
     },
+    "已删除，还有旧账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted, Still Has Entries"
+          }
+        }
+      }
+    },
     "已取消导入": {
       "localizations": {
         "en": {
@@ -6192,6 +6302,28 @@
         }
       }
     },
+    "把其中 %lld 笔支出移到其他分类…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld expense to another category…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld expenses to another category…"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "把各账户合并为一个现金总额，余额不变。收支直接计入现金。": {
       "localizations": {
         "en": {
@@ -6208,6 +6340,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Merge the items into one asset total. The amount stays the same."
+          }
+        }
+      }
+    },
+    "把这 %lld 笔移到其他分类…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move this entry to another category…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move these %lld entries to another category…"
+                }
+              }
+            }
           }
         }
       }
@@ -6912,6 +7066,16 @@
         }
       }
     },
+    "放回列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put Back in List"
+          }
+        }
+      }
+    },
     "数字为什么会变": {
       "localizations": {
         "en": {
@@ -7028,6 +7192,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "New devices"
+          }
+        }
+      }
+    },
+    "新建分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Category"
+          }
+        }
+      }
+    },
+    "新建分类…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Category…"
           }
         }
       }
@@ -9032,6 +9216,84 @@
         }
       }
     },
+    "移到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move To"
+          }
+        }
+      }
+    },
+    "移到其他分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Another Category"
+          }
+        }
+      }
+    },
+    "移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move"
+          }
+        }
+      }
+    },
+    "移完删掉「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@” afterwards"
+          }
+        }
+      }
+    },
+    "移走「%@」的 %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move %#@count@ from “%1$@”"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "移走「%1$@」的 %2$lld 笔"
+          }
+        }
+      }
+    },
     "移除%@": {
       "localizations": {
         "en": {
@@ -10018,12 +10280,44 @@
         }
       }
     },
-    "记支出时不再出现这个选项。已有的记录不变；想找回，重新添加同名分类。": {
+    "记支出时不会出现。可以把它们的账移到别的分类，或者放回列表。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It won't appear when you add expenses. Existing entries don't change; to bring it back, add a category with the same name."
+            "value": "They don't appear when you add expenses. Move their entries to another category, or put them back in the list."
+          }
+        }
+      }
+    },
+    "记支出时不再出现这个选项。已有的 %lld 笔保留原名，之后在分类页最下面还能移走或放回。": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "It won't appear when you add expenses. The %lld existing entry keeps this name; you can still move it or put the category back from the bottom of this page."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "It won't appear when you add expenses. The %lld existing entries keep this name; you can still move them or put the category back from the bottom of this page."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "记支出时不再出现这个选项。想找回，重新添加同名分类。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It won't appear when you add expenses. To bring it back, add a category with the same name."
           }
         }
       }
@@ -11388,6 +11682,32 @@
         }
       }
     },
+    "选一个分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Category"
+          }
+        }
+      }
+    },
+    "选中 %lld / %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "选中 %1$lld / %2$lld 笔"
+          }
+        }
+      }
+    },
     "逐个选": {
       "localizations": {
         "en": {
@@ -11644,12 +11964,12 @@
         }
       }
     },
-    "长按拖动调整顺序，左滑删除。删除分类不影响已记的账，改名会一起改。": {
+    "长按拖动调整顺序，左滑删除。点一个分类可以改名，或把它的账全部移到别的分类。删除分类不影响已记的账。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Touch and hold to drag into order; swipe left to delete. Deleting a category doesn't change past entries; renaming updates them."
+            "value": "Touch and hold to drag into order; swipe left to delete. Tap a category to rename it or move all its entries to another one. Deleting a category doesn't change past entries."
           }
         }
       }

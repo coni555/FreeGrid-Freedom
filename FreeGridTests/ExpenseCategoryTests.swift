@@ -211,6 +211,53 @@ struct ExpenseCategoryTests {
         #expect(try context.fetch(FetchDescriptor<Expense>()).filter { $0.category == "咖啡豆" }.count == 2)
     }
 
+    // MARK: - 移到其他分类（合并、拆分）
+
+    @Test func newCategoryTakesTheMergedCategorysPlace() throws {
+        var options = ExpenseCategoryOptions.defaults
+        #expect(try options.add("餐饮", before: "早餐") == "餐饮")
+        #expect(Array(options.visibleNames.prefix(2)) == ["餐饮", "早餐"])
+        options.merge("早餐", into: "餐饮")
+        #expect(Array(options.visibleNames.prefix(2)) == ["餐饮", "午餐"])
+        // 找不到位置时排到最后
+        #expect(try options.add("宠物", before: "不存在") == "宠物")
+        #expect(options.visibleNames.last == "宠物")
+        #expect(throws: ExpenseCategoryOptions.ValidationError.self) { try options.add("午餐", before: "交通") }
+    }
+
+    @Test func movingPartOfACategorySplitsItAndUndoPutsItBack() throws {
+        let context = try TestSupport.makeContext()
+        let latte = Expense(amount: 18, category: "其他", note: "咖啡", date: TestSupport.day("2026-10-01"))
+        let beans = Expense(amount: 80, category: "其他", note: "咖啡豆", date: TestSupport.day("2026-10-02"))
+        let mocha = Expense(amount: 22, category: "晚餐", note: "咖啡", date: TestSupport.day("2026-10-03"))
+        let payment = Expense(amount: 3000, category: "其他", date: TestSupport.day("2026-10-03"))
+        payment.loanID = UUID()
+        [latte, beans, mocha, payment].forEach(context.insert)
+        try context.save()
+
+        // 拆分可以跨分类挑；月供扣款不碰，已经在目标分类的跳过
+        let previous = try LedgerStore.moveExpenses([latte.id, mocha.id, payment.id], to: "咖啡", in: context)
+        #expect(previous == [latte.id: "其他", mocha.id: "晚餐"])
+        #expect(latte.category == "咖啡" && mocha.category == "咖啡")
+        #expect(beans.category == "其他" && payment.category == "其他")
+        #expect(try LedgerStore.moveExpenses([latte.id], to: "咖啡", in: context).isEmpty)
+
+        try LedgerStore.restoreCategories(previous, in: context)
+        #expect(latte.category == "其他" && mocha.category == "晚餐")
+    }
+
+    @Test func failedMoveLeavesEveryRecordWhereItWas() throws {
+        let context = try TestSupport.makeContext()
+        let records = (1...3).map { Expense(amount: Double($0), category: "早餐", date: TestSupport.day("2026-10-0\($0)")) }
+        records.forEach(context.insert)
+        try context.save()
+        struct Failure: Error {}
+        #expect(throws: Failure.self) {
+            try LedgerStore.moveExpenses(Set(records.map(\.id)), to: "餐饮", in: context, save: { _ in throw Failure() })
+        }
+        #expect(try context.fetch(FetchDescriptor<Expense>()).allSatisfy { $0.category == "早餐" })
+    }
+
     // MARK: - 分类设置进备份
 
     @Test func categorySettingsRoundTripThroughBackup() throws {
