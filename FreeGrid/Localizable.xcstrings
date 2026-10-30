@@ -1037,12 +1037,12 @@
         }
       }
     },
-    "**不想天天记账，填个每月花销**。首页或钱包里填每月大约花多少，房租、吃饭、购物、订阅全部算上，自由天数马上算出来。记了日常支出就按实际记录。最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊：填了每月花销就按它补，没填就先停住。": {
+    "**不想天天记账，填个每月花销**。首页或钱包里记下这个月一共花了多少，房租、吃饭、购物、订阅全部算上，自由天数马上算出来。开始记账后，日均会在 30 天里慢慢改按记账算，不会一下子变。最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊：填了每月花销就按它补，没填就先停住。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Don't want to log every day? Enter your monthly spending.** On Home or in Wallet, enter roughly what you spend per month, counting rent, food, shopping and subscriptions, and your Freedom Days appear right away. Once you record everyday expenses, it follows your records. If more than 14 days pass after your last entry, the extra days stop pulling the average down: they use your monthly spending if you set it, or the average simply holds."
+            "value": "**Don't want to log every day? Enter your monthly spending.** On Home or in Wallet, enter what you spent this month in total, counting rent, food, shopping and subscriptions, and your Freedom Days appear right away. Once you start logging, your daily average shifts to your records over 30 days rather than all at once. If more than 14 days pass after your last entry, the extra days stop pulling the average down: they use your monthly spending if you set it, or the average simply holds."
           }
         }
       }
@@ -2332,12 +2332,12 @@
         }
       }
     },
-    "不想每天记账？填每月大约花多少": {
+    "不想每天记账？记下这个月花了多少": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not logging daily? Enter monthly spending"
+            "value": "Not logging daily? Enter this month's total"
           }
         }
       }
@@ -3948,12 +3948,12 @@
         }
       }
     },
-    "删除全部支出、收入、被动收入和资产，不能撤销。先导出一份 JSON 再清空。": {
+    "删除全部支出、收入、被动收入、资产和每月花销，不能撤销。先导出一份 JSON 再清空。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deletes all expenses, income, passive income and assets. It can't be undone. Export a JSON first."
+            "value": "Deletes all expenses, income, passive income, assets and monthly spending. It can't be undone. Export a JSON first."
           }
         }
       }
@@ -5952,6 +5952,16 @@
         }
       }
     },
+    "开始记账后，日均会慢慢改按记账算。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once you start logging, your daily average gradually shifts to your records."
+          }
+        }
+      }
+    },
     "当前 %@ / %lld 天": {
       "localizations": {
         "en": {
@@ -6272,16 +6282,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Things you can't sell quickly, like a home or a car, can be left out and kept in net worth only."
-          }
-        }
-      }
-    },
-    "房租、吃饭、购物、订阅，全部算上。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rent, food, shopping, subscriptions: count it all."
           }
         }
       }
@@ -6708,6 +6708,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "At %@"
+          }
+        }
+      }
+    },
+    "按估算和记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimate + records"
           }
         }
       }
@@ -8286,16 +8296,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monthly take-home pay"
-          }
-        }
-      }
-    },
-    "每月大约花多少": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Roughly how much per month"
           }
         }
       }
@@ -10518,6 +10518,16 @@
         }
       }
     },
+    "记下你的实际支出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter what you actually spent."
+          }
+        }
+      }
+    },
     "记下支出、算出日均后才能算": {
       "localizations": {
         "en": {
@@ -11810,6 +11820,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "This file can't be read: %@"
+          }
+        }
+      }
+    },
+    "这个月一共花了多少钱？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much did you spend this month?"
           }
         }
       }

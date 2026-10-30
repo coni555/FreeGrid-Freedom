@@ -1,11 +1,12 @@
 // 日均消费怎么估：总支出 ÷ 记录天数，多两条——记账不满 90 天时，单笔大额支出按 90 天摊；
 // 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均（填了每月花销就按它补）。
+// 填了每月花销再开始记账，日均在 30 天里慢慢从它过渡到记录，不一下子跳（用户 2026-10-30 定）。
 // 没记过日常支出、但填了每月花销时，日均就是它扣掉固定支出后折成的每天（2.2，用户 2026-10-30 定）。
 // 首页、记一笔的影响预览、趋势、History 都从这里拿日均，口径只有一个。
 
 import Foundation
 
-/// 自己填的「每月大约花多少」，是全部花销：房租、订阅这些固定支出也算在里面（用户 2026-10-30 定）。
+/// 自己填的「这个月一共花了多少」，是全部花销：房租、订阅这些固定支出也算在里面（用户 2026-10-30 定）。
 /// 不记账的人填完这一个数就够了；记账的人断档时也用它补空档。
 /// 存在本机偏好里，JSON 备份会带上（见 `BackupEnvelope.monthlySpending`）。
 enum MonthlySpending {
@@ -16,7 +17,10 @@ enum MonthlySpending {
         valid(defaults.double(forKey: key))
     }
 
-    static var monthly: Double? { monthly(in: AppPreferences.store) }
+    /// 单元测试不读这台设备上填过的数：模拟器账本是拿来试用的，填过以后不该让别的测试变结果
+    static var monthly: Double? {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ? nil : monthly(in: AppPreferences.store)
+    }
 
     static func valid(_ value: Double?) -> Double? {
         guard let value, value.isFinite, value > 0, value <= FinancialLimits.maximumAmount else { return nil }
@@ -42,6 +46,8 @@ extension FreedomMath {
     static let lumpMultiple = 30.0
     /// 最后一笔之后这么多天内照常摊；再往后算断档，不再让日均往下掉
     static let burnGraceDays = 14
+    /// 填了每月花销的人，记账不满这么多天时，还没记到的那些天按每月花销算
+    static let estimateBlendDays = 30
 
     /// 日均是从哪来的；界面上「按每月估算」的标记看它
     enum BurnBasis: Equatable {
@@ -49,7 +55,7 @@ extension FreedomMath {
         case records
         /// 没记过日常支出，全按每月花销
         case estimate
-        /// 记下的支出加上断档那几天按每月花销补
+        /// 记下的支出加上每月花销补的那些天：刚开始记账不满 30 天，或者断档
         case recordsAndEstimate
     }
 
@@ -87,6 +93,10 @@ extension FreedomMath {
     /// 再往后的天不算进记录的分母，日均停住不再往下掉；填了每月花销就把这些天按它补进去（`everydayEstimate` 是它扣掉固定支出后的日常部分）。
     /// 停在第 14 天而不是退回最后一笔那天：日均是慢慢停下，不会在第 15 天突然跳一截。
     /// 只看最后一笔之后的空档；中间断过又接着记的，那段照常算（记总账的人中间也是空的）。
+    ///
+    /// 过渡：填了每月花销的人记第一笔时，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
+    /// 所以记账不满 30 天时，分母按 30 天算，还没记到的那些天按每月花销补；记满 30 天正好全按记录，中间没有跳变。
+    /// 断档也走这一条：补的天数 = 总天数（至少 30）− 记录段的天数。
     static func burnEstimate(_ entries: [BurnEntry], everydayEstimate: Double? = nil, now: Date = .now,
                              calendar: Calendar = .current) -> BurnEstimate {
         let estimateDaily = everydayEstimate.flatMap { $0.isFinite && $0 >= 0 ? $0 / GridUnit.month.daysPerCell : nil }
@@ -104,11 +114,13 @@ extension FreedomMath {
         let gap = min(max(0, sinceLast - burnGraceDays), max(0, days - 1))
         // 记录天数照日历算（记账天数卡、自检里程碑用它），只有日均的分母去掉断档
         let recorded = recordedBurn(entries, days: days - gap, firstDate: firstDate, calendar: calendar)
-        guard gap > 0, let estimateDaily, recorded.dailyBurn.isFinite else {
+        let recordedDays = days - gap
+        let span = max(days, estimateBlendDays)
+        guard span > recordedDays, let estimateDaily, recorded.dailyBurn.isFinite else {
             return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
                                 dailyBurn: recorded.dailyBurn, spreadLumps: recorded.spreadLumps, gapDays: gap)
         }
-        let mixed = (recorded.dailyBurn * Double(days - gap) + estimateDaily * Double(gap)) / Double(days)
+        let mixed = (recorded.dailyBurn * Double(recordedDays) + estimateDaily * Double(span - recordedDays)) / Double(span)
         return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days, dailyBurn: mixed,
                             spreadLumps: recorded.spreadLumps, basis: .recordsAndEstimate, gapDays: gap)
     }

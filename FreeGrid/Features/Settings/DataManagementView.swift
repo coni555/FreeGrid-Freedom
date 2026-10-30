@@ -138,7 +138,7 @@ struct DataManagementView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                Text("删除全部支出、收入、被动收入和资产，不能撤销。先导出一份 JSON 再清空。")
+                Text("删除全部支出、收入、被动收入、资产和每月花销，不能撤销。先导出一份 JSON 再清空。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -291,6 +291,7 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
+            monthlySpending = 0
             importStatus = String(localized: "已清空记账数据")
         } catch {
             importStatus = String(localized: "清空失败：\(error.localizedDescription)")

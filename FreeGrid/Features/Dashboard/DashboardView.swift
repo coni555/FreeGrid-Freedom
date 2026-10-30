@@ -108,7 +108,7 @@ private struct DashboardContent: View {
     /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
     @State private var editingGoal: FreedomGoal?
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
-    /// 首页没记账时点「填每月大约花多少」
+    /// 首页没记账时点「记下这个月花了多少」
     @State private var showingMonthlySpending = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?

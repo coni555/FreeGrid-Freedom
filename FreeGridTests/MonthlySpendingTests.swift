@@ -1,4 +1,4 @@
-// 2.2 按月估算：每月花销含固定支出，算日均时扣掉；不记账时日均 = 日常部分折成的每天；
+// 2.2 按月估算：每月花销含固定支出，算日均时扣掉；不记账时日均 = 日常部分折成的每天；开始记账后 30 天里慢慢过渡到记录；
 // 最后一笔之后超过 14 天的断档不再摊薄日均，填了每月花销就按它补那几天；备份带上这个数。
 // 规则见 AGENTS.md「2.2 按月估算」。3044 / 月按 30.44 天折成每天 100，下面的数都按这个算。
 import Foundation
@@ -33,10 +33,43 @@ struct MonthlySpendingTests {
         #expect(burn.dailyBurn.isNaN)
     }
 
-    @Test func recordingPeopleIgnoreTheEstimate() {
-        let burn = FreedomMath.burnEstimate(entries(daily(10)), everydayEstimate: 9000, now: dayNumber(10))
+    @Test func afterThirtyDaysOfRecordsTheEstimateIsIgnored() {
+        let burn = FreedomMath.burnEstimate(entries(daily(30)), everydayEstimate: 9000, now: dayNumber(30))
         #expect(burn.dailyBurn == 60)
         #expect(burn.basis == .records && burn.gapDays == 0)
+    }
+
+    @Test func theFirstEntryDoesNotJump() {
+        // 每天 100 的估算，第一天记一笔 20：(20 + 29 × 100) / 30，不是直接变成 20
+        let burn = FreedomMath.burnEstimate(entries([(1, 20)]), everydayEstimate: 3044, now: dayNumber(1))
+        #expect(abs(burn.dailyBurn - (20.0 + 29 * 100) / 30) < 1e-9)
+        #expect(burn.basis == .recordsAndEstimate)
+        #expect(burn.trackDays == 1)
+    }
+
+    @Test func theBurnMovesTowardsTheRecordsDayByDay() {
+        // 每天记 60，估算每天 100：从 100 一路慢慢落到 60，每天只动一小步，第 30 天正好是 60
+        var previous = 100.0
+        for day in 1...30 {
+            let burn = FreedomMath.burnEstimate(entries(daily(day)), everydayEstimate: 3044, now: dayNumber(day)).dailyBurn
+            #expect(burn < previous)
+            #expect(previous - burn < 2)
+            previous = burn
+        }
+        #expect(abs(previous - 60) < 1e-9)
+    }
+
+    @Test func withoutAnEstimateRecordsWorkAsBefore() {
+        let burn = FreedomMath.burnEstimate(entries(daily(10)), now: dayNumber(10))
+        #expect(burn.dailyBurn == 60)
+        #expect(burn.basis == .records)
+    }
+
+    @Test func theDailyCardSaysItIsBlending() {
+        let expenses = [Expense(amount: 20, category: "午餐", date: dayNumber(1))]
+        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: cash(10_000),
+                                         now: dayNumber(1), countsAssets: true, monthlySpending: 3044)
+        #expect(HomeStat.dailyNote(snapshot) == String(localized: "按估算和记账"))
     }
 
     @Test func fourteenQuietDaysStillCount() {

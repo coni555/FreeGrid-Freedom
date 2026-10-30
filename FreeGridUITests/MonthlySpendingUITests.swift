@@ -58,6 +58,23 @@ final class MonthlySpendingUITests: XCTestCase {
         XCTAssertTrue(entry.waitForNonExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-stat-daily"].waitForExistence(timeout: 5))
         attach(app, "按月估算-填完")
+
+        // 再记第一笔：预览里提醒一句，记完日均只动一点（3000 折每天 98.6，记 20 后是 95.9，不是 20）
+        app.buttons["记支出"].tap()
+        let amount = app.textFields["0.00"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        amount.tap()
+        amount.typeText("20")
+        let reminder = app.staticTexts["开始记账后，日均会慢慢改按记账算。"]
+        XCTAssertTrue(reminder.waitForExistence(timeout: 3))
+        XCTAssertLessThan(reminder.frame.maxY, app.keyboards.firstMatch.frame.minY)   // 没被键盘挡住
+        attach(app, "按月估算-记第一笔")
+        app.buttons["保存"].tap()
+        let daily = app.buttons["home-stat-daily"]
+        expectation(for: NSPredicate(format: "label CONTAINS %@", "按估算和记账"), evaluatedWith: daily)
+        waitForExpectations(timeout: 5)
+        XCTAssertTrue(daily.label.contains("95.9"), daily.label)
+        attach(app, "按月估算-记完")
     }
 
     @MainActor

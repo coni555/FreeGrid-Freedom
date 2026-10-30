@@ -198,6 +198,8 @@ enum HomeStat: Hashable, Identifiable {
                 ? String(localized: "\(quiet) 天没记 · 空档按估算")
                 : String(localized: "\(quiet) 天没记 · 日均先停住")
         }
+        // 刚开始记账，还在从每月花销往记录过渡
+        if snapshot.burnBasis == .recordsAndEstimate { return String(localized: "按估算和记账") }
         return fixed
             ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
             : String(localized: "元/天")

@@ -1,5 +1,5 @@
 // 钱包里的「每月花销」一行和填它的表单（2.2，免费）。
-// 不想天天记账的人填一个每月大约花多少（固定支出也算在里面），自由天数就能算；记账的人断档时也用它补空档。
+// 不想天天记账的人填这个月一共花了多少（固定支出也算在里面），自由天数就能算；记账的人断档时也用它补空档。
 // 这一行什么时候出现见 `MonthlySpending.showsRow`，算法见 `FreedomMath.burnEstimate`。
 
 import SwiftUI
@@ -77,7 +77,7 @@ struct MonthlySpendingSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                KickerLabel(text: String(localized: "每月大约花多少"))
+                KickerLabel(text: String(localized: "这个月一共花了多少钱？"))
                 UnderlinedField(isFocused: focused) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("¥")
@@ -92,7 +92,7 @@ struct MonthlySpendingSheet: View {
                             .accessibilityIdentifier("monthly-spending-field")
                     }
                 }
-                Text("房租、吃饭、购物、订阅，全部算上。")
+                Text("记下你的实际支出。")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkMuted)
                     .fixedSize(horizontal: false, vertical: true)

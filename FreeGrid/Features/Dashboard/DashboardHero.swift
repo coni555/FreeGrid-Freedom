@@ -12,7 +12,7 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
-    /// 还算不出自由天数时，点「填每月大约花多少」
+    /// 还算不出自由天数时，点「记下这个月花了多少」
     var onFillMonthlySpending: () -> Void = {}
     @State private var longPressed = 0
 
@@ -72,7 +72,7 @@ struct DashboardHero: View {
                 Hairline().padding(.top, Spacing.xs)
                 Button(action: onFillMonthlySpending) {
                     HStack(spacing: Spacing.xs) {
-                        Text("不想每天记账？填每月大约花多少")
+                        Text("不想每天记账？记下这个月花了多少")
                             .font(.system(.caption, design: .rounded))
                         Image(systemName: "chevron.right")
                             .font(.system(size: 9, weight: .medium))

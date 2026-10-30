@@ -437,7 +437,7 @@ struct SetupGuideOverlay: View {
                 if step == .expense {
                     Button(action: onFillMonthlySpending) {
                         HStack(spacing: Spacing.xs) {
-                            Text("不想每天记账？填每月大约花多少")
+                            Text("不想每天记账？记下这个月花了多少")
                                 .font(.system(.caption, design: .rounded))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .medium))
