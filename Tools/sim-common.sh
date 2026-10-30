@@ -60,6 +60,8 @@ $busy
 # 单元测试的宿主就是 App，会用这台模拟器上的账本启动；装新版也会迁移账本。动之前先打包数据容器。
 snapshot_container() {
   local reason=$1 container dest
+  # 关机的模拟器查不到 App 容器，会被误当成「没装」而跳过快照，所以先开机。
+  xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
   container=$(xcrun simctl get_app_container "$SIM_UDID" "$BUNDLE_ID" data 2>/dev/null) || {
     echo "· $SIM_NAME 上还没装 FreeGrid，跳过账本快照"
     return 0
