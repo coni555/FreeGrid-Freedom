@@ -78,7 +78,7 @@ struct FreeGridApp: App {
         .defaultSize(width: 1120, height: 740)
         .commands {
             CommandMenu("记账") {
-                // 每月一个数不记单笔
+                // 按月记账不记单笔
                 Button("记一笔支出") { menuActions.addExpense = true }
                     .keyboardShortcut("n", modifiers: .command)
                     .disabled(!storeBootstrap.isReady || MonthlyTracking.decode(storedTracking).isMonthly)

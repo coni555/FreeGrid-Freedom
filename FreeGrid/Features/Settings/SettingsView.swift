@@ -433,7 +433,7 @@ struct SettingsView: View {
                         DeckDivider()
                         Button { showingTrackingSwitch = true } label: {
                             DeckRow(title: String(localized: "记账方式")) {
-                                Text(MonthlyTracking.decode(storedTracking).isMonthly ? "每月一个数" : "逐笔记账")
+                                Text(MonthlyTracking.decode(storedTracking).isMonthly ? "按月记账" : "逐笔记账")
                                     .font(.system(size: 13, design: .rounded))
                                     .foregroundStyle(Color.inkFaint)
                             }
@@ -584,8 +584,9 @@ struct SettingsView: View {
     /// 讲解要圈出页面上的数字和记录，账本为空时没有可圈的位置；写了每月花销、不记账的人也有数字可圈
     @ViewBuilder
     private var guideRow: some View {
-        let hasRecords = !expenses.isEmpty || !incomes.isEmpty
         let tracking = MonthlyTracking.decode(storedTracking)
+        // 按月记账时记录收起来了，和没有记录一样
+        let hasRecords = !tracking.isMonthly && (!expenses.isEmpty || !incomes.isEmpty)
         if !hasRecords && !tracking.hasNumber {
             DeckRow(title: String(localized: "使用指引"), titleColor: .inkFaint, chevron: nil) {
                 Text(tracking.isMonthly ? "写下花销后可看" : "记一笔后可看")

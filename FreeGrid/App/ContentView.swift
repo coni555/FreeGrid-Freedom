@@ -28,7 +28,7 @@ struct ContentView: View {
     @AppStorage("historyGuideCompleted", store: AppPreferences.store) private var historyGuideCompleted = false
     /// 起步引导点了「跳过引导」后不再出现
     @AppStorage("setupGuideCompleted", store: AppPreferences.store) private var setupGuideCompleted = false
-    /// 起步引导第 3 步可以改用每月一个数，选了和记完第一笔一样，引导结束
+    /// 起步引导第 3 步可以改用按月记账，选了和记完第一笔一样，引导结束
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @State private var showingMonthlySpending = false
 
@@ -454,7 +454,7 @@ extension ContentView {
     }
 
     /// 起步引导现在该显示哪一步；nil 表示不显示。
-    /// 只给一笔支出都没有、也没选每月一个数的新账本；在 History 和 Settings 里不拦着用户。
+    /// 只给一笔支出都没有、也没选按月记账的新账本；在 History 和 Settings 里不拦着用户。
     private var setupStep: SetupGuideStep? {
         guard !setupGuideCompleted, guide.tour == nil, firstExpenses.isEmpty,
               !MonthlyTracking.decode(storedTracking).isMonthly else { return nil }

@@ -1,7 +1,7 @@
 // 日均消费怎么估：总支出 ÷ 记录天数，多两条——记账不满 90 天时，单笔大额支出按 90 天摊；
 // 最后一笔之后超过 14 天没记，多出来的天不再摊薄日均。
-// 用「每月一个数」时日均只看写下的数（见 `MonthlyTracking`），那段时间不算进记录；
-// 改回逐笔记账时，日均用 30 天从写下的数过渡到记录，不一下子跳（用户 2026-10-30 定）。
+// 用「按月记账」时日均只看写下的数（见 `MonthlyTracking`），那段时间不算进记录；
+// 有记录的人改回逐笔记账就回到切换前；从没记过账的人用 30 天从写下的数过渡到记录，不一下子跳（用户 2026-10-30、31 定）。
 // 首页、记一笔的影响预览、趋势、History 都从这里拿日均，口径只有一个。
 
 import Foundation
@@ -13,7 +13,7 @@ extension FreedomMath {
     static let lumpMultiple = 30.0
     /// 最后一笔之后这么多天内照常摊；再往后算断档，不再让日均往下掉
     static let burnGraceDays = 14
-    /// 改回逐笔记账后，用这么多天从写下的数过渡到记录；记账没跨满这么多天又断档的，不给大数字
+    /// 从没记过账的人改回逐笔记账后，用这么多天从写下的数过渡到记录；记账没跨满这么多天又断档的，不给大数字
     static let estimateBlendDays = 30
 
     /// 日均是从哪来的
@@ -22,11 +22,11 @@ extension FreedomMath {
         case records
         /// 全按每月写下的数
         case estimate
-        /// 刚改回逐笔记账，还在从写下的数过渡到记录
+        /// 从没记过账的人刚改回逐笔记账，还在从写下的数过渡到记录
         case recordsAndEstimate
     }
 
-    /// 改回逐笔记账时的过渡：`everyday` 是写下的数扣掉固定支出后的日常部分，从 `from` 这天起过渡
+    /// 从没记过账的人改回逐笔记账时的过渡：`everyday` 是写下的数扣掉固定支出后的日常部分，从 `from` 这天起过渡
     struct EstimateBlend: Equatable {
         let everyday: Double
         let from: Date
@@ -69,9 +69,9 @@ extension FreedomMath {
     /// 停在第 14 天而不是退回最后一笔那天：日均是慢慢停下，不会在第 15 天突然跳一截。
     /// 只看最后一笔之后的空档；中间断过又接着记的，那段照常算（记总账的人中间也是空的）。
     ///
-    /// `pauses`：用每月一个数的那些天既不算记账，也不算花了 0 元，从天数里去掉。
+    /// `pauses`：用按月记账的那些天既不算记账，也不算花了 0 元，从天数里去掉。
     ///
-    /// `blend`：改回逐笔记账后，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
+    /// `blend`：只写过数的人开始记账，一天的账代表不了日均（记一笔 20 元，日均不该从 98 变 20）。
     /// 从改回那天（那之后才记第一笔的，从第一笔那天）起算第 n 天，记录占 n/30，写下的数占其余；满 30 天全按记录。
     static func burnEstimate(_ entries: [BurnEntry], pauses: [MonthlyTracking.Pause] = [], blend: EstimateBlend? = nil,
                              now: Date = .now, calendar: Calendar = .current) -> BurnEstimate {
@@ -111,7 +111,7 @@ extension FreedomMath {
                             recordsTooFew: gap > 0 && loggedDays < estimateBlendDays)
     }
 
-    /// 按记账方式算日均。每月一个数时日均只看写下的数，记录那边的天数和总额留着（记账里程碑暂停在原处）
+    /// 按记账方式算日均。按月记账时日均只看写下的数，记录那边的天数和总额留着（记账里程碑暂停在原处）
     static func burnEstimate(_ entries: [BurnEntry], tracking: MonthlyTracking, fixedMonthly: Double, now: Date = .now,
                              calendar: Calendar = .current) -> BurnEstimate {
         let everyday = tracking.everyday(fixedMonthly: fixedMonthly)

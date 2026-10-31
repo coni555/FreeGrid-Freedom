@@ -1,6 +1,8 @@
-// 两种记账方式（2.2，用户 2026-10-30 定）：逐笔记账，或者每月一个数。
-// 每月一个数：每个月写一个总花销（房租、订阅这些固定支出也算在里面），日均只看写下的这些数；
-// 旧记录留着但不计入日均，现金不自动扣。问哪个月见 `prompt`，日均怎么算见 `FreedomMath.burnEstimate(_:tracking:…)`。
+// 两种记账方式（2.2，用户 2026-10-30 定）：逐笔记账，或者按月记账。
+// 按月记账：每个月写一个总花销（房租、订阅这些固定支出也算在里面），日均只看写下的这些数，现金不自动扣。
+// 两本账互不相干（用户 2026-10-31 定）：有记录的人切过来和新用户一样重新开始，记录收起来不计入、不删；
+// 切回逐笔记账就回到切换前，写过的数留着不计入，再切过来还在。
+// 问哪个月见 `prompt`，日均怎么算见 `FreedomMath.burnEstimate(_:tracking:…)`。
 // 存在本机偏好里，JSON 备份会带上（见 `BackupEnvelope.monthlyTracking`）。
 
 import Foundation
@@ -54,7 +56,7 @@ struct MonthlyTracking: Equatable {
         case entries, monthly
     }
 
-    /// 用「每月一个数」的一段时间。还在用时 `end` 是 nil。这段时间不算记账天数，也不摊进逐笔记账的日均
+    /// 用「按月记账」的一段时间。还在用时 `end` 是 nil。这段时间不算记账天数，也不摊进逐笔记账的日均
     struct Pause: Equatable {
         var start: Date
         var end: Date?
@@ -79,7 +81,8 @@ struct MonthlyTracking: Equatable {
     /// 从哪个月开始问：更早的月份没写也不追问
     var startMonth: String?
     var pauses: [Pause] = []
-    /// 改回逐笔记账的那天：日均从这天起用 30 天过渡到记录
+    /// 从没记过账的人改回逐笔记账的那天：没有切换前的日均可回，从这天起用 30 天从写下的数过渡到记录。
+    /// 有记录的人回到切换前，这里是 nil
     var switchedBackAt: Date?
 
     var isMonthly: Bool { method == .monthly }
@@ -151,31 +154,23 @@ struct MonthlyTracking: Equatable {
         return days - calendar.component(.day, from: now) >= monthEndDays
     }
 
-    /// 改成每月一个数时问哪个月：上个月已经在用 App，就问上个月（那个月过完了，数是完整的）；
-    /// 第一笔记录就在这个月、或者还没有记录，只能问这个月
-    static func firstMonth(firstRecord: Date?, now: Date = .now, calendar: Calendar = .current) -> YearMonth {
-        let current = YearMonth(now, calendar: calendar)
-        guard let firstRecord, YearMonth(firstRecord, calendar: calendar) < current else { return current }
-        return current.previous
-    }
-
     // MARK: - 切换
 
-    /// 改成每月一个数，从 `month` 开始问
+    /// 改成按月记账，从 `month` 开始问；更早的月份不追问，上一段写过的数还算
     mutating func adopt(startingAt month: YearMonth, now: Date = .now) {
         guard !isMonthly else { return }
         method = .monthly
-        if startMonth.flatMap(YearMonth.init(key:)).map({ $0 > month }) ?? true { startMonth = month.key }
+        startMonth = month.key
         pauses.append(Pause(start: now, end: nil))
         switchedBackAt = nil
     }
 
-    /// 改回逐笔记账：写过的数留着，日均用它过渡 30 天
-    mutating func switchBack(now: Date = .now) {
+    /// 改回逐笔记账：写过的数留着。有记录的回到切换前，日均只看记录；没有记录的用写下的数过渡 30 天
+    mutating func switchBack(hasRecords: Bool, now: Date = .now) {
         guard isMonthly else { return }
         method = .entries
         if let last = pauses.indices.last, pauses[last].end == nil { pauses[last].end = now }
-        switchedBackAt = now
+        switchedBackAt = hasRecords ? nil : now
     }
 
     // MARK: - 显示
@@ -221,6 +216,6 @@ struct MonthlyTracking: Equatable {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// 从没用过每月一个数：备份里不写这一段
+    /// 从没用过按月记账：备份里不写这一段
     var isUntouched: Bool { self == MonthlyTracking() }
 }

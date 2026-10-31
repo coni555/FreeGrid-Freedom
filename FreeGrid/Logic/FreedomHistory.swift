@@ -32,7 +32,7 @@ extension FreedomMath {
         dailyPassive: Double = 0,
         loans: [Loan] = [],
         uncountedAccounts: Set<UUID> = [],
-        /// 记账方式和固定支出：用每月一个数的那段时间和改回后的过渡，和首页的日均同一个口径
+        /// 记账方式和固定支出：用按月记账的那段时间和改回后的过渡，和首页的日均同一个口径
         tracking: MonthlyTracking = MonthlyTracking(),
         fixedMonthly: Double = 0,
         weeks: Int = 12,

@@ -27,7 +27,7 @@ struct HistoryView: View {
     @State private var search = HistorySearchState()
     @FocusState private var searchFocused: Bool
     @State private var showingMonths = false
-    /// 每月一个数：写过的月份，点了改；记账方式改了要马上重算
+    /// 按月记账：写过的月份，点了改；记账方式改了要马上重算
     @State private var editingMonth: YearMonth?
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     /// 搜索结果里手动展开或收起过的月份；换搜索词时清空，回到默认
@@ -70,14 +70,17 @@ struct HistoryView: View {
 
     /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        // 切回来沿用冻住的内容时 `page` 没跑，这里读一下，在明细当场改写过的月份才会重画
+        let _ = storedTracking
         TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
     }
 
     @ViewBuilder
     private var page: some View {
         // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
-        let isEmpty = expenses.isEmpty && incomes.isEmpty
+        // 按月记账时记录收起来，切回逐笔记账才恢复（用户 2026-10-31 定），搜索和月度汇总也跟着不出现
         let tracking = MonthlyTracking.decode(storedTracking)
+        let isEmpty = tracking.isMonthly || (expenses.isEmpty && incomes.isEmpty)
         let ledger = isEmpty || isSearching ? nil : ScopedLedger(expenses: expenses, incomes: incomes, loans: ProFeatures.loansInEffect(loans), scope: scope)
         NavigationStack {
             Group {
@@ -94,7 +97,7 @@ struct HistoryView: View {
                         emptyState
                     }
                 } else {
-                    historyList(ledger, tracking: tracking)
+                    historyList(ledger)
                 }
             }
             .background(Color.paper)
@@ -108,22 +111,26 @@ struct HistoryView: View {
             .sheet(item: $editingMonth) { MonthlySpendingSheet(month: $0) }
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        HistorySearchMetrics.begin()
-                        if isSearching {
-                            searchFocused = true
-                        } else {
-                            // 点中了一类就在这一类里搜：比如在「其他」里搜「咖啡」，再一起移走
-                            search.begin(filter: ledger?.active(selection) ?? .all)
-                            isSearching = true
+                    if !tracking.isMonthly {
+                        Button {
+                            HistorySearchMetrics.begin()
+                            if isSearching {
+                                searchFocused = true
+                            } else {
+                                // 点中了一类就在这一类里搜：比如在「其他」里搜「咖啡」，再一起移走
+                                search.begin(filter: ledger?.active(selection) ?? .all)
+                                isSearching = true
+                            }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report($0, guide: guide) }
                         }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { toolFrames.report($0, guide: guide) }
+                        .accessibilityLabel("搜索")
                     }
-                    .accessibilityLabel("搜索")
                 }
             }
+            // 搜索到一半去设置切了按月记账，回来不停在搜索里
+            .onChange(of: tracking.isMonthly) { _, monthly in if monthly { showThisMonth() } }
             // 搜索栏上的筛选标签点叉清掉时
             .onChange(of: selection) { _, value in if isSearching { search.setFilter(value) } }
             .onReceive(NotificationCenter.default.publisher(for: .showThisMonthInHistory)) { _ in showThisMonth() }
@@ -221,20 +228,13 @@ struct HistoryView: View {
         }
     }
 
-    private func historyList(_ ledger: ScopedLedger?, tracking: MonthlyTracking) -> some View {
+    private func historyList(_ ledger: ScopedLedger?) -> some View {
         ScrollViewReader { proxy in
             List {
                 if isSearching {
                     searchSections
-                } else {
-                    if tracking.isMonthly && tracking.hasNumber {
-                        Section {
-                            monthsCard(tracking)
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.paper)
-                    }
-                    if let ledger { ledgerSections(ledger) }
+                } else if let ledger {
+                    ledgerSections(ledger)
                 }
             }
             .ledgerListStyle()
@@ -878,7 +878,7 @@ struct HistoryView: View {
     }
 
     /// 空状态:silverline 风简洁提示
-    /// 每月一个数写过的月份，点了能改；记错一个月不改掉，会一直算在平均里
+    /// 按月记账写过的月份，点了能改；记错一个月不改掉，会一直算在平均里
     private func monthsCard(_ tracking: MonthlyTracking) -> some View {
         let written = tracking.writtenMonths
         return VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -922,7 +922,7 @@ struct HistoryView: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 40, weight: .ultraLight))
                 .foregroundStyle(Color.inkFaint)
-            Text("每月一个数不用记明细")
+            Text("按月记账不用记明细")
                 .font(.system(.title3, design: .rounded).weight(.thin))
                 .foregroundStyle(Color.ink)
             Text("想逐笔记，去 设置 → 账本 → 记账方式")

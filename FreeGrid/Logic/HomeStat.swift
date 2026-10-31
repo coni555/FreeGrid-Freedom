@@ -92,7 +92,7 @@ enum HomeStat: Hashable, Identifiable {
 
     /// 没改过（空串）时和 2.0 一样：日均、被动覆盖、记账天数，下面是今日对比长条；没有被动收入的人 2.0 里那张是藏起来的，这里补成本月花销。
     /// 改过的按存的顺序，认不出的（比如已经拿掉的「本月结余率」）和重复的跳过
-    /// 每月一个数时这几张没有可显示的：它们看的是每一笔记录
+    /// 按月记账时这几张没有可显示的：它们看的是每一笔记录
     var needsRecords: Bool {
         switch self {
         case .month, .today, .track, .todayBar: return true
@@ -195,7 +195,7 @@ enum HomeStat: Hashable, Identifiable {
         }
     }
 
-    /// 日均卡的小字。每月一个数、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
+    /// 日均卡的小字。按月记账、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
     static func dailyNote(_ snapshot: FinancialSnapshot) -> String {
         let fixed = snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
         if snapshot.tracking.isMonthly || snapshot.burnBasis == .estimate { return snapshot.tracking.burnNote(now: snapshot.now) }

@@ -31,6 +31,9 @@ struct DashboardView: View {
 
     /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        // 切回来沿用冻住的内容时 `page` 没跑，读不到偏好，SwiftUI 就不再通知它们的变化；
+        // 这两样会在首页当场改（胶囊写数、改目标），在这里读一下，改了才重画
+        let _ = (storedTracking, storedGoals)
         TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
     }
 
@@ -43,7 +46,7 @@ struct DashboardView: View {
             expenses: expenses,
             incomes: incomes,
             currentNetWorth: snapshot.freedomBase,
-            // 每月一个数没有趋势；记录太少时大数字都不给，也不画趋势
+            // 按月记账没有趋势；记录太少时大数字都不给，也不画趋势
             firstRecordDate: snapshot.tracking.isMonthly || snapshot.recordsTooFew ? nil : snapshot.firstExpenseDate,
             dailyPassive: snapshot.dailyPassive,
             loans: loansInEffect,
@@ -110,9 +113,9 @@ private struct DashboardContent: View {
     /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
     @State private var editingGoal: FreedomGoal?
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
-    /// 每月一个数：点首页的胶囊，写这个月（或者刚过完的那个月）
+    /// 按月记账：点首页的胶囊，写这个月（或者刚过完的那个月）
     @State private var editingMonth: YearMonth?
-    /// 点大数字卡里的「改用每月一个数」
+    /// 点大数字卡里的「改用按月记账」
     @State private var showingTrackingSwitch = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
@@ -209,7 +212,7 @@ private struct DashboardContent: View {
                     expenseDraft = ExpenseDraft(amount: amount)
                 }
             }) {
-                // 每月一个数不记单笔，模拟完不问要不要记
+                // 按月记账不记单笔，模拟完不问要不要记
                 SimulateSheet(onRecordExpense: snapshot.tracking.isMonthly ? nil : { amountFromSimulation = $0 })
             }
             .background {
@@ -455,7 +458,7 @@ private struct DashboardContent: View {
         allStatSlots.filter { !snapshot.tracking.isMonthly || !$0.needsRecords }
     }
 
-    /// 每月一个数时收起来的那几张，还留在顺序里，切回逐笔记账时回到原位
+    /// 按月记账时收起来的那几张，还留在顺序里，切回逐笔记账时回到原位
     private var hiddenStatSlots: [HomeStat] {
         snapshot.tracking.isMonthly ? allStatSlots.filter(\.needsRecords) : []
     }

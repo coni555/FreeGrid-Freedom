@@ -80,7 +80,7 @@ flowchart TD
 
 日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。界面上写的「日均消费」是 `FinancialSnapshot.dailyCost`：这个日常日均再加上固定支出和月供折成的每天（`dailyFixed`）；自由天数的推演只用日常日均，固定支出按日历在到期日另扣，不算两遍。
 
-记账方式（`MonthlyTracking`，2.2，[Logic/MonthlyTracking.swift](FreeGrid/Logic/MonthlyTracking.swift)）分逐笔记账和每月一个数，存在偏好 `monthlyTracking` 里，JSON 备份带 `monthly_tracking`（从没用过就不写）。每月一个数：每个月写一个总花销（键是 `YearMonth.key`），含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 写过的月份的平均 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）；日均 = 日常部分 ÷ 30.44，旧记录不计入，现金不动（`burnEstimate(_:tracking:fixedMonthly:…)`）。问哪个月看 `prompt`。用每月一个数的时段记在 `pauses`，切回后不算进记账天数和日均分母；切回当天记进 `switchedBackAt`，日均 30 天从写下的数过渡到记录（`EstimateBlend`）。逐笔记账时记账没跨满 30 天又断档超过 14 天，`recordsTooFew` 让 `hasExpenses` 为假，首页不给大数字。入口：引导第 3 步、首页断档时的蓝字、设置 → 账本 → 记账方式；首页胶囊和明细的月份列表改数。面板都在 `Features/Transactions/MonthlySpendingSheets.swift`。
+记账方式（`MonthlyTracking`，2.2，[Logic/MonthlyTracking.swift](FreeGrid/Logic/MonthlyTracking.swift)）分逐笔记账和按月记账，存在偏好 `monthlyTracking` 里，JSON 备份带 `monthly_tracking`（从没用过就不写）。按月记账：每个月写一个总花销（键是 `YearMonth.key`），含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 写过的月份的平均 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）；日均 = 日常部分 ÷ 30.44，现金不动（`burnEstimate(_:tracking:fixedMonthly:…)`）。两本账互不相干：按月记账时记录不计入，明细（`HistoryView`）里也收起来，不删；问哪个月看 `prompt`，切过来从当月问（`adopt`）。用按月记账的时段记在 `pauses`，切回后不算进记账天数和日均分母，写过的数留着不计入。切回时有记录的 `switchBack(hasRecords: true)`，日均回到只按记录算；从没记过账的才记 `switchedBackAt`，日均 30 天从写下的数过渡到记录（`EstimateBlend`）。逐笔记账时记账没跨满 30 天又断档超过 14 天，`recordsTooFew` 让 `hasExpenses` 为假，首页不给大数字。入口：引导第 3 步、首页断档时的蓝字、设置 → 账本 → 记账方式；首页胶囊和明细的月份列表改数。面板都在 `Features/Transactions/MonthlySpendingSheets.swift`。
 
 自由状态有四种，代码用 `FreedomState` 区分：
 
@@ -283,7 +283,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
 - [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
-- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：每月一个数的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回的 30 天过渡和暂停不摊薄、断档不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
+- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：按月记账的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回后回到切换前、只写过数的人 30 天过渡、暂停不摊薄、断档不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
 - [PassiveIntervalTests](FreeGridTests/PassiveIntervalTests.swift)：被动收入一年一次 6,000 按每月 500 算、周期校验、备份带上周期而旧备份按每月读、导入拒绝未知周期。

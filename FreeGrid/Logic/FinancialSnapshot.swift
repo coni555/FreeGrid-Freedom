@@ -44,7 +44,7 @@ struct FinancialSnapshot {
     /// 算日均的那些支出。记一笔的预览要在它上面加一笔重新估日均
     let burnEntries: [FreedomMath.BurnEntry]
     let dailyPassive: Double
-    /// 日均算得出来。自由天数看它：逐笔记账要有够用的记录，每月一个数要写过至少一个月
+    /// 日均算得出来。自由天数看它：逐笔记账要有够用的记录，按月记账要写过至少一个月
     let hasExpenses: Bool
     /// 真的记过日常支出。记账天数、自检里的记账里程碑看它
     let hasRecords: Bool

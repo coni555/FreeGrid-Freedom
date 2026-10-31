@@ -921,38 +921,6 @@
         }
       }
     },
-    "%lld 笔记录都留着，不计入日均，随时能切回来。分类统计和记账里程碑暂停更新。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your %#@count@ will be kept but won't count toward your daily average. You can switch back anytime. Category stats and tracking milestones pause while you use Monthly Total."
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg entry"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg entries"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld 类": {
       "localizations": {
         "en": {
@@ -1089,12 +1057,12 @@
         }
       }
     },
-    "**不想天天记账，可以选「每月一个数」**。每个月写下这个月一共花了多少，房租、吃饭、购物、订阅全部算上。建议月底去记；想先看自由天数，可以先写个大概。日均只按写下的数算，写了几个月就取平均，写错了去明细改。已有的支出记录保留，不计入日均。": {
+    "**不想天天记账，可以选「按月记账」**。每个月写下这个月一共花了多少，房租、吃饭、购物、订阅全部算上。建议月底去记；想先看自由天数，可以先写个大概。日均只按写下的数算，写了几个月就取平均，写错了去明细改。已经记过账的人切换后也是重新开始：原有的记录暂时隐藏，不计入日均，不会被删除。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Prefer not to log daily? Choose Monthly Total.** Each month, enter what you spent in total, counting rent, food, shopping and subscriptions. The end of the month is the best time; enter a rough number earlier if you want to see your Freedom Days now. Your daily average uses only these numbers, averaged across the months you've entered; fix a wrong one in History. Existing expense entries are kept but don't count toward it."
+            "value": "**Prefer not to log daily? Choose Monthly Total.** Each month, enter what you spent in total, counting rent, food, shopping and subscriptions. The end of the month is the best time; enter a rough number earlier if you want to see your Freedom Days now. Your daily average uses only these numbers, averaged across the months you've entered; fix a wrong one in History. If you've logged before, switching is a fresh start too: your existing entries are hidden for now, don't count toward it, and aren't deleted."
           }
         }
       }
@@ -1239,12 +1207,12 @@
         }
       }
     },
-    "**想切回逐笔记账**，去「设置 → 账本 → 记账方式」，日均会在 30 天里慢慢改按记账算。逐笔记账时，最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊；记账没跨满 30 天就断档的，首页先不给大数字。": {
+    "**想切回逐笔记账**，去「设置 → 账本 → 记账方式」，记过账的回到切换前的状态：记录恢复显示，日均按它们算，按月写的数不计入。只写过数、没记过账的，日均会在 30 天里慢慢改按记账算。逐笔记账时，最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊；记账没跨满 30 天就断档的，首页先不给大数字。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**To go back to individual entries**, go to Settings → Ledger → Tracking Method. Your daily average shifts to your logged expenses over 30 days. With individual entries, if more than 14 days pass after your last entry, the extra days stop pulling the average down; if you stop before your entries span 30 days, Home holds off on the big number."
+            "value": "**To go back to individual entries**, go to Settings → Ledger → Tracking Method. If you've logged before, you return to where you were: your entries reappear, your daily average uses them, and your monthly numbers don't count. If you've only entered monthly numbers, your daily average shifts to your logged expenses over 30 days. With individual entries, if more than 14 days pass after your last entry, the extra days stop pulling the average down; if you stop before your entries span 30 days, Home holds off on the big number."
           }
         }
       }
@@ -2248,7 +2216,7 @@
         }
       }
     },
-    "上次记账是 %lld 天前。改用「每月一个数」？": {
+    "上次记账是 %lld 天前。改用「按月记账」？": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2436,7 +2404,7 @@
         }
       }
     },
-    "不想每天记账？改用「每月一个数」": {
+    "不想每天记账？改用「按月记账」": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3130,6 +3098,16 @@
         }
       }
     },
+    "你可以随时切回「逐笔记账」，回到切换前的状态。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can switch back to Individual Entries anytime and return to where you were."
+          }
+        }
+      }
+    },
     "你已*财富*自由": {
       "localizations": {
         "en": {
@@ -3750,6 +3728,16 @@
         }
       }
     },
+    "写下第一个数之前，首页不显示自由天数。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home won't show Freedom Days until you enter your first number."
+          }
+        }
+      }
+    },
     "写下花销后可看": {
       "localizations": {
         "en": {
@@ -4026,6 +4014,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Switch"
+          }
+        }
+      }
+    },
+    "切换后，你将开始全新的按月记账：日均只看之后写的数，现金和资产不变。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll start fresh with Monthly Total: your daily average uses only the numbers you enter from now on. Your cash and assets stay the same."
           }
         }
       }
@@ -4418,6 +4416,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Original category: %@"
+          }
+        }
+      }
+    },
+    "原有的 %lld 笔记录将暂时隐藏，不计入日均。**所有历史数据都会完整保留，不会被删除。**": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your %#@count@ will be hidden for now and won't count toward your daily average. **All your history is kept and won't be deleted.**"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "原有的 %lld 笔记录恢复显示，日均回到按它们算。写过的数留着，不计入。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your %#@count@ will reappear and your daily average will use them again. The monthly numbers you entered are kept but won't count."
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -7060,6 +7122,26 @@
         }
       }
     },
+    "按月记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly Total"
+          }
+        }
+      }
+    },
+    "按月记账不用记明细": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No individual entries needed with Monthly Total"
+          }
+        }
+      }
+    },
     "按每月约多花 ¥%@ 算 · 你填的收入": {
       "localizations": {
         "en": {
@@ -7602,16 +7684,6 @@
         }
       }
     },
-    "改成每月一个数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Switch to Monthly Total"
-          }
-        }
-      }
-    },
     "放回列表": {
       "localizations": {
         "en": {
@@ -8056,6 +8128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dinner"
+          }
+        }
+      }
+    },
+    "暂不切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not Now"
           }
         }
       }
@@ -8616,26 +8698,6 @@
           "stringUnit": {
             "state": "new",
             "value": "每月 %1$lld 日 · 还剩 %2$lld 期"
-          }
-        }
-      }
-    },
-    "每月一个数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly Total"
-          }
-        }
-      }
-    },
-    "每月一个数不用记明细": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No individual entries needed with Monthly Total"
           }
         }
       }
@@ -9674,7 +9736,7 @@
         }
       }
     },
-    "用「每月一个数」时暂停更新": {
+    "用「按月记账」时暂停更新": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9844,12 +9906,32 @@
         }
       }
     },
+    "确定切换为「按月记账」？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Monthly Total?"
+          }
+        }
+      }
+    },
     "确认": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Confirm"
+          }
+        }
+      }
+    },
+    "确认切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch"
           }
         }
       }

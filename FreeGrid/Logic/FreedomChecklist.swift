@@ -108,7 +108,7 @@ enum FreedomChecklist {
                 done: snapshot.hasRecords && days >= target,
                 progress: snapshot.hasRecords ? min(1, Double(days) / Double(target)) : 0,
                 detail: String(localized: "当前 \(String(snapshot.hasRecords ? days : 0)) / \(target) 天"),
-                hint: snapshot.tracking.isMonthly ? String(localized: "用「每月一个数」时暂停更新")
+                hint: snapshot.tracking.isMonthly ? String(localized: "用「按月记账」时暂停更新")
                     : snapshot.hasRecords ? String(localized: "继续记下每天的花销")
                                            : String(localized: "记下第一笔支出，从那天开始算"),
                 achievedNote: target == FreedomMath.lumpSpreadDays ? String(localized: "日均不再按大额摊开估算") : nil)

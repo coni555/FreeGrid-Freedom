@@ -56,7 +56,7 @@ struct TransactionImpact {
         newFreedom = FreedomMath.freedomRun(
             netWorth: newFreedomBase, dailyBurn: newDailyBurn,
             dailyPassive: snapshot.dailyPassive,
-            // 每月一个数只看写下的数：模拟一笔不会让日均从无到有
+            // 按月记账只看写下的数：模拟一笔不会让日均从无到有
             hasExpenses: snapshot.hasExpenses || (kind == .expense && !snapshot.tracking.isMonthly),
             loans: snapshot.loanPlan,
             burnMayBeZero: snapshot.burnBasis == .estimate

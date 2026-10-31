@@ -339,7 +339,7 @@ struct SetupGuideOverlay: View {
     let guide: AppGuide
     let onGoAssets: () -> Void
     let onGoDashboard: () -> Void
-    /// 第 3 步不想记账的人：改用每月一个数，引导也就结束了
+    /// 第 3 步不想记账的人：改用按月记账，引导也就结束了
     let onChooseMonthly: () -> Void
     let onSkip: () -> Void
 
@@ -437,7 +437,7 @@ struct SetupGuideOverlay: View {
                 if step == .expense {
                     Button(action: onChooseMonthly) {
                         HStack(spacing: Spacing.xs) {
-                            Text("不想每天记账？改用「每月一个数」")
+                            Text("不想每天记账？改用「按月记账」")
                                 .font(.system(.caption, design: .rounded))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .medium))

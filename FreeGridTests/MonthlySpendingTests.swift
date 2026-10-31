@@ -1,6 +1,6 @@
-// 2.2 两种记账方式：逐笔记账，或者每月一个数。
-// 每月一个数含固定支出，算日均时扣掉；日均取写过的月份的平均，旧记录不计入；问哪个月有规则；
-// 切回逐笔记账时日均 30 天过渡；记账没跨满 30 天又断档的不给大数字；备份带上这些。
+// 2.2 两种记账方式：逐笔记账，或者按月记账。
+// 按月记账含固定支出，算日均时扣掉；日均取写过的月份的平均，旧记录不计入；问哪个月有规则；
+// 记过账的人切回逐笔记账回到切换前，只写过数的人日均 30 天过渡；记账没跨满 30 天又断档的不给大数字；备份带上这些。
 // 3044 / 月按 30.44 天折成每天 100，下面的数都按这个算。
 import Foundation
 import SwiftData
@@ -47,7 +47,7 @@ struct MonthlySpendingTests {
                           now: dayNumber(day), countsAssets: true, tracking: tracking)
     }
 
-    // MARK: - 每月一个数：日均
+    // MARK: - 按月记账：日均
 
     @Test func freedomDaysFromOneNumber() {
         let snapshot = snapshot(tracking: monthly())
@@ -114,7 +114,7 @@ struct MonthlySpendingTests {
         for stat in [HomeStat.daily, .base, .passive, .next] { #expect(!stat.needsRecords) }
     }
 
-    // MARK: - 每月一个数：固定支出在里面
+    // MARK: - 按月记账：固定支出在里面
 
     @Test func fixedExpensesAreInsideTheMonthlyNumber() {
         // 写 3044、房租 1000：日常 2044；首页写的日均还是 3044 折成的 100，没有多算一遍
@@ -206,11 +206,23 @@ struct MonthlySpendingTests {
         #expect(!tracking(start: "2026-11").prompt(now: date("2026-11-30")).isEarly)
     }
 
-    @Test func switchingAsksAboutLastMonthIfTheAppWasInUse() {
-        let now = date("2026-11-15")
-        #expect(MonthlyTracking.firstMonth(firstRecord: date("2026-03-01"), now: now) == YearMonth(year: 2026, month: 10))
-        #expect(MonthlyTracking.firstMonth(firstRecord: date("2026-11-02"), now: now) == YearMonth(year: 2026, month: 11))
-        #expect(MonthlyTracking.firstMonth(firstRecord: nil, now: now) == YearMonth(year: 2026, month: 11))
+    @Test func switchingIsAFreshStartAtTheCurrentMonth() {
+        // 记过账的人切过来和新用户一样：问这个月，不问已经记过的上个月，大数字等写了第一个数
+        var tracking = MonthlyTracking()
+        tracking.adopt(startingAt: YearMonth(year: 2026, month: 11), now: date("2026-11-15"))
+        let prompt = tracking.prompt(now: date("2026-11-15"))
+        #expect(prompt.month == YearMonth(year: 2026, month: 11))
+        #expect(prompt.amount == nil)
+        #expect(snapshot(expenses(daily(30)), tracking: tracking, day: 46).freedom == .insufficientData)
+    }
+
+    @Test func switchingAgainDoesNotAskAboutTheMonthsInBetween() {
+        // 11 月写过，12 月切回逐笔记账，2 月再切过来：问 2 月，不追问记账的那些月；写过的 11 月还算
+        var tracking = monthly(["2026-11": 3000], start: "2026-11")
+        tracking.switchBack(hasRecords: true, now: date("2026-12-01"))
+        tracking.adopt(startingAt: YearMonth(year: 2027, month: 2), now: date("2027-02-10"))
+        #expect(tracking.prompt(now: date("2027-02-10")).month == YearMonth(year: 2027, month: 2))
+        #expect(tracking.monthlyAverage == 3000)
     }
 
     @Test func monthsHaveFriendlyNames() {
@@ -242,6 +254,33 @@ struct MonthlySpendingTests {
         #expect(snapshot(tracking: switchedBack(at: 1)).hasExpenses)
     }
 
+    @Test func switchingBackReturnsToTheDailyBurnFromBeforeTheSwitch() {
+        // 每天 60 记了 30 天：切过去写 3044 日均是 100，当场切回来还是 60，一分不差、不过渡
+        let before = FreedomMath.burnEstimate(entries(daily(30)), tracking: plain, fixedMonthly: 0, now: dayNumber(30))
+        var tracking = MonthlyTracking()
+        tracking.adopt(startingAt: YearMonth(year: 2026, month: 10), now: dayNumber(30))
+        tracking.set(3044, for: YearMonth(year: 2026, month: 10))
+        let monthly = FreedomMath.burnEstimate(entries(daily(30)), tracking: tracking, fixedMonthly: 0, now: dayNumber(30))
+        #expect(abs(monthly.dailyBurn - 100) < 1e-9)
+        tracking.switchBack(hasRecords: true, now: dayNumber(30))
+        #expect(tracking.switchedBackAt == nil)
+        let after = FreedomMath.burnEstimate(entries(daily(30)), tracking: tracking, fixedMonthly: 0, now: dayNumber(30))
+        #expect(after == before)
+        #expect(after.basis == .records)
+    }
+
+    @Test func theMonthsInBetweenAreLeftOutAfterSwitchingBack() {
+        // 记了 30 天每天 60，第 30 天切过去，写 3044，第 90 天切回来：写的数不混进来，中间那段不算花了 0 元
+        var tracking = MonthlyTracking()
+        tracking.adopt(startingAt: YearMonth(year: 2026, month: 10), now: dayNumber(30))
+        tracking.set(3044, for: YearMonth(year: 2026, month: 10))
+        tracking.switchBack(hasRecords: true, now: dayNumber(90))
+        let burn = FreedomMath.burnEstimate(entries(daily(30)), tracking: tracking, fixedMonthly: 0, now: dayNumber(90))
+        #expect(abs(burn.dailyBurn - 1800.0 / 31) < 1e-9)
+        #expect(burn.basis == .records)
+        #expect(burn.trackDays == 31)
+    }
+
     @Test func theFirstEntryDoesNotJump() {
         // 记 20：(20 × 1 + 100 × 29) / 30
         let burn = FreedomMath.burnEstimate(entries([(5, 20)]), tracking: switchedBack(at: 5), fixedMonthly: 0, now: dayNumber(5))
@@ -263,8 +302,7 @@ struct MonthlySpendingTests {
         // 记了 30 天每天 60，第 30 天切过去，第 120 天切回来，第 150 天又记一笔 60：
         // 中间 90 天既不算记账、也不算花了 0 元
         let tracking = MonthlyTracking(method: .entries, months: ["2026-10": 3044],
-                                       pauses: [MonthlyTracking.Pause(start: dayNumber(30), end: dayNumber(120))],
-                                       switchedBackAt: dayNumber(120))
+                                       pauses: [MonthlyTracking.Pause(start: dayNumber(30), end: dayNumber(120))])
         let burn = FreedomMath.burnEstimate(entries(daily(30) + (120...150).map { ($0, 60) }), tracking: tracking,
                                             fixedMonthly: 0, now: dayNumber(150))
         #expect(burn.dailyBurn == 60)
@@ -273,7 +311,7 @@ struct MonthlySpendingTests {
 
     @Test func switchingBackKeepsTheWrittenMonths() {
         var tracking = monthly()
-        tracking.switchBack(now: dayNumber(10))
+        tracking.switchBack(hasRecords: false, now: dayNumber(10))
         #expect(!tracking.isMonthly)
         #expect(tracking.months == ["2026-10": 3044])
         #expect(tracking.pauses.last?.end == dayNumber(10))
@@ -348,7 +386,7 @@ struct MonthlySpendingTests {
 
     @Test func storedValueRoundTrips() {
         var tracking = monthly(["2026-10": 3044, "2026-11": 2000])
-        tracking.switchBack(now: dayNumber(10))
+        tracking.switchBack(hasRecords: false, now: dayNumber(10))
         #expect(MonthlyTracking.decode(tracking.encoded) == tracking)
         #expect(MonthlyTracking.decode("") == MonthlyTracking())
         #expect(MonthlyTracking.decode("不是 JSON").isUntouched)

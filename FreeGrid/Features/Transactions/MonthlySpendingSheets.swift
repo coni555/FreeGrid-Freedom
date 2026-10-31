@@ -1,4 +1,4 @@
-// 「每月一个数」的界面（2.2，免费）：首页的胶囊、填数面板、切换记账方式的两张面板。
+// 「按月记账」的界面（2.2，免费）：首页的胶囊、填数面板、切换记账方式的两张面板。
 // 问哪个月见 `MonthlyTracking.prompt`，日均怎么算见 `FreedomMath.burnEstimate(_:tracking:…)`。
 
 import SwiftData
@@ -47,7 +47,7 @@ struct MonthlySpendingPill: View {
 }
 
 /// 写一个月的总花销，顺带核对现金：填这个数不扣现金，现金对不对要用户自己看一眼。
-/// `adopting`：还没记过账的人，从这里选定每月一个数；可以先不写，月底再回来。
+/// `adopting`：还没记过账的人，从这里选定按月记账；可以先不写，月底再回来。
 struct MonthlySpendingSheet: View {
     let month: YearMonth
     var adopting = false
@@ -167,119 +167,88 @@ struct MonthlySpendingSheet: View {
 struct TrackingSwitchSheet: View {
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
 
     var body: some View {
+        let recordCount = expenses.count + incomes.count
         if MonthlyTracking.decode(storedTracking).isMonthly {
-            SwitchBackSheet()
-        } else if FreedomMath.burnEntries(expenses).isEmpty {
-            // 还没记过账，没有旧数据要比，和引导第 3 步一样
+            SwitchBackSheet(recordCount: recordCount)
+        } else if recordCount == 0 {
+            // 还没记过账，没有记录要收起来，和引导第 3 步一样
             MonthlySpendingSheet(month: YearMonth(.now), adopting: true)
         } else {
-            SwitchToMonthlySheet()
+            SwitchToMonthlySheet(recordCount: recordCount)
         }
     }
 }
 
-/// 老用户改成每月一个数：写一个数，实时看前后对比，不劝退（用户 2026-10-30 定）
+/// 记过账的人改成按月记账：和新用户一样重新开始，记录收起来不计入、不删，切回来恢复。
+/// 切换前先把这几件事说清楚（用户 2026-10-31 定，文案据用户给的稿子改）
 private struct SwitchToMonthlySheet: View {
+    let recordCount: Int
+
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
-    @Query private var expenses: [Expense]
-    @Query private var passiveSources: [PassiveSource]
-    @Query private var assetsArr: [UserAssets]
-    @Query private var assetItems: [AssetItem]
     @Query private var loans: [Loan]
-    @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
-    private var cashAccounts: [CashAccount]
     @Environment(\.dismiss) private var dismiss
-    @State private var field = MonthlySpendingField()
-    @FocusState private var focused: Bool
-
-    private func snapshot(_ tracking: MonthlyTracking) -> FinancialSnapshot {
-        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
-                          tracking: tracking)
-    }
-
-    /// 写了这个数以后的样子；没写时是 nil
-    private func tracking(amount: Double?, month: YearMonth) -> MonthlyTracking? {
-        guard let amount else { return nil }
-        var tracking = MonthlyTracking.decode(storedTracking)
-        tracking.adopt(startingAt: month)
-        tracking.set(amount, for: month)
-        return tracking
-    }
+    @State private var contentHeight: CGFloat = 320
 
     var body: some View {
-        let before = snapshot(MonthlyTracking.decode(storedTracking))
-        let month = MonthlyTracking.firstMonth(firstRecord: before.firstExpenseDate)
-        let amount = field.parsed ?? nil
-        let next = tracking(amount: amount, month: month)
-        NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                MonthlySpendingInput(month: month, field: $field, focused: $focused)
-                if let next {
-                    comparison(before: before, after: snapshot(next))
-                        .padding(.top, Spacing.xs)
-                }
-                Text("\(before.burnEntries.count) 笔记录都留着，不计入日均，随时能切回来。分类统计和记账里程碑暂停更新。")
-                    .font(.system(.caption, design: .rounded))
+        let tracking = MonthlyTracking.decode(storedTracking)
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "exclamationmark.circle")
+                    .font(.system(size: 17, weight: .light))
                     .foregroundStyle(Color.inkMuted)
-                    .fixedSize(horizontal: false, vertical: true)
-                if before.fixedMonthly > 0 {
-                    Text("已设的固定支出仍会到期扣现金。")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
+                Text("确定切换为「按月记账」？")
+                    .font(.system(.headline, design: .rounded).weight(.medium))
+                    .foregroundStyle(Color.ink)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.lg)
-            .background(Color.paper)
-            .navigationTitle("改成每月一个数")
-            .inlineNavTitle()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                        .foregroundStyle(Color.inkMuted)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("切换") {
-                        guard let next else { return }
-                        storedTracking = next.encoded
-                        dismiss()
-                    }
-                    .disabled(next == nil)
-                    .foregroundStyle(next == nil ? Color.inkFaint : Color.skyDeep)
-                    .fontWeight(.medium)
-                    .accessibilityIdentifier("tracking-switch-confirm")
-                }
+            Group {
+                Text("切换后，你将开始全新的按月记账：日均只看之后写的数，现金和资产不变。")
+                Text("原有的 \(recordCount) 笔记录将暂时隐藏，不计入日均。**所有历史数据都会完整保留，不会被删除。**")
+                Text("你可以随时切回「逐笔记账」，回到切换前的状态。")
             }
-            .onAppear { focused = true }
+            .font(.system(.subheadline, design: .rounded))
+            .foregroundStyle(Color.ink)
+            .fixedSize(horizontal: false, vertical: true)
+            if !tracking.hasNumber {
+                note("写下第一个数之前，首页不显示自由天数。")
+            }
+            if !ProFeatures.loansInEffect(loans).isEmpty {
+                note("已设的固定支出仍会到期扣现金。")
+            }
+            VStack(spacing: Spacing.sm) {
+                VaultButton(title: String(localized: "确认切换"), verticalPadding: 12) {
+                    var next = tracking
+                    next.adopt(startingAt: YearMonth(.now))
+                    storedTracking = next.encoded
+                    dismiss()
+                }
+                .accessibilityIdentifier("tracking-switch-confirm")
+                VaultButton(title: String(localized: "暂不切换"), style: .secondary, verticalPadding: 12) { dismiss() }
+                    .accessibilityIdentifier("tracking-switch-cancel")
+            }
+            .padding(.top, Spacing.xs)
         }
-        .iosSheetDetents()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.lg)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color.paper)
+        // 面板跟内容一样高，留一点给底部安全区
+        #if os(iOS)
+        .presentationDetents([.height(contentHeight + 24)])
+        .presentationDragIndicator(.visible)
+        #else
+        .frame(minWidth: 380)
+        #endif
     }
 
-    private func comparison(before: FinancialSnapshot, after: FinancialSnapshot) -> some View {
-        VStack(spacing: Spacing.sm) {
-            TrackingCompareRow(label: String(localized: "日均"),
-                               before: before.hasExpenses && before.dailyCost.isFinite ? dailyText(before.dailyCost) : nil,
-                               after: dailyText(after.dailyCost))
-            TrackingCompareRow(label: String(localized: "能撑"), before: freedomText(before.freedom),
-                               after: freedomText(after.freedom) ?? "—")
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, Spacing.md)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.mist))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-    }
-
-    private func freedomText(_ state: FreedomState) -> String? {
-        switch state {
-        case .finite(let days): return String(localized: "\(FinancialFormatting.wholeNumber(days.rounded(.down))) 天自由")
-        case .covered: return "∞"
-        case .insufficientData, .invalidData: return nil
-        }
+    private func note(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(.caption, design: .rounded))
+            .foregroundStyle(Color.inkMuted)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -309,8 +278,10 @@ private struct TrackingCompareRow: View {
     }
 }
 
-/// 改回逐笔记账：写过的数留着，日均用 30 天过渡
+/// 改回逐笔记账：记过账的回到切换前，写过的数不计入（用户 2026-10-31 定）；只写过数的日均用 30 天过渡
 private struct SwitchBackSheet: View {
+    let recordCount: Int
+
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @Query private var expenses: [Expense]
     @Query private var passiveSources: [PassiveSource]
@@ -322,28 +293,49 @@ private struct SwitchBackSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var contentHeight: CGFloat = 80
 
+    private func snapshot(_ tracking: MonthlyTracking) -> FinancialSnapshot {
+        FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
+                          assetItems: assetItems, cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
+                          tracking: tracking)
+    }
+
+    private var hasRecords: Bool { !FreedomMath.burnEntries(expenses).isEmpty }
+
+    private var switchedBack: MonthlyTracking {
+        var tracking = MonthlyTracking.decode(storedTracking)
+        tracking.switchBack(hasRecords: hasRecords)
+        return tracking
+    }
+
     var body: some View {
-        let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
-                                         assetItems: assetItems, cashAccounts: cashAccounts,
-                                         loans: ProFeatures.loansInEffect(loans),
-                                         tracking: MonthlyTracking.decode(storedTracking))
+        let current = snapshot(MonthlyTracking.decode(storedTracking))
         NavigationStack {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text("之后记的每笔支出都会从现金扣。")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                if snapshot.hasExpenses {
+                if hasRecords {
+                    let after = snapshot(switchedBack)
+                    Text("原有的 \(recordCount) 笔记录恢复显示，日均回到按它们算。写过的数留着，不计入。")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(spacing: Spacing.sm) {
+                        TrackingCompareRow(label: String(localized: "日均"),
+                                           before: current.hasExpenses ? dailyText(current.dailyCost) : nil,
+                                           after: after.hasExpenses ? dailyText(after.dailyCost) : "—")
+                        TrackingCompareRow(label: String(localized: "能撑"), before: freedomText(current.freedom),
+                                           after: freedomText(after.freedom) ?? "—")
+                    }
+                    .trackingCard()
+                } else if current.hasExpenses {
                     Text("日均会在 30 天里慢慢改按记账算。")
                         .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(Color.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
-                    TrackingCompareRow(label: String(localized: "现在的日均"), before: nil, after: dailyText(snapshot.dailyCost))
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, Spacing.md)
-                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.mist))
-                        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.hairline, lineWidth: 1))
-                        .padding(.top, Spacing.xs)
+                    TrackingCompareRow(label: String(localized: "现在的日均"), before: nil, after: dailyText(current.dailyCost))
+                        .trackingCard()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -360,9 +352,7 @@ private struct SwitchBackSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("切换") {
-                        var tracking = MonthlyTracking.decode(storedTracking)
-                        tracking.switchBack()
-                        storedTracking = tracking.encoded
+                        storedTracking = switchedBack.encoded
                         dismiss()
                     }
                     .foregroundStyle(Color.skyDeep)
@@ -379,8 +369,28 @@ private struct SwitchBackSheet: View {
     }
 }
 
+private extension View {
+    /// 切回面板上放数字的那张描边卡
+    func trackingCard() -> some View {
+        padding(.horizontal, 18)
+            .padding(.vertical, Spacing.md)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.mist))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.hairline, lineWidth: 1))
+            .padding(.top, Spacing.xs)
+    }
+}
+
 private func dailyText(_ value: Double) -> String {
     value.isFinite ? "¥" + value.formatted(.number.precision(.fractionLength(1))) : "—"
+}
+
+/// 这里写全天数，不跟首页按月、按年显示
+private func freedomText(_ state: FreedomState) -> String? {
+    switch state {
+    case .finite(let days): return String(localized: "\(FinancialFormatting.wholeNumber(days.rounded(.down))) 天自由")
+    case .covered: return "∞"
+    case .insufficientData, .invalidData: return nil
+    }
 }
 
 /// 金额输入框里的字和它代表的数

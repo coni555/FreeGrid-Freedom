@@ -151,7 +151,7 @@ enum DataIO {
     }
 
     /// `categoryOptions` 是本机的分类设置；用户没自定义过时传 nil，备份里就不写这一段。
-    /// `monthlyTracking` 是记账方式和每月写下的数，没用过每月一个数时传 nil。
+    /// `monthlyTracking` 是记账方式和每月写下的数，没用过按月记账时传 nil。
     static func exportJSON(context: ModelContext, categoryOptions: ExpenseCategoryOptions? = nil,
                            monthlyTracking: MonthlyTracking? = nil) throws -> Data {
         let day = dayFormatter()

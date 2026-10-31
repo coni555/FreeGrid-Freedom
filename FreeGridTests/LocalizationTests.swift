@@ -54,7 +54,7 @@ struct LocalizationTests {
         let thin = try englishBundle.localizedString(forKey: "已有 %lld 笔支出，上次记录在 %lld 天前", value: nil, table: nil)
         #expect(String(format: thin, locale: english, 1, 30) == "1 expense logged. Last entry: 30 days ago.")
         #expect(String(format: thin, locale: english, 12, 1) == "12 expenses logged. Last entry: 1 day ago.")
-        let switching = try englishBundle.localizedString(forKey: "上次记账是 %lld 天前。改用「每月一个数」？", value: nil, table: nil)
+        let switching = try englishBundle.localizedString(forKey: "上次记账是 %lld 天前。改用「按月记账」？", value: nil, table: nil)
         #expect(String(format: switching, locale: english, 30) == "Your last entry was 30 days ago. Switch to Monthly Total?")
         let average = try englishBundle.localizedString(forKey: "按 %lld 个月平均", value: nil, table: nil)
         #expect(String(format: average, locale: english, 2) == "Average of 2 months")

@@ -12,7 +12,7 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
-    /// 点「改用每月一个数」
+    /// 点「改用按月记账」
     /// 新手引导走完才给：引导第 3 步的气泡里已经有这一行
     var onSwitchToMonthly: (() -> Void)?
     @State private var longPressed = 0
@@ -68,7 +68,7 @@ struct DashboardHero: View {
                 .sensoryFeedback(.impact(weight: .light), trigger: longPressed)
                 .accessibilityAction(named: "打开自由卡") { onOpenCard() }
 
-            // 不想记账的人和断档的人：改用每月一个数
+            // 不想记账的人和断档的人：改用按月记账
             if let line = switchLine, let onSwitchToMonthly {
                 Hairline().padding(.top, Spacing.xs)
                 Button(action: onSwitchToMonthly) {
@@ -164,9 +164,9 @@ struct DashboardHero: View {
         guard !snapshot.tracking.isMonthly, !needsSavings else { return nil }
         switch snapshot.freedom {
         case .insufficientData:
-            return String(localized: "不想每天记账？改用「每月一个数」")
+            return String(localized: "不想每天记账？改用「按月记账」")
         case .finite where snapshot.burnGapDays > 0:
-            return String(localized: "上次记账是 \(quietDays) 天前。改用「每月一个数」？")
+            return String(localized: "上次记账是 \(quietDays) 天前。改用「按月记账」？")
         default:
             return nil
         }

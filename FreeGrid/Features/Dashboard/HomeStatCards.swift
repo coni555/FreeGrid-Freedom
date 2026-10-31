@@ -200,7 +200,7 @@ struct HomeStatEmptySlot: View {
 struct HomeStatEditor: View {
     let slots: [HomeStat]
     let inputs: HomeStat.Inputs
-    /// 每月一个数：看每一笔记录的那几张不列出来
+    /// 按月记账：看每一笔记录的那几张不列出来
     var hidesRecordCards = false
     let onChange: ([HomeStat]) -> Void
     /// 恢复成没改过的样子

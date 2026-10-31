@@ -233,7 +233,7 @@ nonisolated struct BackupEnvelope: Codable {
     let loans: [LoanJSON]?
     let expenseCategories: [ExpenseCategoryJSON]?
     let cashAccounts: [CashAccountJSON]?
-    /// 2.2：记账方式和每月写下的数。可选：没用过每月一个数时不写
+    /// 2.2：记账方式和每月写下的数。可选：没用过按月记账时不写
     let monthlyTracking: MonthlyTrackingJSON?
 
     init(
