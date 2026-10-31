@@ -152,6 +152,23 @@ final class MonthlySpendingUITests: XCTestCase {
         XCTAssertFalse(pill.exists)
     }
 
+    /// 选了每月一个数还没写就改回去：内容只有一行字，面板也要铺满，日均那两行不出现
+    @MainActor
+    func testSwitchingBackWithoutANumber() {
+        let app = XCUIApplication()
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                                           "-monthlyTracking", monthlyJSON(), "-UseInMemoryStore", "-proPreview", "NO"]
+        app.launch()
+        app.tabBars.buttons["设置"].tap()
+        app.tapSettingsRow("settings-tracking-method", inCard: "settings-card-ledger")
+        XCTAssertTrue(app.staticTexts["之后记的每笔支出都会从现金扣。"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["现在的日均"].exists)
+        attach(app, "每月一个数-没写就切回来")
+        app.buttons["tracking-switch-confirm"].tap()
+        app.tabBars.buttons["首页"].tap()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
+    }
+
     /// 记了一笔就不记：一个月后不给大数字，给一个入口
     @MainActor
     func testTooFewRecordsGiveNoNumber() {

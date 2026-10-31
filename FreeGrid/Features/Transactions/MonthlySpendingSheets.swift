@@ -73,6 +73,7 @@ struct MonthlySpendingSheet: View {
                     .foregroundStyle(Color.inkFaint)
                 Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.lg)
             .background(Color.paper)
             .navigationTitle("每月花销")
@@ -232,6 +233,7 @@ private struct SwitchToMonthlySheet: View {
                 }
                 Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.lg)
             .background(Color.paper)
             .navigationTitle("改成每月一个数")
@@ -318,6 +320,7 @@ private struct SwitchBackSheet: View {
     @Query(sort: [SortDescriptor(\CashAccount.sortOrder), SortDescriptor(\CashAccount.createdAt)])
     private var cashAccounts: [CashAccount]
     @Environment(\.dismiss) private var dismiss
+    @State private var contentHeight: CGFloat = 80
 
     var body: some View {
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
@@ -342,9 +345,11 @@ private struct SwitchBackSheet: View {
                         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.hairline, lineWidth: 1))
                         .padding(.top, Spacing.xs)
                 }
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.lg)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            .frame(maxHeight: .infinity, alignment: .top)
             .background(Color.paper)
             .navigationTitle("改回逐笔记账")
             .inlineNavTitle()
@@ -366,7 +371,11 @@ private struct SwitchBackSheet: View {
                 }
             }
         }
-        .iosSheetDetents()
+        // 这张没有输入框，话也少：面板跟内容一样高，不留半屏空白。加的是导航栏和底部安全区
+        #if os(iOS)
+        .presentationDetents([.height(contentHeight + 100)])
+        .presentationDragIndicator(.visible)
+        #endif
     }
 }
 
