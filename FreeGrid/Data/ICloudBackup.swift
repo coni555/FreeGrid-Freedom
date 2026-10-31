@@ -3,6 +3,7 @@
 // 账本本身不进 iCloud，不做多设备同步（SwiftData + CloudKit 风险大，2026-10-26 定的范围）。
 // 文件在「文件」App 的 iCloud 云盘 → FreeGrid 里看得到（Info.plist 的 NSUbiquitousContainers）。
 
+import FileProvider
 import Foundation
 import SwiftData
 #if os(iOS)
@@ -13,7 +14,7 @@ enum ICloudBackup {
     static let containerID = "iCloud.cn.conilab.FreeGrid"
     /// 开关，没设过时是开
     static let enabledKey = "iCloudBackupEnabled"
-    /// 上次自动或手动备份成功的时刻（时间戳）
+    /// 上次自动或手动写好备份的时刻（时间戳）。传没传上去看 `Item.upload`
     static let lastBackupKey = "iCloudBackupLastAt"
     static let keepCount = 7
     /// 一天最多自动写一次；用 20 小时，每天差不多同一时间打开的人也能天天有一份
@@ -27,11 +28,17 @@ enum ICloudBackup {
         }
     }
 
+    /// 这份传上 iCloud 了没有。写进文件夹只算存在本机，上传由系统做，iCloud 空间满了就传不上去
+    enum UploadState: Equatable, Sendable {
+        case uploaded, pending, quotaFull, failed
+    }
+
     /// iCloud 云盘里的一份备份。没下载到这台设备上的也列出来，恢复时再下
     struct Item: Identifiable, Equatable, Sendable {
         let url: URL
         let date: Date
         let bytes: Int?
+        var upload: UploadState = .pending
         var id: URL { url }
     }
 
@@ -165,13 +172,33 @@ enum ICloudBackup {
                 guard let date = date(fromFileName: name) else { continue }
                 let real = name.hasPrefix(".") ? fileName(for: date) : name
                 let url = folder.appendingPathComponent(real)
-                let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey, .ubiquitousItemDownloadingStatusKey]))?.fileSize
-                items.append(Item(url: url, date: date, bytes: bytes))
+                let values = try? url.resourceValues(forKeys: [.fileSizeKey, .ubiquitousItemIsUploadedKey,
+                                                               .ubiquitousItemUploadingErrorKey])
+                items.append(Item(url: url, date: date, bytes: values?.fileSize,
+                                  upload: uploadState(isUploaded: values?.ubiquitousItemIsUploaded,
+                                                      error: values?.ubiquitousItemUploadingError)))
             }
             // 同一份可能既有占位文件又有真文件
             var seen = Set<URL>()
             return items.filter { seen.insert($0.url).inserted }.sorted { $0.date > $1.date }
         }.value
+    }
+
+    nonisolated static func uploadState(isUploaded: Bool?, error: NSError?) -> UploadState {
+        if isUploaded == true { return .uploaded }
+        guard let error else { return .pending }
+        return isQuotaError(error) ? .quotaFull : .failed
+    }
+
+    /// 系统的错误一层包一层：外面是 File Provider 的，里面才是 iCloud 的配额错误
+    nonisolated private static func isQuotaError(_ error: NSError) -> Bool {
+        var current: NSError? = error
+        while let error = current {
+            if error.domain == NSCocoaErrorDomain, error.code == NSUbiquitousFileNotUploadedDueToQuotaError { return true }
+            if error.domain == NSFileProviderErrorDomain, error.code == NSFileProviderError.insufficientQuota.rawValue { return true }
+            current = error.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
     }
 
     /// 恢复前确保文件在本机：别的设备写的、或者被系统清掉本地副本的，先从 iCloud 下回来（最多等 30 秒）

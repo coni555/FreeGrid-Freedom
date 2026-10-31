@@ -12390,16 +12390,6 @@
         }
       }
     },
-    "这里搜索全部记录。\n想只看某一类，点卡片里「N 笔」那一行展开，再点那一类。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search all records here.\nTo see just one category, tap the “N entries” row on the card to expand it, then tap the category."
-          }
-        }
-      }
-    },
     "这里还没有记录": {
       "localizations": {
         "en": {
@@ -13048,16 +13038,6 @@
         }
       }
     },
-    "已备份到 iCloud 云盘": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Backed up to iCloud Drive"
-          }
-        }
-      }
-    },
     "恢复": {
       "localizations": {
         "en": {
@@ -13138,12 +13118,12 @@
         }
       }
     },
-    "**iCloud 自动备份**：默认打开，可以关掉。离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。": {
+    "**iCloud 自动备份**：默认打开，可以关掉。离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。iCloud 空间满了传不上去时，卡片上会写明，这时备份还只在这台设备上。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**iCloud Auto Backup**: on by default, and you can turn it off. Leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices."
+            "value": "**iCloud Auto Backup**: on by default, and you can turn it off. Leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices. If your iCloud storage is full and the backup can't upload, the card says so, and the backup stays only on this device."
           }
         }
       }
@@ -13184,6 +13164,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not to us. Your ledger stays on this device, with no account and no tracking. iCloud Auto Backup saves to your own iCloud Drive, which we can't see; you can turn it off in Backup & Restore. Buying and restoring Pro go through Apple."
+          }
+        }
+      }
+    },
+    "这里搜索全部记录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search all records here."
+          }
+        }
+      }
+    },
+    "点这一行展开，看每一类花了多少。\n再点某一类，只看这一类的记录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap this row to see how much went to each category.\nTap a category to see only its records."
+          }
+        }
+      }
+    },
+    "上次 %@，已传上 iCloud": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup %@, uploaded to iCloud"
+          }
+        }
+      }
+    },
+    "iCloud 空间满了，最新一份还只在这台设备上。腾出空间后会自动上传。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your iCloud storage is full, so the latest backup is only on this device. It will upload automatically once you free up space."
+          }
+        }
+      }
+    },
+    "最新一份暂时传不上 iCloud，还只在这台设备上。系统会再试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest backup can't reach iCloud right now and is only on this device. The system will try again."
+          }
+        }
+      }
+    },
+    "最新一份还没传上 iCloud，还只在这台设备上。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest backup hasn't uploaded to iCloud yet and is only on this device."
           }
         }
       }

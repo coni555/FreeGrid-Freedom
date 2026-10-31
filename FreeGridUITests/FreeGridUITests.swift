@@ -12,10 +12,10 @@ final class FreeGridUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// 走完 `steps` 步（默认四步）。卡片换位置时有动画，点偏了落在空白处：前面几步照样前进，
+    /// 走完 `steps` 步（默认五步，明细页那套）。卡片换位置时有动画，点偏了落在空白处：前面几步照样前进，
     /// 最后一步只有按钮能关，所以等卡片停稳再点「知道了」。
     @MainActor
-    private func finishGuide(_ next: XCUIElement, steps: Int = 4) {
+    private func finishGuide(_ next: XCUIElement, steps: Int = 5) {
         for _ in 0..<(steps - 1) { next.tap() }
         expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
         waitForExpectations(timeout: 3)
@@ -395,7 +395,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         app.tabBars.buttons["明细"].tap()
-        // 第一次进来先走完指引：月份、点行、左滑、工具栏，共四步
+        // 第一次进来先走完指引：月份、展开各类、点行、左滑、工具栏，共五步
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         finishGuide(next)
@@ -540,7 +540,7 @@ final class FreeGridUITests: XCTestCase {
         app.tabBars.buttons["设置"].tap()
         app.tapSettingsRow("guide-list", inCard: "settings-card-about")
         app.buttons["replay-history-guide"].tap()
-        // 跳到 History 并从第一步重放，四步走完后消失
+        // 跳到 History 并从第一步重放，五步走完后消失
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["明细"].exists)

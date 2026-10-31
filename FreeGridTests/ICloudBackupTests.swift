@@ -24,6 +24,20 @@ struct ICloudBackupTests {
         #expect(Set(expired) == Set(names.prefix(3)))
     }
 
+    @Test func uploadStateReadsThroughTheSystemsWrappedQuotaError() {
+        // 真机上空间满时读到的就是这样三层（2026-10-31）
+        let kit = NSError(domain: "CKErrorDomain", code: 25)
+        let cocoa = NSError(domain: NSCocoaErrorDomain, code: 4354, userInfo: [NSUnderlyingErrorKey: kit])
+        let quota = NSError(domain: "NSFileProviderErrorDomain", code: -1003, userInfo: [NSUnderlyingErrorKey: cocoa])
+        #expect(ICloudBackup.uploadState(isUploaded: false, error: quota) == .quotaFull)
+        #expect(ICloudBackup.uploadState(isUploaded: false, error: cocoa) == .quotaFull)
+        #expect(ICloudBackup.uploadState(isUploaded: false, error: NSError(domain: NSCocoaErrorDomain, code: 4355)) == .failed)
+        #expect(ICloudBackup.uploadState(isUploaded: false, error: nil) == .pending)
+        #expect(ICloudBackup.uploadState(isUploaded: nil, error: nil) == .pending)
+        // 传上去之后残留的错误不算
+        #expect(ICloudBackup.uploadState(isUploaded: true, error: quota) == .uploaded)
+    }
+
     @Test func backsUpOnceADayOrSo() {
         #expect(ICloudBackup.isDue(lastBackup: nil, now: noon))
         #expect(!ICloudBackup.isDue(lastBackup: noon, now: noon.addingTimeInterval(19 * 3600)))

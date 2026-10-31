@@ -51,7 +51,7 @@ struct DataManagementView: View {
         .scrollContentBackground(.hidden)
         .background(Color.paper)
         .navigationTitle("数据管理")
-        .task { await refreshICloud() }
+        .task { await watchICloud() }
         .confirmationDialog(restoringItem.map { String(localized: "从 \(Self.backupTime($0.date)) 的备份恢复？") } ?? String(),
                             isPresented: Binding(get: { restoringItem != nil }, set: { if !$0 { restoringItem = nil } }),
                             titleVisibility: .visible, presenting: restoringItem) { item in
@@ -130,6 +130,13 @@ struct DataManagementView: View {
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let note = iCloudUploadNote {
+                            Text(note)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("icloud-upload-note")
+                        }
                     }
                 }
                 .tint(Color.skyDeep)
@@ -181,12 +188,24 @@ struct DataManagementView: View {
         guard iCloudAvailable else {
             return String(localized: "iCloud 云盘不可用：在 iOS 设置里登录 iCloud，并给 FreeGrid 打开 iCloud 云盘。")
         }
-        let last = iCloudLastBackup > 0
-            ? String(localized: "上次 \(Self.backupTime(Date(timeIntervalSince1970: iCloudLastBackup)))")
-            : String(localized: "还没备份过")
+        let time = Self.backupTime(Date(timeIntervalSince1970: iCloudLastBackup))
+        let last = iCloudLastBackup <= 0 ? String(localized: "还没备份过")
+            : iCloudItems?.first?.upload == .uploaded ? String(localized: "上次 \(time)，已传上 iCloud")
+            : String(localized: "上次 \(time)")
         return iCloudEnabled
             ? String(localized: "离开 App 时每天最多存一份，留最近 \(ICloudBackup.keepCount) 份。\(last)")
             : last
+    }
+
+    /// 最新一份没传上去时说清楚：这时删 App、换设备都找不回它
+    private var iCloudUploadNote: String? {
+        guard iCloudAvailable else { return nil }
+        switch iCloudItems?.first?.upload {
+        case .quotaFull: return String(localized: "iCloud 空间满了，最新一份还只在这台设备上。腾出空间后会自动上传。")
+        case .failed: return String(localized: "最新一份暂时传不上 iCloud，还只在这台设备上。系统会再试。")
+        case .pending: return String(localized: "最新一份还没传上 iCloud，还只在这台设备上。")
+        case .uploaded, nil: return nil
+        }
     }
 
     /// 「10月29日 14:30」；不是今年的带年份
@@ -201,6 +220,16 @@ struct DataManagementView: View {
         iCloudItems = items
     }
 
+    /// 进页面查一次；最新一份没传上去时隔几秒再看，传完了卡片跟着改
+    private func watchICloud() async {
+        await refreshICloud()
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(5))
+            if Task.isCancelled { return }
+            if let newest = iCloudItems?.first, newest.upload != .uploaded { await refreshICloud() }
+        }
+    }
+
     private func backUpNow() {
         guard !iCloudBusy else { return }
         iCloudBusy = true
@@ -209,7 +238,6 @@ struct DataManagementView: View {
             defer { iCloudBusy = false }
             do {
                 _ = try await ICloudBackup.write(try ICloudBackup.currentBackup(context: modelContext))
-                iCloudStatus = String(localized: "已备份到 iCloud 云盘")
             } catch {
                 iCloudStatus = String(localized: "备份失败：\(error.localizedDescription)")
             }
