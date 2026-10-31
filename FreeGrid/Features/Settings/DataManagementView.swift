@@ -254,10 +254,9 @@ struct DataManagementView: View {
             ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
             encodedCategoryOptions = merged
         }
-        // 记账方式和每月写下的数：整份恢复时以备份为准，其他方式只在本机没用过时补上
-        if let backup = preview.monthlyTracking, strategy == .replace || MonthlyTracking.decode(storedTracking).isUntouched {
-            storedTracking = backup.encoded
-        }
+        // 记账方式和每月写下的数
+        storedTracking = MonthlyTracking.storedAfterRestoring(preview.monthlyTracking, stored: storedTracking,
+                                                              replacing: strategy == .replace)
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
         // 换机后先打开、再恢复备份的老用户：改回老用户，看 2.0 更新说明，不弹新手小结

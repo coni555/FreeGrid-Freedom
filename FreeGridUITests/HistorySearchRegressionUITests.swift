@@ -153,6 +153,41 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(identifier: "month-chart-pie").element(boundBy: 1).isSelected)
     }
 
+    /// 扇形图：点一份选中，再点取消；手指在同一份上滑动不会来回翻
+    @MainActor
+    func testPieSliceSelectionDoesNotFlickerWhileDragging() throws {
+        let app = try launch()
+        app.buttons["history-scope-title"].tap()
+        let pie = app.buttons["month-chart-pie"].firstMatch
+        XCTAssertTrue(pie.waitForExistence(timeout: 5))
+        pie.tap()
+        let chart = app.descendants(matching: .any)["month-chart-pie-view"].firstMatch
+        XCTAssertTrue(chart.waitForExistence(timeout: 5))
+        let center = app.staticTexts["month-chart-pie-center"].firstMatch
+        XCTAssertEqual(center.label, "支出")
+        let top = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05))
+        // 图表的手势要按住一小会儿才算，XCUITest 的 tap 太短
+        top.press(forDuration: 0.3)
+        XCTAssertTrue(center.waitForLabel("购物"), center.label)
+        top.press(forDuration: 0.3)
+        XCTAssertTrue(center.waitForLabel("支出"), center.label)
+        top.press(forDuration: 0.2, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.08)))
+        XCTAssertTrue(center.waitForLabel("购物"), center.label)
+    }
+
+    /// 选中的类换到没有它的月份后再搜索：跨全部分类搜，搜索栏也不留那个标签
+    @MainActor
+    func testSearchDropsAFilterTheMonthDoesNotHave() throws {
+        let app = try launch()
+        app.buttons["history-breakdown-toggle"].tap()
+        app.buttons["history-breakdown-购物"].tap()
+        app.buttons["上个月"].tap()
+        app.buttons["搜索"].tap()
+        let field = app.textFields["history-search-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["history-search-filter"].exists)
+    }
+
     @MainActor
     func testFilterCrossMonthSearchSuggestionsAndLatestInput() throws {
         let app = try launch()
@@ -193,5 +228,12 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
         app.buttons["搜索"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+private extension XCUIElement {
+    func waitForLabel(_ text: String, timeout: TimeInterval = 3) -> Bool {
+        let wait = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", text), object: self)
+        return XCTWaiter.wait(for: [wait], timeout: timeout) == .completed
     }
 }

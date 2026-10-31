@@ -156,7 +156,8 @@ struct FinancialSnapshot {
             netWorth: Self.freedomBase(countsAssets: self.countsAssets, lockedAssets: lockedAssets,
                                        excludedItemAssets: excludedItemAssets, cash: cash, excludedCash: excludedCash),
             dailyBurn: dailyBurn, dailyPassive: dailyPassive, hasExpenses: hasExpenses, loans: loanPlan,
-            burnMayBeZero: burnBasis == .estimate
+            burnMayBeZero: burnBasis == .estimate,
+            writtenDaily: tracking.writtenDaily ?? 0
         )
     }
 }

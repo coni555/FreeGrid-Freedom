@@ -458,9 +458,10 @@ private struct DashboardContent: View {
         allStatSlots.filter { !snapshot.tracking.isMonthly || !$0.needsRecords }
     }
 
-    /// 按月记账时收起来的那几张，还留在顺序里，切回逐笔记账时回到原位
+    /// 按月记账时收起来的那几张，还留在顺序里，切回逐笔记账时还在
     private var hiddenStatSlots: [HomeStat] {
-        snapshot.tracking.isMonthly ? allStatSlots.filter(\.needsRecords) : []
+        snapshot.tracking.isMonthly
+            ? HomeStat.hiddenWhenMonthly(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0) : []
     }
 
     private var allStatSlots: [HomeStat] {

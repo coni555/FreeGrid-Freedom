@@ -263,8 +263,10 @@ extension FreedomMath {
     ///   算上以后仍 ≤ 0，推过贷款最后一期再两年都付得起就是已覆盖；> 0 就一直推，100 年后还有钱也算已覆盖。
     ///
     /// `burnMayBeZero`：填的每月花销全被固定支出占了时，日常是 0，不算数据有问题，只按日历扣固定支出。
+    /// `writtenDaily`：这时贷款还完不等于不花钱，之后按填的数接着花。
     static func freedomRun(netWorth: Double, dailyBurn: Double, dailyPassive: Double = 0,
-                           hasExpenses: Bool, loans: LoanSchedule.Plan, burnMayBeZero: Bool = false) -> FreedomRun {
+                           hasExpenses: Bool, loans: LoanSchedule.Plan, burnMayBeZero: Bool = false,
+                           writtenDaily: Double = 0) -> FreedomRun {
         let plain = burnMayBeZero && dailyBurn == 0 && !loans.isEmpty && netWorth.isFinite && dailyPassive.isFinite
             ? FreedomState.covered
             : freedomState(netWorth: netWorth, dailyBurn: dailyBurn,
@@ -315,8 +317,9 @@ extension FreedomMath {
             if event.punched { paid.append(event.day) }
             lived = event.day
         }
-        guard net > 0 else { return FreedomRun(state: .covered, paymentDays: paid) }
-        let days = Double(lived) + max(0, cash) / net
+        let afterLoans = burnMayBeZero && dailyBurn == 0 ? writtenDaily - dailyPassive : net
+        guard afterLoans > 0 else { return FreedomRun(state: .covered, paymentDays: paid) }
+        let days = Double(lived) + max(0, cash) / afterLoans
         guard days.isFinite else { return FreedomRun(state: .invalidData, paymentDays: []) }
         // 有固定支出时只展开到钱花完那天，之后那期贷款不在 `events` 里，回原来的列表找
         return FreedomRun(state: .finite(days: days), paymentDays: paid,

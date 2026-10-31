@@ -118,7 +118,9 @@ struct HistoryView: View {
                                 searchFocused = true
                             } else {
                                 // 点中了一类就在这一类里搜：比如在「其他」里搜「咖啡」，再一起移走
-                                search.begin(filter: ledger?.active(selection) ?? .all)
+                                // 选中的类这个月没有记录时算「全部」，搜索栏的标签也跟着清掉
+                                selection = ledger?.active(selection) ?? .all
+                                search.begin(filter: selection)
                                 isSearching = true
                             }
                         } label: {

@@ -208,6 +208,25 @@ final class MonthlySpendingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 5))
     }
 
+    /// 写过数又切回去，再切过来点「月底再记」：写过的数还在
+    @MainActor
+    func testWritingLaterKeepsTheNumberWritten() {
+        let app = XCUIApplication()
+        let tracking = "{\"method\":\"entries\",\"months\":{\"\(thisMonthKey)\":5000},\"startMonth\":\"\(thisMonthKey)\",\"pauses\":[]}"
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                                                           "-monthlyTracking", tracking, "-UseInMemoryStore", "-proPreview", "NO"]
+        app.launch()
+        app.tabBars.buttons["设置"].tap()
+        app.tapSettingsRow("settings-tracking-method", inCard: "settings-card-ledger")
+        let later = app.buttons["monthly-spending-later"]
+        XCTAssertTrue(later.waitForExistence(timeout: 3))
+        later.tap()
+        app.tabBars.buttons["首页"].tap()
+        let pill = app.buttons["monthly-spending-pill"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5))
+        XCTAssertTrue(pill.label.contains("5,000"), pill.label)
+    }
+
     /// 记了一笔就不记：一个月后不给大数字，给一个入口
     @MainActor
     func testTooFewRecordsGiveNoNumber() {

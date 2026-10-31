@@ -131,6 +131,7 @@ struct MonthCategoryChart: View {
             }
             .chartLegend(.hidden)
             .chartAngleSelection(value: $angle)
+            .accessibilityIdentifier("month-chart-pie-view")
             .frame(width: 116, height: 116)
             .overlay {
                 // 中间：没点时是这个月支出，点了一份就换成那一份
@@ -144,13 +145,17 @@ struct MonthCategoryChart: View {
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .lineLimit(1)
+                        .accessibilityIdentifier("month-chart-pie-center")
                 }
                 .frame(width: 80)
                 .allowsHitTesting(false)
             }
-            .onChange(of: angle) { _, value in
+            // 手指滑动时角度连着变，抬手回到 nil：按下那一下才是点选（再点取消），之后滑到哪份选哪份
+            .onChange(of: angle) { old, value in
                 guard let value, let kind = kind(at: value, in: shares) else { return }
-                withAnimation(.easeInOut(duration: 0.2)) { selected = selected == kind ? nil : kind }
+                let next = old == nil && selected == kind ? nil : kind
+                guard next != selected else { return }
+                withAnimation(.easeInOut(duration: 0.2)) { selected = next }
             }
 
             VStack(alignment: .leading, spacing: 6) {

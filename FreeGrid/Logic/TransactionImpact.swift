@@ -59,7 +59,8 @@ struct TransactionImpact {
             // 按月记账只看写下的数：模拟一笔不会让日均从无到有
             hasExpenses: snapshot.hasExpenses || (kind == .expense && !snapshot.tracking.isMonthly),
             loans: snapshot.loanPlan,
-            burnMayBeZero: snapshot.burnBasis == .estimate
+            burnMayBeZero: snapshot.burnBasis == .estimate,
+            writtenDaily: snapshot.tracking.writtenDaily ?? 0
         ).state
     }
 }

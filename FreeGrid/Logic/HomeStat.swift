@@ -100,6 +100,11 @@ enum HomeStat: Hashable, Identifiable {
         }
     }
 
+    /// 按月记账时收起来的那几张。没改过时按月记账的默认里没有它们，要从逐笔记账的默认里找
+    static func hiddenWhenMonthly(stored: String, hasPassive: Bool) -> [HomeStat] {
+        slots(stored: stored, hasPassive: hasPassive).filter(\.needsRecords)
+    }
+
     static func slots(stored: String, hasPassive: Bool, monthly: Bool = false) -> [HomeStat] {
         if stored.isEmpty { return monthly ? [.daily, hasPassive ? .passive : .base] : [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
         if stored == noneValue { return [] }

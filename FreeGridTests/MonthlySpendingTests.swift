@@ -59,6 +59,38 @@ struct MonthlySpendingTests {
         #expect(FreedomChecklist.evaluate(snapshot: snapshot).items.first { $0.group == .record }?.progress == 0)
     }
 
+    /// 每月写 3044（每天 100），全被一笔还剩 2 期的贷款占了：还完之后不是不花钱了
+    @Test func aNumberAllTakenByALoanStillCostsMoneyAfterTheLoan() {
+        let loan = Loan(name: "房贷", monthlyAmount: 3044, dueDay: 5, periodsAtStart: 2,
+                        startDate: dayNumber(1), sortOrder: 0)
+        let snapshot = snapshot(tracking: monthly(), loans: [loan])
+        #expect(snapshot.dailyBurn == 0)
+        guard case .finite(let days) = snapshot.freedom else { Issue.record("贷款还完不能算成 ∞"); return }
+        // 10-05、11-05 各扣 3044，第 35 天剩 3912，每天 100 再撑 39.12 天
+        #expect(abs(days - 74.12) < 1e-6)
+    }
+
+    @Test func restoringAWholeBackupFollowsTheBackup() {
+        let stored = monthly().encoded
+        let backup = monthly(["2026-09": 1000])
+        // 整份恢复：以备份为准，备份没有这一段（旧版本、一直逐笔记账）就回到逐笔记账，恢复的记录才看得见
+        #expect(!MonthlyTracking.decode(MonthlyTracking.storedAfterRestoring(nil, stored: stored, replacing: true)).isMonthly)
+        #expect(MonthlyTracking.decode(MonthlyTracking.storedAfterRestoring(backup, stored: stored, replacing: true)).months == backup.months)
+        // 其他方式：本机用过就不动，没用过才补上
+        #expect(MonthlyTracking.storedAfterRestoring(nil, stored: stored, replacing: false) == stored)
+        #expect(MonthlyTracking.storedAfterRestoring(backup, stored: stored, replacing: false) == stored)
+        #expect(MonthlyTracking.decode(MonthlyTracking.storedAfterRestoring(backup, stored: "", replacing: false)).months == backup.months)
+    }
+
+    /// 自由卡的记账天数和首页同一个数：大数字算不出来时，记过的天数还是真的
+    @Test func freedomCardKeepsTrackDaysWhenTheNumberIsHidden() {
+        let record = Expense(amount: 20, category: "午餐", date: dayNumber(1))
+        let tooFew = snapshot([record], tracking: MonthlyTracking(), day: 25)
+        #expect(!tooFew.hasExpenses && tooFew.hasRecords)
+        #expect(FreedomCardData(snapshot: tooFew, summary: FreedomChecklist.evaluate(snapshot: tooFew)).trackDays == tooFew.trackDays)
+        #expect(tooFew.trackDays > 0)
+    }
+
     @Test func noNumberYetMeansNoFreedomDays() {
         let snapshot = snapshot(tracking: monthly([:]))
         #expect(!snapshot.hasExpenses)

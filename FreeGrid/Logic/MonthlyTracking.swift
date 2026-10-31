@@ -124,6 +124,11 @@ struct MonthlyTracking: Equatable {
         monthlyAverage.map { max(0, $0 - fixedMonthly) }
     }
 
+    /// 写下的数折成每天，含固定支出
+    var writtenDaily: Double? {
+        monthlyAverage.map { $0 / FreedomMath.GridUnit.month.daysPerCell }
+    }
+
     func amount(for month: YearMonth) -> Double? {
         Self.valid(months[month.key])
     }
@@ -171,6 +176,13 @@ struct MonthlyTracking: Equatable {
         method = .entries
         if let last = pauses.indices.last, pauses[last].end == nil { pauses[last].end = now }
         switchedBackAt = hasRecords ? nil : now
+    }
+
+    /// 恢复备份后偏好里该存什么。整份恢复以备份为准，备份没有这一段就回到逐笔记账；其他方式只在本机没用过时补上
+    static func storedAfterRestoring(_ backup: MonthlyTracking?, stored: String, replacing: Bool) -> String {
+        if replacing { return backup?.encoded ?? "" }
+        guard let backup, decode(stored).isUntouched else { return stored }
+        return backup.encoded
     }
 
     // MARK: - 显示

@@ -81,7 +81,7 @@ struct MonthlySpendingSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if adopting {
-                        Button("月底再记") { save(nil) }
+                        Button("月底再记") { adoptWithoutWriting() }
                             .foregroundStyle(Color.inkMuted)
                             .accessibilityIdentifier("monthly-spending-later")
                     } else {
@@ -161,17 +161,26 @@ struct MonthlySpendingSheet: View {
         storedTracking = tracking.encoded
         dismiss()
     }
+
+    /// 这个月之前写过又切回去过时，写过的数还留着
+    private func adoptWithoutWriting() {
+        var tracking = MonthlyTracking.decode(storedTracking)
+        tracking.adopt(startingAt: month)
+        storedTracking = tracking.encoded
+        dismiss()
+    }
 }
 
 /// 切换记账方式：入口都打开这一张，按现状决定是哪个面板
 struct TrackingSwitchSheet: View {
-    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
+    /// 打开时定下是哪张：里面的面板写完偏好才关，关的动画里不能换成另一张
+    @State private var startedMonthly = MonthlyTracking.decode(AppPreferences.store.string(forKey: MonthlyTracking.key) ?? "").isMonthly
     @Query private var expenses: [Expense]
     @Query private var incomes: [Income]
 
     var body: some View {
         let recordCount = expenses.count + incomes.count
-        if MonthlyTracking.decode(storedTracking).isMonthly {
+        if startedMonthly {
             SwitchBackSheet()
         } else if recordCount == 0 {
             // 还没记过账，没有记录要收起来，和引导第 3 步一样
