@@ -486,24 +486,28 @@ final class FreeGridUITests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
             let note = app.staticTexts["pro-price-note"]
             XCTAssertTrue(note.waitForExistence(timeout: 5))
+            // 模拟器读到商品时价格跟着商店地区走，这里只验四个阶段
+            let dollars = app.buttons["pro-purchase"].label.contains("$")
+            let special = dollars ? "$2.99" : "¥19.90"
+            let regular = dollars ? "$3.99" : "¥29.90"
             switch stage.daysAgo {
             case nil:
                 XCTAssertTrue(app.buttons["pro-start-trial"].exists)
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("买断优惠价 ¥19.90，开启体验后保留 14 天，之后恢复 ¥29.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
+                XCTAssertTrue(note.label.contains("买断优惠价 \(special)，开启体验后保留 14 天，之后恢复 \(regular)"))
                 XCTAssertFalse(app.staticTexts["pro-trial-status"].exists)
             case "2":
                 XCTAssertFalse(app.buttons["pro-start-trial"].exists)
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验中 · 还剩 5 天")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
                 XCTAssertTrue(note.label.contains("买断优惠价还剩 12 天"))
             case "10":
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
                 XCTAssertTrue(note.label.contains("买断优惠价还剩 4 天"))
             default:
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥29.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(regular))
                 XCTAssertEqual(note.label, "一次购买 · 永久使用 · 不会自动续费")
             }
             let shot = XCTAttachment(screenshot: app.screenshot())
@@ -1079,7 +1083,7 @@ final class FreeGridUITests: XCTestCase {
         // 分类不归搜索管；金额能搜到，结果按月收着，只有一笔时直接展开
         let field = app.textFields["history-search-field"]
         field.typeText("午餐")
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "用右上角的筛选")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "点月份卡片里的分类")).firstMatch.waitForExistence(timeout: 3))
         app.buttons["清空搜索"].tap()
         field.typeText("20")
         XCTAssertTrue(app.staticTexts["找到 1 笔"].waitForExistence(timeout: 3))
@@ -1655,7 +1659,13 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testFreedomCardOpensFromHomeAndSettingsAndPromptShowsOnce() throws {
         let backup = FileManager.default.temporaryDirectory.appendingPathComponent("freedom-card-ui-test.json")
-        let expenses = (1...9).map { #"{"amount":100,"category":"午餐","note":"","date":"2026-10-0\#($0)"}"# }.joined(separator: ",")
+        // 离今天近：断档超过 14 天又记得少，首页不给大数字，也就没有提示
+        let date = DateFormatter()
+        date.dateFormat = "yyyy-MM-dd"
+        let expenses = (1...9).map { daysAgo in
+            let day = date.string(from: Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now)!)
+            return #"{"amount":100,"category":"午餐","note":"","date":"\#(day)"}"#
+        }.joined(separator: ",")
         try Data("""
         {"schema_version":2,"assets":{"total":10000,"locked_assets":0,"cash":10000},"expenses":[\(expenses)]}
         """.utf8).write(to: backup)
