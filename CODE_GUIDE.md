@@ -162,6 +162,7 @@ flowchart TD
 | Pro 购买页、试用、购买与恢复、是否已解锁 | `Features/Pro/ProPaywallView.swift` → `Data/ProStore.swift`；试用 7 天和试用专属价 14 天的时间规则在 `Logic/ProOffer.swift`；对照表和权益判断在 `App/ProFeatures.swift` |
 | 新用户记满 7 天时的「记账 7 天的小结」（首页弹一次） | 卡片在 `Features/Dashboard/FirstWeekRecapCard.swift`；该不该弹、这 7 天的数字在 `Logic/FirstWeekRecap.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerWeekRecap` |
 | 首页弹的介绍卡片共用的弹法（压暗、居中、「看看 Pro」换成购买页） | `Features/Pro/IntroCardLayer.swift` |
+| 老用户更新后的公告（首页弹一次；换版本改 `UpdateNotice.version` 和卡片内容） | 卡片在 `Features/Dashboard/UpdateNoticeCard.swift`；该不该弹在 `Logic/UpdateNotice.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerUpdateNotice` |
 | 2.0 的 Pro 介绍（只给老用户，首页弹一次卡片；新用户不弹） | 卡片在 `Features/Pro/ProIntroCard.swift`；新还是老、该不该弹在 `Logic/ProIntro.swift`；什么时候弹在 `App/ContentView.swift` 的 `offerProIntro` |
 | Assets 页（按设置选新版或经典版） | `Features/Assets/AssetsView.swift` 只做切换（偏好 `assetsLayout`）。新版「钱与时间」：`MoneyTimeAssetsView.swift`（¥/天 单位开关、净值或自由天数、按账户分段的横线、资产 \| 现金文件夹标签、「每月」进出），调拨弹窗 `TransferSheet.swift`。经典版：`ClassicAssetsView.swift`（三个抽屉 + 被动收入卡 + 内嵌调拨） |
 | 两版共用的各行（增删改、拖动排序、退款后只读、弹窗） | `Features/Assets/AccountDrawers.swift`（`AssetRows`、`CashRows`，以及经典版的抽屉外壳 `AssetDrawer`、`CashDrawer`）、`LoanDrawer.swift`（`LoanRows`）、`MoneyTimeAssetsView.swift` 里的 `PassiveRows`。行里的金额按环境值 `amountUnit` 写成钱或天 |

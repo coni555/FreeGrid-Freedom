@@ -1,6 +1,6 @@
 // 首页弹的介绍卡片共用的弹法：整页压暗，屏幕中间浮起一张卡，点卡片外面也能关；
 // 卡片上点「看看 Pro」时收起卡片、打开购买页。
-// 用它的有老用户的 2.0 更新说明（ProIntroCard）和新用户记满 7 天的小结（FirstWeekRecapCard）。
+// 用它的有老用户的 2.0 更新说明（ProIntroCard）、更新公告（UpdateNoticeCard）和新用户记满 7 天的小结（FirstWeekRecapCard）。
 
 import SwiftUI
 

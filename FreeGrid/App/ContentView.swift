@@ -40,6 +40,9 @@ struct ContentView: View {
     /// 新用户记满 7 天时的「记账 7 天的小结」，弹一次（规则在 FirstWeekRecap）
     @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
     @State private var weekRecap: FirstWeekRecap.Summary?
+    /// 老用户更新后的公告，每个版本弹一次（规则在 UpdateNotice）
+    @AppStorage(UpdateNotice.seenKey, store: AppPreferences.store) private var updateNoticeSeen = ""
+    @State private var showingUpdateNotice = false
 
     // 起步引导走到哪一步由账本决定。只要知道有没有支出：取一笔就够。
     // 不挂整本账：这里一取数，SwiftData 会通知所有看过这些支出的页面，记一笔时首页就要多算一遍。
@@ -165,6 +168,11 @@ struct ContentView: View {
                 let expenseCount = (try? modelContext.fetchCount(FetchDescriptor<Expense>())) ?? 0
                 introAudience = ProIntro.audience(hasExpenses: expenseCount > 0).rawValue
             }
+            if !UpdateNotice.isSuppressedForTesting,
+               UpdateNotice.skipsForEmptyLedger(seen: updateNoticeSeen, hasContent: ICloudBackup.hasContent(in: modelContext)) {
+                updateNoticeSeen = UpdateNotice.version
+            }
+            await offerUpdateNotice()
             await offerProIntro()
             await offerWeekRecap()
         }
@@ -175,6 +183,7 @@ struct ContentView: View {
             processDuePayments()
             checkProLapse()
             Task {
+                await offerUpdateNotice()
                 await offerProIntro()
                 await offerWeekRecap()
             }
@@ -207,6 +216,7 @@ struct ContentView: View {
         .sheet(isPresented: $showingBackToFree) {
             BackToFreeSheet().onAppear { backToFreePending = false }
         }
+        .updateNotice(isPresented: $showingUpdateNotice) { updateNoticeSeen = UpdateNotice.version }
         .returningProIntro(isPresented: $showingReturningIntro) { introShown = true }
         .firstWeekRecap($weekRecap) { recapShown = true }
         // tab 选中态吃 sky 主色,品牌一致
@@ -236,7 +246,7 @@ private struct StableTab<Content: View>: View, Equatable {
 extension ContentView {
     /// 既有介绍、小结和引导优先；这次记账被挡住就跳过，不在关弹层后紧接着邀请。
     private var reviewPresentationAllowed: Bool {
-        guard selectedTab == .dashboard, scenePhase == .active,
+        guard selectedTab == .dashboard, scenePhase == .active, !updateNoticePending,
               !showingReturningIntro, weekRecap == nil, !showingBackToFree, !backToFreePending,
               guide.tour == nil, setupStep == nil else { return false }
         if !ProIntro.isSuppressedForTesting {
@@ -338,11 +348,34 @@ extension ContentView {
         }
     }
 
+    /// 公告还没看过：它排在其他卡片前面，一次只弹一张。
+    /// 直接读偏好，理由见 `releaseIfNotShown`
+    private var updateNoticePending: Bool {
+        !UpdateNotice.isSuppressedForTesting
+            && UpdateNotice.isDue(seen: AppPreferences.store.string(forKey: UpdateNotice.seenKey))
+    }
+
+    /// 轮到了、首页也空着就弹更新公告。和其他卡片一样先停一下，停完再看一遍；
+    /// 卡片真的出现才记「看过了」，没弹成的下次打开再试
+    private func offerUpdateNotice() async {
+        guard updateNoticePending, !showingUpdateNotice, selectedTab == .dashboard else { return }
+        try? await Task.sleep(for: .seconds(1.2))
+        guard updateNoticePending, !showingUpdateNotice, !showingReturningIntro, weekRecap == nil, !showingBackToFree,
+              selectedTab == .dashboard, guide.tour == nil, setupStep == nil
+        else { return }
+        // 卡片自己做出现的动画，弹层本身不滑入
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { showingUpdateNotice = true }
+        try? await Task.sleep(for: .seconds(1))
+        if updateNoticePending { showingUpdateNotice = false }
+    }
+
     /// 轮到了、首页也空着就弹老用户的卡片。
     /// 先停一下，让启动动画收干净，停完再看一遍。
     /// 卡片真的出现才记「弹过了」，没弹成的下次打开再试
     private func offerProIntro() async {
-        guard !introShown, !showingReturningIntro, !ProIntro.isSuppressedForTesting,
+        guard !updateNoticePending, !showingUpdateNotice, !introShown, !showingReturningIntro, !ProIntro.isSuppressedForTesting,
               let audience = ProIntro.Audience(rawValue: introAudience), audience == .returning,
               selectedTab == .dashboard else { return }
         try? await Task.sleep(for: .seconds(1.2))
@@ -351,7 +384,7 @@ extension ContentView {
         guard ProIntro.shouldOffer(audience: audience, alreadyShown: introShown, ownsPro: store.ownsPro,
                                    hasStartedTrial: store.offer.hasStartedTrial,
                                    canStartTrial: ProIntro.trialIsAvailable(store)),
-              !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard, guide.tour == nil,
+              !showingUpdateNotice, !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard, guide.tour == nil,
               setupStep == nil
         else { return }
         // 卡片自己做出现的动画，弹层本身不滑入
@@ -364,7 +397,7 @@ extension ContentView {
     /// 新用户记满 7 天、首页空着就弹「记账 7 天的小结」。和老用户的卡片一样先停一下，停完再看一遍；
     /// 卡片真的出现才记「弹过了」
     private func offerWeekRecap() async {
-        guard !recapShown, weekRecap == nil, !ProIntro.isSuppressedForTesting,
+        guard !updateNoticePending, !showingUpdateNotice, !recapShown, weekRecap == nil, !ProIntro.isSuppressedForTesting,
               ProIntro.Audience(rawValue: introAudience) == .newcomer, selectedTab == .dashboard,
               FirstWeekRecap.recordedDays(allExpenses()) >= FirstWeekRecap.requiredDays else { return }
         try? await Task.sleep(for: .seconds(1.2))
@@ -373,7 +406,7 @@ extension ContentView {
         let expenses = allExpenses()
         guard FirstWeekRecap.shouldShow(audience: ProIntro.Audience(rawValue: introAudience), alreadyShown: recapShown,
                                         recordedDays: FirstWeekRecap.recordedDays(expenses)),
-              weekRecap == nil, !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard,
+              weekRecap == nil, !showingUpdateNotice, !showingReturningIntro, !showingBackToFree, selectedTab == .dashboard,
               guide.tour == nil, setupStep == nil
         else { return }
         let mentionsPro = FirstWeekRecap.mentionsPro(ownsPro: store.ownsPro, hasStartedTrial: store.offer.hasStartedTrial,

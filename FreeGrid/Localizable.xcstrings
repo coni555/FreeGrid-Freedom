@@ -13227,6 +13227,106 @@
           }
         }
       }
+    },
+    "开始使用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Started"
+          }
+        }
+      }
+    },
+    "让每一笔记录，都更从容。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every record, a little more at ease."
+          }
+        }
+      }
+    },
+    "分类支出，一目了然": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending by Category, at a Glance"
+          }
+        }
+      }
+    },
+    "点击明细页月份卡片中的「N 笔」，即可查看各分类的支出明细。同时新增扇形图。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap “N entries” on the month card in History to see spending by category. There’s a new pie chart, too."
+          }
+        }
+      }
+    },
+    "新增「按月记账」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New: Monthly Total"
+          }
+        }
+      }
+    },
+    "适合不太想每天记账的小伙伴，每月只需填写支出总额。前往「设置 → 账本 → 记账方式」切换。原有记录将完整保留，切换后暂时隐藏。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For anyone who’d rather not log every day: just enter your total spending each month. Switch in Settings → Ledger → Tracking Method. Your existing records are kept in full and hidden while you use it."
+          }
+        }
+      }
+    },
+    "iCloud 自动备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud Auto Backup"
+          }
+        }
+      }
+    },
+    "默认开启，每天最多自动备份一次。数据保存在你的 iCloud 中，可随时在「备份与恢复」中关闭。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default, at most once a day. Your data is saved in your own iCloud, and you can turn it off anytime in Backup & Restore."
+          }
+        }
+      }
+    },
+    "分类管理升级": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Better Category Management"
+          }
+        }
+      }
+    },
+    "支持批量合并账目分类，也可根据筛选结果灵活拆分。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge categories in bulk, or split them from filtered results."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
