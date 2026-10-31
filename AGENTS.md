@@ -7,7 +7,7 @@
 - **App Store 提审最后一步由用户点击（用户 2026-10-22 定）：** agent 负责归档、上传构建、填写版本资料和更新说明、关联构建并准备到最终「Submit for Review」之前；停在可提交的页面交给用户，正式提交审核由用户亲自操作。不要将「上传审核」默认解释为代点最终提交。
 - **iOS 发新版前提醒用户查 ASC 的三个网址（用户 2026-10-29 要求）：** 「技术支持网址」「营销网址」「隐私政策网址」里如果有 conilab 域名要换掉（用户不再续费 conilab，审核会点这些链接）。由用户自己检查，agent 只负责提醒，最晚在交到「Submit for Review」之前说。App 里的 `cn.conilab.*` 标识符（Bundle ID、App Group、内购 ID、iCloud 容器）不受域名影响，不能改。
 
-- **main 是 2.1 (12)**（2026-10-25 升版发布）。2.0 的来历：Pro 分支 `codex/pro-expense-categories` 按用户 2026-10-18「合并吧」合入；2.0 已于 2026-10-19 前上架 App Store（用户告知）。之后的开发回到 main，较大的功能另开分支。
+- **main 是 2.2 (13)**（2026-10-31 升版，待提审；线上是 2.1 (12)）。2.0 的来历：Pro 分支 `codex/pro-expense-categories` 按用户 2026-10-18「合并吧」合入；2.0 已于 2026-10-19 前上架 App Store（用户告知）。之后的开发回到 main，较大的功能另开分支。
 - **2.x 路线（用户 2026-10-22 定，10-23 合并成两版，10-24 加用户反馈后变三版）：** 2.1 中英文切换 + 「净值 / 可动用资产」用词统一 + 首页 UI 美化与小组件 + FreeGrid Check 重构（含离职 / GAP 目标）+ 整体流畅性优化（色带修复并进这一版，不单独发 2.0.2）→ 2.2 按月估算日常开销（不记账也能算自由天数）+ 看清钱花在哪（明细月份卡展开各类支出 + 月度汇总柱状图 / 扇形图，不做单独的看板页）+ 合并 / 拆分分类 + iCloud 自动备份（后两项 2026-10-26 按群和评论区反馈加；分类每月预算 10-30 砍掉：没人真的要，提问的用户只是想看清钱花在哪）→ 2.3 竞品导入 + 适配 iPhone Duo。竞品导入免费；小组件有免费也有 Pro 的。安卓单独推进，详见 HANDOFF「路线图」。
 - 合进 main 的付费入口必须在 Release 里真的能买（ASC 商品已就绪）；买不了的付费入口不能发出去。
 - Pro 永久买断、不订阅；现有免费功能不收回，Pro 只锁新增功能。
@@ -56,7 +56,7 @@
 
 - 改业务规则配具体输入输出测试；整理后跑 iOS 测试、macOS 构建与 `git diff --check`。
 - 标准动作（用户 2026-10-12 定，机器是 16G 内存的 MacBook Air）：直接在该分支自己的模拟器上跑，不新建临时模拟器；`xcodebuild` 加 `-parallel-testing-enabled NO`，否则它会自己再克隆一台；`-derivedDataPath` 固定用 `_local/derived/<分支简称>` 并保留，不要每轮删；测试和出图合在一次构建里。
-- 这些参数已经固定在 `Tools/verify.sh` 里，跑测试就用它：`Tools/verify.sh --sim <分支的模拟器> --only FreeGridTests/<套件>`，只跑这次改动相关的；合并 main、提审前用 `--full --mac`；不带测试参数时只编译。脚本会拒绝 FG-Main 跑非 main、拒绝正被别的 xcodebuild 占用的模拟器，测试前自动存账本快照到 `_local/snapshots/auto/`，最后给出通过/失败数、macOS 构建和 `git diff --check` 的结论。分支 worktree 里还没有这个脚本时，用主仓的绝对路径 `~/Desktop/FreeGrid/Tools/verify.sh` 调用。Claude Code 和 Codex 的 PreToolUse hook（`~/cc-personal/scripts/sim-guard.py`）会拦下 FreeGrid 里没带这两个参数的裸 `xcodebuild test`。
+- 这些参数已经固定在 `Tools/verify.sh` 里，跑测试就用它：`Tools/verify.sh --sim <分支的模拟器> --only FreeGridTests/<套件>`，只跑这次改动相关的，合并 main 前也一样（用户 2026-10-31：「不用跑全量测试了……直接跑相关的测试即可，然后合并进main分支」）；提审前用 `--full --mac`；不带测试参数时只编译。脚本会拒绝 FG-Main 跑非 main、拒绝正被别的 xcodebuild 占用的模拟器，测试前自动存账本快照到 `_local/snapshots/auto/`，最后给出通过/失败数、macOS 构建和 `git diff --check` 的结论。分支 worktree 里还没有这个脚本时，用主仓的绝对路径 `~/Desktop/FreeGrid/Tools/verify.sh` 调用。Claude Code 和 Codex 的 PreToolUse hook（`~/cc-personal/scripts/sim-guard.py`）会拦下 FreeGrid 里没带这两个参数的裸 `xcodebuild test`。
 - UI 测试都带 `-UseInMemoryStore`，不写真实账本。
 
 ## 视觉（用户已定；想改先问用户）

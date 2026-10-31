@@ -2,7 +2,7 @@
 # FreeGrid 的标准验证：在分支自己的模拟器上跑指定测试，参数固定成 AGENTS.md「测试」里的约定。
 #
 #   Tools/verify.sh --sim FG-UI --only FreeGridTests/DailyBurnTests [--only ...] [--mac]
-#   Tools/verify.sh --sim FG-UI --full --mac        # 合并 main、提审前
+#   Tools/verify.sh --sim FG-UI --full --mac        # 提审前
 #   Tools/verify.sh --sim FG-UI                     # 不跑测试，只编译 App 和测试
 #
 # 在哪个 worktree 里运行就验证哪个分支；分支 worktree 里还没有这个脚本时，
