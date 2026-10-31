@@ -233,6 +233,8 @@ nonisolated struct BackupEnvelope: Codable {
     let loans: [LoanJSON]?
     let expenseCategories: [ExpenseCategoryJSON]?
     let cashAccounts: [CashAccountJSON]?
+    /// 2.2：记账方式和每月写下的数。可选：没用过按月记账时不写
+    let monthlyTracking: MonthlyTrackingJSON?
 
     init(
         schemaVersion: Int? = nil,
@@ -245,7 +247,8 @@ nonisolated struct BackupEnvelope: Codable {
         assetItems: [AssetItemJSON]? = nil,
         loans: [LoanJSON]? = nil,
         expenseCategories: [ExpenseCategoryJSON]? = nil,
-        cashAccounts: [CashAccountJSON]? = nil
+        cashAccounts: [CashAccountJSON]? = nil,
+        monthlyTracking: MonthlyTrackingJSON? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.assets = assets
@@ -258,5 +261,44 @@ nonisolated struct BackupEnvelope: Codable {
         self.loans = loans
         self.expenseCategories = expenseCategories
         self.cashAccounts = cashAccounts
+        self.monthlyTracking = monthlyTracking
+    }
+}
+
+/// 记账方式和每月写下的数（2.2）。日期是 ISO 8601，和备份里别的时间一样
+struct MonthlyTrackingJSON: Codable {
+    struct Pause: Codable {
+        let start: String
+        let end: String?
+    }
+
+    let method: String
+    let months: [String: Double]
+    let startMonth: String?
+    let pauses: [Pause]?
+    let switchedBackAt: String?
+
+    init(_ tracking: MonthlyTracking) {
+        let iso = ISO8601DateFormatter()
+        method = tracking.method.rawValue
+        months = Dictionary(uniqueKeysWithValues: tracking.writtenMonths.map { ($0.month.key, $0.amount) })
+        startMonth = tracking.startMonth
+        pauses = tracking.pauses.isEmpty ? nil : tracking.pauses.map {
+            Pause(start: iso.string(from: $0.start), end: $0.end.map(iso.string(from:)))
+        }
+        switchedBackAt = tracking.switchedBackAt.map(iso.string(from:))
+    }
+
+    /// 只是偏好，不对的部分就当没有，不拦整份备份
+    var tracking: MonthlyTracking {
+        let iso = ISO8601DateFormatter()
+        return MonthlyTracking(
+            method: MonthlyTracking.Method(rawValue: method) ?? .entries,
+            months: months.filter { YearMonth(key: $0.key) != nil && MonthlyTracking.valid($0.value) != nil },
+            startMonth: startMonth.flatMap(YearMonth.init(key:))?.key,
+            pauses: (pauses ?? []).compactMap { pause in
+                iso.date(from: pause.start).map { MonthlyTracking.Pause(start: $0, end: pause.end.flatMap(iso.date(from:))) }
+            },
+            switchedBackAt: switchedBackAt.flatMap(iso.date(from:)))
     }
 }

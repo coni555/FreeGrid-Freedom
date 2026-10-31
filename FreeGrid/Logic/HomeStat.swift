@@ -92,8 +92,21 @@ enum HomeStat: Hashable, Identifiable {
 
     /// 没改过（空串）时和 2.0 一样：日均、被动覆盖、记账天数，下面是今日对比长条；没有被动收入的人 2.0 里那张是藏起来的，这里补成本月花销。
     /// 改过的按存的顺序，认不出的（比如已经拿掉的「本月结余率」）和重复的跳过
-    static func slots(stored: String, hasPassive: Bool) -> [HomeStat] {
-        if stored.isEmpty { return [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
+    /// 按月记账时这几张没有可显示的：它们看的是每一笔记录
+    var needsRecords: Bool {
+        switch self {
+        case .month, .today, .track, .todayBar: return true
+        default: return false
+        }
+    }
+
+    /// 按月记账时收起来的那几张。没改过时按月记账的默认里没有它们，要从逐笔记账的默认里找
+    static func hiddenWhenMonthly(stored: String, hasPassive: Bool) -> [HomeStat] {
+        slots(stored: stored, hasPassive: hasPassive).filter(\.needsRecords)
+    }
+
+    static func slots(stored: String, hasPassive: Bool, monthly: Bool = false) -> [HomeStat] {
+        if stored.isEmpty { return monthly ? [.daily, hasPassive ? .passive : .base] : [.daily, hasPassive ? .passive : .month, .track, .todayBar] }
         if stored == noneValue { return [] }
         var result: [HomeStat] = []
         for raw in stored.split(separator: ",") {
@@ -150,11 +163,8 @@ enum HomeStat: Hashable, Identifiable {
         switch self {
         case .daily:
             // 日均含固定支出折成的每天；有固定支出时小字拆开写，和只比日常的今日对得上
-            return Display(
-                value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
-                unit: snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
-                    ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
-                    : String(localized: "元/天"))
+            return Display(value: snapshot.dailyCost.isFinite ? String(format: "%.1f", snapshot.dailyCost) : "—",
+                           unit: Self.dailyNote(snapshot))
         case .month:
             return Display(value: FinancialFormatting.wholeNumber(inputs.monthSpent),
                            unit: Self.monthComparison(spent: inputs.monthSpent, lastMonth: inputs.lastMonthSameSpan))
@@ -163,10 +173,10 @@ enum HomeStat: Hashable, Identifiable {
                            unit: Self.todayComparison(today: inputs.todaySpending, dailyBurn: snapshot.dailyBurn,
                                                       routine: snapshot.dailyFixed > 0))
         case .track:
-            // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）
+            // 不满 90 天时大额支出还在摊，日均会变；告诉用户再记多久就稳了（用户 2026-10-24 定的说法）。
             let days = snapshot.trackDays
             return Display(value: "\(days)",
-                           unit: days < FreedomMath.lumpSpreadDays
+                           unit: snapshot.hasRecords && days < FreedomMath.lumpSpreadDays
                                ? String(localized: "再记录 \(FreedomMath.lumpSpreadDays - days) 天，日均趋势会更清晰")
                                : String(localized: "天记账"))
         case .base:
@@ -188,6 +198,18 @@ enum HomeStat: Hashable, Identifiable {
             return Display(value: result.freedomDaysText ?? (result.enough == true ? "∞" : "—"),
                            unit: result.targetLine ?? result.freedomLine)
         }
+    }
+
+    /// 日均卡的小字。按月记账、断档时先说清楚日均是怎么来的，其次才是日常 / 固定拆开
+    static func dailyNote(_ snapshot: FinancialSnapshot) -> String {
+        let fixed = snapshot.dailyFixed > 0 && snapshot.dailyBurn.isFinite
+        if snapshot.tracking.isMonthly || snapshot.burnBasis == .estimate { return snapshot.tracking.burnNote(now: snapshot.now) }
+        if snapshot.burnGapDays > 0 {
+            return String(localized: "\(snapshot.burnGapDays + FreedomMath.burnGraceDays) 天没记 · 日均先停住")
+        }
+        return fixed
+            ? String(localized: "日常 \(FinancialFormatting.wholeNumber(snapshot.dailyBurn)) · 固定 \(FinancialFormatting.wholeNumber(snapshot.dailyFixed))")
+            : String(localized: "元/天")
     }
 
     /// 本月到今天花的和上个月同一段（1 号到同一天）比。上个月这段没有记录时只写「本月已花」

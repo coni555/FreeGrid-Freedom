@@ -12,6 +12,9 @@ struct DashboardHero: View {
     var cardPrompt: (text: String, tier: FreedomCardTier)? = nil
     /// 打开自由卡：点提示，或者长按大数字（彩蛋，不写在界面上）
     var onOpenCard: () -> Void = {}
+    /// 点「改用按月记账」
+    /// 新手引导走完才给：引导第 3 步的气泡里已经有这一行
+    var onSwitchToMonthly: (() -> Void)?
     @State private var longPressed = 0
 
     /// 趋势图展开还是收起, 记住用户上次的选择。收起后只剩一行摘要, 数字和格子挨得更近。
@@ -64,6 +67,24 @@ struct DashboardHero: View {
                 }
                 .sensoryFeedback(.impact(weight: .light), trigger: longPressed)
                 .accessibilityAction(named: "打开自由卡") { onOpenCard() }
+
+            // 不想记账的人和断档的人：改用按月记账
+            if let line = switchLine, let onSwitchToMonthly {
+                Hairline().padding(.top, Spacing.xs)
+                Button(action: onSwitchToMonthly) {
+                    HStack(spacing: Spacing.xs) {
+                        Text(line)
+                            .font(.system(.caption, design: .rounded))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(Color.skyDeep)
+                    .frame(maxWidth: .infinity, minHeight: 28, alignment: heroLayout == "vertical" ? .center : .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("hero-switch-monthly")
+            }
 
             if let cardPrompt {
                 Button(action: onOpenCard) {
@@ -133,6 +154,41 @@ struct DashboardHero: View {
             : String(localized: "按目前的记账估算，被动收入已覆盖开销")
     }
 
+    /// 有限天数下面那行小字：能撑到哪天
+    private func finiteCaption(deplete: Date?) -> String? {
+        deplete.map { String(localized: "大约撑到 \(FreedomMath.depleteDateText($0))") }
+    }
+
+    /// 大数字卡里的蓝字。没记过账或记得太少：不想每天记账？断档的老用户：大数字照常，多这一行
+    private var switchLine: String? {
+        guard !snapshot.tracking.isMonthly, !needsSavings else { return nil }
+        switch snapshot.freedom {
+        case .insufficientData:
+            return String(localized: "不想每天记账？改用「按月记账」")
+        case .finite where snapshot.burnGapDays > 0:
+            return String(localized: "上次记账是 \(quietDays) 天前。改用「按月记账」？")
+        default:
+            return nil
+        }
+    }
+
+    private var quietDays: Int { snapshot.burnGapDays + FreedomMath.burnGraceDays }
+
+    /// 还算不出自由天数时的标题和小字
+    private var pendingTitle: LocalizedStringResource {
+        if needsSavings { return "先记下*你有多少钱*" }
+        if snapshot.tracking.isMonthly { return "写下花销后，这里显示*自由天数*" }
+        if snapshot.recordsTooFew { return "暂时*算不准*自由天数" }
+        return "再记*一笔支出*"
+    }
+
+    private var pendingNote: String? {
+        if snapshot.tracking.isMonthly { return needsSavings ? String(localized: "资产或现金都算") : nil }
+        if needsSavings { return String(localized: "资产或现金都算，记完再记一笔支出") }
+        if snapshot.recordsTooFew { return String(localized: "已有 \(snapshot.burnEntries.count) 笔支出，上次记录在 \(quietDays) 天前") }
+        return String(localized: "再记一笔支出，就能算出自由天数")
+    }
+
     /// Variant A: 副标 leading + 数字 trailing,baseline 底部对齐
     /// 副标 18pt 拆 2 行 (card 内副标可用宽 ~121pt, 22pt 7 字会强行 break)
     @ViewBuilder
@@ -147,17 +203,13 @@ struct DashboardHero: View {
                         .foregroundStyle(Color.mossGreen)
                         .padding(.top, 4)
                 case .insufficientData:
-                    if needsSavings {
-                        emphasized("先记下*你有多少钱*", size: 18)
-                    } else {
-                        emphasized("再记*一笔支出*", size: 18)
+                    emphasized(pendingTitle, size: 18)
+                    if let note = pendingNote {
+                        Text(note)
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(Color.inkFaint)
+                            .padding(.top, 4)
                     }
-                    Text(needsSavings
-                         ? "资产或现金都算，记完再记一笔支出"
-                         : "再记一笔支出，就能算出自由天数")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.inkFaint)
-                        .padding(.top, 4)
                 case .invalidData:
                     emphasized("检查*财务数据*", size: 18)
                     Text("有一笔金额不对，去明细找找特别大或负数的")
@@ -169,8 +221,8 @@ struct DashboardHero: View {
                     Text(heroSubUnit)
                         .font(.system(size: 18, weight: .light, design: .rounded))
                         .foregroundStyle(Color.ink)
-                    if let d = deplete {
-                        Text("大约撑到 \(FreedomMath.depleteDateText(d))")
+                    if let caption = finiteCaption(deplete: deplete) {
+                        Text(caption)
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(Color.inkFaint)
                             .padding(.top, 4)
@@ -211,17 +263,13 @@ struct DashboardHero: View {
                     .foregroundStyle(Color.mossGreen)
                     .padding(.top, 2)
             case .insufficientData:
-                if needsSavings {
-                    emphasized("先记下*你有多少钱*", size: 18)
-                } else {
-                    emphasized("再记*一笔支出*", size: 18)
+                emphasized(pendingTitle, size: 18)
+                if let note = pendingNote {
+                    Text(note)
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkFaint)
+                        .padding(.top, 2)
                 }
-                Text(needsSavings
-                     ? "资产或现金都算，记完再记一笔支出"
-                     : "再记一笔支出，就能算出自由天数")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.inkFaint)
-                    .padding(.top, 2)
             case .invalidData:
                 emphasized("检查*财务数据*", size: 18)
                 Text("有一笔金额不对，去明细找找特别大或负数的")
@@ -230,8 +278,8 @@ struct DashboardHero: View {
                     .padding(.top, 2)
             case .finite:
                 emphasized(heroSentence, size: 18)
-                if let d = deplete {
-                    Text("大约撑到 \(FreedomMath.depleteDateText(d))")
+                if let caption = finiteCaption(deplete: deplete) {
+                    Text(caption)
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.top, 2)

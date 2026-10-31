@@ -18,7 +18,7 @@ final class AppGuide {
         // History
         case month, row, tools
         // 首页
-        case number, grid, repaymentDays, simulate, trend
+        case number, grid, repaymentDays, simulate, trend, cards
         // Assets
         case netWorth, unitSwitch, transfer, buckets, passive, loans
         // Settings
@@ -39,11 +39,14 @@ final class AppGuide {
         case .dashboard:
             return [
                 Step(target: .number, text: String(localized: "按现在的花法，你的财富还能撑这么多天。\n下面写着大约能撑到哪一天。")),
+                // 顺序跟屏幕从上到下走：大数字、它下面的趋势行、格子、模拟、小卡
+                Step(target: .trend, text: String(localized: "点这一行，展开或收起最近几周的变化。")),
                 Step(target: .grid, text: String(localized: "一格是一天；天数多了，会换成一月或一年。\n金色来自资产，蓝色来自现金，钱花掉格子就少。")),
                 // 只有填了贷款、格子上有孔时才出现
                 Step(target: .repaymentDays, text: String(localized: "有孔的格子是还款日。\n最后面那个淡色的孔，是钱撑不到的下一次还款。")),
                 Step(target: .simulate, text: String(localized: "花钱之前先来这里试一下，\n看这一笔会熄灭几格。")),
-                Step(target: .trend, text: String(localized: "点这一行，展开或收起最近几周的变化。")),
+                // 记过一笔支出才有小卡
+                Step(target: .cards, text: String(localized: "下面的小卡放哪些、什么顺序由你定。\n按住一张拖动换位置，点「编辑卡片」增减。")),
             ]
         case .assets:
             return [
@@ -78,7 +81,7 @@ final class AppGuide {
                 Step(target: .month, text: String(localized: "点月份，跳到任意一个月。\n旁边的箭头可以前后翻月。")),
                 Step(target: .row, text: String(localized: "点一行，修改金额、分类、日期或备注。")),
                 Step(target: .row, text: String(localized: "向左滑一行，撤销这笔。"), showsSwipe: true),
-                Step(target: .tools, text: String(localized: "这里搜索全部记录，\n或者按分类筛选。")),
+                Step(target: .tools, text: String(localized: "这里搜索全部记录。\n想只看某一类，点卡片里「N 笔」那一行展开，再点那一类。")),
             ]
         }
     }
@@ -336,6 +339,8 @@ struct SetupGuideOverlay: View {
     let guide: AppGuide
     let onGoAssets: () -> Void
     let onGoDashboard: () -> Void
+    /// 第 3 步不想记账的人：改用按月记账，引导也就结束了
+    let onChooseMonthly: () -> Void
     let onSkip: () -> Void
 
     private var target: AppGuide.Target? {
@@ -429,6 +434,21 @@ struct SetupGuideOverlay: View {
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("setup-guide-text")
+                if step == .expense {
+                    Button(action: onChooseMonthly) {
+                        HStack(spacing: Spacing.xs) {
+                            Text("不想每天记账？改用「按月记账」")
+                                .font(.system(.caption, design: .rounded))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundStyle(Color.skyDeep)
+                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("setup-guide-monthly-spending")
+                }
                 HStack {
                     Text("\(step.number) / 3")
                         .font(.kicker)
@@ -470,7 +490,7 @@ struct SetupGuideOverlay: View {
     /// 说明放在目标下方；目标在屏幕下半部时放到上方；没有目标时放在屏幕中间
     private func bubbleCenter(hole: CGRect?, in size: CGSize) -> CGPoint {
         guard let hole else { return CGPoint(x: size.width / 2, y: size.height / 2) }
-        let half: CGFloat = 70
+        let half: CGFloat = step == .expense ? 92 : 70
         let below = hole.maxY + Spacing.lg + half
         let y = hole.midY < size.height / 2 ? below : hole.minY - Spacing.lg - half
         return CGPoint(x: size.width / 2, y: min(max(y, half + 60), size.height - half - 60))

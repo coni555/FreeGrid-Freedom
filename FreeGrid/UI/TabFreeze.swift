@@ -94,7 +94,9 @@ final class TabFreezeState {
 /// `freeze` 是页面自己的 `@State private var freeze = TabFreezeState()`。
 /// 读 @Query 的计算都要放在 `page` 的最外层算好再往下传：ScrollViewReader、GeometryReader 这类容器里的内容
 /// 会被单独重跑，在那里读 @Query 就冻不住了。
-/// 切回前台时，后台期间数据没变过就直接用冻住的那份，和以前切 Tab 不重算一样
+/// 切回前台时，后台期间数据没变过就直接用冻住的那份，和以前切 Tab 不重算一样。
+/// 这时 `page` 没跑，SwiftUI 不再通知它读过的偏好：只在最外层读、算完当普通值往下传、又会在这一页当场改的偏好，
+/// 要在页面 body 里也读一下（如首页的记账方式），改了才会重画
 struct TabFreeze<Content: View>: View, Equatable {
     let activity: TabActivity
     let clock: TabDataClock

@@ -18,6 +18,8 @@ struct DashboardView: View {
     @Query private var loans: [Loan]
     /// 在 Assets 或设置里改了口径，首页跟着重算
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
+    /// 记账方式和每月写下的数：改了要马上重算
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     /// 目标长条：在自检或首页改了目标，这里跟着重算
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
 
@@ -29,6 +31,9 @@ struct DashboardView: View {
 
     /// 在后台时冻住，切回来、或记完账空闲时再按最新的账重画（见 TabFreeze）
     var body: some View {
+        // 切回来沿用冻住的内容时 `page` 没跑，读不到偏好，SwiftUI 就不再通知它们的变化；
+        // 这两样会在首页当场改（胶囊写数、改目标），在这里读一下，改了才重画
+        let _ = (storedTracking, storedGoals)
         TabFreeze(activity: tabActivity, clock: tabDataClock, state: freeze) { page }.equatable()
     }
 
@@ -36,15 +41,18 @@ struct DashboardView: View {
         let loansInEffect = ProFeatures.loansInEffect(loans)
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources, assets: assetsArr.first,
                                          assetItems: assetItems, cashAccounts: cashAccounts, loans: loansInEffect,
-                                         countsAssets: countsAssets)
+                                         countsAssets: countsAssets, tracking: MonthlyTracking.decode(storedTracking))
         let history = FreedomMath.freedomDaysHistory(
             expenses: expenses,
             incomes: incomes,
             currentNetWorth: snapshot.freedomBase,
-            firstRecordDate: snapshot.firstExpenseDate,
+            // 按月记账没有趋势；记录太少时大数字都不给，也不画趋势
+            firstRecordDate: snapshot.tracking.isMonthly || snapshot.recordsTooFew ? nil : snapshot.firstExpenseDate,
             dailyPassive: snapshot.dailyPassive,
             loans: loansInEffect,
             uncountedAccounts: Set(cashAccounts.filter { !$0.countsInFreedom }.map(\.id)),
+            tracking: snapshot.tracking,
+            fixedMonthly: snapshot.fixedMonthly,
             now: snapshot.now
         )
         // 本月、上月同期、今天（和日均比的是日常开销，自动扣的房租、月供不算）、下次固定支出：扫一遍账本一起算
@@ -64,6 +72,7 @@ struct DashboardView: View {
 
 extension DashboardContent {
     fileprivate static let topID = "dashboard-top"
+    fileprivate static let cardsID = "dashboard-cards"
 }
 
 /// 一次「打开记支出表单」的请求
@@ -104,6 +113,10 @@ private struct DashboardContent: View {
     /// 点目标长条打开那个目标的面板，和自检里「我的目标」是同一份
     @State private var editingGoal: FreedomGoal?
     @AppStorage(FreedomGoalStore.key, store: AppPreferences.store) private var storedGoals = ""
+    /// 按月记账：点首页的胶囊，写这个月（或者刚过完的那个月）
+    @State private var editingMonth: YearMonth?
+    /// 点大数字卡里的「改用按月记账」
+    @State private var showingTrackingSwitch = false
     /// 模拟里点了「记为支出」时先记下金额, 等模拟表单收完再打开记支出
     @State private var amountFromSimulation: String?
 
@@ -149,6 +162,11 @@ private struct DashboardContent: View {
                 guard !Task.isCancelled, expenseDraft == nil, !showingAddIncome, !showingSimulate else { return }
                 withAnimation(.easeInOut(duration: 0.25)) { guide.start(.dashboard) }
             }
+            // 讲到小卡时滚下去，往回翻再滚回顶上
+            .guideScroll(guide, tour: .dashboard, scroller: scroller, anchors: [
+                .number: (Self.topID, .top), .grid: (Self.topID, .top), .repaymentDays: (Self.topID, .top),
+                .simulate: (Self.topID, .top), .trend: (Self.topID, .top), .cards: (Self.cardsID, .center),
+            ])
             }
             .scrollContentBackground(.hidden)
             // 隐藏导航栏后, 贴着安全区顶边的滚动视图会把内容画到状态栏底下;
@@ -168,8 +186,11 @@ private struct DashboardContent: View {
                 })
             }
             .sheet(isPresented: $showingFreedomCard) { FreedomCardSheet() }
+            .sheet(item: $editingMonth) { MonthlySpendingSheet(month: $0) }
+            .sheet(isPresented: $showingTrackingSwitch) { TrackingSwitchSheet() }
             .sheet(isPresented: $showingStatEditor) {
-                HomeStatEditor(slots: statSlots, inputs: statInputs, onChange: setStatSlots,
+                HomeStatEditor(slots: statSlots, inputs: statInputs, hidesRecordCards: snapshot.tracking.isMonthly,
+                               onChange: { setStatSlots($0 + hiddenStatSlots) },
                                onReset: { storedStatSlots = "" })
             }
             .sheet(item: $editingGoal) { goal in
@@ -191,7 +212,8 @@ private struct DashboardContent: View {
                     expenseDraft = ExpenseDraft(amount: amount)
                 }
             }) {
-                SimulateSheet(onRecordExpense: { amountFromSimulation = $0 })
+                // 按月记账不记单笔，模拟完不问要不要记
+                SimulateSheet(onRecordExpense: snapshot.tracking.isMonthly ? nil : { amountFromSimulation = $0 })
             }
             .background {
                 ReviewInvitationPresenter(
@@ -211,12 +233,23 @@ private struct DashboardContent: View {
                         .id(Self.topID)
                     DashboardHero(history: history, snapshot: snapshot,
                                   isDarkMode: showsDark, heroLayout: heroLayout, needsSavings: needsSavings,
-                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true })
+                                  cardPrompt: cardPrompt, onOpenCard: { showingFreedomCard = true },
+                                  onSwitchToMonthly: setupFinished ? { showingTrackingSwitch = true } : nil)
                     gridSection      // 按天、月或年显示自由网格
                         .guideTarget(.grid, in: guide)
-                    actionRow        // 支出 + 收入
+                    if snapshot.tracking.isMonthly {
+                        let prompt = snapshot.tracking.prompt(now: snapshot.now)
+                        MonthlySpendingPill(prompt: prompt) { editingMonth = prompt.month }
+                    } else {
+                        actionRow    // 支出 + 收入
+                    }
                     simulateRow      // 模拟决策
-                    bottomCards      // 小卡和今日对比长条，放哪些、什么顺序由用户定
+                    if snapshot.hasExpenses {
+                        // 包一层，讲解圈的是小卡加下面「编辑卡片」那一行
+                        VStack(spacing: Spacing.lg) { bottomCards }   // 小卡和今日对比长条，放哪些、什么顺序由用户定
+                            .guideTarget(.cards, in: guide)
+                            .id(Self.cardsID)
+                    }
     }
 
     // ============================================================================
@@ -371,8 +404,9 @@ private struct DashboardContent: View {
                               slots: statSlots, inputs: statInputs,
                               todayBar: AnyView(todaySection),
                               onGoal: { editingGoal = $0 },
+                              onMonth: { NotificationCenter.default.post(name: .showThisMonthInHistory, object: nil) },
                               onEdit: { showingStatEditor = true },
-                              onReorder: { storedStatSlots = HomeStat.encode($0) })
+                              onReorder: { storedStatSlots = HomeStat.encode($0 + hiddenStatSlots) })
                 HStack(alignment: .center) {
                     if hiddenCount > 0 {
                         Button {
@@ -421,7 +455,18 @@ private struct DashboardContent: View {
 
     /// 存着的顺序里，删掉了的目标、没有 Pro 时的目标卡不算
     private var statSlots: [HomeStat] {
-        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0).filter {
+        allStatSlots.filter { !snapshot.tracking.isMonthly || !$0.needsRecords }
+    }
+
+    /// 按月记账时收起来的那几张，还留在顺序里，切回逐笔记账时还在
+    private var hiddenStatSlots: [HomeStat] {
+        snapshot.tracking.isMonthly
+            ? HomeStat.hiddenWhenMonthly(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0) : []
+    }
+
+    private var allStatSlots: [HomeStat] {
+        HomeStat.slots(stored: storedStatSlots, hasPassive: snapshot.dailyPassive > 0,
+                       monthly: snapshot.tracking.isMonthly).filter {
             if case .goal = $0 { return statInputs.goal(for: $0) != nil }
             return true
         }

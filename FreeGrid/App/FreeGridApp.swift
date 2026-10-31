@@ -32,6 +32,7 @@ struct FreeGridApp: App {
     @State private var storeBootstrap = StoreBootstrap()
     /// 设置里换了语言就变：整棵视图按新语言重建
     @AppStorage(AppLanguage.storageKey) private var language = ""
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @Environment(\.scenePhase) private var scenePhase
 
     #if os(macOS)
@@ -77,12 +78,13 @@ struct FreeGridApp: App {
         .defaultSize(width: 1120, height: 740)
         .commands {
             CommandMenu("记账") {
+                // 按月记账不记单笔
                 Button("记一笔支出") { menuActions.addExpense = true }
                     .keyboardShortcut("n", modifiers: .command)
-                    .disabled(!storeBootstrap.isReady)
+                    .disabled(!storeBootstrap.isReady || MonthlyTracking.decode(storedTracking).isMonthly)
                 Button("记一笔收入") { menuActions.addIncome = true }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                    .disabled(!storeBootstrap.isReady)
+                    .disabled(!storeBootstrap.isReady || MonthlyTracking.decode(storedTracking).isMonthly)
             }
         }
         #endif

@@ -105,10 +105,11 @@ enum FreedomChecklist {
         func recordItem(_ id: Int, _ target: Int) -> FreedomCheckItem {
             FreedomCheckItem(
                 id: id, group: .record, title: String(localized: "记账满 \(target) 天"), shortTitle: String(localized: "记账满 \(target) 天"),
-                done: snapshot.hasExpenses && days >= target,
-                progress: snapshot.hasExpenses ? min(1, Double(days) / Double(target)) : 0,
-                detail: String(localized: "当前 \(String(snapshot.hasExpenses ? days : 0)) / \(target) 天"),
-                hint: snapshot.hasExpenses ? String(localized: "继续记下每天的花销")
+                done: snapshot.hasRecords && days >= target,
+                progress: snapshot.hasRecords ? min(1, Double(days) / Double(target)) : 0,
+                detail: String(localized: "当前 \(String(snapshot.hasRecords ? days : 0)) / \(target) 天"),
+                hint: snapshot.tracking.isMonthly ? String(localized: "用「按月记账」时暂停更新")
+                    : snapshot.hasRecords ? String(localized: "继续记下每天的花销")
                                            : String(localized: "记下第一笔支出，从那天开始算"),
                 achievedNote: target == FreedomMath.lumpSpreadDays ? String(localized: "日均不再按大额摊开估算") : nil)
         }

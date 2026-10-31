@@ -38,6 +38,7 @@ enum AppPreferences {
         HomeStat.slotsKey,
         FreedomGoalStore.key,
         MonthlySaving.incomeKey,
+        MonthlyTracking.key,
     ]
 
     private static func seed(_ defaults: UserDefaults, from arguments: [String]) {

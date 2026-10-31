@@ -81,6 +81,8 @@ enum DataIO {
         var loansNew: [ValidatedImport.LoanRecord] = []
         /// 备份里的 Pro 分类设置；nil 表示没有。导入成功后由页面并进本机偏好（见 `ExpenseCategoryOptions.merging`）
         var categoryOptions: ExpenseCategoryOptions? = nil
+        /// 备份里的记账方式和每月写下的数；导入成功后由页面写进本机偏好
+        var monthlyTracking: MonthlyTracking? = nil
         let importedAssets: AssetSnapshot
         let jsonFirstRecordDate: Date?
         let currentCash: Double
@@ -149,7 +151,9 @@ enum DataIO {
     }
 
     /// `categoryOptions` 是本机的分类设置；用户没自定义过时传 nil，备份里就不写这一段。
-    static func exportJSON(context: ModelContext, categoryOptions: ExpenseCategoryOptions? = nil) throws -> Data {
+    /// `monthlyTracking` 是记账方式和每月写下的数，没用过按月记账时传 nil。
+    static func exportJSON(context: ModelContext, categoryOptions: ExpenseCategoryOptions? = nil,
+                           monthlyTracking: MonthlyTracking? = nil) throws -> Data {
         let day = dayFormatter()
         let iso = ISO8601DateFormatter()
         let expenses = try context.fetch(FetchDescriptor<Expense>(
@@ -276,7 +280,8 @@ enum DataIO {
                     updatedAt: iso.string(from: $0.updatedAt),
                     countsInFreedom: $0.countsInFreedom ? nil : false
                 )
-            }
+            },
+            monthlyTracking: monthlyTracking.map(MonthlyTrackingJSON.init)
         )
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -646,6 +651,7 @@ enum DataIO {
                     ExpenseCategoryOptions.Item(name: $0.name, isDeleted: $0.isDeleted, icon: $0.icon)
                 })
             },
+            monthlyTracking: validated.monthlyTracking,
             importedAssets: importedAssets,
             jsonFirstRecordDate: validated.firstRecordDate,
             currentCash: existingAssets?.cash ?? 0,

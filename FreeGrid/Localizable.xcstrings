@@ -209,6 +209,16 @@
         }
       }
     },
+    "%@ 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ days"
+          }
+        }
+      }
+    },
     "%@ 年": {
       "localizations": {
         "en": {
@@ -235,6 +245,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@/mo"
+          }
+        }
+      }
+    },
+    "%@一共花了多少钱？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much did you spend in %@?"
+          }
+        }
+      }
+    },
+    "%@你花了多少": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much did you spend in %@?"
           }
         }
       }
@@ -349,6 +379,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ isn't counted in Freedom Days right now. After merging, all cash counts."
+          }
+        }
+      }
+    },
+    "%@花了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ spending"
           }
         }
       }
@@ -659,6 +699,16 @@
         }
       }
     },
+    "%lld 天没记 · 日均先停住": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-day gap · on hold"
+          }
+        }
+      }
+    },
     "%lld 年": {
       "localizations": {
         "en": {
@@ -791,6 +841,44 @@
           "stringUnit": {
             "state": "new",
             "value": "%1$lld 笔 · ¥%2$@"
+          }
+        }
+      }
+    },
+    "%lld 笔已移到「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved %#@count@ to “%2$@”"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld 笔已移到「%2$@」"
           }
         }
       }
@@ -969,6 +1057,16 @@
         }
       }
     },
+    "**不想天天记账，可以选「按月记账」**。每个月写下这个月一共花了多少，房租、吃饭、购物、订阅全部算上。建议月底去记；想先看自由天数，可以先写个大概。日均只按写下的数算，写了几个月就取平均，写错了去明细改。已经记过账的人切换后也是重新开始：原有的记录暂时隐藏，不计入日均，不会被删除。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Prefer not to log daily? Choose Monthly Total.** Each month, enter what you spent in total, counting rent, food, shopping and subscriptions. The end of the month is the best time; enter a rough number earlier if you want to see your Freedom Days now. Your daily average uses only these numbers, averaged across the months you've entered; fix a wrong one in History. If you've logged before, switching is a fresh start too: your existing entries are hidden for now, don't count toward it, and aren't deleted."
+          }
+        }
+      }
+    },
     "**今日对比长条**：今天的日常支出和日常日均比，房租这类固定支出不算在内。它和小卡一样能拖、能移除，只是总占一整行。": {
       "localizations": {
         "en": {
@@ -1069,6 +1167,16 @@
         }
       }
     },
+    "**填这个数不扣现金**，填的时候核对一下现金还对不对。已设的固定支出仍会到期扣现金。App 不会提醒你记。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Entering this number doesn't deduct from your cash**, so check your cash is still right while you're there. Fixed expenses you've set up are still taken from cash when due. The app won't remind you to enter it."
+          }
+        }
+      }
+    },
     "**外观**：主题（浅色、深色、跟随系统）、首页大数字的位置、钱包页的样式。": {
       "localizations": {
         "en": {
@@ -1095,6 +1203,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "**Export JSON**: a complete backup you can import back into FreeGrid."
+          }
+        }
+      }
+    },
+    "**想切回逐笔记账**，去「设置 → 账本 → 记账方式」，记过账的回到切换前的状态：记录恢复显示，日均按它们算，按月写的数不计入。只写过数、没记过账的，日均会在 30 天里慢慢改按记账算。逐笔记账时，最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊；记账没跨满 30 天就断档的，首页先不给大数字。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**To go back to individual entries**, go to Settings → Ledger → Tracking Method. If you've logged before, you return to where you were: your entries reappear, your daily average uses them, and your monthly numbers don't count. If you've only entered monthly numbers, your daily average shifts to your logged expenses over 30 days. With individual entries, if more than 14 days pass after your last entry, the extra days stop pulling the average down; if you stop before your entries span 30 days, Home holds off on the big number."
           }
         }
       }
@@ -1169,32 +1287,32 @@
         }
       }
     },
-    "**本月花销**：本月 1 号到今天花了多少，和上个月同一段比。自动扣的房租、月供也算在内。": {
+    "**本月花销**：本月 1 号到今天花了多少，和上个月同一段比。自动扣的房租、月供也算在内。点它去明细，看这个月钱花在哪。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Month**: what you've spent from the 1st to today, compared with the same days last month. Automatic rent and loan payments are included."
+            "value": "**Month**: what you've spent from the 1st to today, compared with the same days last month. Automatic rent and loan payments are included. Tap it to open History and see where this month's money went."
           }
         }
       }
     },
-    "**查找**：右上角搜索金额或备注，旁边的按钮按分类筛选。": {
+    "**查找**：右上角搜索金额或备注。先在卡片里展开、点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Find**: search amounts or notes at the top right; the button next to it filters by category."
+            "value": "**Find**: search amounts or notes at the top right. Expand the card and tap a category first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
           }
         }
       }
     },
-    "**浏览**：按月看，按天分组。点月份打开月度汇总，可以跳到任意一个月；旁边的箭头前后翻月。": {
+    "**浏览**：按月看，按天分组。点月份打开月度汇总：每个月的收入、支出、净，点开一个月看支出构成，柱状图和扇形图可以切换；从这里可以跳到任意一个月；旁边的箭头前后翻月。首页点「本月花销」也会来到这个月。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary and jump to any month; the arrows go back and forward."
+            "value": "**Browse**: by month, grouped by day. Tap the month for the monthly summary: income, spending and net for every month; open a month to see its spending by category as a bar or pie chart, and jump to any month from there; the arrows go back and forward. Tapping the Month card on the Dashboard also brings you here."
           }
         }
       }
@@ -1339,12 +1457,12 @@
         }
       }
     },
-    "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序、合并。": {
+    "**账本**：支出分类、备份与恢复。免费版是默认九类；**Pro** 可以添加分类、配图标、改名、排序；点一个分类 →「全部 N 笔移到…」，把它的账并进另一个分类。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Ledger**: expense categories, backup and restore. The free version has the nine defaults; **Pro** lets you add, give icons to, rename, reorder and merge categories."
+            "value": "**Ledger**: expense categories, backup and restore. The free version has the nine defaults; **Pro** lets you add, give icons to, rename and reorder categories. Tap a category → “Move All N Entries To…” to merge its entries into another one."
           }
         }
       }
@@ -1389,6 +1507,16 @@
         }
       }
     },
+    "**钱花在哪**：点月份卡片里「N 笔」那一行（右边有个小箭头），按金额从多到少列出各类支出，后面写着相当于平时几天的开销；再点这一行收起。自动扣的房租、月供合成「固定支出」一行，收入单列在最后。点一类，下面只留这一类的记录；再点一下，或点「看全部」，回到全部。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Where it went**: tap the “N entries” row on the month card (it has a small arrow on the right) to list your spending by category, largest first, with how many days of your usual spending each one equals; tap the row again to collapse it. Automatic rent and loan payments share one Fixed Expenses row, and income comes last. Tap a category to see only its entries; tap it again, or tap “Show all”, to go back."
+          }
+        }
+      }
+    },
     "/%lld": {},
     "/月": {
       "localizations": {
@@ -1429,6 +1557,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "30 days"
+          }
+        }
+      }
+    },
+    "< 0.1 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "< 0.1 days"
           }
         }
       }
@@ -1722,6 +1860,16 @@
       }
     },
     "¥": {},
+    "¥%@ / 月": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥%@ / mo"
+          }
+        }
+      }
+    },
     "¥%@/天": {
       "localizations": {
         "en": {
@@ -1766,6 +1914,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "∞ Card"
+          }
+        }
+      }
+    },
+    "≈ %@ 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %@ days"
+          }
+        }
+      }
+    },
+    "≈ 1 天": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ 1 day"
           }
         }
       }
@@ -2018,16 +2186,6 @@
         }
       }
     },
-    "三条规则": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Three rules"
-          }
-        }
-      }
-    },
     "上一步": {
       "localizations": {
         "en": {
@@ -2054,6 +2212,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Updated · %@"
+          }
+        }
+      }
+    },
+    "上次记账是 %lld 天前。改用「按月记账」？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your last entry was %#@days@ ago. Switch to Monthly Total?"
+          },
+          "substitutions": {
+            "days": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -2154,6 +2344,16 @@
         }
       }
     },
+    "下面的小卡放哪些、什么顺序由你定。\n按住一张拖动换位置，点「编辑卡片」增减。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You choose which cards sit down here and in what order.\nPress and hold a card to drag it; tap “Edit Cards” to add or remove."
+          }
+        }
+      }
+    },
     "不会。账本只存在本机，没有账号、没有埋点。只有购买和恢复 Pro 时经过 Apple。": {
       "localizations": {
         "en": {
@@ -2200,6 +2400,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leave blank to use your last 90 days of income: about ¥%@ a month"
+          }
+        }
+      }
+    },
+    "不想每天记账？改用「按月记账」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefer not to log daily? Switch to Monthly Total"
+          }
+        }
+      }
+    },
+    "不想每天记账？记下这个月花了多少": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not logging daily? Enter this month's total"
           }
         }
       }
@@ -2360,6 +2580,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Theme"
+          }
+        }
+      }
+    },
+    "之后记的每笔支出都会从现金扣。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each expense you log from now on will be deducted from your cash."
           }
         }
       }
@@ -2744,6 +2974,16 @@
         }
       }
     },
+    "会新建「%@」这个分类。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This creates a new category, “%@”."
+          }
+        }
+      }
+    },
     "体验中 · 还剩 %lld 天": {
       "localizations": {
         "en": {
@@ -2854,6 +3094,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Balance"
+          }
+        }
+      }
+    },
+    "你可以随时切回「逐笔记账」，回到之前的记账数据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can switch back to Individual Entries anytime and return to your earlier ledger data."
           }
         }
       }
@@ -3224,6 +3474,16 @@
         }
       }
     },
+    "全不选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deselect All"
+          }
+        }
+      }
+    },
     "全是现金": {
       "localizations": {
         "en": {
@@ -3244,12 +3504,44 @@
         }
       }
     },
+    "全选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select All"
+          }
+        }
+      }
+    },
     "全部": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "All"
+          }
+        }
+      }
+    },
+    "全部 %lld 笔移到…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld Entry To…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move All %lld Entries To…"
+                }
+              }
+            }
           }
         }
       }
@@ -3354,6 +3646,16 @@
         }
       }
     },
+    "再点一下看全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap again to show all"
+          }
+        }
+      }
+    },
     "再记*一笔支出*": {
       "localizations": {
         "en": {
@@ -3402,6 +3704,56 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "写下*每月花销*": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your *monthly spending*"
+          }
+        }
+      }
+    },
+    "写下每月花销就能换算": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your monthly spending to convert"
+          }
+        }
+      }
+    },
+    "写下第一个数之前，首页不显示自由天数。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home won't show Freedom Days until you enter your first number."
+          }
+        }
+      }
+    },
+    "写下花销后可看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available after you add your spending"
+          }
+        }
+      }
+    },
+    "写下花销后，这里显示*自由天数*": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your spending to see your *Freedom Days* here"
           }
         }
       }
@@ -3656,6 +4008,36 @@
         }
       }
     },
+    "切回逐笔记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch Back to Individual Entries"
+          }
+        }
+      }
+    },
+    "切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch"
+          }
+        }
+      }
+    },
+    "切换后，你将开始全新的按月记账：日均只看之后写的数，现金和资产不变。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll start fresh with Monthly Total: your daily average uses only the numbers you enter from now on. Your cash and assets stay the same."
+          }
+        }
+      }
+    },
     "切换浅色模式": {
       "localizations": {
         "en": {
@@ -3738,12 +4120,12 @@
         }
       }
     },
-    "删除全部支出、收入、被动收入和资产，不能撤销。先导出一份 JSON 再清空。": {
+    "删除全部支出、收入、被动收入、资产和每月花销，不能撤销。先导出一份 JSON 再清空。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deletes all expenses, income, passive income and assets. It can't be undone. Export a JSON first."
+            "value": "Deletes all expenses, income, passive income, assets and monthly spending. It can't be undone. Export a JSON first."
           }
         }
       }
@@ -4048,12 +4430,54 @@
         }
       }
     },
+    "原有的 %lld 笔记录将暂时隐藏，不计入日均。**所有历史数据都会完整保留，不会被删除。**": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your %#@count@ will be hidden for now and won't count toward your daily average. **All your history is kept and won't be deleted.**"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "去记下": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Enter It"
+          }
+        }
+      }
+    },
+    "去钱包改": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit in Wallet"
           }
         }
       }
@@ -4134,6 +4558,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "It has assets or cash but not both"
+          }
+        }
+      }
+    },
+    "只看「%@」 · %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only “%1$@” · %#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "只看「%1$@」 · %2$lld 笔"
+          }
+        }
+      }
+    },
+    "只看这一类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show only this"
           }
         }
       }
@@ -4474,12 +4946,42 @@
         }
       }
     },
+    "咖啡、宠物、房租…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coffee, pets, rent…"
+          }
+        }
+      }
+    },
     "哪些钱计入自由天数": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Which money counts"
+          }
+        }
+      }
+    },
+    "四条规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Four rules"
+          }
+        }
+      }
+    },
+    "回到之前的逐笔记账方式和记账数据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This returns you to individual entries and your earlier ledger data."
           }
         }
       }
@@ -4778,6 +5280,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add your monthly income to see what you'll have by then"
+          }
+        }
+      }
+    },
+    "填这个数不扣现金。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entering this doesn't deduct from your cash."
           }
         }
       }
@@ -5330,6 +5842,16 @@
         }
       }
     },
+    "展开各类支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show spending by category"
+          }
+        }
+      }
+    },
     "展开折线": {
       "localizations": {
         "en": {
@@ -5400,6 +5922,16 @@
         }
       }
     },
+    "已删除，还有旧账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted, Still Has Entries"
+          }
+        }
+      }
+    },
     "已取消导入": {
       "localizations": {
         "en": {
@@ -5426,6 +5958,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "Collapsed"
+          }
+        }
+      }
+    },
+    "已有 %lld 笔支出，上次记录在 %lld 天前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@ logged. Last entry: %#@days@ ago."
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg expense"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg expenses"
+                    }
+                  }
+                }
+              }
+            },
+            "days": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg day"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg days"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -5554,6 +6138,16 @@
         }
       }
     },
+    "已设的固定支出仍会到期扣现金。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed expenses you've set up will still be taken from cash when due."
+          }
+        }
+      }
+    },
     "已调整完成，可以正常使用免费版。": {
       "localizations": {
         "en": {
@@ -5634,12 +6228,32 @@
         }
       }
     },
-    "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点任意一张卡，或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
+    "底部的卡片放哪些、什么顺序由你定。在首页上按住一张卡，浮起来后拖到想放的位置。点一张卡（「本月花销」除外），或点下面的「编辑卡片」，打开编辑面板：上面是首页上的卡，点左边的减号移除，按住右边的把手也能拖动换顺序；移除的卡回到下面「还可以添加」，点加号加回来，也可以「全部添加」；改乱了点「恢复默认」。卡片多于一行时，下面左边有「收起 / 展开其余 N 张」，收起后只留第一行，把最想看的拖到第一行就行。可选的小卡有：": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You choose which cards sit at the bottom and in what order. On the Dashboard, press and hold a card until it lifts, then drag it where you want it. Tap any card, or “Edit Cards” below them, to open the editor: the cards on your Dashboard are at the top; tap the minus on the left to remove one, or drag the handle on the right to reorder. Removed cards move down to “More Cards”; tap the plus to add one back, or tap “Add All”. If things get messy, tap “Reset to Default”. When the cards take more than one row, “Show less / Show N more” appears at the bottom left; collapsed, only the first row stays, so drag your favorites there. The cards you can choose from:"
+            "value": "You choose which cards sit at the bottom and in what order. On the Dashboard, press and hold a card until it lifts, then drag it where you want it. Tap a card (except Month), or “Edit Cards” below them, to open the editor: the cards on your Dashboard are at the top; tap the minus on the left to remove one, or drag the handle on the right to reorder. Removed cards move down to “More Cards”; tap the plus to add one back, or tap “Add All”. If things get messy, tap “Reset to Default”. When the cards take more than one row, “Show less / Show N more” appears at the bottom left; collapsed, only the first row stays, so drag your favorites there. The cards you can choose from:"
+          }
+        }
+      }
+    },
+    "建议月底去记": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best entered at month's end"
+          }
+        }
+      }
+    },
+    "建议月底去记。想先看自由天数，可以先写个大概。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best entered at month's end. Want to see your Freedom Days now? Start with a rough number."
           }
         }
       }
@@ -5862,6 +6476,16 @@
         }
       }
     },
+    "想逐笔记，去 设置 → 账本 → 记账方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To log individual entries, go to Settings → Ledger → Tracking Method"
+          }
+        }
+      }
+    },
     "感谢你对 FreeGrid 的支持。\n愿你始终拥有选择的底气。": {
       "localizations": {
         "en": {
@@ -6048,6 +6672,16 @@
         }
       }
     },
+    "扇形图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pie chart"
+          }
+        }
+      }
+    },
     "手动跳过": {
       "localizations": {
         "en": {
@@ -6192,6 +6826,28 @@
         }
       }
     },
+    "把其中 %lld 笔支出移到其他分类…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld expense to another category…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move %lld expenses to another category…"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "把各账户合并为一个现金总额，余额不变。收支直接计入现金。": {
       "localizations": {
         "en": {
@@ -6208,6 +6864,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Merge the items into one asset total. The amount stays the same."
+          }
+        }
+      }
+    },
+    "把这 %lld 笔移到其他分类…": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move this entry to another category…"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Move these %lld entries to another category…"
+                }
+              }
+            }
           }
         }
       }
@@ -6308,6 +6986,48 @@
         }
       }
     },
+    "按 %@ 估算": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on %@"
+          }
+        }
+      }
+    },
+    "按 %lld 个月平均": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average of %#@months@"
+          },
+          "substitutions": {
+            "months": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg month"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg months"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "按 %lld 天记账估算，被动收入已覆盖开销": {
       "localizations": {
         "en": {
@@ -6360,6 +7080,16 @@
         }
       }
     },
+    "按住拖动换位置，点一下看这个月的明细": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press and hold to move. Tap to see this month's entries."
+          }
+        }
+      }
+    },
     "按住拖动换位置，点一下编辑卡片": {
       "localizations": {
         "en": {
@@ -6370,22 +7100,32 @@
         }
       }
     },
-    "按分类筛选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filter by category"
-          }
-        }
-      }
-    },
     "按扣款顺序": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "By payment order"
+          }
+        }
+      }
+    },
+    "按月记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly Total"
+          }
+        }
+      }
+    },
+    "按月记账不用记明细": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No individual entries needed with Monthly Total"
           }
         }
       }
@@ -6708,6 +7448,16 @@
         }
       }
     },
+    "支出构成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending by category"
+          }
+        }
+      }
+    },
     "支出账户": {
       "localizations": {
         "en": {
@@ -6854,22 +7604,22 @@
         }
       }
     },
+    "收起各类支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide spending by category"
+          }
+        }
+      }
+    },
     "收起折线": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Hide trend"
-          }
-        }
-      }
-    },
-    "收起筛选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide filters"
           }
         }
       }
@@ -6908,6 +7658,16 @@
           "stringUnit": {
             "state": "new",
             "value": "改名后，这个分类下的 %1$lld 笔记录一起改成「%2$@」。"
+          }
+        }
+      }
+    },
+    "放回列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put Back in List"
           }
         }
       }
@@ -7032,6 +7792,26 @@
         }
       }
     },
+    "新建分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Category"
+          }
+        }
+      }
+    },
+    "新建分类…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Category…"
+          }
+        }
+      }
+    },
     "新目标": {
       "localizations": {
         "en": {
@@ -7088,6 +7868,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "Big one-offs no longer spread out"
+          }
+        }
+      }
+    },
+    "日均会在 30 天里慢慢改按记账算。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Over 30 days, your daily average will gradually shift to your logged expenses."
+          }
+        }
+      }
+    },
+    "日均按这 %lld 个月平均。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your daily average uses these %#@months@."
+          },
+          "substitutions": {
+            "months": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg month"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg months"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -7288,6 +8110,26 @@
         }
       }
     },
+    "暂不切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not Now"
+          }
+        }
+      }
+    },
+    "暂时*算不准*自由天数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "*Can't estimate* your Freedom Days yet"
+          }
+        }
+      }
+    },
     "暂时读不到价格，可能是网络不通。已经买过的话，点「恢复购买」。": {
       "localizations": {
         "en": {
@@ -7344,6 +8186,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "months"
+          }
+        }
+      }
+    },
+    "月底再记": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
           }
         }
       }
@@ -7536,6 +8388,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "View This Month"
+          }
+        }
+      }
+    },
+    "柱状图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bar chart"
           }
         }
       }
@@ -7888,6 +8750,26 @@
         }
       }
     },
+    "每月花销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly Spending"
+          }
+        }
+      }
+    },
+    "每月花销都是固定支出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly spending is all fixed costs"
+          }
+        }
+      }
+    },
     "每月还多少": {
       "localizations": {
         "en": {
@@ -8150,12 +9032,12 @@
         }
       }
     },
-    "没有匹配的记录\n想按分类看，用右上角的筛选": {
+    "没有匹配的记录\n想按分类看，点月份卡片里的分类": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No matching entries\nTo browse by category, use the filter at the top right"
+            "value": "No matching entries\nTo browse by category, tap one in the month card"
           }
         }
       }
@@ -8672,6 +9554,16 @@
         }
       }
     },
+    "现在的日均": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current daily average"
+          }
+        }
+      }
+    },
     "现在的自由": {
       "localizations": {
         "en": {
@@ -8822,6 +9714,16 @@
         }
       }
     },
+    "用「按月记账」时暂停更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused while using Monthly Total"
+          }
+        }
+      }
+    },
     "用你的方式记支出": {
       "localizations": {
         "en": {
@@ -8912,6 +9814,16 @@
         }
       }
     },
+    "看全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all"
+          }
+        }
+      }
+    },
     "看板 · 目标": {
       "localizations": {
         "en": {
@@ -8972,12 +9884,32 @@
         }
       }
     },
+    "确定切换为「按月记账」？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Monthly Total?"
+          }
+        }
+      }
+    },
     "确认": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Confirm"
+          }
+        }
+      }
+    },
+    "确认切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch"
           }
         }
       }
@@ -9028,6 +9960,84 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add income that doesn't need work, like rent you receive or interest, here.\nWhen it covers your spending, the Dashboard shows ∞."
+          }
+        }
+      }
+    },
+    "移到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move To"
+          }
+        }
+      }
+    },
+    "移到其他分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Another Category"
+          }
+        }
+      }
+    },
+    "移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move"
+          }
+        }
+      }
+    },
+    "移完删掉「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@” afterwards"
+          }
+        }
+      }
+    },
+    "移走「%@」的 %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move %#@count@ from “%1$@”"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entry"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg entries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "移走「%1$@」的 %2$lld 笔"
           }
         }
       }
@@ -9788,12 +10798,22 @@
         }
       }
     },
-    "要两样都有：钱包里填了钱，并且记过至少一笔支出。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
+    "要两样都有：钱包里填了钱，并且记过至少一笔支出（或者写下了每月花销）。记了几笔就超过 14 天没记、记账又没跨满 30 天时，会先显示「暂时算不准自由天数」。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It needs both: money entered in Assets and at least one expense. If it says an amount looks wrong, look in History for an unusually large or negative entry."
+            "value": "It needs both: money entered in Wallet and at least one expense (or your monthly spending). If you log a few entries and then stop for over 14 days before they span 30 days, it shows “Can't estimate your Freedom Days yet” first. If it says an amount looks wrong, look in History for an unusually large or negative entry."
+          }
+        }
+      }
+    },
+    "要填大于 0 的数字": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a number above 0"
           }
         }
       }
@@ -9948,6 +10968,16 @@
         }
       }
     },
+    "记下你的实际支出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter what you actually spent."
+          }
+        }
+      }
+    },
     "记下支出、算出日均后才能算": {
       "localizations": {
         "en": {
@@ -10018,12 +11048,44 @@
         }
       }
     },
-    "记支出时不再出现这个选项。已有的记录不变；想找回，重新添加同名分类。": {
+    "记支出时不会出现。可以把它们的账移到别的分类，或者放回列表。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It won't appear when you add expenses. Existing entries don't change; to bring it back, add a category with the same name."
+            "value": "They don't appear when you add expenses. Move their entries to another category, or put them back in the list."
+          }
+        }
+      }
+    },
+    "记支出时不再出现这个选项。已有的 %lld 笔保留原名，之后在分类页最下面还能移走或放回。": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "It won't appear when you add expenses. The %lld existing entry keeps this name; you can still move it or put the category back from the bottom of this page."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "It won't appear when you add expenses. The %lld existing entries keep this name; you can still move them or put the category back from the bottom of this page."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "记支出时不再出现这个选项。想找回，重新添加同名分类。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It won't appear when you add expenses. To bring it back, add a category with the same name."
           }
         }
       }
@@ -10094,6 +11156,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Days tracked"
+          }
+        }
+      }
+    },
+    "记账方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tracking Method"
           }
         }
       }
@@ -10688,6 +11760,16 @@
         }
       }
     },
+    "资产或现金都算": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assets or cash both count"
+          }
+        }
+      }
+    },
     "资产或现金都算，记完再记一笔支出": {
       "localizations": {
         "en": {
@@ -10960,6 +12042,16 @@
         }
       }
     },
+    "还对吗？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Still correct?"
+          }
+        }
+      }
+    },
     "还差": {
       "localizations": {
         "en": {
@@ -11028,6 +12120,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a due day from 1 to 31."
+          }
+        }
+      }
+    },
+    "还没写": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not entered"
           }
         }
       }
@@ -11212,6 +12314,16 @@
         }
       }
     },
+    "这个月一共花了多少钱？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much did you spend this month?"
+          }
+        }
+      }
+    },
     "这个账户或资产项已经不在账本里。": {
       "localizations": {
         "en": {
@@ -11358,12 +12470,12 @@
         }
       }
     },
-    "这里搜索全部记录，\n或者按分类筛选。": {
+    "这里搜索全部记录。\n想只看某一类，点卡片里「N 笔」那一行展开，再点那一类。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search all records here,\nor filter by category."
+            "value": "Search all records here.\nTo see just one category, tap the “N entries” row on the card to expand it, then tap the category."
           }
         }
       }
@@ -11388,12 +12500,48 @@
         }
       }
     },
+    "选一个分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Category"
+          }
+        }
+      }
+    },
+    "选中 %lld / %lld 笔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "选中 %1$lld / %2$lld 笔"
+          }
+        }
+      }
+    },
     "逐个选": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Each account"
+          }
+        }
+      }
+    },
+    "逐笔记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Individual Entries"
           }
         }
       }
@@ -11644,12 +12792,12 @@
         }
       }
     },
-    "长按拖动调整顺序，左滑删除。删除分类不影响已记的账，改名会一起改。": {
+    "长按拖动调整顺序，左滑删除。点一个分类可以改名，或把它的账全部移到别的分类。删除分类不影响已记的账。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Touch and hold to drag into order; swipe left to delete. Deleting a category doesn't change past entries; renaming updates them."
+            "value": "Touch and hold to drag into order; swipe left to delete. Tap a category to rename it or move all its entries to another one. Deleting a category doesn't change past entries."
           }
         }
       }

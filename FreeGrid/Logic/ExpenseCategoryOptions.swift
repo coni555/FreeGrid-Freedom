@@ -63,6 +63,17 @@ struct ExpenseCategoryOptions: Codable, Equatable {
         return name
     }
 
+    /// 新建分类放在 `anchor` 的位置：把早午晚餐并成「餐饮」时，新的一类顶替原来那一项，不跑到最后
+    @discardableResult
+    mutating func add(_ input: String, before anchor: String?) throws -> String {
+        let name = try add(input)
+        guard let anchor, anchor != name,
+              let from = items.firstIndex(where: { $0.name == name }),
+              let to = items.firstIndex(where: { $0.name == anchor }), to < from else { return name }
+        items.insert(items.remove(at: from), at: to)
+        return name
+    }
+
     /// 清理并校验用户输入的名称：去首尾空白，1–20 字，不含换行等控制字符
     static func cleanName(_ input: String) throws -> String {
         let name = input.trimmingCharacters(in: .whitespacesAndNewlines)

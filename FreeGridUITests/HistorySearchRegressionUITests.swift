@@ -94,11 +94,106 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
     }
 
+    /// 月份卡片里的支出构成：默认收起，展开后点一类流水只留它，再点或「看全部」回来；收入单列一行；
+    /// 首页「本月花销」回到本月的明细
+    @MainActor
+    func testBreakdownRowsFilterTheFlowAndHomeMonthCardOpensThisMonth() throws {
+        let app = try launch()
+        let toggle = app.buttons["history-breakdown-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        let shopping = app.buttons["history-breakdown-购物"]
+        XCTAssertFalse(shopping.exists)
+        // 展开、收起点的是同一处：开关不随列表变长挪到下面去
+        let top = toggle.frame.minY
+        toggle.tap()
+        XCTAssertTrue(shopping.waitForExistence(timeout: 3))
+        XCTAssertEqual(toggle.frame.minY, top, accuracy: 1)
+        XCTAssertTrue(app.buttons["history-breakdown-交通"].exists)
+        XCTAssertFalse(app.buttons["history-breakdown-income"].exists)
+        shopping.tap()
+        XCTAssertTrue(app.staticTexts["只看「购物」 · 1 笔"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "history-transaction-", "退款")).firstMatch.exists)
+        shopping.tap()
+        XCTAssertTrue(app.staticTexts["只看「购物」 · 1 笔"].waitForNonExistence(timeout: 3))
+
+        app.buttons["上个月"].tap()
+        let income = app.buttons["history-breakdown-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 3))
+        income.tap()
+        XCTAssertTrue(app.staticTexts["只看「收入」 · 1 笔"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["首页"].tap()
+        let month = app.buttons["home-stat-month"]
+        XCTAssertTrue(month.waitForExistence(timeout: 5))
+        month.tap()
+        let title = app.buttons["history-scope-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let label = Calendar.current.dateComponents([.year, .month], from: .now)
+        XCTAssertTrue(title.label.hasPrefix("\(label.year!)年\(label.month!)月"), title.label)
+        XCTAssertFalse(app.staticTexts["只看「收入」 · 1 笔"].exists)
+        XCTAssertTrue(app.buttons["history-breakdown-购物"].exists)
+    }
+
+    /// 月度汇总：最近的月默认展开，支出构成在柱状图和扇形图之间切换，切换后别的月份也跟着换
+    @MainActor
+    func testMonthlySummaryShowsTheBreakdownAsBarsOrPie() throws {
+        let app = try launch()
+        app.buttons["history-scope-title"].tap()
+        let pie = app.buttons["month-chart-pie"]
+        XCTAssertTrue(pie.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["month-chart-bars"].isSelected)
+        pie.tap()
+        XCTAssertTrue(pie.isSelected)
+        let first = app.buttons["month-chart-pie"].firstMatch
+        XCTAssertTrue(first.exists)
+        // 点开上个月：同样是扇形图
+        let previous = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "month-card-")).element(boundBy: 1)
+        previous.tap()
+        XCTAssertEqual(app.buttons.matching(identifier: "month-chart-pie").count, 2)
+        XCTAssertTrue(app.buttons.matching(identifier: "month-chart-pie").element(boundBy: 1).isSelected)
+    }
+
+    /// 扇形图：点一份选中，再点取消；手指在同一份上滑动不会来回翻
+    @MainActor
+    func testPieSliceSelectionDoesNotFlickerWhileDragging() throws {
+        let app = try launch()
+        app.buttons["history-scope-title"].tap()
+        let pie = app.buttons["month-chart-pie"].firstMatch
+        XCTAssertTrue(pie.waitForExistence(timeout: 5))
+        pie.tap()
+        let chart = app.descendants(matching: .any)["month-chart-pie-view"].firstMatch
+        XCTAssertTrue(chart.waitForExistence(timeout: 5))
+        let center = app.staticTexts["month-chart-pie-center"].firstMatch
+        XCTAssertEqual(center.label, "支出")
+        let top = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05))
+        // 图表的手势要按住一小会儿才算，XCUITest 的 tap 太短
+        top.press(forDuration: 0.3)
+        XCTAssertTrue(center.waitForLabel("购物"), center.label)
+        top.press(forDuration: 0.3)
+        XCTAssertTrue(center.waitForLabel("支出"), center.label)
+        top.press(forDuration: 0.2, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.08)))
+        XCTAssertTrue(center.waitForLabel("购物"), center.label)
+    }
+
+    /// 选中的类换到没有它的月份后再搜索：跨全部分类搜，搜索栏也不留那个标签
+    @MainActor
+    func testSearchDropsAFilterTheMonthDoesNotHave() throws {
+        let app = try launch()
+        app.buttons["history-breakdown-toggle"].tap()
+        app.buttons["history-breakdown-购物"].tap()
+        app.buttons["上个月"].tap()
+        app.buttons["搜索"].tap()
+        let field = app.textFields["history-search-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["history-search-filter"].exists)
+    }
+
     @MainActor
     func testFilterCrossMonthSearchSuggestionsAndLatestInput() throws {
         let app = try launch()
-        app.buttons["按分类筛选"].tap()
-        app.buttons["history-filter-购物"].tap()
+        // 展开月份卡片、点中「购物」，再搜索就在这一类里搜
+        app.buttons["history-breakdown-toggle"].tap()
+        app.buttons["history-breakdown-购物"].tap()
         app.buttons["搜索"].tap()
         let field = app.textFields["history-search-field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -133,5 +228,12 @@ final class HistorySearchRegressionUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
         app.buttons["搜索"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+private extension XCUIElement {
+    func waitForLabel(_ text: String, timeout: TimeInterval = 3) -> Bool {
+        let wait = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", text), object: self)
+        return XCTWaiter.wait(for: [wait], timeout: timeout) == .completed
     }
 }

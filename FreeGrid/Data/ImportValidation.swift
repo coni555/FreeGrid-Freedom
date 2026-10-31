@@ -287,6 +287,8 @@ nonisolated struct ValidatedImport: Sendable {
     /// nil 表示备份里没有分类设置
     var expenseCategories: [ExpenseCategoryRecord]? = nil
     var cashAccounts: [CashAccountRecord] = []
+    /// 记账方式和每月写下的数；备份里没有时为 nil
+    var monthlyTracking: MonthlyTracking? = nil
 }
 
 nonisolated enum ImportValidator {
@@ -649,7 +651,8 @@ nonisolated enum ImportValidator {
             assetItems: assetItems,
             loans: loans,
             expenseCategories: expenseCategories,
-            cashAccounts: cashAccounts
+            cashAccounts: cashAccounts,
+            monthlyTracking: envelope.monthlyTracking?.tracking
         )
     }
 

@@ -74,7 +74,7 @@ struct FreedomCardData: Equatable {
     init(snapshot: FinancialSnapshot, summary: FreedomSummary) {
         freedom = snapshot.freedom
         tier = FreedomCardTier.tier(for: snapshot.freedom)
-        trackDays = snapshot.hasExpenses ? snapshot.trackDays : 0
+        trackDays = snapshot.hasRecords ? snapshot.trackDays : 0
         passiveRatio = snapshot.passiveRatio
         milestonesDone = summary.doneCount
         milestonesTotal = summary.total

@@ -220,6 +220,104 @@ final class FreeGridUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["早餐"].exists)
     }
 
+    /// 移到其他分类用的小账本：早餐两笔，「其他」里两笔咖啡、一笔咖啡豆、一笔打印
+    private func launchWithMoveLedger() throws -> XCUIApplication {
+        let today = Date.now.formatted(.iso8601.year().month().day())
+        let rows = [("早餐", "", 12), ("早餐", "", 15), ("其他", "咖啡", 18), ("其他", "咖啡", 22),
+                    ("其他", "咖啡豆", 80), ("其他", "打印", 5)]
+        let expenses = rows.map { "{\"amount\": \($0.2), \"category\": \"\($0.0)\", \"note\": \"\($0.1)\", \"date\": \"\(today)\"}" }
+        let json = "{\"schema_version\": 2, \"assets\": {\"total\": 10000, \"locked_assets\": 0, \"cash\": 10000}, \"expenses\": [\(expenses.joined(separator: ", "))]}"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("move-ledger-\(UUID().uuidString).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        let app = XCUIApplication()
+        app.launchArguments = XCUIApplication.chineseUI + ["-isDarkMode", "NO", "-historyGuideCompleted", "YES", "-setupGuideCompleted", "YES",
+                               "-ResetExpenseCategories", "-UseInMemoryStore", "-proPreview", "YES", "-SeedBackupJSON", url.path]
+        app.launch()
+        XCTAssertTrue(app.buttons["记支出"].waitForExistence(timeout: 10))
+        return app
+    }
+
+    private func attachShot(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// Pro 合并：「早餐」→「全部 2 笔移到…」→ 新建「餐饮」，默认移完删掉早餐；撤销后都回来。
+    @MainActor
+    func testMoveAllEntriesOfACategoryIntoANewOne() throws {
+        let app = try launchWithMoveLedger()
+        app.tabBars.buttons["设置"].tap()
+        app.tapSettingsRow("expense-categories-settings", inCard: "settings-card-ledger")
+        let breakfast = app.buttons["category-row-早餐"]
+        XCTAssertTrue(breakfast.waitForExistence(timeout: 5))
+        breakfast.tap()
+        let moveAll = app.buttons["move-all-expenses"]
+        XCTAssertTrue(moveAll.waitForExistence(timeout: 3))
+        attachShot(app, "合并-1-编辑分类")
+        moveAll.tap()
+        let picker = app.buttons["move-target-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        picker.tap()
+        app.buttons["新建分类…"].firstMatch.tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("餐饮")
+        app.alerts.buttons["好"].tap()
+        attachShot(app, "合并-2-移到新建的餐饮")
+        app.buttons["confirm-move-expenses"].tap()
+
+        let dining = app.buttons["category-row-餐饮"]
+        XCTAssertTrue(dining.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["category-row-早餐"].exists)
+        XCTAssertTrue(app.buttons["undo-category-move"].waitForExistence(timeout: 3))
+        attachShot(app, "合并-3-移完和撤销条")
+        app.buttons["undo-category-move"].tap()
+        XCTAssertTrue(app.buttons["category-row-早餐"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["category-row-餐饮"].exists)
+    }
+
+    /// Pro 拆分：展开明细卡点「其他」、搜「咖啡」，三笔里去掉咖啡豆，两笔移到新建的「咖啡」。
+    @MainActor
+    func testMoveSearchResultsSplitsACategory() throws {
+        let app = try launchWithMoveLedger()
+        app.tabBars.buttons["明细"].tap()
+        let toggle = app.buttons["history-breakdown-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.tap()
+        let other = app.buttons["history-breakdown-其他"]
+        XCTAssertTrue(other.waitForExistence(timeout: 3))
+        other.tap()
+        app.buttons["搜索"].tap()
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.typeText("咖啡")
+        let move = app.buttons["move-search-results"]
+        XCTAssertTrue(move.waitForExistence(timeout: 5))
+        XCTAssertEqual(move.label, "把这 3 笔移到其他分类…")
+        attachShot(app, "拆分-1-搜索结果")
+        move.tap()
+
+        let beans = app.buttons.matching(NSPredicate(format: "label CONTAINS '咖啡豆'")).firstMatch
+        XCTAssertTrue(beans.waitForExistence(timeout: 3))
+        beans.tap()
+        app.buttons["move-target-picker"].tap()
+        app.buttons["新建分类…"].firstMatch.tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("咖啡")
+        app.alerts.buttons["好"].tap()
+        attachShot(app, "拆分-2-去掉咖啡豆")
+        app.buttons["confirm-move-expenses"].tap()
+
+        XCTAssertTrue(app.buttons["undo-category-move"].waitForExistence(timeout: 5))
+        // 筛选还是「其他」：剩下咖啡豆一笔
+        XCTAssertTrue(app.buttons["move-search-results"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["move-search-results"].label, "把这 1 笔移到其他分类…")
+        attachShot(app, "拆分-3-移完")
+    }
+
     /// 记支出表单里没有常驻的 Pro 入口：它在分类菜单的最后一项。没有 Pro 打开购买页，有 Pro 进管理页。
     @MainActor
     func testCategoryMenuEndsWithManageOrProEntry() {
@@ -301,7 +399,8 @@ final class FreeGridUITests: XCTestCase {
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         finishGuide(next)
-        let row = app.staticTexts["早餐"].firstMatch
+        // 卡片里也有一行「早餐」（点了是筛选），这里点的是下面那笔记录
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "history-transaction-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         let note = app.textFields["edit-note"]
@@ -387,24 +486,28 @@ final class FreeGridUITests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["pro-header"].waitForExistence(timeout: 5))
             let note = app.staticTexts["pro-price-note"]
             XCTAssertTrue(note.waitForExistence(timeout: 5))
+            // 模拟器读到商品时价格跟着商店地区走，这里只验四个阶段
+            let dollars = app.buttons["pro-purchase"].label.contains("$")
+            let special = dollars ? "$2.99" : "¥19.90"
+            let regular = dollars ? "$3.99" : "¥29.90"
             switch stage.daysAgo {
             case nil:
                 XCTAssertTrue(app.buttons["pro-start-trial"].exists)
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
-                XCTAssertTrue(note.label.contains("买断优惠价 ¥19.90，开启体验后保留 14 天，之后恢复 ¥29.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
+                XCTAssertTrue(note.label.contains("买断优惠价 \(special)，开启体验后保留 14 天，之后恢复 \(regular)"))
                 XCTAssertFalse(app.staticTexts["pro-trial-status"].exists)
             case "2":
                 XCTAssertFalse(app.buttons["pro-start-trial"].exists)
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验中 · 还剩 5 天")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
                 XCTAssertTrue(note.label.contains("买断优惠价还剩 12 天"))
             case "10":
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥19.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(special))
                 XCTAssertTrue(note.label.contains("买断优惠价还剩 4 天"))
             default:
                 XCTAssertEqual(app.staticTexts["pro-trial-status"].label, "体验已结束")
-                XCTAssertTrue(app.buttons["pro-purchase"].label.contains("¥29.90"))
+                XCTAssertTrue(app.buttons["pro-purchase"].label.contains(regular))
                 XCTAssertEqual(note.label, "一次购买 · 永久使用 · 不会自动续费")
             }
             let shot = XCTAttachment(screenshot: app.screenshot())
@@ -737,11 +840,11 @@ final class FreeGridUITests: XCTestCase {
         amount.tap()
         amount.typeText("50")
         app.buttons["保存"].tap()
-        // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共三步
+        // 起步引导结束，接着自动讲一遍首页；新账本没有趋势行，共四步（大数字、格子、模拟、小卡）
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
         XCTAssertFalse(app.staticTexts["setup-guide-text"].exists)
-        for _ in 0..<2 { next.tap() }
+        for _ in 0..<3 { next.tap() }
         expectation(for: NSPredicate(format: "label == %@", "知道了"), evaluatedWith: next)
         waitForExpectations(timeout: 3)
         Thread.sleep(forTimeInterval: 0.4)
@@ -802,7 +905,7 @@ final class FreeGridUITests: XCTestCase {
         app.buttons["保存"].tap()
         let next = app.buttons["guide-next"]
         XCTAssertTrue(next.waitForExistence(timeout: 6))
-        finishGuide(next, steps: 3)
+        finishGuide(next, steps: 4)
 
         let paywall = app.descendants(matching: .any)["pro-header"]
         let intro = app.descendants(matching: .any)["pro-intro-returning"]
@@ -980,7 +1083,7 @@ final class FreeGridUITests: XCTestCase {
         // 分类不归搜索管；金额能搜到，结果按月收着，只有一笔时直接展开
         let field = app.textFields["history-search-field"]
         field.typeText("午餐")
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "用右上角的筛选")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "点月份卡片里的分类")).firstMatch.waitForExistence(timeout: 3))
         app.buttons["清空搜索"].tap()
         field.typeText("20")
         XCTAssertTrue(app.staticTexts["找到 1 笔"].waitForExistence(timeout: 3))
@@ -1441,9 +1544,7 @@ final class FreeGridUITests: XCTestCase {
             try shoot("\(mode)-2-编辑分类")
             app.buttons["取消"].tap()
             app.tabBars.buttons["明细"].tap()
-            try shoot("\(mode)-3-History图标")
-            app.buttons["按分类筛选"].firstMatch.tap()
-            try shoot("\(mode)-4-分类筛选条")
+            try shoot("\(mode)-3-History分类构成")
             app.tabBars.buttons["首页"].tap()
             app.buttons["记支出"].tap()
             let picker = app.buttons["expense-category-picker"]
@@ -1558,7 +1659,13 @@ final class FreeGridUITests: XCTestCase {
     @MainActor
     func testFreedomCardOpensFromHomeAndSettingsAndPromptShowsOnce() throws {
         let backup = FileManager.default.temporaryDirectory.appendingPathComponent("freedom-card-ui-test.json")
-        let expenses = (1...9).map { #"{"amount":100,"category":"午餐","note":"","date":"2026-10-0\#($0)"}"# }.joined(separator: ",")
+        // 离今天近：断档超过 14 天又记得少，首页不给大数字，也就没有提示
+        let date = DateFormatter()
+        date.dateFormat = "yyyy-MM-dd"
+        let expenses = (1...9).map { daysAgo in
+            let day = date.string(from: Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now)!)
+            return #"{"amount":100,"category":"午餐","note":"","date":"\#(day)"}"#
+        }.joined(separator: ",")
         try Data("""
         {"schema_version":2,"assets":{"total":10000,"locked_assets":0,"cash":10000},"expenses":[\(expenses)]}
         """.utf8).write(to: backup)

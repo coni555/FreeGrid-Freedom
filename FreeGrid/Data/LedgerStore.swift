@@ -113,6 +113,44 @@ enum LedgerStore {
         return records.count
     }
 
+    /// Pro：把选中的几笔支出改到另一个分类（整个分类搬走，或从「其他」里拆出一部分）。
+    /// 返回每笔原来的分类，撤销时交给 `restoreCategories`。月供扣款不碰。
+    @discardableResult
+    static func moveExpenses(
+        _ ids: Set<UUID>, to category: String,
+        in context: ModelContext,
+        save: SaveAction = { try $0.save() }
+    ) throws -> [UUID: String] {
+        let wanted = Array(ids)
+        let records = try context.fetch(FetchDescriptor<Expense>(predicate: #Predicate { wanted.contains($0.id) }))
+            .filter { $0.loanID == nil && $0.category != category }
+        guard !records.isEmpty else { return [:] }
+        let previous = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0.category) })
+        try perform(in: context, save: save, restore: {
+            for record in records { record.category = previous[record.id] ?? record.category }
+        }) {
+            for record in records { record.category = category }
+        }
+        return previous
+    }
+
+    /// 撤销 `moveExpenses`：每笔回到原来的分类。期间被撤销掉的记录跳过。
+    static func restoreCategories(
+        _ previous: [UUID: String],
+        in context: ModelContext,
+        save: SaveAction = { try $0.save() }
+    ) throws {
+        let wanted = Array(previous.keys)
+        let records = try context.fetch(FetchDescriptor<Expense>(predicate: #Predicate { wanted.contains($0.id) }))
+        guard !records.isEmpty else { return }
+        let current = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0.category) })
+        try perform(in: context, save: save, restore: {
+            for record in records { record.category = current[record.id] ?? record.category }
+        }) {
+            for record in records { record.category = previous[record.id] ?? record.category }
+        }
+    }
+
     static func add(
         _ transaction: LedgerTransaction,
         in context: ModelContext,

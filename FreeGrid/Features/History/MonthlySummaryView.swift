@@ -1,4 +1,4 @@
-// 按月汇总收入、支出与分类；从历史页进入时可选一个月回去看明细。
+// 按月汇总收入、支出和净；点开一个月，在卡片里看支出构成（柱状图 / 扇形图）。从明细页进入时可选一个月回去看明细。
 
 import SwiftUI
 import SwiftData
@@ -6,7 +6,10 @@ import SwiftData
 struct MonthlySummaryView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
-    @State private var expanded: Set<String> = []
+    /// 扇形图按分类列表的顺序给每类固定一个颜色
+    @AppStorage(ExpenseCategoryStorage.key, store: AppPreferences.store) private var encodedCategoryOptions = ""
+    /// 手动点开或收起过的月份；没点过时最近的那个月是展开的
+    @State private var toggled: Set<String> = []
     @Environment(\.dismiss) private var dismiss
 
     /// 选定时间范围后回到历史页; nil 时不显示跳转入口
@@ -19,11 +22,12 @@ struct MonthlySummaryView: View {
         let totalExpense: Double
         let totalIncome: Double
         var net: Double { totalIncome - totalExpense }
-        let categories: [(category: String, total: Double)]  // 月内支出分类, 降序
+        let breakdown: HistoryLedger.Breakdown
     }
 
     var body: some View {
         let months = monthlyStats
+        let colors = pieColors(months)
         ScrollView {
             if months.isEmpty {
                 VStack(spacing: Spacing.sm) {
@@ -42,7 +46,7 @@ struct MonthlySummaryView: View {
                         GhostButton(title: String(localized: "查看全部时间的明细")) { select(.allTime) }
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    ForEach(months) { monthCard($0) }
+                    ForEach(months) { monthCard($0, expandedByDefault: $0.id == months.first?.id, colors: colors) }
                 }
                 .padding()
             }
@@ -52,14 +56,21 @@ struct MonthlySummaryView: View {
         .inlineNavTitle()
     }
 
-    @ViewBuilder
-    private func monthCard(_ stat: MonthlyStat) -> some View {
-        let isExpanded = expanded.contains(stat.id)
-        VaultCard {
+    /// 扇形图配色在所有月份之间统一分，同一分类每个月同色
+    private func pieColors(_ months: [MonthlyStat]) -> [HistoryLedger.Share.Kind: Int] {
+        let kinds = Set(months.flatMap { HistoryLedger.shares($0.breakdown).map(\.kind) })
+        return HistoryLedger.colorSlots(kinds, order: ExpenseCategoryStorage.decode(encodedCategoryOptions).allNames,
+                                        paletteCount: MonthCategoryChart.palette.count)
+    }
+
+    private func monthCard(_ stat: MonthlyStat, expandedByDefault: Bool, colors: [HistoryLedger.Share.Kind: Int]) -> some View {
+        let isExpanded = toggled.contains(stat.id) != expandedByDefault
+        let hasChart = !HistoryLedger.shares(stat.breakdown).isEmpty
+        return VaultCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        if isExpanded { expanded.remove(stat.id) } else { expanded.insert(stat.id) }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if toggled.contains(stat.id) { toggled.remove(stat.id) } else { toggled.insert(stat.id) }
                     }
                 } label: {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -71,31 +82,33 @@ struct MonthlySummaryView: View {
                             Text("净 \(FinancialFormatting.signedYuan(stat.net))")
                                 .font(.system(.callout, design: .rounded).weight(.medium).monospacedDigit())
                                 .foregroundStyle(stat.net >= 0 ? Color.mossGreen : Color.flame)
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color.inkFaint)
+                            if hasChart {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.inkFaint)
+                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            }
                         }
                         HStack(spacing: Spacing.xl) {
                             amountStat(String(localized: "支出"), stat.totalExpense, Color.ink)
                             amountStat(String(localized: "收入"), stat.totalIncome, Color.skyDeep)
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(!hasChart)
+                .accessibilityIdentifier("month-card-\(stat.id)")
+                .accessibilityValue(hasChart ? (isExpanded ? "已展开" : "已收起") : "")
+
+                if isExpanded && hasChart {
+                    Hairline(color: .hairlineSoft)
+                    MonthCategoryChart(breakdown: stat.breakdown, colorSlots: colors)
+                }
 
                 if onSelect != nil {
                     GhostButton(title: String(localized: "查看这个月的明细")) { select(.month(stat.month)) }
                         .accessibilityIdentifier("open-month-\(stat.id)")
-                }
-
-                if isExpanded && !stat.categories.isEmpty {
-                    Rectangle().fill(Color.hairlineSoft).frame(height: 1)
-                    let maxCat = stat.categories.first?.total ?? 1
-                    VStack(spacing: Spacing.sm) {
-                        ForEach(stat.categories, id: \.category) { c in
-                            categoryRow(ExpenseCategory.displayName(c.category), c.total, maxCat: maxCat, monthTotal: stat.totalExpense)
-                        }
-                    }
                 }
             }
         }
@@ -117,36 +130,7 @@ struct MonthlySummaryView: View {
         }
     }
 
-    private func categoryRow(_ name: String, _ total: Double, maxCat: Double, monthTotal: Double) -> some View {
-        let pct = monthTotal > 0 ? total / monthTotal : 0
-        return HStack(spacing: Spacing.sm) {
-            Text(name)
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Color.inkMuted)
-                // 英文分类名更长（Breakfast、Shopping），给宽一点
-                .frame(width: AppLanguage.isChinese ? 52 : 76, alignment: .leading)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.mist)
-                    Capsule().fill(Color.cashBlue)
-                        .frame(width: max(4, geo.size.width * (maxCat > 0 ? total / maxCat : 0)))
-                }
-            }
-            .frame(height: 8)
-            Text("¥" + total.formatted(.number.precision(.fractionLength(0...2))))
-                .font(.system(.caption, design: .rounded).monospacedDigit())
-                .foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .fixedSize()
-                .frame(minWidth: 56, alignment: .trailing)
-            Text(pct.formatted(.percent.precision(.fractionLength(0...0))))
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(Color.inkFaint)
-                .frame(width: 34, alignment: .trailing)
-        }
-    }
-
-    /// 按 年-月 分组聚合; 月内再按分类聚合支出。最近的月在前。
+    /// 按 年-月 分组聚合，月内支出再按分类合计。最近的月在前。
     private var monthlyStats: [MonthlyStat] {
         let cal = Calendar.current
         func key(_ d: Date) -> String {
@@ -161,15 +145,12 @@ struct MonthlySummaryView: View {
 
         return keys.sorted(by: >).map { k in
             let exps = expByMonth[k] ?? []
-            let cats = Dictionary(grouping: exps, by: { $0.category })
-                .map { (category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
-                .sorted { $0.total > $1.total }
             let parts = k.split(separator: "-")
             return MonthlyStat(
                 id: k, month: HistoryMonth(year: Int(parts[0]) ?? 0, month: Int(parts[1]) ?? 1),
                 totalExpense: exps.reduce(0) { $0 + $1.amount },
                 totalIncome: incByMonth[k] ?? 0,
-                categories: cats
+                breakdown: HistoryLedger.breakdown(exps.map(LedgerTransaction.expense))
             )
         }
     }

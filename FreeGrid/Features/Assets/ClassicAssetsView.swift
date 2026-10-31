@@ -38,6 +38,8 @@ struct ClassicAssetsView: View {
     @State private var pendingDeletePassive: PassiveSource? = nil
 
     // --- 自由天数口径 ---
+    /// 记账方式和每月写下的数：改了要马上重算
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
 
     // --- 说明与调拨默认收起 ---
     @State private var showingExplain = false
@@ -57,7 +59,8 @@ struct ClassicAssetsView: View {
         // 读整本账的在这里算好：ScrollViewReader 里的内容会被单独重跑，在那里读 @Query 就冻不住了
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: passiveSources,
                                          assets: assetsArr.first, assetItems: assetItems,
-                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans))
+                                         cashAccounts: cashAccounts, loans: ProFeatures.loansInEffect(loans),
+                                         tracking: MonthlyTracking.decode(storedTracking))
         NavigationStack {
             ScrollViewReader { scroller in
             ScrollView {

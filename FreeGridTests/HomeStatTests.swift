@@ -22,6 +22,13 @@ struct HomeStatTests {
         HomeStat.Inputs(snapshot: snapshot(expenses), expenses: expenses, loans: loans)
     }
 
+    /// 按月记账时编辑卡片：记录相关的卡要写回顺序里，没改过顺序时也不能丢
+    @Test func cardsHiddenWhileMonthlyStayInTheOrder() {
+        #expect(HomeStat.hiddenWhenMonthly(stored: "", hasPassive: false) == [.month, .track, .todayBar])
+        #expect(HomeStat.hiddenWhenMonthly(stored: "", hasPassive: true) == [.track, .todayBar])
+        #expect(HomeStat.hiddenWhenMonthly(stored: "daily,month,base", hasPassive: false) == [.month])
+    }
+
     @Test func defaultsMatchTheOldCardsAndStoredListsKeepTheirOrder() {
         #expect(HomeStat.slots(stored: "", hasPassive: true) == [.daily, .passive, .track, .todayBar])
         #expect(HomeStat.slots(stored: "", hasPassive: false) == [.daily, .month, .track, .todayBar])

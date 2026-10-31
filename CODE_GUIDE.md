@@ -80,9 +80,11 @@ flowchart TD
 
 日均消费由 [DailyBurn](FreeGrid/Logic/DailyBurn.swift) 的 `FreedomMath.burnEstimate` 估：总支出 ÷ 追踪天数，只多一条——记账不满 90 天时，单笔大额支出按 90 天摊（一笔算大额：达到「有花销的日子每天合计的中位数」的 30 倍；当普通支出记的房租每笔都按 90 天摊，日均平滑地涨到真实值）。记满 90 天以后和原公式一分不差。首页、记一笔的预览、趋势的每个周点、History 的折算天数都调它，口径只有一个。界面上写的「日均消费」是 `FinancialSnapshot.dailyCost`：这个日常日均再加上固定支出和月供折成的每天（`dailyFixed`）；自由天数的推演只用日常日均，固定支出按日历在到期日另扣，不算两遍。
 
+记账方式（`MonthlyTracking`，2.2，[Logic/MonthlyTracking.swift](FreeGrid/Logic/MonthlyTracking.swift)）分逐笔记账和按月记账，存在偏好 `monthlyTracking` 里，JSON 备份带 `monthly_tracking`（从没用过就不写）。按月记账：每个月写一个总花销（键是 `YearMonth.key`），含固定支出。固定支出按日历另扣，所以算日均时先扣掉：日常部分 = 写过的月份的平均 − 固定支出（固定支出更多时是 0，这时 `freedomRun(burnMayBeZero:)` 只按日历扣固定支出，不报数据有问题）；日均 = 日常部分 ÷ 30.44，现金不动（`burnEstimate(_:tracking:fixedMonthly:…)`）。两本账互不相干：按月记账时记录不计入，明细（`HistoryView`）里也收起来，不删；问哪个月看 `prompt`，切过来从当月问（`adopt`）。用按月记账的时段记在 `pauses`，切回后不算进记账天数和日均分母，写过的数留着不计入。切回时有记录的 `switchBack(hasRecords: true)`，日均回到只按记录算；从没记过账的才记 `switchedBackAt`，日均 30 天从写下的数过渡到记录（`EstimateBlend`）。逐笔记账时记账没跨满 30 天又断档超过 14 天，`recordsTooFew` 让 `hasExpenses` 为假，首页不给大数字。入口：引导第 3 步、首页断档时的蓝字、设置 → 账本 → 记账方式；首页胶囊和明细的月份列表改数。面板都在 `Features/Transactions/MonthlySpendingSheets.swift`。
+
 自由状态有四种，代码用 `FreedomState` 区分：
 
-- `insufficientData`：还没有支出，无法估计日均消费。
+- `insufficientData`：还没有支出、也没写每月花销，或者记账没跨满 30 天又断档了，无法估计日均消费。
 - `finite(days:)`：可以算出具体天数；净值小于零时按零天显示。
 - `covered`：已有有效消费数据，被动收入足以覆盖日均消费。
 - `invalidData`：已有数据无法正常计算，例如金额不是有限数字或日均消费不大于零。
@@ -170,18 +172,20 @@ flowchart TD
 | 自由卡（Pro 分享）：卡面、竖版海报、卡片页，三个入口 | `Features/FreedomCard/FreedomCardView.swift`（材质 `FreedomCardMaterial`、卡面、海报）、`FreedomCardSheet.swift`（晃手机的光、等级、昵称、`ImageRenderer` 导出分享）；等级、卡面数据、首页只提示一次的规则在 `Logic/FreedomCard.swift`。入口：设置页那叠卡的第二张、首页大数字下的升级提示、长按首页大数字 |
 | 到期日、还了几期、按日历推演自由天数 | `Logic/LoanSchedule.swift`（`LoanSchedule.status`、`plan`、`FreedomMath.freedomRun`） |
 | 日均消费怎么估（大额摊开） | `Logic/DailyBurn.swift`（`FreedomMath.burnEstimate`） |
+| 两种记账方式：写每月花销、切换、首页胶囊 | `Logic/MonthlyTracking.swift`、`Features/Transactions/MonthlySpendingSheets.swift`（胶囊、填数面板、切换面板）；明细的月份列表在 `Features/History/HistoryView.swift`；设置入口 `Features/Settings/SettingsView.swift` |
 | 资产算不算进自由天数（开关、口径） | 开关在 `Features/Assets/AssetsView.swift` 双桶下面那张卡；口径在 `Logic/FinancialSnapshot.swift`（`FreedomSettings`、`freedomBase`） |
 | 自由天数公式、日/月/年切换 | `Logic/FreedomMath.swift` |
 | 首页历史趋势、自然日归属、覆盖状态 | `Logic/FreedomHistory.swift` |
 | 记录这笔钱会产生什么影响 | `Logic/TransactionImpact.swift` |
 | 实际扣现金、保存、撤销 | `Data/LedgerStore.swift` |
 | 历史页的月份卡片、分类条、按天分组的行、左滑撤销 | `Features/History/HistoryView.swift` |
-| 历史页按月取数、分类筛选、按天分组的规则 | `Logic/HistoryLedger.swift` |
+| 历史页按月取数、月份卡片里的支出构成（分类、固定支出）和点选筛选、按天分组的规则 | `Logic/HistoryLedger.swift` |
 | 搜索快照、日期归并、预处理文本与金额、后台匹配和月度汇总 | `Logic/HistorySearch.swift` |
 | 搜索输入、防抖、取消、缓存更新与结果展示 | `Features/History/HistorySearchBar.swift`、`HistorySearchState.swift`、`HistorySearchDataSource.swift`、`HistoryTransactionRow.swift` |
 | 指引（压暗、圈出位置、逐步说明）：首页和 History 的讲解，以及带新用户记下第一笔钱和第一笔支出的起步引导 | `Features/Guide/AppGuide.swift`；遮罩挂在 `App/ContentView.swift`，位置由各页用 `guideTarget` 上报；重放入口是 `SettingsView` 的「使用指引」列表 |
 | 修改一笔已有记录（表单与校验） | `Features/Transactions/EditTransactionSheet.swift` → `LedgerStore.edit` |
-| 月度汇总、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
+| 月度汇总（每月收支和净）、选一个月回到明细 | `Features/History/MonthlySummaryView.swift` |
+| 月度汇总卡片里的支出构成（柱状图 / 扇形图切换；扇形图每个分类固定一个颜色，规则在 `HistoryLedger.colorSlots`） | `Features/History/MonthCategoryChart.swift` |
 | 导入校验、兼容、去重、写入 | `Data/ImportValidation.swift` → `Data/DataIO.swift` |
 | 预览后账本改变，拒绝旧计划 | `Data/ImportLedgerSnapshot.swift` → `DataIO.commitImport` |
 | 启动时数据库打不开 | `Data/StoreBootstrap.swift` → `App/StoreRecoveryView.swift` |
@@ -273,12 +277,13 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [HistorySearchTests](FreeGridTests/HistorySearchTests.swift)：与旧搜索逐项对照、中文与多关键词、退款和金额格式、筛选、同日排序、预处理缓存、取消与乱序完成、编辑删除和备份恢复。
 - [HistorySearchPerformanceTests](FreeGridTests/HistorySearchPerformanceTests.swift)：100 / 1000 / 5000 / 10000 条合成记录，对比旧管线与预处理后的查询；分别记录主 actor 提取快照和后台计算耗时。
 - `HistorySearchRegressionUITests` 验证搜索结果编辑、撤销、建议词、跨月、筛选、快速删除与滚回输入框不弹键盘；`HistorySearchPerformanceUITests` 在指定 `HISTORY_PERF_DIR` 和 `HISTORY_PERF_PHASE` 时执行四档交互验收；`HistorySearchScrollUITests` 使用同样的参数执行 10000 条记录的冷/暖打开与快速往返滚动验收。
-- [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
+- [HistoryLedgerTests](FreeGridTests/HistoryLedgerTests.swift)：跨年切月、当月合计冲减退款、分类筛选不含收入、月供扣款合成固定支出、每类折合天数写法、按标题/备注/金额搜索、按天分组与当日小计、可翻月份范围和段头日期写法。
 - [BalanceBoundaryTests](FreeGridTests/BalanceBoundaryTests.swift)：余额刚好达上限、越界、撤销/导入回滚，以及保留其他未保存修改。
 - [LargeBackupRestoreTests](FreeGridTests/LargeBackupRestoreTests.swift)：1,800 笔长备注与 50,001 笔短记录的实际导出、文件读取、磁盘恢复和完整字段比对；确认恢复仍拒绝非法字段和变大的文件。
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
 - [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
+- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：按月记账的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回后回到切换前、只写过数的人 30 天过渡、暂停不摊薄、断档不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
 - [PassiveIntervalTests](FreeGridTests/PassiveIntervalTests.swift)：被动收入一年一次 6,000 按每月 500 算、周期校验、备份带上周期而旧备份按每月读、导入拒绝未知周期。

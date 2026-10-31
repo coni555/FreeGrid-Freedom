@@ -10,6 +10,7 @@ struct DataManagementView: View {
     @AppStorage(FreedomSettings.countsAssetsKey, store: AppPreferences.store) private var countsAssets = true
     @AppStorage(ProIntro.audienceKey, store: AppPreferences.store) private var introAudience = ""
     @AppStorage(FirstWeekRecap.shownKey, store: AppPreferences.store) private var recapShown = false
+    @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
 
     @State private var showingFileImporter = false
     @State private var showingPurgeAlert = false
@@ -137,7 +138,7 @@ struct DataManagementView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                Text("删除全部支出、收入、被动收入和资产，不能撤销。先导出一份 JSON 再清空。")
+                Text("删除全部支出、收入、被动收入、资产和每月花销，不能撤销。先导出一份 JSON 再清空。")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -180,7 +181,8 @@ struct DataManagementView: View {
                 // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样
                 data = try DataIO.exportJSON(
                     context: modelContext,
-                    categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions))
+                    categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions),
+                    monthlyTracking: { let tracking = MonthlyTracking.decode(storedTracking); return tracking.isUntouched ? nil : tracking }())
                 name = String(localized: "FreeGrid-备份-\(timestamp)-\(nonce).json")
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -252,6 +254,9 @@ struct DataManagementView: View {
             ExpenseCategoryStorage.decode(encodedCategoryOptions).merging(backup, replacing: strategy == .replace)) {
             encodedCategoryOptions = merged
         }
+        // 记账方式和每月写下的数
+        storedTracking = MonthlyTracking.storedAfterRestoring(preview.monthlyTracking, stored: storedTracking,
+                                                              replacing: strategy == .replace)
         // 导入后资产拆成了多项：算不算由各项自带的设置决定，总开关回到默认
         if (try? AssetItemStore.items(in: modelContext))?.isEmpty == false { countsAssets = true }
         // 换机后先打开、再恢复备份的老用户：改回老用户，看 2.0 更新说明，不弹新手小结
@@ -285,6 +290,7 @@ struct DataManagementView: View {
     private func purgeData() {
         do {
             try DataIO.purgeAll(context: modelContext)
+            storedTracking = ""
             importStatus = String(localized: "已清空记账数据")
         } catch {
             importStatus = String(localized: "清空失败：\(error.localizedDescription)")

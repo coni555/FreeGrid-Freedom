@@ -5,6 +5,9 @@ nonisolated enum HistorySearch {
     enum Filter: Hashable, Sendable {
         case all
         case income
+        /// 到期自动扣的固定支出（房租、月供），在明细卡里合成一行
+        case fixed
+        /// 日常支出的一个分类；月供扣款的「分类」是贷款名，不算在里面
         case category(String)
     }
 
@@ -162,7 +165,8 @@ nonisolated enum HistorySearch {
             switch filter {
             case .all: return true
             case .income: return record.key.isIncome
-            case .category(let category): return !record.key.isIncome && record.title == category
+            case .fixed: return record.isLoanPayment
+            case .category(let category): return !record.key.isIncome && !record.isLoanPayment && record.title == category
             }
         }
 

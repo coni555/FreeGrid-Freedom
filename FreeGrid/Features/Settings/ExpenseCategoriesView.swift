@@ -1,4 +1,5 @@
-// Pro 支出分类管理：拖动排序、左滑删除、点一行改名换图标。只有改名会改写旧账（一起改成新名字）。
+// Pro 支出分类管理：拖动排序、左滑删除、点一行改名换图标，或把它的旧账全部移到别的分类（合并）。改名和移动会改写旧账。
+// 删掉的分类如果还有旧账，单独列在下面，可以把旧账移走或放回列表。
 // 没有 Pro、但体验期间改过分类的人：列表照常显示、记账照常能选，只是不能改。
 import SwiftUI
 import SwiftData
@@ -10,15 +11,18 @@ struct ExpenseCategoriesView: View {
     @State private var saveError: String?
     @State private var showingPro = false
     @State private var editing: EditTarget?
+    @State private var undoMove: CategoryMoveUndo?
 
-    /// 打开分类表单：新增，或编辑某一个
+    /// 打开分类表单：新增、编辑某一个，或把一个已删除分类的旧账移走
     private enum EditTarget: Identifiable {
         case new
         case existing(String)
+        case moveDeleted(String)
         var id: String {
             switch self {
             case .new: return "+new"
             case .existing(let name): return name
+            case .moveDeleted(let name): return "-" + name
             }
         }
     }
@@ -43,10 +47,11 @@ struct ExpenseCategoriesView: View {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 if ProFeatures.canCustomizeExpenseCategories {
                     categoryList
-                    Text("长按拖动调整顺序，左滑删除。删除分类不影响已记的账，改名会一起改。")
+                    Text("长按拖动调整顺序，左滑删除。点一个分类可以改名，或把它的账全部移到别的分类。删除分类不影响已记的账。")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Color.inkFaint)
                         .padding(.horizontal, Spacing.sm)
+                    deletedWithRecords
                 } else if ExpenseCategoryStorage.isCustomized(encodedOptions) {
                     categoryList
                     readOnlyNote
@@ -61,6 +66,7 @@ struct ExpenseCategoriesView: View {
         .inlineNavTitle()
         .saveErrorAlert($saveError)
         .proPaywall(isPresented: $showingPro, topic: .categories)
+        .categoryMoveUndoBar($undoMove) { undo($0) }
         .sheet(item: $editing) { target in
             switch target {
             case .new:
@@ -73,8 +79,15 @@ struct ExpenseCategoriesView: View {
                     canDelete: options.activeItems.count > 1,
                     otherNames: options.activeItems.map(\.name).filter { $0 != name },
                     onSave: { newName, icon in try edit(name, to: newName, icon: icon) },
-                    onDelete: { try delete(name) }
+                    onDelete: { try delete(name) },
+                    moveOptions: options,
+                    onMoveAll: { target, removesSource in try moveAll(from: name, to: target, removingSource: removesSource) }
                 )
+            case .moveDeleted(let name):
+                MoveExpensesSheet(options: options, source: name, sourceCount: recordCounts[name, default: 0],
+                                  sourceIsDeleted: true) { target, _, _ in
+                    try moveAll(from: name, to: target, removingSource: true)
+                }
             }
         }
     }
@@ -179,6 +192,60 @@ struct ExpenseCategoriesView: View {
         .accessibilityIdentifier("category-row-\(item.name)")
     }
 
+    /// 删掉了、但账本里还有记录用着的分类。以前删了就再也够不着这些旧账
+    @ViewBuilder
+    private var deletedWithRecords: some View {
+        let counts = recordCounts
+        let deleted = options.items.filter { $0.isDeleted && counts[$0.name, default: 0] > 0 }
+        if !deleted.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                KickerLabel(text: String(localized: "已删除，还有旧账"))
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.top, Spacing.md)
+                VaultCard(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(deleted.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { Hairline().padding(.leading, Spacing.lg) }
+                            deletedRow(item, count: counts[item.name, default: 0])
+                        }
+                    }
+                }
+                Text("记支出时不会出现。可以把它们的账移到别的分类，或者放回列表。")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                    .padding(.horizontal, Spacing.sm)
+            }
+        }
+    }
+
+    private func deletedRow(_ item: ExpenseCategoryOptions.Item, count: Int) -> some View {
+        Menu {
+            Button("全部 \(count) 笔移到…", systemImage: "arrow.turn.down.right") { editing = .moveDeleted(item.name) }
+            Button("放回列表", systemImage: "arrow.uturn.backward") { update { try $0.add(item.name) } }
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: options.icon(for: item.name))
+                    .font(.system(size: 16, weight: .light))
+                    .foregroundStyle(Color.inkFaint)
+                    .frame(width: 24)
+                Text(ExpenseCategory.displayName(item.name))
+                    .font(.system(.body, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+                Spacer(minLength: Spacing.sm)
+                Text("\(count) 笔")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Color.inkFaint)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundStyle(Color.inkFaint)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .frame(height: Self.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("deleted-category-row-\(item.name)")
+    }
+
     private var addRow: some View {
         Button {
             editing = .new
@@ -225,6 +292,31 @@ struct ExpenseCategoriesView: View {
         if let icon { next.setIcon(icon, for: name) }
         if name != old { try LedgerStore.renameCategory(from: old, to: name, in: modelContext) }
         encodedOptions = try ExpenseCategoryStorage.encode(next)
+    }
+
+    /// 合并：`source` 的账全部移到 `target`（可以是当场新建的，放在 source 的位置）。
+    /// 先改账再存偏好；偏好存不进去时把账改回来，分类名和旧账始终对得上。
+    private func moveAll(from source: String, to target: CategoryMoveTarget, removingSource: Bool) throws {
+        let before = encodedOptions
+        var next = options
+        let name = target.isNew ? try next.add(target.name, before: source) : target.name
+        if removingSource { next.merge(source, into: name) }
+        let encoded = try ExpenseCategoryStorage.encode(next)
+        let ids = Set(expenses.filter { $0.loanID == nil && $0.category == source }.map(\.id))
+        let previous = try LedgerStore.moveExpenses(ids, to: name, in: modelContext)
+        encodedOptions = encoded
+        withAnimation(.spring(duration: 0.3)) {
+            undoMove = CategoryMoveUndo(
+                message: String(localized: "\(previous.count) 笔已移到「\(ExpenseCategory.displayName(name))」"),
+                previous: previous, encodedOptions: before)
+        }
+    }
+
+    private func undo(_ move: CategoryMoveUndo) {
+        do {
+            try LedgerStore.restoreCategories(move.previous, in: modelContext)
+            encodedOptions = move.encodedOptions
+        } catch { saveError = error.localizedDescription }
     }
 
     private func delete(_ name: String) throws {

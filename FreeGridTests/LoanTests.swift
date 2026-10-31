@@ -168,8 +168,10 @@ struct LoanTests {
     }
 
     @Test func trendEndsAtTheSameNumberAsTheHero() throws {
+        // 首尾各一笔：跨满 60 天没断档，记录够算大数字
         let start = Calendar.current.date(byAdding: .day, value: -60, to: now)!
-        let expenses = [Expense(amount: 6100, category: "午餐", date: start)]
+        let expenses = [Expense(amount: 3050, category: "午餐", date: start),
+                        Expense(amount: 3050, category: "午餐", date: now)]
         let s = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets(cash: 20_000),
                                   loans: [loan()], now: now, countsAssets: true)
         let history = FreedomMath.freedomDaysHistory(
@@ -245,7 +247,9 @@ struct LoanTests {
         #expect(try status(loan, context, on: "2026-11-20").pending == [TestSupport.day("2026-11-14")])
 
         // 推演里这一期当作今天就要付：付不起就是 0 天
-        let s = FinancialSnapshot(expenses: burn100 + (try LoanStore.payments(in: context)), passiveSources: [],
+        // burn100 到 11-20 已经断档，再记一笔才算得出大数字
+        let recent = Expense(amount: 1000, category: "午餐", date: at("2026-11-19"))
+        let s = FinancialSnapshot(expenses: burn100 + [recent] + (try LoanStore.payments(in: context)), passiveSources: [],
                                   assets: assets(cash: 2000), loans: [loan], now: at("2026-11-20"), countsAssets: true)
         #expect(s.freedom == .finite(days: 0))
 
@@ -339,7 +343,9 @@ struct LoanTests {
     @Test func markingOldRepaymentsTakesThemOutOfDailyBurn() throws {
         let context = try context(cash: 20_000)
         let first = Calendar.current.date(byAdding: .day, value: -149, to: now)!
-        context.insert(Expense(amount: 12_000, category: "其他", date: first))
+        // 日常一共 12000，今天也记了一笔：只剩 149 天前一笔的话，最后那段算断档，日均不再是 80
+        context.insert(Expense(amount: 11_940, category: "其他", date: first))
+        context.insert(Expense(amount: 60, category: "午餐", date: now))
         for month in 0..<6 {
             context.insert(Expense(amount: 3000, category: "其他", note: "房贷",
                                    date: Calendar.current.date(byAdding: .day, value: -25 * month, to: now)!))
@@ -360,7 +366,7 @@ struct LoanTests {
         #expect(after.dailyBurn == 80)
         #expect(after.trackDays == 150)
         // 记录本身还在
-        #expect(try context.fetch(FetchDescriptor<Expense>()).count == 7)
+        #expect(try context.fetch(FetchDescriptor<Expense>()).count == 8)
     }
 
     // MARK: - 备份
