@@ -185,7 +185,11 @@ struct DashboardHero: View {
     private var pendingNote: String? {
         if snapshot.tracking.isMonthly { return needsSavings ? String(localized: "资产或现金都算") : nil }
         if needsSavings { return String(localized: "资产或现金都算，记完再记一笔支出") }
-        if snapshot.recordsTooFew { return String(localized: "已有 \(snapshot.burnEntries.count) 笔支出，上次记录在 \(quietDays) 天前") }
+        if snapshot.recordsTooFew {
+            return snapshot.burnGapDays > 0
+                ? String(localized: "已有 \(snapshot.burnEntries.count) 笔支出，上次记录在 \(quietDays) 天前")
+                : String(localized: "已有 \(snapshot.burnEntries.count) 笔支出，再记一天就能算出来")
+        }
         return String(localized: "再记一笔支出，就能算出自由天数")
     }
 

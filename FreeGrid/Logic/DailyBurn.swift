@@ -15,6 +15,8 @@ extension FreedomMath {
     static let burnGraceDays = 14
     /// 从没记过账的人改回逐笔记账后，用这么多天从写下的数过渡到记录；记账没跨满这么多天又断档的，不给大数字
     static let estimateBlendDays = 30
+    /// 第一笔过去 14 天后，记账的日子不到这么多天，不给大数字。一个月记一次总账的人记到第三次就够了
+    static let minRecordedDays = 3
 
     /// 日均是从哪来的
     enum BurnBasis: Equatable {
@@ -48,7 +50,7 @@ extension FreedomMath {
         var basis: BurnBasis = .records
         /// 断档里没算进记录的天数（最后一笔之后第 15 天起）；没有断档时是 0
         var gapDays = 0
-        /// 记账没跨满 30 天就断档了：这点记录算不准，首页不给大数字
+        /// 记账没跨满 30 天就断档了，或者过了 14 天还只有两天的记录：这点记录算不准，首页不给大数字
         var recordsTooFew = false
     }
 
@@ -68,6 +70,10 @@ extension FreedomMath {
     /// 再往后的天不算进记录的分母，日均停住不再往下掉。
     /// 停在第 14 天而不是退回最后一笔那天：日均是慢慢停下，不会在第 15 天突然跳一截。
     /// 只看最后一笔之后的空档；中间断过又接着记的，那段照常算（记总账的人中间也是空的）。
+    ///
+    /// 记录太少：只看跨度不够，记一笔 20 元、31 天后再记一笔，日均 1.25，自由天数能到 100 多年。
+    /// 所以第一笔过去 14 天后，记账的日子不到 3 天也不给大数字。不按笔数、也不再提高门槛：
+    /// 一个月记一次总账的人每次只有一笔，三次就算得准。
     ///
     /// `pauses`：用按月记账的那些天既不算记账，也不算花了 0 元，从天数里去掉。
     ///
@@ -108,7 +114,18 @@ extension FreedomMath {
         }
         return BurnEstimate(total: recorded.total, firstDate: firstDate, trackDays: days,
                             dailyBurn: recorded.dailyBurn, spreadLumps: recorded.spreadLumps, gapDays: gap,
-                            recordsTooFew: gap > 0 && loggedDays < estimateBlendDays)
+                            recordsTooFew: (gap > 0 && loggedDays < estimateBlendDays)
+                                || (days - 1 > burnGraceDays && recordsOnFewDays(entries, calendar: calendar)))
+    }
+
+    /// 记账的日子不到 `minRecordedDays` 天。趋势每天都要算一遍，数够了就停
+    private static func recordsOnFewDays(_ entries: [BurnEntry], calendar: Calendar) -> Bool {
+        var seen = Set<Date>()
+        for entry in entries {
+            seen.insert(calendar.startOfDay(for: entry.date))
+            if seen.count >= minRecordedDays { return false }
+        }
+        return true
     }
 
     /// 按记账方式算日均。按月记账时日均只看写下的数，记录那边的天数和总额留着（记账里程碑暂停在原处）

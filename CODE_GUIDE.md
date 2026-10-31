@@ -23,7 +23,7 @@ FreeGridWidgets/  系统小组件扩展（iOS）：时间线、可选项、三�
 Config/           两边的 App Group 权限、App 的网址登记
 ```
 
-**桌面小组件**：账本不出 App 自己的容器。App 用首页同一套规则（[WidgetProjection](FreeGrid/Logic/WidgetProjection.swift)）从今天起每天算一份，写成 App Group 里的一个 JSON（[WidgetPublisher](FreeGrid/Data/WidgetPublisher.swift)），打开 App 核对完 Pro 后和离开 App 时各写一次，内容没变不写。小组件只读这个文件，每天零点换下一份；字都是 App 按界面语言写好的。自由天数免费；看板和目标是 Pro，没有 Pro 时显示一句说明、点了打开购买页（`freegrid://pro`）。
+**桌面小组件**：账本不出 App 自己的容器。App 用首页同一套规则（[WidgetProjection](FreeGrid/Logic/WidgetProjection.swift)）从今天起每天算一份，写成 App Group 里的一个 JSON（[WidgetPublisher](FreeGrid/Data/WidgetPublisher.swift)），打开 App 核对完 Pro 后和离开 App 时各写一次，内容没变不写。小组件只读这个文件，每天零点换下一份；按月记账时本月花销写用户写下的数（这个月没写时写最近写过的月），今日花销和记账天数不进这份数，看板上就少这一项，两项都没有时放日均。字都是 App 按界面语言写好的。自由天数免费；看板和目标是 Pro，没有 Pro 时显示一句说明、点了打开购买页（`freegrid://pro`）。
 
 界面文字都在 `FreeGrid/Localizable.xcstrings`（String Catalog）：开发语言是简体中文，中文原句就是 key，英文写在每条的 `en` 里。
 
@@ -84,7 +84,7 @@ flowchart TD
 
 自由状态有四种，代码用 `FreedomState` 区分：
 
-- `insufficientData`：还没有支出、也没写每月花销，或者记账没跨满 30 天又断档了，无法估计日均消费。
+- `insufficientData`：还没有支出、也没写每月花销，或者记账没跨满 30 天又断档了、过了 14 天还只有两天的记录，无法估计日均消费。
 - `finite(days:)`：可以算出具体天数；净值小于零时按零天显示。
 - `covered`：已有有效消费数据，被动收入足以覆盖日均消费。
 - `invalidData`：已有数据无法正常计算，例如金额不是有限数字或日均消费不大于零。
@@ -283,7 +283,7 @@ Xcode 中用 Product → Test 运行测试。业务规则变动时，先写一�
 - [DiskRollbackTests](FreeGridTests/DiskRollbackTests.swift)：五模型导入、撤销、清空失败后，重新打开磁盘库核对账本未变。
 - [ImportFreshnessTests](FreeGridTests/ImportFreshnessTests.swift)：两份预览依次提交、三种资产策略、五模型变化、保留未保存编辑与失败后重试。
 - [ImportFingerprintTests](FreeGridTests/ImportFingerprintTests.swift)：分类/来源与备注中的分隔符不再导致误跳过，仍正确处理再次导入。
-- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：按月记账的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回后回到切换前、只写过数的人 30 天过渡、暂停不摊薄、断档不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
+- [MonthlySpendingTests](FreeGridTests/MonthlySpendingTests.swift)：按月记账的日均（平均、含固定支出、旧记录不计入、里程碑暂停）、问哪个月、切回后回到切换前、只写过数的人 30 天过渡、暂停不摊薄、断档或只有两天记录不给大数字、备份往返。界面流程在 [MonthlySpendingUITests](FreeGridUITests/MonthlySpendingUITests.swift)。
 - [FreedomHistoryTests](FreeGridTests/FreedomHistoryTests.swift)：中午起点、今天收入、夏令时、覆盖及退出覆盖、退款和周区间聚合与逐笔参考结果一致。
 - [AssetItemTests](FreeGridTests/AssetItemTests.swift)：迁移前后净值和自由天数不变、总数等于各项之和、名称和金额校验、调拨到指定项、失败回滚、备份往返不丢项与顺序、重复导入不重复、v0–v3 旧备份、备份校验、从 1.5 的五模型磁盘库升级。
 - [PassiveIntervalTests](FreeGridTests/PassiveIntervalTests.swift)：被动收入一年一次 6,000 按每月 500 算、周期校验、备份带上周期而旧备份按每月读、导入拒绝未知周期。

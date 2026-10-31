@@ -56,7 +56,7 @@ struct FinancialSnapshot {
     let burnBasis: FreedomMath.BurnBasis
     /// 最后一笔之后超过 14 天的那几天；没有断档时是 0
     let burnGapDays: Int
-    /// 记账没跨满 30 天就断档了：这点记录算不准，首页不给大数字
+    /// 记账没跨满 30 天就断档了，或者过了 14 天还只有两天的记录：这点记录算不准，首页不给大数字
     let recordsTooFew: Bool
     /// 固定支出和贷款：今天之后要扣的钱。没有时为空，自由天数和以前一分不差
     let loanPlan: LoanSchedule.Plan

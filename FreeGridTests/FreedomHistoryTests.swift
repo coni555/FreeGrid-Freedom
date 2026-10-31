@@ -7,8 +7,10 @@ struct FreedomHistoryTests {
     @Test func noonBaselineMatchesCurrentSnapshotAndIncludesTodaysIncome() throws {
         let now = TestSupport.day("2026-10-05").addingTimeInterval(18 * 3600)
         let first = Calendar.current.date(byAdding: .day, value: -30, to: Calendar.current.startOfDay(for: now))!.addingTimeInterval(12 * 3600)
-        // 今天也记了一笔：只有 30 天前一笔的话，最后 16 天算断档（见 MonthlySpendingTests）
-        let expenses = [Expense(amount: 3000, category: "午餐", date: first), Expense(amount: 100, category: "午餐", date: now)]
+        // 今天也记了一笔：只有 30 天前一笔的话，最后 16 天算断档；中间再记一天，记录才够算大数字（见 MonthlySpendingTests）
+        let middle = Calendar.current.date(byAdding: .day, value: 15, to: first)!
+        let expenses = [Expense(amount: 1000, category: "午餐", date: first), Expense(amount: 1000, category: "午餐", date: middle),
+                        Expense(amount: 1100, category: "午餐", date: now)]
         let income = Income(amount: 1000, source: "工资", date: now)
         let assets = UserAssets(); assets.cash = 10000
         let snapshot = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets, now: now)

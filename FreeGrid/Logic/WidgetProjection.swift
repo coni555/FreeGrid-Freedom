@@ -2,6 +2,7 @@
 // 往后的日子假设不再记账：日均的分母照常一天天变大，到期还没扣的房租、月供在推演里当天扣掉，
 // 自由天数和那天打开 App 时首页上的一样；只有「本月花销」不含还没扣的房租，打开 App 补扣后才算进去。
 // 字按 App 当前的界面语言写好，小组件不再翻译。
+// 按月记账时记录收起来了：本月花销写用户写下的数，今日花销和记账天数不写进这份数（看板上就少这一项）。
 
 import Foundation
 
@@ -18,6 +19,7 @@ enum WidgetProjection {
         var cashAccounts: [CashAccount] = []
         var loans: [Loan] = []
         var countsAssets: Bool = true
+        var tracking: MonthlyTracking = .current
     }
 
     /// `goals` 只在 Pro 生效时用：没有 Pro 时小组件里没有目标
@@ -39,12 +41,12 @@ enum WidgetProjection {
         let snapshot = FinancialSnapshot(expenses: ledger.expenses, passiveSources: ledger.passiveSources,
                                          assets: ledger.assets, assetItems: ledger.assetItems,
                                          cashAccounts: ledger.cashAccounts, loans: ledger.loans, now: date,
-                                         countsAssets: ledger.countsAssets)
+                                         countsAssets: ledger.countsAssets, tracking: ledger.tracking)
         let inputs = HomeStat.Inputs(snapshot: snapshot, expenses: ledger.expenses, loans: ledger.loans,
                                      calendar: calendar)
         var stats: [String: WidgetSnapshot.Stat] = [:]
         for stat in self.stats {
-            let display = stat.display(inputs)
+            guard let display = display(stat, inputs: inputs, calendar: calendar) else { continue }
             stats[stat.rawValue] = WidgetSnapshot.Stat(kicker: kicker(stat), title: stat.title,
                                                        value: display.value, unit: display.unit)
         }
@@ -53,6 +55,26 @@ enum WidgetProjection {
             freedom: freedom(snapshot),
             stats: stats,
             goals: goals.map { goal(FreedomGoalProgress(goal: $0, snapshot: snapshot, calendar: calendar), now: date) })
+    }
+
+    /// 看板上这一项写什么；按月记账时没有可写的返回 nil
+    private static func display(_ stat: HomeStat, inputs: HomeStat.Inputs, calendar: Calendar) -> HomeStat.Display? {
+        let snapshot = inputs.snapshot
+        guard snapshot.tracking.isMonthly else { return stat.display(inputs) }
+        switch stat {
+        case .today, .track:
+            return nil
+        case .month:
+            // 这个月还没写时写最近写过的那个月，不空着、也不催
+            let current = YearMonth(snapshot.now, calendar: calendar)
+            guard let written = snapshot.tracking.writtenMonths.first(where: { $0.month <= current }) else {
+                return HomeStat.Display(value: "—", unit: String(localized: "还没写"))
+            }
+            return HomeStat.Display(value: FinancialFormatting.wholeNumber(written.amount),
+                                    unit: String(localized: "元 · \(written.month.name(now: snapshot.now, calendar: calendar))"))
+        default:
+            return stat.display(inputs)
+        }
     }
 
     /// 首页大数字卡上的那几样：数字、上面的小标签、下面一行

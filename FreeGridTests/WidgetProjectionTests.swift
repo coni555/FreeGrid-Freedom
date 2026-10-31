@@ -110,6 +110,45 @@ struct WidgetProjectionTests {
         #expect(result.days[0].freedom.caption == "你已财富自由")
     }
 
+    // MARK: - 按月记账
+
+    private func monthlyLedger(_ months: [String: Double]) -> WidgetProjection.Ledger {
+        var tracking = MonthlyTracking()
+        tracking.adopt(startingAt: YearMonth(year: 2026, month: 9), now: at("2026-09-01"))
+        tracking.months = months
+        var result = ledger(tenDays)
+        result.tracking = tracking
+        return result
+    }
+
+    @Test func monthlyTrackingShowsTheWrittenNumberAndDropsTheRecordStats() {
+        let result = WidgetProjection.snapshot(ledger: monthlyLedger(["2026-10": 3000]), goals: [], proActive: true, now: now)
+        let today = result.days[0]
+        #expect(today.stats["month"]?.value == "3,000")
+        #expect(today.stats["month"]?.unit == "元 · 10 月")
+        #expect(today.stats["today"] == nil)
+        #expect(today.stats["track"] == nil)
+        // 日均只看写下的数，不看收起来的记录
+        #expect(today.stats["daily"]?.unit == "按 10 月 估算")
+        #expect(today.freedom.state == .finite)
+    }
+
+    @Test func monthlyTrackingKeepsTheLastWrittenMonthUntilTheNextIsWritten() {
+        let result = WidgetProjection.snapshot(ledger: monthlyLedger(["2026-10": 3000]), goals: [], proActive: true, now: now)
+        // 11-01 这一份：11 月还没写，仍写 10 月那个数
+        let november = result.days[8]
+        #expect(november.date == TestSupport.day("2026-11-01"))
+        #expect(november.stats["month"]?.value == "3,000")
+        #expect(november.stats["month"]?.unit == "元 · 10 月")
+    }
+
+    @Test func monthlyTrackingWithNothingWrittenSaysSo() {
+        let result = WidgetProjection.snapshot(ledger: monthlyLedger([:]), goals: [], proActive: true, now: now)
+        #expect(result.days[0].stats["month"]?.value == "—")
+        #expect(result.days[0].stats["month"]?.unit == "还没写")
+        #expect(result.days[0].freedom.caption == "写下每月花销")
+    }
+
     // MARK: - 文件
 
     @Test func theFileReadsBackAndPicksTheRightDay() throws {

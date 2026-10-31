@@ -382,6 +382,30 @@ struct MonthlySpendingTests {
         let burn = FreedomMath.burnEstimate(entries([(1, 3000), (31, 3000), (61, 3000)]), now: dayNumber(61))
         #expect(burn.gapDays == 0)
         #expect(abs(burn.dailyBurn - 9000.0 / 61) < 1e-9)
+        #expect(!burn.recordsTooFew)
+    }
+
+    @Test func twoEntriesAMonthApartGiveNoNumber() {
+        // 记一笔 20，31 天后再记一笔：日均 1.25，自由天数能到 100 多年，不给这个数
+        let snapshot = snapshot(expenses([(1, 20), (32, 20)]), tracking: plain, day: 32)
+        #expect(snapshot.recordsTooFew)
+        #expect(snapshot.burnGapDays == 0)
+        #expect(snapshot.freedom == .insufficientData)
+    }
+
+    @Test func aThirdDayOfRecordsBringsTheNumberBack() {
+        let snapshot = snapshot(expenses([(1, 3000), (31, 3000), (61, 3000)]), tracking: plain, day: 61)
+        #expect(!snapshot.recordsTooFew)
+        guard case .finite = snapshot.freedom else { Issue.record("记到第三天应该照常算"); return }
+    }
+
+    @Test func twoDaysOfRecordsCountWithinTheFirstTwoWeeks() {
+        let early = snapshot(expenses([(1, 20), (10, 20)]), tracking: plain, day: 15)
+        #expect(!early.recordsTooFew)
+        guard case .finite = early.freedom else { Issue.record("14 天内应该照常算"); return }
+        // 同一天记多笔也只算一天
+        let sameDay = snapshot(expenses([(1, 20), (1, 30), (16, 20)]), tracking: plain, day: 16)
+        #expect(sameDay.recordsTooFew)
     }
 
     @Test func oneEntryThenAMonthOfSilenceGivesNoNumber() {

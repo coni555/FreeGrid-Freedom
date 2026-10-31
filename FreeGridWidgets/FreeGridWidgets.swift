@@ -121,7 +121,7 @@ struct DashboardEntryView: View {
             if entry.proActive {
                 DashboardMediumView(
                     freedom: day.freedom,
-                    stats: [entry.configuration.first, entry.configuration.second].compactMap { day.stats[$0.rawValue] },
+                    stats: stats(in: day),
                     note: entry.note)
             } else {
                 WidgetMessageView(kicker: "FreeGrid Pro", title: entry.text.proTitle, message: entry.text.proBody)
@@ -129,6 +129,12 @@ struct DashboardEntryView: View {
         } else {
             NoDataView()
         }
+    }
+
+    /// 选的那两项。按月记账时今日花销、记账天数没有数；两项都没有时放日均，右边不留空
+    private func stats(in day: WidgetSnapshot.Day) -> [WidgetSnapshot.Stat] {
+        let chosen = [entry.configuration.first, entry.configuration.second].compactMap { day.stats[$0.rawValue] }
+        return chosen.isEmpty ? [day.stats[WidgetMetric.daily.rawValue]].compactMap { $0 } : chosen
     }
 }
 

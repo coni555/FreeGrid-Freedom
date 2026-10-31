@@ -1207,16 +1207,6 @@
         }
       }
     },
-    "**想切回逐笔记账**，去「设置 → 账本 → 记账方式」，记过账的回到切换前的状态：记录恢复显示，日均按它们算，按月写的数不计入。只写过数、没记过账的，日均会在 30 天里慢慢改按记账算。逐笔记账时，最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊；记账没跨满 30 天就断档的，首页先不给大数字。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "**To go back to individual entries**, go to Settings → Ledger → Tracking Method. If you've logged before, you return to where you were: your entries reappear, your daily average uses them, and your monthly numbers don't count. If you've only entered monthly numbers, your daily average shifts to your logged expenses over 30 days. With individual entries, if more than 14 days pass after your last entry, the extra days stop pulling the average down; if you stop before your entries span 30 days, Home holds off on the big number."
-          }
-        }
-      }
-    },
     "**我的目标**（Pro）：桌面小号、中号，锁屏圆形和长条。写着还差多少天自由，定了日子的倒数还有几天。长按点「编辑小组件」选看哪个目标。": {
       "localizations": {
         "en": {
@@ -1373,16 +1363,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "**Freedom Days**: small on the Home Screen; circular, rectangular, and the line next to the date on the Lock Screen."
-          }
-        }
-      }
-    },
-    "**自由看板**（Pro）：桌面中号，自由天数旁边放两项数字。长按小组件点「编辑小组件」，从日均、本月花销、记账天数这些里面选。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "**Freedom Dashboard** (Pro): medium on the Home Screen, with two numbers next to your Freedom Days. Touch and hold the widget, tap \"Edit Widget\", and pick from daily average, this month's spending, days tracked and more."
           }
         }
       }
@@ -10798,16 +10778,6 @@
         }
       }
     },
-    "要两样都有：钱包里填了钱，并且记过至少一笔支出（或者写下了每月花销）。记了几笔就超过 14 天没记、记账又没跨满 30 天时，会先显示「暂时算不准自由天数」。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It needs both: money entered in Wallet and at least one expense (or your monthly spending). If you log a few entries and then stop for over 14 days before they span 30 days, it shows “Can't estimate your Freedom Days yet” first. If it says an amount looks wrong, look in History for an unusually large or negative entry."
-          }
-        }
-      }
-    },
     "要填大于 0 的数字": {
       "localizations": {
         "en": {
@@ -12982,6 +12952,78 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "**想切回逐笔记账**，去「设置 → 账本 → 记账方式」。记过账的回到切换前的状态：记录恢复显示，日均按它们算，按月写的数不计入。只写过数、没记过账的，日均会在 30 天里慢慢改按记账算。逐笔记账时，最后一笔之后超过 14 天没记，多出来的那些天不再把日均往下摊；记账没跨满 30 天就断档的，或者过了 14 天还只有两天记录的，首页先不给大数字。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**To go back to individual entries**, go to Settings → Ledger → Tracking Method. If you've logged before, you return to where you were: your entries reappear, your daily average uses them, and your monthly numbers don't count. If you've only entered monthly numbers, your daily average shifts to your logged expenses over 30 days. With individual entries, if more than 14 days pass after your last entry, the extra days stop pulling the average down; if you stop before your entries span 30 days, or after 14 days you've only logged on two days, Home holds off on the big number."
+          }
+        }
+      }
+    },
+    "要两样都有：钱包里填了钱，并且记过至少一笔支出（或者写下了每月花销）。记了几笔就超过 14 天没记、记账又没跨满 30 天，或者过了 14 天还只有两天的记录时，会先显示「暂时算不准自由天数」。如果提示「有一笔金额不对」，去明细找特别大或负数的那笔。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It needs both: money entered in Wallet and at least one expense (or your monthly spending). If you log a few entries and then stop for over 14 days before they span 30 days, or after 14 days you've only logged on two days, it shows “Can't estimate your Freedom Days yet” first. If it says an amount looks wrong, look in History for an unusually large or negative entry."
+          }
+        }
+      }
+    },
+    "元 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¥ · %@"
+          }
+        }
+      }
+    },
+    "已有 %lld 笔支出，再记一天就能算出来": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@ logged. One more day and it can be estimated."
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg expense"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg expenses"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "**自由看板**（Pro）：桌面中号，自由天数旁边放两项数字。长按小组件点「编辑小组件」，从日均、本月花销、记账天数这些里面选。按月记账时，本月花销写你写下的数，今日花销和记账天数不显示。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Freedom Dashboard** (Pro): medium on the Home Screen, with two numbers next to your Freedom Days. Touch and hold the widget, tap \"Edit Widget\", and pick from daily average, this month's spending, days tracked and more. With monthly tracking, this month's spending shows the number you entered, and today's spending and days tracked aren't shown."
           }
         }
       }

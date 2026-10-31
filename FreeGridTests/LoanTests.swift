@@ -168,10 +168,12 @@ struct LoanTests {
     }
 
     @Test func trendEndsAtTheSameNumberAsTheHero() throws {
-        // 首尾各一笔：跨满 60 天没断档，记录够算大数字
+        // 首、中、尾各一笔：跨满 60 天没断档，记录够算大数字
         let start = Calendar.current.date(byAdding: .day, value: -60, to: now)!
-        let expenses = [Expense(amount: 3050, category: "午餐", date: start),
-                        Expense(amount: 3050, category: "午餐", date: now)]
+        let middle = Calendar.current.date(byAdding: .day, value: -30, to: now)!
+        let expenses = [Expense(amount: 2000, category: "午餐", date: start),
+                        Expense(amount: 2050, category: "午餐", date: middle),
+                        Expense(amount: 2050, category: "午餐", date: now)]
         let s = FinancialSnapshot(expenses: expenses, passiveSources: [], assets: assets(cash: 20_000),
                                   loans: [loan()], now: now, countsAssets: true)
         let history = FreedomMath.freedomDaysHistory(
@@ -247,9 +249,10 @@ struct LoanTests {
         #expect(try status(loan, context, on: "2026-11-20").pending == [TestSupport.day("2026-11-14")])
 
         // 推演里这一期当作今天就要付：付不起就是 0 天
-        // burn100 到 11-20 已经断档，再记一笔才算得出大数字
-        let recent = Expense(amount: 1000, category: "午餐", date: at("2026-11-19"))
-        let s = FinancialSnapshot(expenses: burn100 + [recent] + (try LoanStore.payments(in: context)), passiveSources: [],
+        // burn100 到 11-20 已经断档，最近再记两天才算得出大数字
+        let recent = [Expense(amount: 500, category: "午餐", date: at("2026-11-18")),
+                      Expense(amount: 500, category: "午餐", date: at("2026-11-19"))]
+        let s = FinancialSnapshot(expenses: burn100 + recent + (try LoanStore.payments(in: context)), passiveSources: [],
                                   assets: assets(cash: 2000), loans: [loan], now: at("2026-11-20"), countsAssets: true)
         #expect(s.freedom == .finite(days: 0))
 
