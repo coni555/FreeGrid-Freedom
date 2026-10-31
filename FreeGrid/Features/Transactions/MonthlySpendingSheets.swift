@@ -172,7 +172,7 @@ struct TrackingSwitchSheet: View {
     var body: some View {
         let recordCount = expenses.count + incomes.count
         if MonthlyTracking.decode(storedTracking).isMonthly {
-            SwitchBackSheet(recordCount: recordCount)
+            SwitchBackSheet()
         } else if recordCount == 0 {
             // 还没记过账，没有记录要收起来，和引导第 3 步一样
             MonthlySpendingSheet(month: YearMonth(.now), adopting: true)
@@ -206,7 +206,7 @@ private struct SwitchToMonthlySheet: View {
             Group {
                 Text("切换后，你将开始全新的按月记账：日均只看之后写的数，现金和资产不变。")
                 Text("原有的 \(recordCount) 笔记录将暂时隐藏，不计入日均。**所有历史数据都会完整保留，不会被删除。**")
-                Text("你可以随时切回「逐笔记账」，回到切换前的状态。")
+                Text("你可以随时切回「逐笔记账」，回到之前的记账数据。")
             }
             .font(.system(.subheadline, design: .rounded))
             .foregroundStyle(Color.ink)
@@ -280,8 +280,6 @@ private struct TrackingCompareRow: View {
 
 /// 改回逐笔记账：记过账的回到切换前，写过的数不计入（用户 2026-10-31 定）；只写过数的日均用 30 天过渡
 private struct SwitchBackSheet: View {
-    let recordCount: Int
-
     @AppStorage(MonthlyTracking.key, store: AppPreferences.store) private var storedTracking = ""
     @Query private var expenses: [Expense]
     @Query private var passiveSources: [PassiveSource]
@@ -311,31 +309,33 @@ private struct SwitchBackSheet: View {
         let current = snapshot(MonthlyTracking.decode(storedTracking))
         NavigationStack {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("之后记的每笔支出都会从现金扣。")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color.ink)
-                    .fixedSize(horizontal: false, vertical: true)
                 if hasRecords {
                     let after = snapshot(switchedBack)
-                    Text("原有的 \(recordCount) 笔记录恢复显示，日均回到按它们算。写过的数留着，不计入。")
+                    Text("回到之前的逐笔记账方式和记账数据。")
                         .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
+                        .foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     VStack(spacing: Spacing.sm) {
                         TrackingCompareRow(label: String(localized: "日均"),
                                            before: current.hasExpenses ? dailyText(current.dailyCost) : nil,
                                            after: after.hasExpenses ? dailyText(after.dailyCost) : "—")
-                        TrackingCompareRow(label: String(localized: "能撑"), before: freedomText(current.freedom),
+                        TrackingCompareRow(label: String(localized: "自由天数"), before: freedomText(current.freedom),
                                            after: freedomText(after.freedom) ?? "—")
                     }
                     .trackingCard()
-                } else if current.hasExpenses {
-                    Text("日均会在 30 天里慢慢改按记账算。")
+                } else {
+                    Text("之后记的每笔支出都会从现金扣。")
                         .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(Color.inkMuted)
+                        .foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    TrackingCompareRow(label: String(localized: "现在的日均"), before: nil, after: dailyText(current.dailyCost))
-                        .trackingCard()
+                    if current.hasExpenses {
+                        Text("日均会在 30 天里慢慢改按记账算。")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        TrackingCompareRow(label: String(localized: "现在的日均"), before: nil, after: dailyText(current.dailyCost))
+                            .trackingCard()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -343,7 +343,7 @@ private struct SwitchBackSheet: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             .frame(maxHeight: .infinity, alignment: .top)
             .background(Color.paper)
-            .navigationTitle("改回逐笔记账")
+            .navigationTitle("切回逐笔记账")
             .inlineNavTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -387,7 +387,7 @@ private func dailyText(_ value: Double) -> String {
 /// 这里写全天数，不跟首页按月、按年显示
 private func freedomText(_ state: FreedomState) -> String? {
     switch state {
-    case .finite(let days): return String(localized: "\(FinancialFormatting.wholeNumber(days.rounded(.down))) 天自由")
+    case .finite(let days): return String(localized: "\(FinancialFormatting.wholeNumber(days.rounded(.down))) 天")
     case .covered: return "∞"
     case .insufficientData, .invalidData: return nil
     }

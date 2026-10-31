@@ -209,12 +209,12 @@
         }
       }
     },
-    "%@ 天自由": {
+    "%@ 天": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ Freedom Days"
+            "value": "%@ days"
           }
         }
       }
@@ -3098,12 +3098,12 @@
         }
       }
     },
-    "你可以随时切回「逐笔记账」，回到切换前的状态。": {
+    "你可以随时切回「逐笔记账」，回到之前的记账数据。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can switch back to Individual Entries anytime and return to where you were."
+            "value": "You can switch back to Individual Entries anytime and return to your earlier ledger data."
           }
         }
       }
@@ -4008,6 +4008,16 @@
         }
       }
     },
+    "切回逐笔记账": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch Back to Individual Entries"
+          }
+        }
+      }
+    },
     "切换": {
       "localizations": {
         "en": {
@@ -4426,38 +4436,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your %#@count@ will be hidden for now and won't count toward your daily average. **All your history is kept and won't be deleted.**"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg entry"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%arg entries"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "原有的 %lld 笔记录恢复显示，日均回到按它们算。写过的数留着，不计入。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your %#@count@ will reappear and your daily average will use them again. The monthly numbers you entered are kept but won't count."
           },
           "substitutions": {
             "count": {
@@ -4994,6 +4972,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Four rules"
+          }
+        }
+      }
+    },
+    "回到之前的逐笔记账方式和记账数据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This returns you to individual entries and your earlier ledger data."
           }
         }
       }
@@ -7670,16 +7658,6 @@
           "stringUnit": {
             "state": "new",
             "value": "改名后，这个分类下的 %1$lld 笔记录一起改成「%2$@」。"
-          }
-        }
-      }
-    },
-    "改回逐笔记账": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Switch Back to Individual Entries"
           }
         }
       }
@@ -10376,16 +10354,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Editing asset items needs Pro. Existing items still show and count as usual."
-          }
-        }
-      }
-    },
-    "能撑": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lasts"
           }
         }
       }

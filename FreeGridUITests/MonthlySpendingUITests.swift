@@ -176,7 +176,7 @@ final class MonthlySpendingUITests: XCTestCase {
 
         app.tabBars.buttons["设置"].tap()
         app.tapSettingsRow("settings-tracking-method", inCard: "settings-card-ledger")
-        XCTAssertTrue(app.staticTexts["之后记的每笔支出都会从现金扣。"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["回到之前的逐笔记账方式和记账数据。"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["¥100.0"].exists)
         attach(app, "按月记账-切回来")
         app.buttons["tracking-switch-confirm"].tap()
