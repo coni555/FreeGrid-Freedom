@@ -619,6 +619,14 @@ struct HistoryView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.vertical, -9)
+                // 放在负边距后面：圈住看得见的这行字，不切到上面的大数字
+                .background {
+                    if canExpand {
+                        Color.clear.guideTarget(.breakdown, in: guide)
+                    } else {
+                        Color.clear.onAppear { guide.forget(.breakdown) }
+                    }
+                }
                 .accessibilityIdentifier("history-breakdown-toggle")
                 .accessibilityRemoveTraits(canExpand ? [] : .isButton)
                 .accessibilityValue(canExpand ? (breakdownExpanded ? "已展开" : "已收起") : "")

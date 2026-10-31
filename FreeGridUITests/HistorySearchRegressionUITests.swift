@@ -8,6 +8,7 @@ final class HistorySearchRegressionUITests: XCTestCase {
         date.dateFormat = "yyyy-MM-dd"
         let today = date.string(from: .now)
         let previous = date.string(from: Calendar.current.date(byAdding: .month, value: -1, to: .now)!)
+        let earlier = date.string(from: Calendar.current.date(byAdding: .month, value: -2, to: .now)!)
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("search-regression.json")
         let additional: [[String: Any]] = scrolling ? (0..<160).map { index in
             ["id": UUID().uuidString, "amount": index + 1, "category": "购物", "note": "Coffee", "date": today]
@@ -19,6 +20,8 @@ final class HistorySearchRegressionUITests: XCTestCase {
                 ["id": UUID().uuidString, "amount": 20, "category": "购物", "note": "Coffee", "date": today],
                 ["id": UUID().uuidString, "amount": 30, "category": "午餐", "note": "Coffee", "date": previous],
                 ["id": UUID().uuidString, "amount": -1234.5, "category": "交通", "note": "退款", "date": today],
+                // 记账的日子凑够三天，首页才有小卡
+                ["id": UUID().uuidString, "amount": 5, "category": "午餐", "note": "早饭", "date": earlier],
             ] + additional,
             "incomes": [["id": UUID().uuidString, "amount": 2000, "source": "Salary", "note": "工资", "date": previous]],
             "devices": [], "passive_sources": [],

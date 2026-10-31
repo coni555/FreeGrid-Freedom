@@ -1,4 +1,4 @@
-// 数据管理页：导出 CSV / JSON、从 JSON 导入、清空全部数据。从 Settings 进入。
+// 数据管理页：导出 CSV / JSON、iCloud 自动备份、从 JSON 导入、清空全部数据。从 Settings 进入。
 
 import SwiftUI
 import SwiftData
@@ -19,11 +19,20 @@ struct DataManagementView: View {
     @State private var showingImportReview = false
     @State private var isReadingImport = false
     @State private var largeBackupRequest: LargeBackupRequest?
+    @AppStorage(ICloudBackup.enabledKey, store: AppPreferences.store) private var iCloudEnabled = true
+    @AppStorage(ICloudBackup.lastBackupKey, store: AppPreferences.store) private var iCloudLastBackup = 0.0
+    /// nil：还在查；空数组：iCloud 可用但还没有备份
+    @State private var iCloudItems: [ICloudBackup.Item]?
+    @State private var iCloudAvailable = true
+    @State private var iCloudBusy = false
+    @State private var iCloudStatus: String?
+    @State private var restoringItem: ICloudBackup.Item?
 
     private struct LargeBackupRequest {
         let url: URL
         let bytes: Int
         let reason: String
+        var securityScoped = true
     }
 
     // --- 数据导出 (按需: 点按钮才序列化 + 弹分享, 平时切页面不碰) ---
@@ -33,6 +42,7 @@ struct DataManagementView: View {
         ScrollView {
             VStack(spacing: Spacing.lg) {
                 exportCard
+                iCloudCard
                 importCard
                 purgeCard
             }
@@ -41,6 +51,15 @@ struct DataManagementView: View {
         .scrollContentBackground(.hidden)
         .background(Color.paper)
         .navigationTitle("数据管理")
+        .task { await watchICloud() }
+        .confirmationDialog(restoringItem.map { String(localized: "从 \(Self.backupTime($0.date)) 的备份恢复？") } ?? String(),
+                            isPresented: Binding(get: { restoringItem != nil }, set: { if !$0 { restoringItem = nil } }),
+                            titleVisibility: .visible, presenting: restoringItem) { item in
+            Button("继续检查") { restore(item) }
+            Button("取消", role: .cancel) {}
+        } message: { _ in
+            Text("写入前会先给你看一遍预览，和从 JSON 导入一样。")
+        }
         .sheet(item: $shareItem) { ShareSheet(url: $0.url) }
         .fileImporter(
             isPresented: $showingFileImporter,
@@ -74,7 +93,8 @@ struct DataManagementView: View {
             }
             Button("继续检查") {
                 largeBackupRequest = nil
-                readImport(request.url, policy: .confirmedBackup(fileBytes: request.bytes), allowLargeRetry: false)
+                readImport(request.url, policy: .confirmedBackup(fileBytes: request.bytes), allowLargeRetry: false,
+                           securityScoped: request.securityScoped)
             }
         } message: { request in
             Text("\(request.reason)\n\n这份备份有 \(ByteCountFormatter.string(fromByteCount: Int64(request.bytes), countStyle: .file))，恢复会慢一些。确认是这份，就点「继续检查」，之后还会先给你看预览。")
@@ -92,6 +112,148 @@ struct DataManagementView: View {
                 Text("CSV 用 Excel / Numbers 打开看；JSON 用来备份和恢复记账数据，外观这类本机设置要重新选")
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
+            }
+        }
+    }
+
+    /// iCloud 自动备份：开关、上次什么时候、现在备份、最近几份点了恢复
+    private var iCloudCard: some View {
+        VaultCard {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                KickerLabel(text: String(localized: "iCloud · 自动备份"))
+                Toggle(isOn: $iCloudEnabled) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("自动备份到 iCloud 云盘")
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        Text(iCloudSummary)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let note = iCloudUploadNote {
+                            Text(note)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("icloud-upload-note")
+                        }
+                    }
+                }
+                .tint(Color.skyDeep)
+                .accessibilityIdentifier("icloud-backup-toggle")
+
+                compactDataButton(iCloudBusy ? String(localized: "正在备份…") : String(localized: "现在备份"),
+                                  icon: "icloud.and.arrow.up") { backUpNow() }
+                    .disabled(iCloudBusy || !iCloudAvailable)
+                    .accessibilityIdentifier("icloud-backup-now")
+
+                if let items = iCloudItems, !items.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { Hairline(color: .hairlineSoft) }
+                            Button { restoringItem = item } label: {
+                                HStack {
+                                    Text(Self.backupTime(item.date))
+                                        .font(.system(.subheadline, design: .rounded).monospacedDigit())
+                                        .foregroundStyle(Color.ink)
+                                    Spacer()
+                                    if let bytes = item.bytes {
+                                        Text(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+                                            .font(.system(.caption2, design: .monospaced))
+                                            .foregroundStyle(Color.inkFaint)
+                                    }
+                                    Text("恢复")
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(Color.skyDeep)
+                                }
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isReadingImport)
+                        }
+                    }
+                }
+                if let status = iCloudStatus {
+                    Text(status)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private var iCloudSummary: String {
+        guard iCloudAvailable else {
+            return String(localized: "iCloud 云盘不可用：在 iOS 设置里登录 iCloud，并给 FreeGrid 打开 iCloud 云盘。")
+        }
+        let time = Self.backupTime(Date(timeIntervalSince1970: iCloudLastBackup))
+        let last = iCloudLastBackup <= 0 ? String(localized: "还没备份过")
+            : iCloudItems?.first?.upload == .uploaded ? String(localized: "上次 \(time)，已传上 iCloud")
+            : String(localized: "上次 \(time)")
+        return iCloudEnabled
+            ? String(localized: "离开 App 时每天最多存一份，留最近 \(ICloudBackup.keepCount) 份。\(last)")
+            : last
+    }
+
+    /// 最新一份没传上去时说清楚：这时删 App、换设备都找不回它
+    private var iCloudUploadNote: String? {
+        guard iCloudAvailable else { return nil }
+        switch iCloudItems?.first?.upload {
+        case .quotaFull: return String(localized: "iCloud 空间满了，最新一份还只在这台设备上。腾出空间后会自动上传。")
+        case .failed: return String(localized: "最新一份暂时传不上 iCloud，还只在这台设备上。系统会再试。")
+        case .pending: return String(localized: "最新一份还没传上 iCloud，还只在这台设备上。")
+        case .uploaded, nil: return nil
+        }
+    }
+
+    /// 「10月29日 14:30」；不是今年的带年份
+    static func backupTime(_ date: Date) -> String {
+        let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
+        return AppLanguage.date(date, template: sameYear ? "MMMdHHmm" : "yyyyMMMdHHmm")
+    }
+
+    private func refreshICloud() async {
+        let items = await ICloudBackup.list()
+        iCloudAvailable = items != nil
+        iCloudItems = items
+    }
+
+    /// 进页面查一次；最新一份没传上去时隔几秒再看，传完了卡片跟着改
+    private func watchICloud() async {
+        await refreshICloud()
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(5))
+            if Task.isCancelled { return }
+            if let newest = iCloudItems?.first, newest.upload != .uploaded { await refreshICloud() }
+        }
+    }
+
+    private func backUpNow() {
+        guard !iCloudBusy else { return }
+        iCloudBusy = true
+        iCloudStatus = nil
+        Task {
+            defer { iCloudBusy = false }
+            do {
+                _ = try await ICloudBackup.write(try ICloudBackup.currentBackup(context: modelContext))
+            } catch {
+                iCloudStatus = String(localized: "备份失败：\(error.localizedDescription)")
+            }
+            await refreshICloud()
+        }
+    }
+
+    private func restore(_ item: ICloudBackup.Item) {
+        iCloudStatus = String(localized: "正在从 iCloud 取回备份…")
+        Task {
+            do {
+                let url = try await ICloudBackup.download(item)
+                iCloudStatus = nil
+                readImport(url, securityScoped: false)
+            } catch {
+                iCloudStatus = String(localized: "取不回这份备份：\(error.localizedDescription)")
             }
         }
     }
@@ -178,11 +340,7 @@ struct DataManagementView: View {
                 data = try DataIO.exportCSV(context: modelContext)
                 name = String(localized: "FreeGrid-记账-\(timestamp)-\(nonce).csv")
             case .json:
-                // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样
-                data = try DataIO.exportJSON(
-                    context: modelContext,
-                    categoryOptions: encodedCategoryOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedCategoryOptions),
-                    monthlyTracking: { let tracking = MonthlyTracking.decode(storedTracking); return tracking.isUntouched ? nil : tracking }())
+                data = try ICloudBackup.currentBackup(context: modelContext)
                 name = String(localized: "FreeGrid-备份-\(timestamp)-\(nonce).json")
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -208,17 +366,20 @@ struct DataManagementView: View {
         }
     }
 
-    private func readImport(_ url: URL, policy: ImportPolicy = .default, allowLargeRetry: Bool = true) {
+    /// `securityScoped` 为假：App 自己 iCloud 文件夹里的备份，不用申请访问
+    private func readImport(_ url: URL, policy: ImportPolicy = .default, allowLargeRetry: Bool = true,
+                            securityScoped: Bool = true) {
         guard !isReadingImport else { return }
         isReadingImport = true
         importStatus = String(localized: "正在检查备份…")
         Task {
             defer { isReadingImport = false }
-            guard url.startAccessingSecurityScopedResource() else {
+            let accessing = securityScoped && url.startAccessingSecurityScopedResource()
+            guard accessing || !securityScoped else {
                 importStatus = String(localized: "无法访问该文件")
                 return
             }
-            defer { url.stopAccessingSecurityScopedResource() }
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
             do {
                 let validated = try await Task.detached(priority: .userInitiated) {
@@ -232,7 +393,8 @@ struct DataManagementView: View {
                 showingImportReview = true
             } catch let error as ImportValidationError where error.isResourceLimit && allowLargeRetry {
                 if let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                    largeBackupRequest = LargeBackupRequest(url: url, bytes: bytes, reason: error.localizedDescription)
+                    largeBackupRequest = LargeBackupRequest(url: url, bytes: bytes, reason: error.localizedDescription,
+                                                            securityScoped: securityScoped)
                     importStatus = String(localized: "备份超过常规导入限额，等待确认恢复。")
                 } else {
                     importStatus = String(localized: "无法确认备份大小，请重新选择文件。")

@@ -2334,16 +2334,6 @@
         }
       }
     },
-    "不会。账本只存在本机，没有账号、没有埋点。只有购买和恢复 Pro 时经过 Apple。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No. Your ledger stays on this device, with no account and no tracking. Only buying and restoring Pro go through Apple."
-          }
-        }
-      }
-    },
     "不会，所有记账数据都保留。只是：": {
       "localizations": {
         "en": {
@@ -4048,16 +4038,6 @@
         }
       }
     },
-    "删了 App，账本就没了。卸载、重装、换手机前，先导出 JSON 备份。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deleting the app deletes your ledger. Before uninstalling, reinstalling or switching phones, export a JSON backup."
-          }
-        }
-      }
-    },
     "删除": {
       "localizations": {
         "en": {
@@ -5414,16 +5394,6 @@
         }
       }
     },
-    "外观这类本机设置不在备份里，换手机后要重新选。建议每月导一次 JSON，存到「文件」或你常用的云盘。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Device settings like appearance aren't in backups; set them again on a new phone. Export JSON about once a month and keep it in Files or your usual cloud drive."
-          }
-        }
-      }
-    },
     "够撑%@": {
       "localizations": {
         "en": {
@@ -6382,16 +6352,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore Purchase"
-          }
-        }
-      }
-    },
-    "恢复购买只找回 Pro，不找回账本。账本要用之前导出的 JSON 导入。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restoring brings back Pro, not your ledger. Import your ledger from a JSON backup."
           }
         }
       }
@@ -8006,16 +7966,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Date,Type,Category/Source,Amount,Note\n"
-          }
-        }
-      }
-    },
-    "旧手机导出 JSON，存到新手机拿得到的地方。新手机装好 FreeGrid，在备份与恢复里选「从 JSON 导入」。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export JSON on your old phone and put it somewhere your new phone can reach. Install FreeGrid on the new phone and choose “Import from JSON” in Backup & Restore."
           }
         }
       }
@@ -12440,16 +12390,6 @@
         }
       }
     },
-    "这里搜索全部记录。\n想只看某一类，点卡片里「N 笔」那一行展开，再点那一类。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search all records here.\nTo see just one category, tap the “N entries” row on the card to expand it, then tap the category."
-          }
-        }
-      }
-    },
     "这里还没有记录": {
       "localizations": {
         "en": {
@@ -13024,6 +12964,266 @@
           "stringUnit": {
             "state": "translated",
             "value": "**Freedom Dashboard** (Pro): medium on the Home Screen, with two numbers next to your Freedom Days. Touch and hold the widget, tap \"Edit Widget\", and pick from daily average, this month's spending, days tracked and more. With monthly tracking, this month's spending shows the number you entered, and today's spending and days tracked aren't shown."
+          }
+        }
+      }
+    },
+    "iCloud · 自动备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud · Auto Backup"
+          }
+        }
+      }
+    },
+    "iCloud 云盘不可用：在 iOS 设置里登录 iCloud，并给 FreeGrid 打开 iCloud 云盘。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud Drive isn't available. Sign in to iCloud in iOS Settings and turn on iCloud Drive for FreeGrid."
+          }
+        }
+      }
+    },
+    "上次 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup %@"
+          }
+        }
+      }
+    },
+    "从 %@ 的备份恢复？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore from the %@ backup?"
+          }
+        }
+      }
+    },
+    "写入前会先给你看一遍预览，和从 JSON 导入一样。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll see a preview before anything is written, just like importing JSON."
+          }
+        }
+      }
+    },
+    "取不回这份备份：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't fetch this backup: %@"
+          }
+        }
+      }
+    },
+    "备份失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup failed: %@"
+          }
+        }
+      }
+    },
+    "恢复": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "正在从 iCloud 取回备份…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching the backup from iCloud…"
+          }
+        }
+      }
+    },
+    "正在备份…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backing up…"
+          }
+        }
+      }
+    },
+    "现在备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Up Now"
+          }
+        }
+      }
+    },
+    "离开 App 时每天最多存一份，留最近 %lld 份。%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves at most once a day when you leave the app and keeps the latest %lld. %@"
+          }
+        }
+      }
+    },
+    "自动备份到 iCloud 云盘": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Up to iCloud Drive"
+          }
+        }
+      }
+    },
+    "还没备份过": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backups yet"
+          }
+        }
+      }
+    },
+    "删了 App，这台设备上的账本就没了。关了 iCloud 自动备份的话，卸载、重装、换手机前先导出 JSON。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting the app deletes the ledger on this device. If iCloud Auto Backup is off, export a JSON backup before uninstalling, reinstalling or switching phones."
+          }
+        }
+      }
+    },
+    "**iCloud 自动备份**：默认打开，可以关掉。离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。iCloud 空间满了传不上去时，卡片上会写明，这时备份还只在这台设备上。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**iCloud Auto Backup**: on by default, and you can turn it off. Leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices. If your iCloud storage is full and the backup can't upload, the card says so, and the backup stays only on this device."
+          }
+        }
+      }
+    },
+    "外观这类本机设置不在备份里，换手机后要重新选。没用 iCloud 自动备份的话，建议每月导一次 JSON，存到「文件」或你常用的云盘。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device settings like appearance aren't in backups; set them again on a new phone. If you don't use iCloud Auto Backup, export JSON about once a month and keep it in Files or your usual cloud drive."
+          }
+        }
+      }
+    },
+    "开着 iCloud 自动备份的话，新手机登录同一个 Apple 账户，装好 FreeGrid，在备份与恢复的 iCloud 卡片里点最近的一份。也可以在旧手机导出 JSON，存到新手机拿得到的地方，在新手机选「从 JSON 导入」。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With iCloud Auto Backup on, sign in to the same Apple Account on your new phone, install FreeGrid, and tap the latest backup on the iCloud card in Backup & Restore. Or export JSON on your old phone, put it somewhere your new phone can reach, and choose “Import from JSON” there."
+          }
+        }
+      }
+    },
+    "恢复购买只找回 Pro，不找回账本。账本要从 iCloud 备份或导出的 JSON 恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring brings back Pro, not your ledger. Restore your ledger from an iCloud or JSON backup."
+          }
+        }
+      }
+    },
+    "不会传给我们。账本存在本机，没有账号、没有埋点。iCloud 自动备份存在你自己的 iCloud 云盘里，我们看不到，不想要可以在备份与恢复里关掉。购买和恢复 Pro 时经过 Apple。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not to us. Your ledger stays on this device, with no account and no tracking. iCloud Auto Backup saves to your own iCloud Drive, which we can't see; you can turn it off in Backup & Restore. Buying and restoring Pro go through Apple."
+          }
+        }
+      }
+    },
+    "这里搜索全部记录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search all records here."
+          }
+        }
+      }
+    },
+    "点这一行展开，看每一类花了多少。\n再点某一类，只看这一类的记录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap this row to see how much went to each category.\nTap a category to see only its records."
+          }
+        }
+      }
+    },
+    "上次 %@，已传上 iCloud": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup %@, uploaded to iCloud"
+          }
+        }
+      }
+    },
+    "iCloud 空间满了，最新一份还只在这台设备上。腾出空间后会自动上传。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your iCloud storage is full, so the latest backup is only on this device. It will upload automatically once you free up space."
+          }
+        }
+      }
+    },
+    "最新一份暂时传不上 iCloud，还只在这台设备上。系统会再试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest backup can't reach iCloud right now and is only on this device. The system will try again."
+          }
+        }
+      }
+    },
+    "最新一份还没传上 iCloud，还只在这台设备上。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest backup hasn't uploaded to iCloud yet and is only on this device."
           }
         }
       }

@@ -79,7 +79,7 @@ struct LargeBackupRestoreTests {
 
     private func diskContext(at url: URL) throws -> ModelContext {
         let schema = StoreBootstrap.schema
-        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)])
         let context = ModelContext(container)
         context.autosaveEnabled = false
         return context

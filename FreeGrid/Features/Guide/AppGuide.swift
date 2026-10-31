@@ -16,7 +16,7 @@ final class AppGuide {
 
     enum Target: Hashable {
         // History
-        case month, row, tools
+        case month, breakdown, row, tools
         // 首页
         case number, grid, repaymentDays, simulate, trend, cards
         // Assets
@@ -79,9 +79,11 @@ final class AppGuide {
         case .history:
             return [
                 Step(target: .month, text: String(localized: "点月份，跳到任意一个月。\n旁边的箭头可以前后翻月。")),
+                // 这个月有支出才能展开
+                Step(target: .breakdown, text: String(localized: "点这一行展开，看每一类花了多少。\n再点某一类，只看这一类的记录。")),
                 Step(target: .row, text: String(localized: "点一行，修改金额、分类、日期或备注。")),
                 Step(target: .row, text: String(localized: "向左滑一行，撤销这笔。"), showsSwipe: true),
-                Step(target: .tools, text: String(localized: "这里搜索全部记录。\n想只看某一类，点卡片里「N 笔」那一行展开，再点那一类。")),
+                Step(target: .tools, text: String(localized: "这里搜索全部记录。")),
             ]
         }
     }

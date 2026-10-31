@@ -192,7 +192,10 @@ struct ContentView: View {
         .background { tabFreezeSignals }
         // 离开 App 时再写一份：这次打开记的账、改的目标、换的语言都在里面
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { WidgetPublisher.publish(in: modelContext) }
+            guard phase == .background else { return }
+            WidgetPublisher.publish(in: modelContext)
+            // 隔够一天往 iCloud 云盘存一份备份（开关在数据管理页）
+            ICloudBackup.backUpIfDue(in: modelContext)
         }
         // 点小组件打开 App：没有 Pro 时点的是 Pro 小组件就去购买页，其余回首页
         .onOpenURL { url in
