@@ -1,4 +1,4 @@
-// iCloud 自动备份（2.2，免费）：离开 App 时，距上次超过 20 小时、账本里有记录，就往 App 自己的 iCloud 云盘文件夹
+// iCloud 自动备份（2.2，免费，默认开）：离开 App 时，距上次超过 20 小时、有东西可备份，就往 App 自己的 iCloud 云盘文件夹
 // 写一份 JSON，留最近 7 份。内容和手动「导出 JSON」一样，恢复也走同一套校验和预览。
 // 账本本身不进 iCloud，不做多设备同步（SwiftData + CloudKit 风险大，2026-10-26 定的范围）。
 // 文件在「文件」App 的 iCloud 云盘 → FreeGrid 里看得到（Info.plist 的 NSUbiquitousContainers）。
@@ -98,21 +98,31 @@ enum ICloudBackup {
 
     /// 现在的账本做成一份备份。和数据管理页的「导出 JSON」是同一份内容
     @MainActor
-    static func currentBackup(context: ModelContext) throws -> Data {
+    static func currentBackup(context: ModelContext, tracking: MonthlyTracking = .current) throws -> Data {
         let encodedOptions = AppPreferences.store.string(forKey: ExpenseCategoryStorage.key) ?? ""
-        // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样
+        // 自定义过分类才把分类设置写进备份；没动过的账本导出和以前一样。按月记账写下的数同理
         return try DataIO.exportJSON(
             context: context,
-            categoryOptions: encodedOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedOptions))
+            categoryOptions: encodedOptions.isEmpty ? nil : ExpenseCategoryStorage.decode(encodedOptions),
+            monthlyTracking: tracking.isUntouched ? nil : tracking)
     }
 
-    /// 离开 App 时调：开着、到时间了、账本里有东西才写
+    /// 有东西可备份：记过账、写过每月花销，或者钱包里填过钱。按月记账的人账本里可以一笔记录都没有。
+    /// 什么都没有时不写：刚重装的 App 不该用空账本挤掉之前的备份
+    @MainActor
+    static func hasContent(in context: ModelContext, tracking: MonthlyTracking = .current) -> Bool {
+        if tracking.hasNumber { return true }
+        if ((try? context.fetchCount(FetchDescriptor<Expense>())) ?? 0) > 0
+            || ((try? context.fetchCount(FetchDescriptor<Income>())) ?? 0) > 0 { return true }
+        guard let assets = (try? context.fetch(FetchDescriptor<UserAssets>()))?.first else { return false }
+        return assets.cash != 0 || assets.lockedAssets != 0
+    }
+
+    /// 离开 App 时调：开着、到时间了、有东西可备份才写
     @MainActor
     static func backUpIfDue(in context: ModelContext, now: Date = .now) {
         guard isEnabled(), isDue(lastBackup: lastBackup(), now: now) else { return }
-        let hasRecords = ((try? context.fetchCount(FetchDescriptor<Expense>())) ?? 0) > 0
-            || ((try? context.fetchCount(FetchDescriptor<Income>())) ?? 0) > 0
-        guard hasRecords, let data = try? currentBackup(context: context) else { return }
+        guard hasContent(in: context), let data = try? currentBackup(context: context) else { return }
         #if os(iOS)
         // 退到后台后系统只给几秒，申请一段后台时间把文件写完
         var task = UIBackgroundTaskIdentifier.invalid

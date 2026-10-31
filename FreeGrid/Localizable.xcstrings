@@ -2334,16 +2334,6 @@
         }
       }
     },
-    "不会。账本只存在本机，没有账号、没有埋点。只有购买和恢复 Pro 时经过 Apple。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No. Your ledger stays on this device, with no account and no tracking. Only buying and restoring Pro go through Apple."
-          }
-        }
-      }
-    },
     "不会，所有记账数据都保留。只是：": {
       "localizations": {
         "en": {
@@ -4048,16 +4038,6 @@
         }
       }
     },
-    "删了 App，账本就没了。卸载、重装、换手机前，先导出 JSON 备份。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deleting the app deletes your ledger. Before uninstalling, reinstalling or switching phones, export a JSON backup."
-          }
-        }
-      }
-    },
     "删除": {
       "localizations": {
         "en": {
@@ -5414,16 +5394,6 @@
         }
       }
     },
-    "外观这类本机设置不在备份里，换手机后要重新选。建议每月导一次 JSON，存到「文件」或你常用的云盘。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Device settings like appearance aren't in backups; set them again on a new phone. Export JSON about once a month and keep it in Files or your usual cloud drive."
-          }
-        }
-      }
-    },
     "够撑%@": {
       "localizations": {
         "en": {
@@ -6382,16 +6352,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore Purchase"
-          }
-        }
-      }
-    },
-    "恢复购买只找回 Pro，不找回账本。账本要用之前导出的 JSON 导入。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restoring brings back Pro, not your ledger. Import your ledger from a JSON backup."
           }
         }
       }
@@ -8006,16 +7966,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Date,Type,Category/Source,Amount,Note\n"
-          }
-        }
-      }
-    },
-    "旧手机导出 JSON，存到新手机拿得到的地方。新手机装好 FreeGrid，在备份与恢复里选「从 JSON 导入」。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export JSON on your old phone and put it somewhere your new phone can reach. Install FreeGrid on the new phone and choose “Import from JSON” in Backup & Restore."
           }
         }
       }
@@ -13028,16 +12978,6 @@
         }
       }
     },
-    "**iCloud 自动备份**：打开后，离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "**iCloud Auto Backup**: when it's on, leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices."
-          }
-        }
-      }
-    },
     "iCloud · 自动备份": {
       "localizations": {
         "en": {
@@ -13184,6 +13124,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "No backups yet"
+          }
+        }
+      }
+    },
+    "删了 App，这台设备上的账本就没了。关了 iCloud 自动备份的话，卸载、重装、换手机前先导出 JSON。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting the app deletes the ledger on this device. If iCloud Auto Backup is off, export a JSON backup before uninstalling, reinstalling or switching phones."
+          }
+        }
+      }
+    },
+    "**iCloud 自动备份**：默认打开，可以关掉。离开 App 时每天最多往 iCloud 云盘存一份 JSON，留最近 7 份，在「文件」App 的 iCloud 云盘 → FreeGrid 里也看得到。点列表里的一份就能恢复，和从 JSON 导入一样先看预览。账本本身不进 iCloud，也不在多台设备间同步。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**iCloud Auto Backup**: on by default, and you can turn it off. Leaving the app saves a JSON backup to iCloud Drive at most once a day and keeps the latest 7; you can also see them in the Files app under iCloud Drive → FreeGrid. Tap one in the list to restore it, with the same preview as importing JSON. The ledger itself never goes into iCloud and isn't synced between devices."
+          }
+        }
+      }
+    },
+    "外观这类本机设置不在备份里，换手机后要重新选。没用 iCloud 自动备份的话，建议每月导一次 JSON，存到「文件」或你常用的云盘。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device settings like appearance aren't in backups; set them again on a new phone. If you don't use iCloud Auto Backup, export JSON about once a month and keep it in Files or your usual cloud drive."
+          }
+        }
+      }
+    },
+    "开着 iCloud 自动备份的话，新手机登录同一个 Apple 账户，装好 FreeGrid，在备份与恢复的 iCloud 卡片里点最近的一份。也可以在旧手机导出 JSON，存到新手机拿得到的地方，在新手机选「从 JSON 导入」。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With iCloud Auto Backup on, sign in to the same Apple Account on your new phone, install FreeGrid, and tap the latest backup on the iCloud card in Backup & Restore. Or export JSON on your old phone, put it somewhere your new phone can reach, and choose “Import from JSON” there."
+          }
+        }
+      }
+    },
+    "恢复购买只找回 Pro，不找回账本。账本要从 iCloud 备份或导出的 JSON 恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring brings back Pro, not your ledger. Restore your ledger from an iCloud or JSON backup."
+          }
+        }
+      }
+    },
+    "不会传给我们。账本存在本机，没有账号、没有埋点。iCloud 自动备份存在你自己的 iCloud 云盘里，我们看不到，不想要可以在备份与恢复里关掉。购买和恢复 Pro 时经过 Apple。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not to us. Your ledger stays on this device, with no account and no tracking. iCloud Auto Backup saves to your own iCloud Drive, which we can't see; you can turn it off in Backup & Restore. Buying and restoring Pro go through Apple."
           }
         }
       }
