@@ -1,0 +1,3019 @@
+{
+ "version": "2.2",
+ "source": "iOS 90a9be3 的 FreeGridTests/MonthlySpendingTests.swift、HistoryLedgerTests.swift；该提交全量 493 过、0 失败。source_test 是对应的测试名",
+ "conventions": {
+  "day_n": "第 n 天是 2026-10-01 加 n-1 天的本地中午 12:00；entries 是 [第几天, 金额]",
+  "start_day/end_day": "换算成同样的日期；null 表示还在用",
+  "tracking": "省略时是默认值（method=entries，其余为空）。switched_back_day 对应 switchedBackAt",
+  "snapshot_setup": "现金 10000，无资产，无被动收入，countsAssets=true",
+  "tolerance": "浮点比较容差 1e-6",
+  "omitted": "expect 里没写的字段不断言"
+ },
+ "snapshot_cases": [
+  {
+   "id": "S01",
+   "name": "只写一个数",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 1,
+   "expect": {
+    "has_expenses": true,
+    "has_records": false,
+    "basis": "estimate",
+    "freedom_days": 100,
+    "track_milestone_progress": 0
+   },
+   "source_test": "freedomDaysFromOneNumber"
+  },
+  {
+   "id": "S02",
+   "name": "数全被贷款占，还完接着花",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "loans": [
+    {
+     "name": "房贷",
+     "monthly_amount": 3044,
+     "due_day": 5,
+     "periods_at_start": 2,
+     "start_day": 1,
+     "is_ongoing": false
+    }
+   ],
+   "now_day": 1,
+   "expect": {
+    "daily_burn": 0,
+    "freedom_days": 74.12
+   },
+   "source_test": "aNumberAllTakenByALoanStillCostsMoneyAfterTheLoan"
+  },
+  {
+   "id": "S03",
+   "name": "切过来还没写数",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {},
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 1,
+   "expect": {
+    "has_expenses": false,
+    "freedom": "insufficientData"
+   },
+   "source_test": "noNumberYetMeansNoFreedomDays"
+  },
+  {
+   "id": "S04",
+   "name": "多个月取平均",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 2044,
+     "2026-11": 4044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 1,
+   "expect": {
+    "daily_burn": 100,
+    "daily_note": "按 2 个月平均"
+   },
+   "source_test": "severalMonthsAreAveraged"
+  },
+  {
+   "id": "S05",
+   "name": "旧记录不计入",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 40,
+   "expect": {
+    "daily_burn": 100,
+    "basis": "estimate",
+    "has_records": true,
+    "gap_days": 0
+   },
+   "source_test": "oldRecordsDoNotCount"
+  },
+  {
+   "id": "S06",
+   "name": "按月时里程碑暂停",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 30,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 100,
+   "expect": {
+    "track_days": 30
+   },
+   "source_test": "recordMilestonesPauseWhileMonthly"
+  },
+  {
+   "id": "S07",
+   "name": "固定支出在写的数里",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "loans": [
+    {
+     "name": "房租",
+     "monthly_amount": 1000,
+     "due_day": 5,
+     "periods_at_start": 0,
+     "start_day": 1,
+     "is_ongoing": true
+    }
+   ],
+   "now_day": 1,
+   "expect": {
+    "daily_burn": 67.1484888304862,
+    "daily_cost": 100
+   },
+   "source_test": "fixedExpensesAreInsideTheMonthlyNumber"
+  },
+  {
+   "id": "S08",
+   "name": "固定支出多过写的数",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 1000
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "loans": [
+    {
+     "name": "房租",
+     "monthly_amount": 2000,
+     "due_day": 5,
+     "periods_at_start": 0,
+     "start_day": 1,
+     "is_ongoing": true
+    }
+   ],
+   "now_day": 1,
+   "expect": {
+    "daily_burn": 0,
+    "freedom_days_between": [
+     120,
+     170
+    ]
+   },
+   "source_test": "fixedExpensesOverTheMonthlyNumberAreNotABadData"
+  },
+  {
+   "id": "S09",
+   "name": "两笔隔 31 天",
+   "entries": [
+    [
+     1,
+     20
+    ],
+    [
+     32,
+     20
+    ]
+   ],
+   "now_day": 32,
+   "expect": {
+    "records_too_few": true,
+    "gap_days": 0,
+    "freedom": "insufficientData"
+   },
+   "source_test": "twoEntriesAMonthApartGiveNoNumber"
+  },
+  {
+   "id": "S10",
+   "name": "第三天记录后恢复",
+   "entries": [
+    [
+     1,
+     3000
+    ],
+    [
+     31,
+     3000
+    ],
+    [
+     61,
+     3000
+    ]
+   ],
+   "now_day": 61,
+   "expect": {
+    "records_too_few": false,
+    "freedom": "finite"
+   },
+   "source_test": "aThirdDayOfRecordsBringsTheNumberBack"
+  },
+  {
+   "id": "S11",
+   "name": "14 天内两天记录照算",
+   "entries": [
+    [
+     1,
+     20
+    ],
+    [
+     10,
+     20
+    ]
+   ],
+   "now_day": 15,
+   "expect": {
+    "records_too_few": false,
+    "freedom": "finite"
+   },
+   "source_test": "twoDaysOfRecordsCountWithinTheFirstTwoWeeks"
+  },
+  {
+   "id": "S12",
+   "name": "同一天多笔只算一天",
+   "entries": [
+    [
+     1,
+     20
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     16,
+     20
+    ]
+   ],
+   "now_day": 16,
+   "expect": {
+    "records_too_few": true
+   },
+   "source_test": "twoDaysOfRecordsCountWithinTheFirstTwoWeeks"
+  },
+  {
+   "id": "S13",
+   "name": "一笔后沉默一个月",
+   "entries": [
+    [
+     1,
+     20
+    ]
+   ],
+   "now_day": 31,
+   "expect": {
+    "records_too_few": true,
+    "gap_days": 16,
+    "freedom": "insufficientData",
+    "has_records": true
+   },
+   "source_test": "oneEntryThenAMonthOfSilenceGivesNoNumber"
+  },
+  {
+   "id": "S14",
+   "name": "14 天内一笔照算",
+   "entries": [
+    [
+     1,
+     20
+    ]
+   ],
+   "now_day": 15,
+   "expect": {
+    "records_too_few": false,
+    "freedom": "finite"
+   },
+   "source_test": "aFewQuietDaysStillGiveTheNumber"
+  },
+  {
+   "id": "S15",
+   "name": "老用户断档大数字照常",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     31,
+     60
+    ],
+    [
+     32,
+     60
+    ],
+    [
+     33,
+     60
+    ],
+    [
+     34,
+     60
+    ],
+    [
+     35,
+     60
+    ],
+    [
+     36,
+     60
+    ],
+    [
+     37,
+     60
+    ],
+    [
+     38,
+     60
+    ],
+    [
+     39,
+     60
+    ],
+    [
+     40,
+     60
+    ]
+   ],
+   "now_day": 90,
+   "expect": {
+    "records_too_few": false,
+    "gap_days": 36,
+    "freedom": "finite",
+    "daily_note": "50 天没记 · 日均先停住"
+   },
+   "source_test": "aVeteranKeepsTheNumberThroughAGap"
+  }
+ ],
+ "burn_cases": [
+  {
+   "id": "B01",
+   "name": "切过去写数",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 30,
+      "end_day": null
+     }
+    ]
+   },
+   "fixed_monthly": 0,
+   "now_day": 30,
+   "expect": {
+    "daily_burn": 100
+   },
+   "source_test": "switchingBackReturnsToTheDailyBurnFromBeforeTheSwitch"
+  },
+  {
+   "id": "B02",
+   "name": "当场切回，一分不差",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 30,
+      "end_day": 30
+     }
+    ]
+   },
+   "fixed_monthly": 0,
+   "now_day": 30,
+   "expect": {
+    "daily_burn": 60,
+    "basis": "records"
+   },
+   "source_test": "switchingBackReturnsToTheDailyBurnFromBeforeTheSwitch"
+  },
+  {
+   "id": "B03",
+   "name": "中间那段不算",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 30,
+      "end_day": 90
+     }
+    ]
+   },
+   "fixed_monthly": 0,
+   "now_day": 90,
+   "expect": {
+    "daily_burn": 58.064516129032256,
+    "basis": "records",
+    "track_days": 31
+   },
+   "source_test": "theMonthsInBetweenAreLeftOutAfterSwitchingBack"
+  },
+  {
+   "id": "B04",
+   "name": "只写过数切回，没记录",
+   "entries": [],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": 1
+     }
+    ],
+    "switched_back_day": 1
+   },
+   "fixed_monthly": 0,
+   "now_day": 1,
+   "expect": {
+    "daily_burn": 100,
+    "basis": "estimate",
+    "track_days": 0
+   },
+   "source_test": "withoutRecordsTheNumberKeepsWorking"
+  },
+  {
+   "id": "B05",
+   "name": "第一笔不跳",
+   "entries": [
+    [
+     5,
+     20
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": 5
+     }
+    ],
+    "switched_back_day": 5
+   },
+   "fixed_monthly": 0,
+   "now_day": 5,
+   "expect": {
+    "daily_burn": 97.33333333333333,
+    "basis": "recordsAndEstimate"
+   },
+   "source_test": "theFirstEntryDoesNotJump"
+  },
+  {
+   "id": "B06",
+   "name": "过渡第 10 天",
+   "entries": [
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": 5
+     }
+    ],
+    "switched_back_day": 5
+   },
+   "fixed_monthly": 0,
+   "now_day": 14,
+   "expect": {
+    "daily_burn": 86.66666666666667
+   },
+   "source_test": "theBurnMovesTowardsTheRecordsDayByDay"
+  },
+  {
+   "id": "B07",
+   "name": "过渡满 30 天",
+   "entries": [
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     31,
+     60
+    ],
+    [
+     32,
+     60
+    ],
+    [
+     33,
+     60
+    ],
+    [
+     34,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": 5
+     }
+    ],
+    "switched_back_day": 5
+   },
+   "fixed_monthly": 0,
+   "now_day": 34,
+   "expect": {
+    "daily_burn": 60,
+    "basis": "records"
+   },
+   "source_test": "theBurnMovesTowardsTheRecordsDayByDay"
+  },
+  {
+   "id": "B08",
+   "name": "暂停不摊薄",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     120,
+     60
+    ],
+    [
+     121,
+     60
+    ],
+    [
+     122,
+     60
+    ],
+    [
+     123,
+     60
+    ],
+    [
+     124,
+     60
+    ],
+    [
+     125,
+     60
+    ],
+    [
+     126,
+     60
+    ],
+    [
+     127,
+     60
+    ],
+    [
+     128,
+     60
+    ],
+    [
+     129,
+     60
+    ],
+    [
+     130,
+     60
+    ],
+    [
+     131,
+     60
+    ],
+    [
+     132,
+     60
+    ],
+    [
+     133,
+     60
+    ],
+    [
+     134,
+     60
+    ],
+    [
+     135,
+     60
+    ],
+    [
+     136,
+     60
+    ],
+    [
+     137,
+     60
+    ],
+    [
+     138,
+     60
+    ],
+    [
+     139,
+     60
+    ],
+    [
+     140,
+     60
+    ],
+    [
+     141,
+     60
+    ],
+    [
+     142,
+     60
+    ],
+    [
+     143,
+     60
+    ],
+    [
+     144,
+     60
+    ],
+    [
+     145,
+     60
+    ],
+    [
+     146,
+     60
+    ],
+    [
+     147,
+     60
+    ],
+    [
+     148,
+     60
+    ],
+    [
+     149,
+     60
+    ],
+    [
+     150,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3044
+    },
+    "pauses": [
+     {
+      "start_day": 30,
+      "end_day": 120
+     }
+    ]
+   },
+   "fixed_monthly": 0,
+   "now_day": 150,
+   "expect": {
+    "daily_burn": 60,
+    "track_days": 61
+   },
+   "source_test": "thePausedStretchIsNotCountedAsSpendingNothing"
+  },
+  {
+   "id": "B09",
+   "name": "只逐笔，无暂停",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ]
+   ],
+   "fixed_monthly": 0,
+   "now_day": 10,
+   "expect": {
+    "daily_burn": 60,
+    "basis": "records"
+   },
+   "source_test": "withoutMonthlyRecordsWorkAsBefore"
+  },
+  {
+   "id": "B10",
+   "name": "空 14 天照常摊",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     31,
+     60
+    ],
+    [
+     32,
+     60
+    ],
+    [
+     33,
+     60
+    ],
+    [
+     34,
+     60
+    ],
+    [
+     35,
+     60
+    ],
+    [
+     36,
+     60
+    ],
+    [
+     37,
+     60
+    ],
+    [
+     38,
+     60
+    ],
+    [
+     39,
+     60
+    ],
+    [
+     40,
+     60
+    ],
+    [
+     41,
+     60
+    ],
+    [
+     42,
+     60
+    ],
+    [
+     43,
+     60
+    ],
+    [
+     44,
+     60
+    ],
+    [
+     45,
+     60
+    ],
+    [
+     46,
+     60
+    ],
+    [
+     47,
+     60
+    ],
+    [
+     48,
+     60
+    ],
+    [
+     49,
+     60
+    ],
+    [
+     50,
+     60
+    ],
+    [
+     51,
+     60
+    ],
+    [
+     52,
+     60
+    ],
+    [
+     53,
+     60
+    ],
+    [
+     54,
+     60
+    ],
+    [
+     55,
+     60
+    ],
+    [
+     56,
+     60
+    ],
+    [
+     57,
+     60
+    ],
+    [
+     58,
+     60
+    ],
+    [
+     59,
+     60
+    ],
+    [
+     60,
+     60
+    ]
+   ],
+   "fixed_monthly": 0,
+   "now_day": 74,
+   "expect": {
+    "gap_days": 0,
+    "daily_burn": 48.648648648648646
+   },
+   "source_test": "fourteenQuietDaysStillCount"
+  },
+  {
+   "id": "B11",
+   "name": "断档停住",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     31,
+     60
+    ],
+    [
+     32,
+     60
+    ],
+    [
+     33,
+     60
+    ],
+    [
+     34,
+     60
+    ],
+    [
+     35,
+     60
+    ],
+    [
+     36,
+     60
+    ],
+    [
+     37,
+     60
+    ],
+    [
+     38,
+     60
+    ],
+    [
+     39,
+     60
+    ],
+    [
+     40,
+     60
+    ],
+    [
+     41,
+     60
+    ],
+    [
+     42,
+     60
+    ],
+    [
+     43,
+     60
+    ],
+    [
+     44,
+     60
+    ],
+    [
+     45,
+     60
+    ],
+    [
+     46,
+     60
+    ],
+    [
+     47,
+     60
+    ],
+    [
+     48,
+     60
+    ],
+    [
+     49,
+     60
+    ],
+    [
+     50,
+     60
+    ],
+    [
+     51,
+     60
+    ],
+    [
+     52,
+     60
+    ],
+    [
+     53,
+     60
+    ],
+    [
+     54,
+     60
+    ],
+    [
+     55,
+     60
+    ],
+    [
+     56,
+     60
+    ],
+    [
+     57,
+     60
+    ],
+    [
+     58,
+     60
+    ],
+    [
+     59,
+     60
+    ],
+    [
+     60,
+     60
+    ]
+   ],
+   "fixed_monthly": 0,
+   "now_day": 100,
+   "expect": {
+    "gap_days": 26,
+    "track_days": 100,
+    "daily_burn": 48.648648648648646
+   },
+   "source_test": "aLongerGapStopsTheBurnFromFalling"
+  },
+  {
+   "id": "B12",
+   "name": "一月一记不被截断",
+   "entries": [
+    [
+     1,
+     3000
+    ],
+    [
+     31,
+     3000
+    ],
+    [
+     61,
+     3000
+    ]
+   ],
+   "fixed_monthly": 0,
+   "now_day": 61,
+   "expect": {
+    "gap_days": 0,
+    "daily_burn": 147.54098360655738,
+    "records_too_few": false
+   },
+   "source_test": "monthlyLoggersAreNotCutShort"
+  },
+  {
+   "id": "B13",
+   "name": "大额摊 90 天",
+   "entries": [
+    [
+     1,
+     5000
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ],
+    [
+     31,
+     60
+    ],
+    [
+     32,
+     60
+    ],
+    [
+     33,
+     60
+    ],
+    [
+     34,
+     60
+    ],
+    [
+     35,
+     60
+    ],
+    [
+     36,
+     60
+    ],
+    [
+     37,
+     60
+    ],
+    [
+     38,
+     60
+    ],
+    [
+     39,
+     60
+    ],
+    [
+     40,
+     60
+    ]
+   ],
+   "fixed_monthly": 0,
+   "now_day": 40,
+   "expect": {
+    "spread_lumps": 5000,
+    "daily_burn": 114.05555555555556
+   },
+   "source_test": "lumpsAreSpreadOverTheRecordedSpan"
+  }
+ ],
+ "impact_cases": [
+  {
+   "id": "I01",
+   "name": "按月时模拟不改日均",
+   "entries": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     60
+    ],
+    [
+     4,
+     60
+    ],
+    [
+     5,
+     60
+    ],
+    [
+     6,
+     60
+    ],
+    [
+     7,
+     60
+    ],
+    [
+     8,
+     60
+    ],
+    [
+     9,
+     60
+    ],
+    [
+     10,
+     60
+    ],
+    [
+     11,
+     60
+    ],
+    [
+     12,
+     60
+    ],
+    [
+     13,
+     60
+    ],
+    [
+     14,
+     60
+    ],
+    [
+     15,
+     60
+    ],
+    [
+     16,
+     60
+    ],
+    [
+     17,
+     60
+    ],
+    [
+     18,
+     60
+    ],
+    [
+     19,
+     60
+    ],
+    [
+     20,
+     60
+    ],
+    [
+     21,
+     60
+    ],
+    [
+     22,
+     60
+    ],
+    [
+     23,
+     60
+    ],
+    [
+     24,
+     60
+    ],
+    [
+     25,
+     60
+    ],
+    [
+     26,
+     60
+    ],
+    [
+     27,
+     60
+    ],
+    [
+     28,
+     60
+    ],
+    [
+     29,
+     60
+    ],
+    [
+     30,
+     60
+    ]
+   ],
+   "tracking": {
+    "method": "monthly",
+    "months": {
+     "2026-10": 3044
+    },
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 40,
+   "kind": "expense",
+   "amount": 5000,
+   "date_day": 40,
+   "expect": {
+    "new_daily_burn": 100,
+    "changes_tracking_start": false,
+    "new_freedom_days": 50
+   },
+   "source_test": "simulatingKeepsTheDailyBurn"
+  },
+  {
+   "id": "I02",
+   "name": "没数时模拟不出数",
+   "entries": [],
+   "tracking": {
+    "method": "monthly",
+    "months": {},
+    "start_month": "2026-10",
+    "pauses": [
+     {
+      "start_day": 1,
+      "end_day": null
+     }
+    ]
+   },
+   "now_day": 1,
+   "kind": "expense",
+   "amount": 100,
+   "date_day": 1,
+   "expect": {
+    "new_freedom": "insufficientData"
+   },
+   "source_test": "simulatingWithoutANumberStaysPending"
+  }
+ ],
+ "prompt_cases": [
+  {
+   "id": "P01",
+   "start_month": "2026-11",
+   "now": "2026-11-05T12:00",
+   "expect": {
+    "month": "2026-11",
+    "is_early": true
+   }
+  },
+  {
+   "id": "P02",
+   "start_month": "2026-11",
+   "written_3000": [
+    "2026-11"
+   ],
+   "now": "2026-11-05T12:00",
+   "expect": {
+    "month": "2026-11",
+    "amount": 3000
+   }
+  },
+  {
+   "id": "P03",
+   "start_month": "2026-11",
+   "written_3000": [
+    "2026-11"
+   ],
+   "now": "2026-12-03T12:00",
+   "expect": {
+    "month": "2026-12",
+    "is_early": true
+   }
+  },
+  {
+   "id": "P04",
+   "start_month": "2026-11",
+   "now": "2026-12-03T12:00",
+   "expect": {
+    "month": "2026-11",
+    "is_early": false
+   }
+  },
+  {
+   "id": "P05",
+   "start_month": "2026-11",
+   "written_3000": [
+    "2026-11"
+   ],
+   "now": "2027-03-15T12:00",
+   "expect": {
+    "month": "2027-02"
+   }
+  },
+  {
+   "id": "P06",
+   "start_month": "2026-12",
+   "now": "2026-12-03T12:00",
+   "expect": {
+    "month": "2026-12"
+   }
+  },
+  {
+   "id": "P07",
+   "start_month": "2027-01",
+   "now": "2027-01-03T12:00",
+   "expect": {
+    "month": "2027-01"
+   }
+  },
+  {
+   "id": "P08",
+   "start_month": "2026-11",
+   "now": "2026-11-27T12:00",
+   "expect": {
+    "month": "2026-11",
+    "is_early": true
+   }
+  },
+  {
+   "id": "P09",
+   "start_month": "2026-11",
+   "now": "2026-11-28T12:00",
+   "expect": {
+    "month": "2026-11",
+    "is_early": false
+   }
+  },
+  {
+   "id": "P10",
+   "start_month": "2026-11",
+   "now": "2026-11-30T12:00",
+   "expect": {
+    "month": "2026-11",
+    "is_early": false
+   }
+  }
+ ],
+ "switch_cases": [
+  {
+   "id": "W01",
+   "steps": "adopt(2026-11, 2026-11-15)",
+   "expect_prompt_at_2026-11-15": {
+    "month": "2026-11",
+    "amount": null
+   },
+   "note": "有记录的人切过来和新用户一样：问当月，不问上个月；expenses 第 1–30 天每天 60、第 46 天时 freedom 为 insufficientData。来源 switchingIsAFreshStartAtTheCurrentMonth"
+  },
+  {
+   "id": "W02",
+   "steps": "monthly{2026-11:3000} → switchBack(hasRecords:true, 2026-12-01) → adopt(2027-02, 2027-02-10)",
+   "expect_prompt_at_2027-02-10": {
+    "month": "2027-02"
+   },
+   "expect_monthly_average": 3000
+  },
+  {
+   "id": "W03",
+   "steps": "monthly{2026-10:3044, pause 从第 1 天} → switchBack(hasRecords:false, 第 10 天)",
+   "expect": {
+    "is_monthly": false,
+    "months_kept": true,
+    "last_pause_end_day": 10,
+    "switched_back_day": 10
+   }
+  },
+  {
+   "id": "W04",
+   "steps": "W03 之后 adopt(2026-10, 第 20 天)",
+   "expect": {
+    "is_monthly": true,
+    "pauses_count": 2,
+    "switched_back_day": null
+   }
+  },
+  {
+   "id": "W05",
+   "steps": "{2026-11, 2026-12 各 3000} → set(nil, 2026-12)",
+   "expect": {
+    "written_months": [
+     "2026-11"
+    ],
+    "monthly_average": 3000
+   }
+  }
+ ],
+ "restore_cases": [
+  {
+   "id": "R01",
+   "backup": null,
+   "stored": "用过",
+   "replacing": true,
+   "expect": "回到逐笔记账（空）"
+  },
+  {
+   "id": "R02",
+   "backup": "有",
+   "stored": "用过",
+   "replacing": true,
+   "expect": "以备份为准"
+  },
+  {
+   "id": "R03",
+   "backup": null,
+   "stored": "用过",
+   "replacing": false,
+   "expect": "不动本机"
+  },
+  {
+   "id": "R04",
+   "backup": "有",
+   "stored": "用过",
+   "replacing": false,
+   "expect": "不动本机"
+  },
+  {
+   "id": "R05",
+   "backup": "有",
+   "stored": "空",
+   "replacing": false,
+   "expect": "用备份"
+  }
+ ],
+ "backup_cases": [
+  {
+   "id": "J01",
+   "name": "坏值丢掉，不拦整份",
+   "input": {
+    "method": "unknown",
+    "months": {
+     "2026-10": 3000,
+     "oops": 10,
+     "2026-11": -5
+    },
+    "start_month": "bad",
+    "pauses": [
+     {
+      "start": "nope"
+     }
+    ]
+   },
+   "expect": {
+    "method": "entries",
+    "months": {
+     "2026-10": 3000
+    },
+    "start_month": null,
+    "pauses": []
+   },
+   "source_test": "badBackupValuesAreDropped"
+  },
+  {
+   "id": "J02",
+   "name": "没用过不写字段",
+   "expect": "导出的 JSON 不含 monthly_tracking，导入后为空",
+   "source_test": "theBackupCarriesIt"
+  }
+ ],
+ "home_slots": [
+  {
+   "stored": "",
+   "has_passive": false,
+   "monthly": true,
+   "expect": [
+    "daily",
+    "base"
+   ]
+  },
+  {
+   "stored": "",
+   "has_passive": true,
+   "monthly": true,
+   "expect": [
+    "daily",
+    "passive"
+   ]
+  },
+  {
+   "needs_records": [
+    "month",
+    "today",
+    "track",
+    "todayBar"
+   ],
+   "not_needs_records": [
+    "daily",
+    "base",
+    "passive",
+    "next"
+   ]
+  }
+ ],
+ "month_names": [
+  {
+   "month": "2026-11",
+   "now": "2026-12-03",
+   "zh": "11 月"
+  },
+  {
+   "month": "2026-12",
+   "now": "2027-01-03",
+   "zh": "2026 年 12 月"
+  }
+ ],
+ "history_cases": {
+  "shares": {
+   "input": {
+    "fixed": 300,
+    "categories": {
+     "午餐": 500,
+     "交通": 200,
+     "娱乐": 80,
+     "早餐": 20,
+     "购物": -30
+    }
+   },
+   "expect": [
+    "午餐",
+    "fixed",
+    "交通",
+    "娱乐",
+    "早餐"
+   ]
+  },
+  "color_slots": {
+   "kinds": [
+    "购物",
+    "午餐",
+    "fixed",
+    "交通",
+    "旧名字"
+   ],
+   "order": [
+    "早餐",
+    "午餐",
+    "晚餐",
+    "交通",
+    "购物"
+   ],
+   "palette_10": {
+    "午餐": 0,
+    "交通": 1,
+    "购物": 2,
+    "旧名字": 3,
+    "fixed": 4
+   },
+   "palette_4": {
+    "fixed": 0
+   }
+  },
+  "days_label": [
+   [
+    0.02,
+    "< 0.1 天"
+   ],
+   [
+    2.64,
+    "≈ 2.6 天"
+   ],
+   [
+    1,
+    "≈ 1 天"
+   ],
+   [
+    12.4,
+    "≈ 12 天"
+   ]
+  ],
+  "fixed_group": "月供扣款（loanID 非空）不论分类名是什么都进 fixed；同名日常分类不混入。见 loanPaymentsGroupAsFixedAndStayOutOfCategories"
+ }
+}

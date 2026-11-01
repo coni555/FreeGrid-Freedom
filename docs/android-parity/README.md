@@ -13,6 +13,7 @@
 | [安卓差距](android-gaps.md) | 已有、部分、缺失、错误假设；按风险安排顺序 |
 | [验收案例](acceptance.md) | 可交给 AI 实现的操作与结果、已有测试入口、人工验收 |
 | [2.1 增量与范围](v2.1-update.md) | 本次新增能力、旧结论修正、2.2 / 2.3 待定范围 |
+| [2.2 增量](v2.2-update.md) | 2.2 同步范围、规则、页面对照和验收；[Gemini 任务书](v2.2-gemini-task.md)、[计算样例](fixtures/v2.2-cases.json) |
 | [开发顺序与任务书](implementation.md) | 内部分阶段开发、一次完整上线、完成条件与待决定项 |
 | [计算样例](fixtures/calculation-cases.json) | 固定日期的合成输入和数值期望，不含真实账本 |
 | [完整字段备份样例](fixtures/current-backup.json) | 合成的当前格式样例，用于字段保留检查 |
