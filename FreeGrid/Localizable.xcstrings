@@ -1287,12 +1287,12 @@
         }
       }
     },
-    "**查找**：右上角搜索金额或备注。先在卡片里展开、点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
+    "**查找**：右上角搜索分类、备注或金额。先在卡片里展开、点中一类再搜，就只在这一类里找。**Pro**：搜到的支出可以一起移到别的分类，比如点「其他」、搜「咖啡」，把它们移到新建的「咖啡」。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Find**: search amounts or notes at the top right. Expand the card and tap a category first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
+            "value": "**Find**: search categories, notes, or amounts at the top right. Expand the card and tap a category first to search only within it. **Pro**: move the expenses you find to another category together, for example tap Other, search “coffee”, and move them to a new Coffee category."
           }
         }
       }
@@ -7220,12 +7220,12 @@
         }
       }
     },
-    "搜索备注或金额": {
+    "搜索分类、备注或金额": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search notes or amounts"
+            "value": "Search category, note, amount"
           }
         }
       }
@@ -8958,16 +8958,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "No matching entries"
-          }
-        }
-      }
-    },
-    "没有匹配的记录\n想按分类看，点月份卡片里的分类": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No matching entries\nTo browse by category, tap one in the month card"
           }
         }
       }
@@ -11902,22 +11892,22 @@
         }
       }
     },
-    "输入备注或金额": {
+    "输入分类、备注或金额": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Type a note or amount"
+            "value": "Type a category, note, or amount"
           }
         }
       }
     },
-    "输入备注或金额，或者点一个常写的备注": {
+    "输入分类、备注或金额，或者点一个常写的备注": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Type a note or amount, or tap a note you use often"
+            "value": "Type a category, note, or amount, or tap a note you use often"
           }
         }
       }

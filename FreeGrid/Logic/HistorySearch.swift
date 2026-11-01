@@ -101,7 +101,7 @@ nonisolated enum HistorySearch {
                 } else {
                     let amount = abs(record.amount)
                     entries.append(Entry(row: Row(record: record, locale: locale, calendar: calendar), month: HistoryMonth(containing: record.date, calendar: calendar), fields: [
-                        record.key.isIncome ? record.title.lowercased() : "",
+                        record.title.lowercased(),
                         record.note.lowercased(),
                         amount.formatted(.number.precision(.fractionLength(0...2)).locale(locale)),
                         amount.formatted(.number.grouping(.never).precision(.fractionLength(0...2)).locale(locale)),

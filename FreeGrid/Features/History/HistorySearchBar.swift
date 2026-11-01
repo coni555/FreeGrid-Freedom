@@ -30,7 +30,7 @@ struct HistorySearchBar: View {
                     .accessibilityLabel("只在\(name)里搜索，点按改为搜索全部")
                     .accessibilityIdentifier("history-search-filter")
                 }
-                TextField("搜索备注或金额", text: Binding(get: { search.text }, set: { search.setText($0) }))
+                TextField("搜索分类、备注或金额", text: Binding(get: { search.text }, set: { search.setText($0) }))
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(Color.ink)
                     .textFieldStyle(.plain)

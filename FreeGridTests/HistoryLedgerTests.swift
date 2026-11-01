@@ -102,12 +102,14 @@ struct HistoryLedgerTests {
         #expect(HistoryLedger.daysLabel(12.4) == "≈ 12 天")
     }
 
-    @Test func searchMatchesNoteIncomeSourceAndAmountButNotExpenseCategory() {
+    @Test func searchMatchesCategoryNoteIncomeSourceAndAmount() {
         let all = HistoryLedger.transactions(expenses: expenses, incomes: incomes, scope: .allTime)
         #expect(HistoryLedger.search(all, query: "clash").map(\.note) == ["Clash"])
         #expect(HistoryLedger.search(all, query: "clash 22.8").map(\.cashChange) == [-22.8])
-        // 分类交给筛选：搜分类名不命中
-        #expect(HistoryLedger.search(all, query: "午餐").isEmpty)
+        // 没写备注的支出靠分类也要搜得到
+        let lunch = all.filter { $0.title == "午餐" }
+        #expect(!lunch.isEmpty)
+        #expect(HistoryLedger.search(all, query: "午餐").map(\.id) == lunch.map(\.id))
         #expect(HistoryLedger.search(all, query: "13").map(\.cashChange) == [-13])
         #expect(HistoryLedger.search(all, query: "1234.5").map(\.note) == ["高铁票"])
         #expect(HistoryLedger.search(all, query: "1,234").map(\.note) == ["高铁票"])
