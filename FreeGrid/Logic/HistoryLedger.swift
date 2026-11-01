@@ -109,15 +109,14 @@ enum HistoryLedger {
         }
     }
 
-    /// 空格分开的每个词都要命中备注、收入来源或金额中的一处；不分大小写。
-    /// 不搜支出分类：分类只有固定几个，按分类看是筛选的事，搜它只会命中上千笔。
+    /// 空格分开的每个词都要命中分类、收入来源、备注或金额中的一处；不分大小写。
     static func search(_ transactions: [LedgerTransaction], query: String) -> [LedgerTransaction] {
         let terms = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return transactions }
         return transactions.filter { transaction in
             let amount = abs(transaction.cashChange)
             let fields = [
-                transaction.kind == .income ? transaction.title.lowercased() : "",
+                transaction.displayTitle.lowercased(),
                 transaction.note.lowercased(),
                 // 同时接受 "1,234.5" 与 "1234.5" 两种输入
                 amount.formatted(.number.precision(.fractionLength(0...2))),

@@ -81,7 +81,7 @@
 | A45 | 权益确认失效，账本有账户、贷款、固定支出、分类 | 账户保留计算、贷款暂停、固定继续、分类可选；有需整理内容时提示一次 | BackToFreeTests |
 | A46 | 新安装、走完引导、进入设置 | 不强弹购买页；第一次手动支出后正常首页讲解 | AppGuide、ContentView、ProIntroTests |
 | A47 | 不连续7个手动记账日，夹杂自动扣款 | 仅最早7个手动日画柱；日均与天数等于当前首页；只弹一次 | FirstWeekRecapTests |
-| A48 | 备注命中、收入来源命中、金额命中、只分类标题命中 | 前三者在当前筛选内返回；第四种不因标题被全文匹配 | HistorySearchTests |
+| A48 | 备注命中、收入来源命中、金额命中、只分类标题命中 | 四种都在当前筛选内返回；多个词可以各命中一处（「早餐 豆浆」） | HistorySearchTests |
 | A49 | 搜索A立刻改B，A最后才完成；结果中编辑/撤销 | 始终显示B正确结果；修改后缓存失效 | HistorySearchTests、HistorySearchRegressionUITests |
 | A50 | 29.99/30/180/365天与covered查看自由卡 | 纸/银/香槟/黑/∞；无金额；免费不可导出 | FreedomCardTests |
 | A51 | 模拟支出/收入、重播、关闭、跨单位、减少动态 | 实际账本字节/状态不变；单位锁定；减少动态有静态结果 | TransactionImpactTests；Android simulation_grid_demo_test |

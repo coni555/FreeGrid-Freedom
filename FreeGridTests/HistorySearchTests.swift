@@ -159,6 +159,38 @@ struct HistorySearchTests {
         #expect(try prepared.search("0").months.flatMap(\.keys).map(\.id) == [b.id])
     }
 
+    /// 用户的原话：输入「早餐」，不能因为备注里没写早餐就找不到。
+    @Test func typingACategoryFindsItsExpensesEvenWithoutAMatchingNote() throws {
+        let plain = Expense(amount: 8, category: "早餐", note: "", date: TestSupport.day("2026-10-03"))
+        let noted = Expense(amount: 20, category: "早餐", note: "豆浆", date: TestSupport.day("2026-10-02"))
+        let lunch = Expense(amount: 30, category: "午餐", note: "面条", date: TestSupport.day("2026-10-01"))
+        let prepared = try index([plain, noted, lunch])
+        #expect(try prepared.search("早餐").months.flatMap(\.keys).map(\.id) == [plain.id, noted.id])
+        #expect(try prepared.search("早餐").summary.expense == 28)
+        // 只记得一个字也算；每个词可以各命中一处
+        #expect(try prepared.search("早").summary.count == 2)
+        #expect(try prepared.search("早餐 豆浆").months.flatMap(\.keys).map(\.id) == [noted.id])
+        #expect(try prepared.search("早餐 20").months.flatMap(\.keys).map(\.id) == [noted.id])
+        #expect(try prepared.search("早餐 面条").summary.count == 0)
+        // 备注照常能搜，也还在当前这一类里找
+        #expect(try prepared.search("面条").months.flatMap(\.keys).map(\.id) == [lunch.id])
+        #expect(try prepared.search("早餐", filter: .category("午餐")).summary.count == 0)
+        #expect(try prepared.search("早餐", filter: .category("早餐")).summary.count == 2)
+    }
+
+    /// 界面上看到什么名字就能搜什么：默认分类按当前语言，自建分类和贷款名原样。
+    @Test func categorySearchUsesTheNameShownOnScreen() throws {
+        let custom = Expense(amount: 12, category: "Coffee Shop", note: "")
+        let loan = Expense(amount: 3000, category: "房贷", note: LoanStore.autoPaymentNote)
+        loan.loanID = UUID()
+        let prepared = try index([custom, loan])
+        #expect(try prepared.search("coffee").months.flatMap(\.keys).map(\.id) == [custom.id])
+        #expect(try prepared.search("房贷").months.flatMap(\.keys).map(\.id) == [loan.id])
+        let record = LedgerTransaction.expense(Expense(amount: 5, category: "午餐", note: "")).searchRecord
+        let shown = HistorySearch.Record(key: record.key, date: record.date, amount: record.amount, title: "Lunch", note: "")
+        #expect(try HistorySearch.Index(expenses: [shown], incomes: []).search("lunch").summary.count == 1)
+    }
+
     @Test func preparingAgainReusesUnchangedRowsAndUpdatesAllSearchableFields() throws {
         let a = Expense(amount: 12, category: "交通", note: "旧备注")
         let b = Income(amount: 100, source: "旧来源")
@@ -173,6 +205,8 @@ struct HistorySearchTests {
         let next = try index([a], [b], previous: first)
         #expect(next.preparedCount == 2)
         #expect(try next.search("旧备注").summary.count == 0)
+        #expect(try next.search("交通").summary.count == 0)
+        #expect(try next.search("购物").summary.count == 1)
         #expect(try next.search("新备注 99", filter: .category("购物")).summary.expense == -99)
         #expect(try next.search("新来源").summary.count == 1)
         #expect(try next.search("新备注").months.first?.month == HistoryMonth(year: 2024, month: 1))

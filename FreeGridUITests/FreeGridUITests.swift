@@ -1055,7 +1055,7 @@ final class FreeGridUITests: XCTestCase {
     }
 
     /// 记支出表单打开时不抢键盘；分类从弹出菜单里选。
-    /// 搜索刚点开时先等输入，不把全部记录铺出来；只搜备注和金额。
+    /// 搜索刚点开时先等输入，不把全部记录铺出来；分类、备注、金额都能搜。
     @MainActor
     func testExpenseSheetOpensWithoutKeyboardAndSearchWaitsForAQuery() {
         let app = XCUIApplication()
@@ -1078,12 +1078,16 @@ final class FreeGridUITests: XCTestCase {
         app.tabBars.buttons["明细"].tap()
         XCTAssertTrue(app.staticTexts["午餐"].waitForExistence(timeout: 5))
         app.buttons["搜索"].tap()
-        XCTAssertTrue(app.staticTexts["输入备注或金额"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["输入分类、备注或金额"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["午餐"].exists)
-        // 分类不归搜索管；金额能搜到，结果按月收着，只有一笔时直接展开
+        // 这笔没写备注，靠分类和金额都搜得到；结果按月收着，只有一笔时直接展开
         let field = app.textFields["history-search-field"]
         field.typeText("午餐")
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "点月份卡片里的分类")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["找到 1 笔"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["午餐"].exists)
+        app.buttons["清空搜索"].tap()
+        field.typeText("晚餐")
+        XCTAssertTrue(app.staticTexts["没有匹配的记录"].waitForExistence(timeout: 3))
         app.buttons["清空搜索"].tap()
         field.typeText("20")
         XCTAssertTrue(app.staticTexts["找到 1 笔"].waitForExistence(timeout: 3))

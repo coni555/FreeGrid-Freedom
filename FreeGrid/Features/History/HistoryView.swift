@@ -321,15 +321,7 @@ struct HistoryView: View {
                     searchSuggestions(search.suggestions)
                 } else if let result = search.result {
                     if result.summary.count == 0 {
-                        listMessage(
-                            ExpenseCategory.canonical.contains {
-                                $0.contains(result.query)
-                                    || ExpenseCategory.displayName($0).localizedCaseInsensitiveContains(result.query)
-                            }
-                                ? String(localized: "没有匹配的记录\n想按分类看，点月份卡片里的分类")
-                                : String(localized: "没有匹配的记录")
-                        )
-                        .multilineTextAlignment(.center)
+                        listMessage(String(localized: "没有匹配的记录"))
                     } else {
                         searchSummary(result)
                         moveButton(result)
@@ -485,10 +477,10 @@ struct HistoryView: View {
     @ViewBuilder
     private func searchSuggestions(_ notes: [String]) -> some View {
         if notes.isEmpty {
-            listMessage(String(localized: "输入备注或金额"))
+            listMessage(String(localized: "输入分类、备注或金额"))
         } else {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("输入备注或金额，或者点一个常写的备注")
+                Text("输入分类、备注或金额，或者点一个常写的备注")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(Color.inkFaint)
                     .padding(.horizontal, Spacing.lg)
