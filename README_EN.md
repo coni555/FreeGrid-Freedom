@@ -9,7 +9,7 @@
 ![Platform](https://img.shields.io/badge/iOS_17.6+_·_macOS_15.6+-000000.svg?logo=apple)
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-%2B%20SwiftData-blue.svg?logo=swift)
 ![Offline](https://img.shields.io/badge/100%25-Local_%C2%B7_No_Network-2ea44f.svg)
-![License](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-lightgrey.svg)
+![License](https://img.shields.io/badge/License-Source--available%20(view%20only)-lightgrey.svg)
 
 <p align="center"><b>▶ Product Demo (22 seconds)</b></p>
 
@@ -106,7 +106,7 @@ Privacy is FreeGrid's most important design constraint and a promise of the publ
 
 FreeGrid began as an expense tracker I wanted for myself. I use an iPhone, so I started with a native iOS app and gradually expanded it to macOS and Windows.
 
-Honestly, I am a **beginner programmer**. I built and iterated on this app with AI coding partners: Claude Code handled most of the earlier collaboration, while [OpenAI Codex](https://github.com/codex) later joined for code review, testing, and release maintenance. I learned a great deal along the way. If you have more experience, contributions are especially welcome — PRs, issues, and discussions are all appreciated.
+Honestly, I am a **beginner programmer**. I built and iterated on this app with AI coding partners: Claude Code handled most of the earlier collaboration, while [OpenAI Codex](https://github.com/codex) later joined for code review, testing, and release maintenance. I learned a great deal along the way. Ideas and bug reports are welcome in issues and discussions, or by email at coni555666@gmail.com.
 
 The native iOS and macOS app is available on the App Store. I use the same public production build as everyone else, and this repository contains its corresponding public source code. There is no hidden private-feature branch under active maintenance.
 
@@ -135,9 +135,9 @@ This revision was validated with Xcode 26.6. Select an iOS simulator or device a
 
 ## License
 
-**MIT License + [Commons Clause](https://commonsclause.com/)** — the source is public and may be used, modified, studied, and redistributed, but **the software may not be sold**. See [LICENSE](LICENSE) for the complete terms.
+**Source-available, view only** (from November 8, 2026): you may read the code to see how FreeGrid works, but you may not use, copy, modify, distribute, or sell it, or build and publish apps from it, without the author's written permission. See [LICENSE](LICENSE) for the full terms.
 
-> Because Commons Clause is attached, this project is technically **source-available**, not open source under the OSI definition. The distinction is the restriction on commercial sale; the code remains fully public to read, modify, and use personally.
+> Versions published before November 8, 2026 (up to FreeGrid 2.2.1) remain under the MIT License with the [Commons Clause](https://commonsclause.com/) condition. The new terms apply only to what is published from that date on.
 
 ---
 

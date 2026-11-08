@@ -11,7 +11,7 @@
 ![Platform](https://img.shields.io/badge/iOS_17.6+_·_macOS_15.6+-000000.svg?logo=apple)
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-%2B%20SwiftData-blue.svg?logo=swift)
 ![Offline](https://img.shields.io/badge/100%25-本地·零网络-2ea44f.svg)
-![License](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-lightgrey.svg)
+![License](https://img.shields.io/badge/License-Source--available%20(view%20only)-lightgrey.svg)
 
 <p align="center"><b>▶ 产品演示（22 秒）</b></p>
 
@@ -107,7 +107,7 @@ FreeGrid 是一个**纯本地、无账号、无网络**的 iOS / macOS 记账 Ap
 
 FreeGrid 最早只是我自己想用的记账工具。我用 iPhone，所以从 iOS 原生写起，后来才慢慢延伸到 macOS 和 Windows。
 
-说实话我是个**编程新手**——这个 App 是我和 AI 编程伙伴一起迭代出来的：前期主要由 Claude Code 协作，后续也由 [OpenAI Codex](https://github.com/codex) 参与代码审查、测试与发布维护，过程里学到了非常多。所以如果你是大佬，**特别欢迎一起共创维护**：PR / issue / discussion 都欢迎。
+说实话我是个**编程新手**——这个 App 是我和 AI 编程伙伴一起迭代出来的：前期主要由 Claude Code 协作，后续也由 [OpenAI Codex](https://github.com/codex) 参与代码审查、测试与发布维护，过程里学到了非常多。想法和 bug 欢迎通过 issue / discussion 告诉我，也可以发邮件到 coni555666@gmail.com。
 
 原生 iOS / macOS 版现已上架 App Store。开发者本人日常使用的也是同一份公开生产版本；这个仓库就是对应的公开源码，不维护隐藏的私人功能分支。
 
@@ -136,9 +136,9 @@ cd FreeGrid-Freedom && open FreeGrid.xcodeproj
 
 ## 许可
 
-**MIT License + [Commons Clause](https://commonsclause.com/)**——源码公开，允许自由使用、修改、学习、非商业分发，但**不得出售本软件**。完整条款见 [LICENSE](LICENSE)。
+**源码公开、只供阅读**（2026-11-08 起）：可以看代码、了解 FreeGrid 怎么算，但未经作者书面许可，不得使用、复制、修改、分发或出售，也不得用它构建并发布应用。完整条款见 [LICENSE](LICENSE)。
 
-> 注：加了 Commons Clause 后，严格意义上属于「源码公开（source-available）」而非 OSI 定义的「开源」——区别仅在于禁止商业出售，代码本身完全公开可读、可改、可自用。
+> 2026-11-08 之前公开的版本（截至 2.2.1）仍按当时的 MIT + [Commons Clause](https://commonsclause.com/) 条款授权，新条款只管之后公开的内容。
 
 ---
 

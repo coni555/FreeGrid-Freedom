@@ -14,7 +14,7 @@ FreeGrid 是一款账本存在本机的记账应用。我们对隐私的承诺�
 
 由于我们不收集任何数据,也就不存在数据共享、出售或第三方访问。
 
-如有疑问,可通过 GitHub Issues 联系:https://github.com/coni555/FreeGrid-Freedom/issues
+如有疑问,可发邮件到 coni555666@gmail.com,或通过 GitHub Issues 联系:https://github.com/coni555/FreeGrid-Freedom/issues
 
 ## English
 
@@ -28,4 +28,4 @@ FreeGrid is an expense-tracking app whose ledger stays on your device. Our priva
 
 Because we collect no data, there is no data sharing, selling, or third-party access.
 
-Contact: https://github.com/coni555/FreeGrid-Freedom/issues
+Contact: coni555666@gmail.com, or https://github.com/coni555/FreeGrid-Freedom/issues
